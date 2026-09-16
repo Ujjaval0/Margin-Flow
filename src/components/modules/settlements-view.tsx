@@ -1,0 +1,635 @@
+"use client";
+
+import React, { useState } from "react";
+import {
+  Settlement,
+  Marketplace,
+  DeductionCategory,
+} from "@/domain/types";
+import { usePlatform } from "@/domain/store";
+import { formatINR } from "@/lib/utils";
+import { DataTable } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
+import { Plus, X, Clock, AlertCircle, CheckCircle2, ChevronRight, Banknote } from "lucide-react";
+
+interface SettlementsViewProps {
+  selectedMarketplace: Marketplace | "ALL";
+}
+
+export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
+  const { settlements, orders, addSettlement, settlementAging } = usePlatform();
+
+  const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null);
+  const [selectedAgingTab, setSelectedAgingTab] = useState<"ALL" | "0-7" | "8-14" | "14+">("ALL");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  // New settlement state
+  const [settlementBatchId, setSettlementBatchId] = useState("AZ-SEP-BATCH-02");
+  const [marketplace, setMarketplace] = useState<Marketplace>("Amazon India");
+  const [orderId, setOrderId] = useState(orders[0]?.id || "");
+  const [grossAmount, setGrossAmount] = useState<number>(1000);
+  const [commission, setCommission] = useState<number>(120);
+  const [logistics, setLogistics] = useState<number>(65);
+  const [fixedFee, setFixedFee] = useState<number>(25);
+  const [returnFee, setReturnFee] = useState<number>(0);
+  const [tcsTds, setTcsTds] = useState<number>(11);
+  const [declaredNetPayout, setDeclaredNetPayout] = useState<number>(779);
+
+  const filteredSettlements = settlements.filter(
+    (s) => selectedMarketplace === "ALL" || s.marketplace === selectedMarketplace
+  );
+
+  const handleCreateSettlement = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const deductions = [
+      { category: "COMMISSION" as DeductionCategory, name: "Marketplace Commission", amount: Number(commission) },
+      { category: "LOGISTICS" as DeductionCategory, name: "Logistics Delivery Fee", amount: Number(logistics) },
+      { category: "FIXED_FEE" as DeductionCategory, name: "Closing / Fixed Fee", amount: Number(fixedFee) },
+    ];
+    if (returnFee > 0) {
+      deductions.push({
+        category: "RETURN_SHIPPING" as DeductionCategory,
+        name: "Reverse Return Fee",
+        amount: Number(returnFee),
+      });
+    }
+
+    const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
+    const calculatedNet = grossAmount - totalDeductions - tcsTds;
+    const isMatched = Math.abs(calculatedNet - declaredNetPayout) <= 0.05;
+
+    const newSettlement: Settlement = {
+      id: `SET-${Date.now().toString().slice(-4)}`,
+      settlementBatchId,
+      marketplace,
+      settlementDate: new Date().toISOString().split("T")[0],
+      orderId,
+      grossAmount: Number(grossAmount),
+      deductions,
+      tcsTdsTax: Number(tcsTds),
+      netSettlement: Number(declaredNetPayout),
+      reconciliationStatus: isMatched ? "RECONCILED" : "MISMATCH_FLAGGED",
+      discrepancyAmount: isMatched ? 0 : Math.round(Math.abs(calculatedNet - declaredNetPayout) * 100) / 100,
+      bankTxRef: `CMS-HDFC-${Date.now().toString().slice(-6)}`,
+    };
+
+    addSettlement(newSettlement);
+    setIsCreateOpen(false);
+  };
+
+  const columns: ColumnDef<Settlement>[] = [
+    {
+      accessorKey: "id",
+      header: "Settlement / Batch",
+      cell: ({ row }) => (
+        <div>
+          <span className="font-mono font-semibold text-[#1D1D1F] block text-xs">
+            {row.original.id}
+          </span>
+          <span className="font-mono text-[11px] text-[#86868B]">
+            {row.original.settlementBatchId}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "marketplace",
+      header: "Channel",
+      cell: ({ row }) => (
+        <span className="text-xs text-[#6E6E73] font-medium">
+          {row.original.marketplace}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "orderId",
+      header: "Linked Order",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-[#1D1D1F]">
+          {row.original.orderId}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "grossAmount",
+      header: "Gross Payout",
+      cell: ({ row }) => (
+        <span className="font-mono text-[#1D1D1F] text-xs">
+          {formatINR(row.original.grossAmount)}
+        </span>
+      ),
+    },
+    {
+      id: "deductionsTotal",
+      header: "Total Deductions",
+      cell: ({ row }) => {
+        const total = row.original.deductions.reduce((sum, d) => sum + d.amount, 0);
+        return (
+          <span className="font-mono text-[#D70015] text-xs">
+            -{formatINR(total)}
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: "tcsTdsTax",
+      header: "TCS / TDS Withheld",
+      cell: ({ row }) => (
+        <span className="font-mono text-[#86868B] text-xs">
+          {formatINR(row.original.tcsTdsTax)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "netSettlement",
+      header: "Bank Deposit",
+      cell: ({ row }) => (
+        <span className="font-mono font-semibold text-[#288548] text-xs">
+          {formatINR(row.original.netSettlement)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "reconciliationStatus",
+      header: "Reconciliation",
+      cell: ({ row }) => {
+        const isReconciled = row.original.reconciliationStatus === "RECONCILED";
+        return (
+          <div className="flex items-center gap-1.5 text-xs">
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isReconciled ? "bg-emerald-500" : "bg-amber-500"
+              }`}
+            />
+            <span className="text-[#1D1D1F] font-medium">
+              {isReconciled ? "Balanced" : "Flagged"}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Detail",
+      cell: ({ row }) => {
+        const s = row.original;
+        return (
+          <button
+            onClick={() => setSelectedSettlement(s)}
+            className="px-3 py-1 rounded-full bg-black/[0.04] hover:bg-black/[0.08] text-[#1D1D1F] font-medium text-[11px] transition"
+          >
+            Breakdown
+          </button>
+        );
+      },
+    },
+  ];
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
+            Marketplace Settlements
+          </h1>
+          <p className="text-xs text-[#86868B] mt-0.5">
+            Decoupled cash tracking: Distinguishes orders placed from actual bank payouts and fee deductions.
+          </p>
+        </div>
+        <button
+          onClick={() => setIsCreateOpen(true)}
+          className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition"
+        >
+          <Plus className="w-3.5 h-3.5" strokeWidth={2} />
+          <span>Record Settlement</span>
+        </button>
+      </div>
+
+      {/* ─── Cash Flow Forensics: Settlement Aging Brackets ─── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Settlement Aging &amp; Cash Flow Pipeline
+            </h2>
+            <p className="text-[11px] text-slate-400">
+              {settlementAging.totalUnsettledOrders} orders pending payout • Total Outstanding: {formatINR(settlementAging.totalOutstandingAmount)}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-full text-xs">
+            <button
+              onClick={() => setSelectedAgingTab("ALL")}
+              className={`px-3 py-1 rounded-full text-[11px] font-medium transition ${
+                selectedAgingTab === "ALL" ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500"
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setSelectedAgingTab("0-7")}
+              className={`px-3 py-1 rounded-full text-[11px] font-medium transition ${
+                selectedAgingTab === "0-7" ? "bg-emerald-500 text-white shadow-xs font-semibold" : "text-slate-500"
+              }`}
+            >
+              0–7 Days ({settlementAging.onSchedule.orderCount})
+            </button>
+            <button
+              onClick={() => setSelectedAgingTab("8-14")}
+              className={`px-3 py-1 rounded-full text-[11px] font-medium transition ${
+                selectedAgingTab === "8-14" ? "bg-amber-500 text-white shadow-xs font-semibold" : "text-slate-500"
+              }`}
+            >
+              8–14 Days ({settlementAging.pending.orderCount})
+            </button>
+            <button
+              onClick={() => setSelectedAgingTab("14+")}
+              className={`px-3 py-1 rounded-full text-[11px] font-medium transition ${
+                selectedAgingTab === "14+" ? "bg-rose-500 text-white shadow-xs font-semibold" : "text-slate-500"
+              }`}
+            >
+              &gt;14 Days Overdue ({settlementAging.overdue.orderCount})
+            </button>
+          </div>
+        </div>
+
+        {/* 3 Aging Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* 0-7 Days: On Schedule */}
+          <div
+            onClick={() => setSelectedAgingTab(selectedAgingTab === "0-7" ? "ALL" : "0-7")}
+            className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all shadow-xs flex flex-col justify-between ${
+              selectedAgingTab === "0-7"
+                ? "border-emerald-500 ring-2 ring-emerald-500/20"
+                : "border-slate-200 hover:border-slate-300"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                0–7 Days • Cycle Safe
+              </span>
+              <div className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="my-2">
+              <span className="text-xl font-bold text-slate-900 block">
+                {formatINR(settlementAging.onSchedule.totalEstimatedAmount)}
+              </span>
+              <span className="text-xs text-slate-500">
+                {settlementAging.onSchedule.orderCount} orders on standard payout cycle
+              </span>
+            </div>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+              <span className="text-emerald-700 font-semibold">Normal Processing</span>
+              <ChevronRight className="w-3 h-3 text-slate-400" />
+            </div>
+          </div>
+
+          {/* 8-14 Days: Pending */}
+          <div
+            onClick={() => setSelectedAgingTab(selectedAgingTab === "8-14" ? "ALL" : "8-14")}
+            className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all shadow-xs flex flex-col justify-between ${
+              selectedAgingTab === "8-14"
+                ? "border-amber-500 ring-2 ring-amber-500/20"
+                : "border-slate-200 hover:border-slate-300"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                8–14 Days • Approaching Threshold
+              </span>
+              <div className="w-6 h-6 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+                <Clock className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="my-2">
+              <span className="text-xl font-bold text-slate-900 block">
+                {formatINR(settlementAging.pending.totalEstimatedAmount)}
+              </span>
+              <span className="text-xs text-slate-500">
+                {settlementAging.pending.orderCount} orders due in upcoming disbursement
+              </span>
+            </div>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+              <span className="text-amber-700 font-semibold">Pending Next Settlement</span>
+              <ChevronRight className="w-3 h-3 text-slate-400" />
+            </div>
+          </div>
+
+          {/* >14 Days: Overdue */}
+          <div
+            onClick={() => setSelectedAgingTab(selectedAgingTab === "14+" ? "ALL" : "14+")}
+            className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all shadow-xs flex flex-col justify-between ${
+              selectedAgingTab === "14+"
+                ? "border-rose-500 ring-2 ring-rose-500/20"
+                : "border-slate-200 hover:border-slate-300"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                &gt; 14 Days • Delayed / Overdue
+              </span>
+              <div className="w-6 h-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+                <AlertCircle className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="my-2">
+              <span className="text-xl font-bold text-rose-600 block">
+                {formatINR(settlementAging.overdue.totalEstimatedAmount)}
+              </span>
+              <span className="text-xs text-slate-500">
+                {settlementAging.overdue.orderCount} orders past normal payment window
+              </span>
+            </div>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+              <span className="text-rose-700 font-semibold">Audit Required</span>
+              <ChevronRight className="w-3 h-3 text-slate-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Selected Aging Tab Expanded Drawer */}
+        {selectedAgingTab !== "ALL" && (
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-200">
+              <span className="font-bold text-slate-800">
+                Orders in {selectedAgingTab === "0-7" ? "0–7 Days Bracket" : selectedAgingTab === "8-14" ? "8–14 Days Bracket" : "Overdue (>14 Days) Bracket"}
+              </span>
+              <button
+                onClick={() => setSelectedAgingTab("ALL")}
+                className="text-slate-400 hover:text-slate-600 text-[11px]"
+              >
+                Close breakdown ✕
+              </button>
+            </div>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 text-xs">
+              {(selectedAgingTab === "0-7"
+                ? settlementAging.onSchedule.orders
+                : selectedAgingTab === "8-14"
+                ? settlementAging.pending.orders
+                : settlementAging.overdue.orders
+              ).map((ord) => (
+                <div
+                  key={ord.orderId}
+                  className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between"
+                >
+                  <div>
+                    <span className="font-mono font-bold text-slate-900 block text-[11px]">
+                      {ord.orderId} • {ord.channelOrderId}
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      {ord.marketplace} • Dispatched {ord.orderDate} ({ord.daysOutstanding} days ago)
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold text-slate-900 block text-xs">
+                      {formatINR(ord.estimatedPayout)}
+                    </span>
+                    <span
+                      className={`text-[10px] font-semibold ${
+                        ord.daysOutstanding > 14
+                          ? "text-rose-600"
+                          : ord.daysOutstanding > 7
+                          ? "text-amber-600"
+                          : "text-emerald-600"
+                      }`}
+                    >
+                      {ord.daysOutstanding > 14 ? "Overdue" : "In Cycle"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <DataTable
+        columns={columns}
+        data={filteredSettlements}
+        searchKey="settlementBatchId"
+        searchPlaceholder="Search settlement batch, ID, order..."
+      />
+
+      {/* Settlement Breakdown Drawer */}
+      {selectedSettlement && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-black/[0.06] w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-mono text-[#86868B] block">
+                  {selectedSettlement.marketplace} • Batch: {selectedSettlement.settlementBatchId}
+                </span>
+                <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight mt-0.5">
+                  Deduction Taxonomy: {selectedSettlement.id}
+                </h2>
+              </div>
+              <button
+                onClick={() => setSelectedSettlement(null)}
+                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs">
+              <div className="p-4 bg-[#FAFAFC] rounded-2xl border border-black/[0.04] flex items-center justify-between">
+                <div>
+                  <span className="text-[#86868B] block">Net Bank Deposit</span>
+                  <span className="text-xl font-semibold text-[#288548] mt-0.5 block">
+                    {formatINR(selectedSettlement.netSettlement)}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[#86868B] block">Bank Reference</span>
+                  <span className="font-mono text-[#1D1D1F]">
+                    {selectedSettlement.bankTxRef || "Direct Deposit"}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-semibold text-[#86868B] uppercase tracking-wider mb-2">
+                  Deduction Taxonomy
+                </h3>
+                <div className="border border-black/[0.05] rounded-2xl divide-y divide-black/[0.04] overflow-hidden">
+                  <div className="p-3.5 bg-white flex justify-between font-medium">
+                    <span className="text-[#1D1D1F]">Gross Transaction Amount</span>
+                    <span className="text-[#1D1D1F]">{formatINR(selectedSettlement.grossAmount)}</span>
+                  </div>
+
+                  {selectedSettlement.deductions.map((d, idx) => (
+                    <div key={idx} className="p-3.5 bg-white flex justify-between text-[#6E6E73]">
+                      <div>
+                        <span>{d.name}</span>
+                        <span className="text-[10px] text-[#86868B] font-mono ml-2">({d.category})</span>
+                      </div>
+                      <span className="text-[#D70015]">-{formatINR(d.amount)}</span>
+                    </div>
+                  ))}
+
+                  <div className="p-3.5 bg-white flex justify-between text-[#6E6E73]">
+                    <span>Taxes Withheld (TCS 1% + TDS 0.1%)</span>
+                    <span className="text-[#86868B]">
+                      -{formatINR(selectedSettlement.tcsTdsTax)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-black/[0.05] bg-[#FAFAFC] flex justify-end">
+              <button
+                onClick={() => setSelectedSettlement(null)}
+                className="px-5 py-1.5 bg-[#1D1D1F] text-white rounded-full text-xs font-medium"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Settlement Modal */}
+      {isCreateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-black/[0.06] w-full max-w-md overflow-hidden">
+            <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">Record Marketplace Deposit</h2>
+              <button
+                onClick={() => setIsCreateOpen(false)}
+                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateSettlement} className="p-6 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">Batch ID</label>
+                  <input
+                    type="text"
+                    value={settlementBatchId}
+                    onChange={(e) => setSettlementBatchId(e.target.value)}
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">Channel</label>
+                  <select
+                    value={marketplace}
+                    onChange={(e) => setMarketplace(e.target.value as Marketplace)}
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                  >
+                    <option value="Amazon India">Amazon India</option>
+                    <option value="Flipkart">Flipkart</option>
+                    <option value="Meesho">Meesho</option>
+                    <option value="Personal Website">Personal Website</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-medium text-[#6E6E73] block mb-1">Order</label>
+                <select
+                  value={orderId}
+                  onChange={(e) => setOrderId(e.target.value)}
+                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                >
+                  {orders.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.id} ({o.marketplace})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">Gross Payout (₹)</label>
+                  <input
+                    type="number"
+                    value={grossAmount}
+                    onChange={(e) => setGrossAmount(Number(e.target.value))}
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">Commission (₹)</label>
+                  <input
+                    type="number"
+                    value={commission}
+                    onChange={(e) => setCommission(Number(e.target.value))}
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">Logistics (₹)</label>
+                  <input
+                    type="number"
+                    value={logistics}
+                    onChange={(e) => setLogistics(Number(e.target.value))}
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">Fixed Fee (₹)</label>
+                  <input
+                    type="number"
+                    value={fixedFee}
+                    onChange={(e) => setFixedFee(Number(e.target.value))}
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">Tax (₹)</label>
+                  <input
+                    type="number"
+                    value={tcsTds}
+                    onChange={(e) => setTcsTds(Number(e.target.value))}
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-medium text-[#6E6E73] block mb-1">
+                  Net Bank Deposit Received (₹)
+                </label>
+                <input
+                  type="number"
+                  value={declaredNetPayout}
+                  onChange={(e) => setDeclaredNetPayout(Number(e.target.value))}
+                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-mono font-semibold focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOpen(false)}
+                  className="px-4 py-1.5 rounded-full text-[#6E6E73] hover:bg-black/[0.03] text-xs font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-1.5 bg-[#1D1D1F] hover:bg-black text-white rounded-full text-xs font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)]"
+                >
+                  Record Settlement
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
