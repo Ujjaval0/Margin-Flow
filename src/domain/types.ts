@@ -1,6 +1,14 @@
 // Core Domain Types for Unified E-Commerce Operations & Profitability Platform
 
-export type Marketplace = "Amazon India" | "Flipkart" | "Meesho" | "Personal Website";
+export type Marketplace =
+  | "Amazon India"
+  | "Flipkart"
+  | "Meesho"
+  | "Personal Website"
+  | "Myntra"
+  | "WooCommerce"
+  | "B2B Wholesale"
+  | "Other";
 
 export type OrderStatus =
   | "PENDING"
@@ -86,7 +94,7 @@ export interface Product {
   costHistory: HistoricalCost[];
   supplierId: string;
   active: boolean;
-  channelAliases: Record<Marketplace, string>; // Maps marketplace SKU to master SKU
+  channelAliases: Partial<Record<Marketplace, string>>; // Maps marketplace SKU to master SKU
 }
 
 // Partition 2: Orders
@@ -121,6 +129,8 @@ export interface Order {
   claimIds?: string[];
 }
 
+export type RestockStatus = "PENDING_RESTOCK" | "RESTOCKED" | "WRITTEN_OFF";
+
 // Partition 3: Returns & RTOs
 export interface ReturnRecord {
   id: string;
@@ -128,11 +138,16 @@ export interface ReturnRecord {
   channelOrderId: string;
   marketplace: Marketplace;
   returnDate: string;
+  receivedDate?: string;         // Date physically received at warehouse
+  awbNumber?: string;            // Forward or reverse courier AWB
   returnType: ReturnType;
   returnReason: string;
   sku: string;
+  productName?: string;
   quantity: number;
   condition: ProductCondition;
+  restockStatus?: RestockStatus; // Restock disposition tracking
+  claimDeadline?: string;        // Marketplace SLA claim expiration date
   returnShippingCost: number;
   otherReturnCosts: number;
   inventoryRecoveryValue: number; // e.g., scrap value or salvage value if damaged
@@ -189,6 +204,11 @@ export interface Supplier {
   phone: string;
   gstin?: string;
   address: string;
+  paymentTerms?: string;
+  bankAccount?: string;
+  upiId?: string;
+  openingBalance?: number;
+  totalPaid?: number;
   notes?: string;
 }
 
@@ -271,7 +291,7 @@ export interface AIStagedDocument {
 export interface FinancialAuditLog {
   id: string;
   timestamp: string;
-  entityType: "ORDER" | "SETTLEMENT" | "PRODUCT_COST" | "CLAIM" | "RETURN" | "EXPENSE";
+  entityType: "ORDER" | "SETTLEMENT" | "PRODUCT_COST" | "CLAIM" | "RETURN" | "EXPENSE" | "DOCUMENT" | "PURCHASE";
   entityId: string;
   fieldName: string;
   oldValue: string;

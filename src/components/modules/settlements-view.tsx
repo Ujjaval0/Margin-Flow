@@ -84,10 +84,10 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
       header: "Settlement / Batch",
       cell: ({ row }) => (
         <div>
-          <span className="font-mono font-semibold text-[#1D1D1F] block text-xs">
+          <span className="font-semibold text-[#1D1D1F] block text-xs tracking-tight">
             {row.original.id}
           </span>
-          <span className="font-mono text-[11px] text-[#86868B]">
+          <span className="text-[11px] text-[#86868B] tabular-nums">
             {row.original.settlementBatchId}
           </span>
         </div>
@@ -106,7 +106,7 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
       accessorKey: "orderId",
       header: "Linked Order",
       cell: ({ row }) => (
-        <span className="font-mono text-xs text-[#1D1D1F]">
+        <span className="text-xs font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
           {row.original.orderId}
         </span>
       ),
@@ -115,7 +115,7 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
       accessorKey: "grossAmount",
       header: "Gross Payout",
       cell: ({ row }) => (
-        <span className="font-mono text-[#1D1D1F] text-xs">
+        <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
           {formatINR(row.original.grossAmount)}
         </span>
       ),
@@ -126,7 +126,7 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
       cell: ({ row }) => {
         const total = row.original.deductions.reduce((sum, d) => sum + d.amount, 0);
         return (
-          <span className="font-mono text-[#D70015] text-xs">
+          <span className="text-sm font-semibold text-[#D70015] tracking-tight tabular-nums">
             -{formatINR(total)}
           </span>
         );
@@ -136,7 +136,7 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
       accessorKey: "tcsTdsTax",
       header: "TCS / TDS Withheld",
       cell: ({ row }) => (
-        <span className="font-mono text-[#86868B] text-xs">
+        <span className="text-sm font-semibold text-slate-600 tracking-tight tabular-nums">
           {formatINR(row.original.tcsTdsTax)}
         </span>
       ),
@@ -145,7 +145,7 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
       accessorKey: "netSettlement",
       header: "Bank Deposit",
       cell: ({ row }) => (
-        <span className="font-mono font-semibold text-[#288548] text-xs">
+        <span className="text-sm font-semibold text-[#288548] tracking-tight tabular-nums">
           {formatINR(row.original.netSettlement)}
         </span>
       ),
@@ -187,7 +187,7 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
+    <div className="space-y-6 w-full max-w-[1536px] min-w-0 mx-auto animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
@@ -217,35 +217,43 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
               {settlementAging.totalUnsettledOrders} orders pending payout • Total Outstanding: {formatINR(settlementAging.totalOutstandingAmount)}
             </p>
           </div>
-          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-full text-xs">
+          <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/50 inline-flex items-center gap-0.5 text-xs overflow-x-auto max-w-full">
             <button
               onClick={() => setSelectedAgingTab("ALL")}
-              className={`px-3 py-1 rounded-full text-[11px] font-medium transition ${
-                selectedAgingTab === "ALL" ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500"
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 ${
+                selectedAgingTab === "ALL"
+                  ? "bg-white text-[#1D1D1F] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+                  : "text-slate-600 hover:text-slate-900 font-medium"
               }`}
             >
               Overview
             </button>
             <button
               onClick={() => setSelectedAgingTab("0-7")}
-              className={`px-3 py-1 rounded-full text-[11px] font-medium transition ${
-                selectedAgingTab === "0-7" ? "bg-emerald-500 text-white shadow-xs font-semibold" : "text-slate-500"
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 ${
+                selectedAgingTab === "0-7"
+                  ? "bg-white text-emerald-700 font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+                  : "text-slate-600 hover:text-slate-900 font-medium"
               }`}
             >
               0–7 Days ({settlementAging.onSchedule.orderCount})
             </button>
             <button
               onClick={() => setSelectedAgingTab("8-14")}
-              className={`px-3 py-1 rounded-full text-[11px] font-medium transition ${
-                selectedAgingTab === "8-14" ? "bg-amber-500 text-white shadow-xs font-semibold" : "text-slate-500"
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 ${
+                selectedAgingTab === "8-14"
+                  ? "bg-white text-amber-700 font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+                  : "text-slate-600 hover:text-slate-900 font-medium"
               }`}
             >
               8–14 Days ({settlementAging.pending.orderCount})
             </button>
             <button
               onClick={() => setSelectedAgingTab("14+")}
-              className={`px-3 py-1 rounded-full text-[11px] font-medium transition ${
-                selectedAgingTab === "14+" ? "bg-rose-500 text-white shadow-xs font-semibold" : "text-slate-500"
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 ${
+                selectedAgingTab === "14+"
+                  ? "bg-white text-rose-700 font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+                  : "text-slate-600 hover:text-slate-900 font-medium"
               }`}
             >
               &gt;14 Days Overdue ({settlementAging.overdue.orderCount})
@@ -375,7 +383,7 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
                   className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between"
                 >
                   <div>
-                    <span className="font-mono font-bold text-slate-900 block text-[11px]">
+                    <span className="font-semibold text-[#1D1D1F] tracking-tight tabular-nums block text-[11px]">
                       {ord.orderId} • {ord.channelOrderId}
                     </span>
                     <span className="text-[10px] text-slate-400">
@@ -383,7 +391,7 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="font-bold text-slate-900 block text-xs">
+                    <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums block">
                       {formatINR(ord.estimatedPayout)}
                     </span>
                     <span
@@ -418,7 +426,7 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
           <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-black/[0.06] w-full max-w-lg overflow-hidden">
             <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-mono text-[#86868B] block">
+                <span className="text-[11px] text-[#86868B] tabular-nums block">
                   {selectedSettlement.marketplace} • Batch: {selectedSettlement.settlementBatchId}
                 </span>
                 <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight mt-0.5">
@@ -437,13 +445,13 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
               <div className="p-4 bg-[#FAFAFC] rounded-2xl border border-black/[0.04] flex items-center justify-between">
                 <div>
                   <span className="text-[#86868B] block">Net Bank Deposit</span>
-                  <span className="text-xl font-semibold text-[#288548] mt-0.5 block">
+                  <span className="text-xl font-semibold text-[#288548] tracking-tight tabular-nums mt-0.5 block">
                     {formatINR(selectedSettlement.netSettlement)}
                   </span>
                 </div>
                 <div className="text-right">
                   <span className="text-[#86868B] block">Bank Reference</span>
-                  <span className="font-mono text-[#1D1D1F]">
+                  <span className="text-[#1D1D1F] font-semibold tracking-tight tabular-nums">
                     {selectedSettlement.bankTxRef || "Direct Deposit"}
                   </span>
                 </div>
@@ -454,24 +462,24 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
                   Deduction Taxonomy
                 </h3>
                 <div className="border border-black/[0.05] rounded-2xl divide-y divide-black/[0.04] overflow-hidden">
-                  <div className="p-3.5 bg-white flex justify-between font-medium">
+                  <div className="p-3.5 bg-white flex justify-between items-center font-medium">
                     <span className="text-[#1D1D1F]">Gross Transaction Amount</span>
-                    <span className="text-[#1D1D1F]">{formatINR(selectedSettlement.grossAmount)}</span>
+                    <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">{formatINR(selectedSettlement.grossAmount)}</span>
                   </div>
 
                   {selectedSettlement.deductions.map((d, idx) => (
-                    <div key={idx} className="p-3.5 bg-white flex justify-between text-[#6E6E73]">
+                    <div key={idx} className="p-3.5 bg-white flex justify-between items-center text-[#6E6E73]">
                       <div>
                         <span>{d.name}</span>
-                        <span className="text-[10px] text-[#86868B] font-mono ml-2">({d.category})</span>
+                        <span className="text-[10px] text-[#86868B] ml-2 font-medium">({d.category})</span>
                       </div>
-                      <span className="text-[#D70015]">-{formatINR(d.amount)}</span>
+                      <span className="text-sm font-semibold text-[#D70015] tracking-tight tabular-nums">-{formatINR(d.amount)}</span>
                     </div>
                   ))}
 
-                  <div className="p-3.5 bg-white flex justify-between text-[#6E6E73]">
+                  <div className="p-3.5 bg-white flex justify-between items-center text-[#6E6E73]">
                     <span>Taxes Withheld (TCS 1% + TDS 0.1%)</span>
-                    <span className="text-[#86868B]">
+                    <span className="text-sm font-semibold text-slate-600 tracking-tight tabular-nums">
                       -{formatINR(selectedSettlement.tcsTdsTax)}
                     </span>
                   </div>
@@ -606,7 +614,7 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
                   type="number"
                   value={declaredNetPayout}
                   onChange={(e) => setDeclaredNetPayout(Number(e.target.value))}
-                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-mono font-semibold focus:outline-none"
+                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none"
                   required
                 />
               </div>

@@ -1,4 +1,4 @@
-﻿import {
+import {
   Order,
   ReturnRecord,
   Settlement,
@@ -40,6 +40,15 @@ export interface ProfitabilityMetrics {
   totalAdSpend: number;
   roas: number; // Return on Ad Spend: Net Sales / Ad Spend
   poas: number; // Profit on Ad Spend: Contribution Profit / Ad Spend
+
+  // Operator Payout & Return Split Metrics
+  netPlatformPayout: number; // Platform payout after returns and claims, BEFORE paying supplier COGS
+  trueProfit: number; // Platform payout after returns and claims, AFTER paying supplier COGS (equals contributionProfit)
+  rtoCount: number; // Number of RTO items
+  customerReturnCount: number; // Number of customer return items
+  pendingClaimsAmount: number; // Claims amount under review / pending
+  pendingClaimsCount: number; // Count of pending claims
+  damagedUnitsCount: number; // Number of units in damaged or unusable condition
 }
 
 export interface OrderProfitability {
@@ -148,6 +157,9 @@ export function calculateBusinessProfitability(
   let rtoLosses = 0;
   let damageLosses = 0;
   let totalReturnedUnits = 0;
+  let rtoCount = 0;
+  let customerReturnCount = 0;
+  let damagedUnitsCount = 0;
 
   returns.forEach((ret) => {
     totalReturnedUnits += ret.quantity;
@@ -155,20 +167,28 @@ export function calculateBusinessProfitability(
 
     if (ret.returnType === "RTO") {
       rtoLosses += loss;
+      rtoCount += ret.quantity;
     } else {
       returnLosses += loss;
+      customerReturnCount += ret.quantity;
     }
 
     if (ret.condition === "DAMAGED" || ret.condition === "UNUSABLE") {
       damageLosses += ret.lossAmount;
+      damagedUnitsCount += ret.quantity;
     }
   });
 
   // Process Claims Recoveries
   let claimRecoveries = 0;
+  let pendingClaimsAmount = 0;
+  let pendingClaimsCount = 0;
   claims.forEach((claim) => {
     if (claim.status === "RECOVERED" || claim.status === "PARTIALLY_RECOVERED") {
       claimRecoveries += claim.amountRecovered;
+    } else if (claim.status === "FILED" || claim.status === "UNDER_REVIEW") {
+      pendingClaimsAmount += claim.amountClaimed;
+      pendingClaimsCount += 1;
     }
   });
 
@@ -241,6 +261,13 @@ export function calculateBusinessProfitability(
     totalAdSpend,
     roas,
     poas,
+    netPlatformPayout: contributionProfit + cogs,
+    trueProfit: contributionProfit,
+    rtoCount,
+    customerReturnCount,
+    pendingClaimsAmount,
+    pendingClaimsCount,
+    damagedUnitsCount,
   };
 }
 
@@ -495,7 +522,7 @@ export function calculateSkuProfitability(
   });
 }
 
-export type DateRangePreset = "ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS" | "THIS_MONTH" | "PREVIOUS_MONTH";
+export type DateRangePreset = "ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS" | "THIS_MONTH" | "PREVIOUS_MONTH" | "CUSTOM";
 
 export interface DateFilterRange {
   startDate: string; // ISO format "YYYY-MM-DD"
@@ -509,11 +536,31 @@ export interface MetricTrend {
 
 /**
  * Resolves a date preset to exact YYYY-MM-DD boundaries
- * Uses anchor date 2026-09-15 (mock data timeline)
+ * Uses anchor date (latest order/active business date)
  */
-export function resolveDatePreset(preset: DateRangePreset, anchorDateStr: string = "2026-09-15"): { current: DateFilterRange; previous: DateFilterRange } {
-  const anchor = new Date(anchorDateStr);
-  const formatDate = (d: Date) => d.toISOString().split("T")[0];
+export function resolveDatePreset(
+  preset: DateRangePreset,
+  anchorDateStr: string = "2026-09-07",
+  customRange?: DateFilterRange | null
+): { current: DateFilterRange; previous: DateFilterRange } {
+  const formatDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  if (preset === "CUSTOM" && customRange && customRange.startDate && customRange.endDate) {
+    const s = new Date(customRange.startDate + "T00:00:00");
+    const e = new Date(customRange.endDate + "T00:00:00");
+    const diffMs = Math.max(0, e.getTime() - s.getTime());
+    const prevEnd = new Date(s.getTime() - 24 * 60 * 60 * 1000);
+    const prevStart = new Date(prevEnd.getTime() - diffMs);
+    return {
+      current: customRange,
+      previous: { startDate: formatDate(prevStart), endDate: formatDate(prevEnd) },
+    };
+  }
 
   if (preset === "ALL") {
     return {
@@ -521,6 +568,8 @@ export function resolveDatePreset(preset: DateRangePreset, anchorDateStr: string
       previous: { startDate: "2010-01-01", endDate: "2019-12-31" },
     };
   }
+
+  const anchor = new Date(anchorDateStr + "T00:00:00");
 
   if (preset === "TODAY") {
     const prev = new Date(anchor);
@@ -559,17 +608,28 @@ export function resolveDatePreset(preset: DateRangePreset, anchorDateStr: string
     };
   }
 
+  const anchorYear = anchor.getFullYear();
+  const anchorMonth = anchor.getMonth(); // 0-indexed
+
   if (preset === "PREVIOUS_MONTH") {
+    const prevMonthStart = new Date(anchorYear, anchorMonth - 1, 1);
+    const prevMonthEnd = new Date(anchorYear, anchorMonth, 0);
+    const pprevMonthStart = new Date(anchorYear, anchorMonth - 2, 1);
+    const pprevMonthEnd = new Date(anchorYear, anchorMonth - 1, 0);
     return {
-      current: { startDate: "2026-08-01", endDate: "2026-08-31" },
-      previous: { startDate: "2026-07-01", endDate: "2026-07-31" },
+      current: { startDate: formatDate(prevMonthStart), endDate: formatDate(prevMonthEnd) },
+      previous: { startDate: formatDate(pprevMonthStart), endDate: formatDate(pprevMonthEnd) },
     };
   }
 
-  // THIS_MONTH (September 2026)
+  // THIS_MONTH
+  const thisMonthStart = new Date(anchorYear, anchorMonth, 1);
+  const thisMonthEnd = new Date(anchorYear, anchorMonth + 1, 0);
+  const prevMonthStart = new Date(anchorYear, anchorMonth - 1, 1);
+  const prevMonthEnd = new Date(anchorYear, anchorMonth, 0);
   return {
-    current: { startDate: "2026-09-01", endDate: "2026-09-30" },
-    previous: { startDate: "2026-08-01", endDate: "2026-08-31" },
+    current: { startDate: formatDate(thisMonthStart), endDate: formatDate(thisMonthEnd) },
+    previous: { startDate: formatDate(prevMonthStart), endDate: formatDate(prevMonthEnd) },
   };
 }
 

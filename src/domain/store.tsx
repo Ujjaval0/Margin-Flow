@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useMemo } from "react";
 import {
   Product,
   Order,
+  Marketplace,
   ReturnRecord,
   Settlement,
   Claim,
@@ -35,6 +36,7 @@ import {
   MarketplaceProfitability,
   SkuProfitability,
   DateRangePreset,
+  DateFilterRange,
   resolveDatePreset,
   filterDatasetByDateRange,
   calculatePercentageChange,
@@ -57,6 +59,8 @@ interface PlatformContextType {
   // Date-Range & Engine State
   datePreset: DateRangePreset;
   setDatePreset: (preset: DateRangePreset) => void;
+  customDateRange: DateFilterRange | null;
+  setCustomDateRange: (range: DateFilterRange | null) => void;
   profitability: ProfitabilityMetrics;
   priorProfitability: ProfitabilityMetrics;
   profitabilityTrends: {
@@ -73,14 +77,32 @@ interface PlatformContextType {
 
   // Actions
   addOrder: (order: Order) => void;
+  updateOrder: (order: Order) => void;
+  deleteOrder: (orderId: string) => void;
+  deleteOrders: (orderIds: string[]) => void;
   updateOrderStatus: (orderId: string, status: Order["status"]) => void;
+  bulkUpdateOrderStatus: (orderIds: string[], status: Order["status"]) => void;
   addReturn: (returnRecord: ReturnRecord) => void;
+  updateReturn: (returnRecord: ReturnRecord) => void;
+  restockReturn: (returnId: string) => void;
+  deleteReturn: (returnId: string) => void;
   addClaim: (claim: Claim) => void;
   updateClaim: (claimId: string, recoveredAmount: number, status: Claim["status"]) => void;
   updateProductCost: (sku: string, newCost: number, reason: string) => void;
   addSettlement: (settlement: Settlement) => void;
   addExpense: (expense: Expense) => void;
   addPurchase: (purchase: PurchaseBill) => void;
+  addSupplier: (supplier: Supplier) => void;
+  updateSupplier: (supplier: Supplier) => void;
+  deleteSupplier: (supplierId: string) => void;
+  recordSupplierPayment: (
+    supplierId: string,
+    amount: number,
+    paymentMethod: string,
+    ref: string,
+    notes?: string
+  ) => void;
+  addStagedDocument: (doc: AIStagedDocument) => void;
   approveStagedDocument: (docId: string) => void;
   updateStagedDocumentField: (
     docId: string,
@@ -104,11 +126,18 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [aiDocuments, setAiDocuments] = useState<AIStagedDocument[]>(INITIAL_AI_DOCUMENTS);
   const [auditLogs, setAuditLogs] = useState<FinancialAuditLog[]>(INITIAL_AUDIT_LOGS);
   const [datePreset, setDatePreset] = useState<DateRangePreset>("ALL");
+  const [customDateRange, setCustomDateRange] = useState<DateFilterRange | null>(null);
+
+  // Derive dynamic anchor date from latest order in dataset
+  const effectiveAnchorDate = useMemo(() => {
+    if (orders.length === 0) return "2026-09-07";
+    return orders.reduce((max, o) => (o.orderDate > max ? o.orderDate : max), orders[0].orderDate);
+  }, [orders]);
 
   // Filter datasets by date preset & prior period for trend comparisons
   const dateRanges = useMemo(() => {
-    return resolveDatePreset(datePreset, "2026-09-15");
-  }, [datePreset]);
+    return resolveDatePreset(datePreset, effectiveAnchorDate, customDateRange);
+  }, [datePreset, effectiveAnchorDate, customDateRange]);
 
   const currentDataset = useMemo(() => {
     if (datePreset === "ALL") {
@@ -172,8 +201,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, [currentDataset]);
 
   const settlementAging = useMemo(() => {
-    return calculateSettlementAging(orders, settlements, "2026-09-15");
-  }, [orders, settlements]);
+    return calculateSettlementAging(orders, settlements, effectiveAnchorDate);
+  }, [orders, settlements, effectiveAnchorDate]);
 
   const guardrailStatus = useMemo(() => {
     return runSystemGuardrailDiagnostics(
@@ -226,22 +255,196 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const updateOrder = (updatedOrder: Order) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
+    );
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "ORDER",
+      entityId: updatedOrder.id,
+      fieldName: "all",
+      oldValue: "Previous state",
+      newValue: `Updated: ${updatedOrder.marketplace}, ${updatedOrder.items[0]?.productName || ""}`,
+      modifiedBy: "Operator",
+      reason: "Order manually edited",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
+  const deleteOrder = (orderId: string) => {
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    setReturns((prev) => prev.filter((r) => r.orderId !== orderId));
+    setSettlements((prev) => prev.filter((s) => s.orderId !== orderId));
+    setClaims((prev) => prev.filter((c) => c.orderId !== orderId));
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "ORDER",
+      entityId: orderId,
+      fieldName: "status",
+      oldValue: "Active",
+      newValue: "DELETED",
+      modifiedBy: "Operator",
+      reason: "Order deleted from ledger",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
+  const deleteOrders = (orderIds: string[]) => {
+    const idSet = new Set(orderIds);
+    setOrders((prev) => prev.filter((o) => !idSet.has(o.id)));
+    setReturns((prev) => prev.filter((r) => !idSet.has(r.orderId)));
+    setSettlements((prev) => prev.filter((s) => !idSet.has(s.orderId)));
+    setClaims((prev) => prev.filter((c) => !idSet.has(c.orderId)));
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "ORDER",
+      entityId: orderIds.slice(0, 3).join(", ") + (orderIds.length > 3 ? "..." : ""),
+      fieldName: "bulk_deletion",
+      oldValue: `${orderIds.length} orders`,
+      newValue: "DELETED",
+      modifiedBy: "Operator",
+      reason: `Bulk deleted ${orderIds.length} orders from ledger`,
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
+  const bulkUpdateOrderStatus = (orderIds: string[], status: Order["status"]) => {
+    const idSet = new Set(orderIds);
+    setOrders((prev) =>
+      prev.map((o) => (idSet.has(o.id) ? { ...o, status } : o))
+    );
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "ORDER",
+      entityId: orderIds.slice(0, 3).join(", ") + (orderIds.length > 3 ? "..." : ""),
+      fieldName: "status",
+      oldValue: "Various",
+      newValue: status,
+      modifiedBy: "Operator",
+      reason: `Bulk updated ${orderIds.length} orders to ${status}`,
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
+  const calculateClaimDeadline = (marketplace: Marketplace, returnDateStr: string): string => {
+    const returnDate = new Date(returnDateStr);
+    let daysToAdd = 30;
+    if (marketplace === "Flipkart") daysToAdd = 14;
+    else if (marketplace === "Meesho") daysToAdd = 7;
+    const deadline = new Date(returnDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+    return deadline.toISOString().split("T")[0];
+  };
+
   const addReturn = (returnRecord: ReturnRecord) => {
-    setReturns((prev) => [returnRecord, ...prev]);
+    const enrichedRecord: ReturnRecord = {
+      ...returnRecord,
+      receivedDate: returnRecord.receivedDate || returnRecord.returnDate,
+      claimDeadline:
+        returnRecord.claimDeadline ||
+        calculateClaimDeadline(returnRecord.marketplace, returnRecord.returnDate),
+      restockStatus:
+        returnRecord.restockStatus ||
+        (returnRecord.condition === "SELLABLE" ? "PENDING_RESTOCK" : "WRITTEN_OFF"),
+    };
+
+    setReturns((prev) => [enrichedRecord, ...prev]);
     // Link return to order
     setOrders((prev) =>
       prev.map((o) => {
-        if (o.id === returnRecord.orderId) {
+        if (o.id === enrichedRecord.orderId) {
           const currentReturns = o.returnIds || [];
           return {
             ...o,
-            status: returnRecord.returnType === "RTO" ? "RTO" : "PARTIALLY_RETURNED",
-            returnIds: [...currentReturns, returnRecord.id],
+            status: enrichedRecord.returnType === "RTO" ? "RTO" : "PARTIALLY_RETURNED",
+            returnIds: [...currentReturns, enrichedRecord.id],
           };
         }
         return o;
       })
     );
+
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "ORDER",
+      entityId: enrichedRecord.id,
+      fieldName: "reverse_logistics",
+      oldValue: "None",
+      newValue: `${enrichedRecord.returnType} (${enrichedRecord.condition}) - Loss ₹${enrichedRecord.lossAmount}`,
+      modifiedBy: "Operator",
+      reason: `Logged return for ${enrichedRecord.sku} (${enrichedRecord.marketplace})`,
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
+  const updateReturn = (updated: ReturnRecord) => {
+    setReturns((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "ORDER",
+      entityId: updated.id,
+      fieldName: "return_update",
+      oldValue: "Previous state",
+      newValue: `${updated.condition}, Qty: ${updated.quantity}, Loss: ₹${updated.lossAmount}`,
+      modifiedBy: "Operator",
+      reason: "Return record updated",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
+  const restockReturn = (returnId: string) => {
+    setReturns((prev) =>
+      prev.map((r) => {
+        if (r.id === returnId) {
+          return {
+            ...r,
+            condition: "SELLABLE",
+            restockStatus: "RESTOCKED",
+          };
+        }
+        return r;
+      })
+    );
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "ORDER",
+      entityId: returnId,
+      fieldName: "restockStatus",
+      oldValue: "PENDING_RESTOCK",
+      newValue: "RESTOCKED",
+      modifiedBy: "Warehouse Operator",
+      reason: "Item inspected and put away back to active sellable inventory",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
+  const deleteReturn = (returnId: string) => {
+    setReturns((prev) => prev.filter((r) => r.id !== returnId));
+    setOrders((prev) =>
+      prev.map((o) => ({
+        ...o,
+        returnIds: o.returnIds?.filter((id) => id !== returnId),
+      }))
+    );
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "ORDER",
+      entityId: returnId,
+      fieldName: "status",
+      oldValue: "Active",
+      newValue: "DELETED",
+      modifiedBy: "Operator",
+      reason: "Return record deleted",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
   };
 
   const addClaim = (claim: Claim) => {
@@ -330,6 +533,89 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setPurchases((prev) => [purchase, ...prev]);
   };
 
+  const addSupplier = (supplier: Supplier) => {
+    setSuppliers((prev) => [supplier, ...prev]);
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "SUPPLIER" as any,
+      entityId: supplier.id,
+      fieldName: "all",
+      oldValue: "None",
+      newValue: `Created: ${supplier.name}`,
+      modifiedBy: "Operator",
+      reason: "New wholesale supplier configured",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
+  const updateSupplier = (supplier: Supplier) => {
+    setSuppliers((prev) =>
+      prev.map((s) => (s.id === supplier.id ? supplier : s))
+    );
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "SUPPLIER" as any,
+      entityId: supplier.id,
+      fieldName: "all",
+      oldValue: "Previous state",
+      newValue: `Updated: ${supplier.name}`,
+      modifiedBy: "Operator",
+      reason: "Supplier details modified",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
+  const deleteSupplier = (supplierId: string) => {
+    setSuppliers((prev) => prev.filter((s) => s.id !== supplierId));
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "SUPPLIER" as any,
+      entityId: supplierId,
+      fieldName: "status",
+      oldValue: "Active",
+      newValue: "DELETED",
+      modifiedBy: "Operator",
+      reason: "Supplier removed from directory",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
+  const recordSupplierPayment = (
+    supplierId: string,
+    amount: number,
+    paymentMethod: string,
+    ref: string,
+    notes?: string
+  ) => {
+    setSuppliers((prev) =>
+      prev.map((s) => {
+        if (s.id === supplierId) {
+          const currentTotal = s.totalPaid || 0;
+          return {
+            ...s,
+            totalPaid: currentTotal + amount,
+          };
+        }
+        return s;
+      })
+    );
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "SUPPLIER_PAYOUT" as any,
+      entityId: supplierId,
+      fieldName: "totalPaid",
+      oldValue: "Prior",
+      newValue: `Paid: ₹${amount} via ${paymentMethod} (${ref})`,
+      modifiedBy: "Finance/Operator",
+      reason: notes || "Supplier balance payout recorded",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
   const updateStagedDocumentField = (
     docId: string,
     field: keyof AIStagedDocument["extractedData"],
@@ -368,6 +654,25 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const addStagedDocument = (doc: AIStagedDocument) => {
+    setAiDocuments((prev) => [doc, ...prev]);
+
+    // Audit log for document ingestion
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "DOCUMENT",
+      entityId: doc.id,
+      fieldName: "status",
+      oldValue: "EXTERNAL_FILE",
+      newValue: "STAGED_NEEDS_REVIEW",
+      modifiedBy: "OCR Ingestion Engine",
+      reason: `Uploaded bill ${doc.fileName} ingested and quarantined for review`,
+      sourceDocumentId: doc.fileName,
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  };
+
   const approveStagedDocument = (docId: string) => {
     const doc = aiDocuments.find((d) => d.id === docId);
     if (!doc) return;
@@ -404,6 +709,33 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       setOrders((prev) => [newOrder, ...prev]);
     }
 
+    // Convert staged document into a PurchaseBill if it's a Supplier Bill
+    if (doc.fileType === "SUPPLIER_BILL") {
+      const purchaseId = `PUR-${Date.now().toString().slice(-4)}`;
+      const unitCost = Number(doc.extractedData.unitPrice?.value || 0);
+      const sku = doc.extractedData.sku?.value || "ELEC-WEM-01";
+      const newPurchase: PurchaseBill = {
+        id: purchaseId,
+        supplierId: "SUP-001",
+        supplierName: "Apex Components Ltd",
+        invoiceNumber: doc.extractedData.invoiceNumber?.value || `BILL-${Date.now()}`,
+        invoiceDate: doc.extractedData.orderDate?.value || new Date().toISOString().split("T")[0],
+        sku: sku,
+        quantity: Number(doc.extractedData.quantity?.value || 1),
+        unitCost: unitCost,
+        taxes: Number(doc.extractedData.taxAmount?.value || 0),
+        totalAmount: Number(doc.extractedData.totalAmount?.value || 0),
+        paymentStatus: "PAID",
+        documentUrl: doc.fileName,
+      };
+      setPurchases((prev) => [newPurchase, ...prev]);
+
+      // If unitCost is positive, update product historical cost basis
+      if (unitCost > 0) {
+        updateProductCost(sku, unitCost, `Supplier Bill Approved (${doc.fileName})`);
+      }
+    }
+
     // Mark document as approved
     setAiDocuments((prev) =>
       prev.map((d) => (d.id === docId ? { ...d, status: "APPROVED_POSTED" as const } : d))
@@ -413,8 +745,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString(),
-      entityType: "ORDER",
-      entityId: doc.extractedData.orderId?.value || doc.id,
+      entityType: doc.fileType === "SUPPLIER_BILL" ? "PURCHASE" : "ORDER",
+      entityId: doc.extractedData.invoiceNumber?.value || doc.id,
       fieldName: "status",
       oldValue: "STAGED_AI_EXTRACTION",
       newValue: "COMMITTED_TO_LEDGER",
@@ -446,6 +778,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         auditLogs,
         datePreset,
         setDatePreset,
+        customDateRange,
+        setCustomDateRange,
         profitability,
         priorProfitability,
         profitabilityTrends,
@@ -454,14 +788,26 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         settlementAging,
         guardrailStatus,
         addOrder,
+        updateOrder,
+        deleteOrder,
+        deleteOrders,
         updateOrderStatus,
+        bulkUpdateOrderStatus,
         addReturn,
+        updateReturn,
+        restockReturn,
+        deleteReturn,
         addClaim,
         updateClaim,
         updateProductCost,
         addSettlement,
         addExpense,
         addPurchase,
+        addSupplier,
+        updateSupplier,
+        deleteSupplier,
+        recordSupplierPayment,
+        addStagedDocument,
         updateStagedDocumentField,
         approveStagedDocument,
         rejectStagedDocument,

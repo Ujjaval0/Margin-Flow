@@ -24,6 +24,19 @@ export function ClaimsView({ selectedMarketplace }: ClaimsViewProps) {
     (c) => selectedMarketplace === "ALL" || c.marketplace === selectedMarketplace
   );
 
+  const [claimStatusFilter, setClaimStatusFilter] = useState<string>("ALL");
+  const claimStatusOptions = [
+    { id: "ALL", label: "All Claims" },
+    { id: "FILED", label: "Filed" },
+    { id: "IN_REVIEW", label: "In Review" },
+    { id: "RECOVERED", label: "Recovered" },
+    { id: "REJECTED", label: "Rejected" },
+  ];
+
+  const displayedClaims = filteredClaims.filter(
+    (c) => claimStatusFilter === "ALL" || c.status === claimStatusFilter
+  );
+
   const totalClaimed = filteredClaims.reduce((sum, c) => sum + c.amountClaimed, 0);
   const totalRecovered = filteredClaims.reduce((sum, c) => sum + c.amountRecovered, 0);
   const outstandingAmount = Math.max(0, totalClaimed - totalRecovered);
@@ -51,10 +64,10 @@ export function ClaimsView({ selectedMarketplace }: ClaimsViewProps) {
       header: "Claim / Order Ref",
       cell: ({ row }) => (
         <div>
-          <span className="font-mono font-semibold text-[#1D1D1F] block text-xs">
+          <span className="font-semibold text-[#1D1D1F] block text-xs tracking-tight">
             {row.original.id}
           </span>
-          <span className="font-mono text-[11px] text-[#86868B]">
+          <span className="text-[11px] text-[#86868B] tabular-nums">
             {row.original.orderId}
           </span>
         </div>
@@ -82,7 +95,7 @@ export function ClaimsView({ selectedMarketplace }: ClaimsViewProps) {
       accessorKey: "claimDate",
       header: "Filed Date",
       cell: ({ row }) => (
-        <span className="text-xs text-[#86868B]">
+        <span className="text-xs text-[#86868B] tabular-nums font-medium">
           {formatDate(row.original.claimDate)}
         </span>
       ),
@@ -91,7 +104,7 @@ export function ClaimsView({ selectedMarketplace }: ClaimsViewProps) {
       accessorKey: "amountClaimed",
       header: "Claimed Amount",
       cell: ({ row }) => (
-        <span className="font-mono text-[#1D1D1F] text-xs">
+        <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
           {formatINR(row.original.amountClaimed)}
         </span>
       ),
@@ -100,7 +113,7 @@ export function ClaimsView({ selectedMarketplace }: ClaimsViewProps) {
       accessorKey: "amountRecovered",
       header: "Recovered Cash",
       cell: ({ row }) => (
-        <span className="font-mono font-semibold text-[#288548] text-xs">
+        <span className="text-sm font-semibold text-[#288548] tracking-tight tabular-nums">
           {formatINR(row.original.amountRecovered)}
         </span>
       ),
@@ -145,7 +158,7 @@ export function ClaimsView({ selectedMarketplace }: ClaimsViewProps) {
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
+    <div className="space-y-6 w-full max-w-[1536px] min-w-0 mx-auto animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
@@ -181,9 +194,33 @@ export function ClaimsView({ selectedMarketplace }: ClaimsViewProps) {
         </div>
       </div>
 
+      {/* Claims Status Filter Capsule (Image 2 Pill Control) */}
+      <div className="flex items-center justify-between gap-3 overflow-x-auto pb-0.5">
+        <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/50 inline-flex items-center gap-0.5 text-xs">
+          {claimStatusOptions.map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => setClaimStatusFilter(opt.id)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 ${
+                claimStatusFilter === opt.id
+                  ? "bg-white text-[#1D1D1F] shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+                  : "text-slate-600 hover:text-slate-900 font-medium"
+              }`}
+            >
+              {opt.label}
+              {opt.id !== "ALL" && (
+                <span className="ml-1 text-[11px] opacity-70">
+                  ({filteredClaims.filter((c) => c.status === opt.id).length})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <DataTable
         columns={columns}
-        data={filteredClaims}
+        data={displayedClaims}
         searchKey="id"
         searchPlaceholder="Search claims by ID, order..."
       />
@@ -205,13 +242,13 @@ export function ClaimsView({ selectedMarketplace }: ClaimsViewProps) {
             </div>
             <form onSubmit={handleSubmitRecovery} className="p-6 space-y-4 text-xs">
               <div className="p-3.5 bg-[#FAFAFC] rounded-2xl border border-black/[0.04] space-y-1.5">
-                <div className="flex justify-between text-[#6E6E73]">
+                <div className="flex justify-between text-[#6E6E73] items-center">
                   <span>Claimed:</span>
-                  <span className="font-medium text-[#1D1D1F]">{formatINR(selectedClaim.amountClaimed)}</span>
+                  <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">{formatINR(selectedClaim.amountClaimed)}</span>
                 </div>
-                <div className="flex justify-between text-[#6E6E73]">
+                <div className="flex justify-between text-[#6E6E73] items-center">
                   <span>Already Recovered:</span>
-                  <span className="font-semibold text-[#288548]">{formatINR(selectedClaim.amountRecovered)}</span>
+                  <span className="text-sm font-semibold text-[#288548] tracking-tight tabular-nums">{formatINR(selectedClaim.amountRecovered)}</span>
                 </div>
               </div>
 
@@ -225,7 +262,7 @@ export function ClaimsView({ selectedMarketplace }: ClaimsViewProps) {
                   max={selectedClaim.amountClaimed}
                   value={recoveryAmount}
                   onChange={(e) => setRecoveryAmount(Number(e.target.value))}
-                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-mono font-medium focus:outline-none"
+                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none"
                   required
                 />
               </div>

@@ -50,7 +50,7 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-full min-w-0">
       {searchKey && (
         <div className="flex items-center justify-between px-1">
           <input

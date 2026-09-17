@@ -55,7 +55,7 @@ export function ExpensesView() {
       accessorKey: "date",
       header: "Date",
       cell: ({ row }) => (
-        <span className="text-xs text-[#6E6E73]">
+        <span className="text-xs text-[#86868B] tabular-nums font-medium">
           {formatDate(row.original.date)}
         </span>
       ),
@@ -85,7 +85,7 @@ export function ExpensesView() {
       accessorKey: "paymentMethod",
       header: "Payment",
       cell: ({ row }) => (
-        <span className="font-mono text-[11px] text-[#86868B]">
+        <span className="text-[11px] text-[#86868B] font-medium">
           {row.original.paymentMethod.replace(/_/g, " ")}
         </span>
       ),
@@ -103,7 +103,7 @@ export function ExpensesView() {
       accessorKey: "amount",
       header: "Amount",
       cell: ({ row }) => (
-        <span className="font-mono font-semibold text-[#1D1D1F] text-xs">
+        <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
           {formatINR(row.original.amount)}
         </span>
       ),
@@ -113,7 +113,7 @@ export function ExpensesView() {
   const totalOpex = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
+    <div className="space-y-6 w-full max-w-[1536px] min-w-0 mx-auto animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">

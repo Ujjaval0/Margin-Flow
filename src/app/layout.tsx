@@ -10,9 +10,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Unified Platform | Financial & Operations Intelligence",
+  title: "MarginFlow | Financial Intelligence Platform",
   description:
-    "Transaction-level financial intelligence and operations platform for multi-channel e-commerce.",
+    "Transaction-level multi-channel profit engine & financial intelligence for modern e-commerce.",
 };
 
 export default function RootLayout({

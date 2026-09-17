@@ -45,10 +45,10 @@ export function ProductsView() {
       header: "SKU / Code",
       cell: ({ row }) => (
         <div>
-          <span className="font-mono font-semibold text-[#1D1D1F] block text-xs">
+          <span className="font-semibold text-[#1D1D1F] block text-xs tracking-tight">
             {row.original.sku}
           </span>
-          <span className="text-[11px] text-[#86868B]">{row.original.id}</span>
+          <span className="text-[11px] text-[#86868B] tabular-nums">{row.original.id}</span>
         </div>
       ),
     },
@@ -69,7 +69,7 @@ export function ProductsView() {
       header: "Active Cost (COGS)",
       cell: ({ row }) => (
         <div>
-          <span className="font-mono font-semibold text-[#1D1D1F] text-xs">
+          <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums block">
             {formatINR(row.original.currentCostPrice)}
           </span>
           <span className="text-[11px] text-[#86868B] block">Current window</span>
@@ -82,14 +82,14 @@ export function ProductsView() {
       cell: ({ row }) => {
         const aliases = row.original.channelAliases;
         return (
-          <div className="flex flex-wrap gap-1 text-[11px] font-mono">
-            <span className="px-2 py-0.5 bg-black/[0.04] text-[#1D1D1F] rounded-md">
+          <div className="flex flex-wrap gap-1 text-[11px]">
+            <span className="px-2 py-0.5 bg-black/[0.04] text-[#1D1D1F] font-medium rounded-md tabular-nums">
               AZ: {aliases["Amazon India"]}
             </span>
-            <span className="px-2 py-0.5 bg-black/[0.04] text-[#1D1D1F] rounded-md">
+            <span className="px-2 py-0.5 bg-black/[0.04] text-[#1D1D1F] font-medium rounded-md tabular-nums">
               FK: {aliases["Flipkart"]}
             </span>
-            <span className="px-2 py-0.5 bg-black/[0.04] text-[#1D1D1F] rounded-md">
+            <span className="px-2 py-0.5 bg-black/[0.04] text-[#1D1D1F] font-medium rounded-md tabular-nums">
               MSH: {aliases["Meesho"]}
             </span>
           </div>
@@ -131,7 +131,7 @@ export function ProductsView() {
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
+    <div className="space-y-6 w-full max-w-[1536px] min-w-0 mx-auto animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
@@ -156,7 +156,7 @@ export function ProductsView() {
           <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-black/[0.06] w-full max-w-lg max-h-[88vh] flex flex-col overflow-hidden">
             <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between">
               <div>
-                <span className="font-mono text-[11px] text-[#86868B] block">
+                <span className="text-[11px] text-[#86868B] tabular-nums block">
                   {selectedProduct.sku}
                 </span>
                 <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight mt-0.5">
@@ -188,7 +188,7 @@ export function ProductsView() {
                       <div key={idx} className="p-4 bg-white flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-[#1D1D1F] text-sm">
+                            <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
                               {formatINR(h.costPrice)}
                             </span>
                             {isCurrent && (

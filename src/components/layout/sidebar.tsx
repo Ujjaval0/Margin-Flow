@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React from "react";
 import {
@@ -8,12 +8,14 @@ import {
   ShieldAlert,
   Package,
   Landmark,
+  Building2,
   Truck,
   Receipt,
   FileCheck2,
   BarChart3,
-  History,
   ShieldCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { usePlatform } from "@/domain/store";
 
@@ -25,6 +27,7 @@ export type NavModule =
   | "products"
   | "settlements"
   | "suppliers"
+  | "purchases"
   | "expenses"
   | "documents"
   | "reports"
@@ -33,11 +36,15 @@ export type NavModule =
 interface SidebarProps {
   activeModule: NavModule;
   onSelectModule: (module: NavModule) => void;
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
 export function Sidebar({
   activeModule,
   onSelectModule,
+  isOpen,
+  onToggle,
 }: SidebarProps) {
   const { aiDocuments } = usePlatform();
 
@@ -88,10 +95,17 @@ export function Sidebar({
     },
     {
       id: "suppliers" as NavModule,
-      label: "Purchases",
-      icon: Truck,
+      label: "Suppliers",
+      icon: Building2,
       iconColor: "text-cyan-600",
       bgTint: "bg-cyan-500/10",
+    },
+    {
+      id: "purchases" as NavModule,
+      label: "Purchases & Bills",
+      icon: Truck,
+      iconColor: "text-amber-600",
+      bgTint: "bg-amber-500/10",
     },
     {
       id: "expenses" as NavModule,
@@ -115,39 +129,58 @@ export function Sidebar({
       iconColor: "text-orange-600",
       bgTint: "bg-orange-500/10",
     },
-    {
-      id: "audit" as NavModule,
-      label: "Audit Ledger",
-      icon: History,
-      iconColor: "text-slate-600",
-      bgTint: "bg-slate-500/10",
-    },
   ];
 
   return (
-    <aside className="w-64 bg-[#FBFBFD] flex flex-col h-screen border-r border-black/[0.06] select-none text-[#1D1D1F]">
+    <aside
+      className={`bg-[#FBFBFD] flex flex-col h-screen border-r border-black/[0.06] select-none text-[#1D1D1F] transition-all duration-300 ease-in-out shrink-0 ${
+        isOpen ? "w-64" : "w-[72px]"
+      }`}
+    >
       {/* Brand Header */}
-      <div className="p-5 pb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-bold text-xs tracking-tight shadow-[0_2px_8px_rgba(37,99,235,0.25)]">
-            UP
+      {isOpen ? (
+        <div className="p-4 pb-3 flex items-center justify-between border-b border-black/[0.03]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-bold text-xs tracking-tight shadow-[0_2px_8px_rgba(37,99,235,0.25)] shrink-0">
+              MF
+            </div>
+            <div className="min-w-0">
+              <span className="font-semibold tracking-tight text-sm text-[#1D1D1F] block leading-none truncate">
+                MarginFlow
+              </span>
+              <span className="text-[11px] text-[#86868B] tracking-tight mt-0.5 block font-normal truncate">
+                Financial Intelligence
+              </span>
+            </div>
           </div>
-          <div>
-            <span className="font-semibold tracking-tight text-sm text-[#1D1D1F] block leading-none">
-              Unified Platform
-            </span>
-            <span className="text-[11px] text-[#86868B] tracking-tight mt-0.5 block font-normal">
-              Financial Intelligence
-            </span>
-          </div>
-        </div>
-      </div>
 
-      {/* Navigation List with intentional color-coded icons */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
-        <div className="px-3 pb-2 text-[10px] font-semibold text-[#86868B] uppercase tracking-wider">
-          Workspace
+          <button
+            onClick={onToggle}
+            className="w-7 h-7 rounded-lg hover:bg-black/[0.05] text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors shrink-0"
+            title="Minimize sidebar (Ctrl+B)"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
         </div>
+      ) : (
+        <div className="p-4 pb-3 flex items-center justify-center border-b border-black/[0.03]">
+          <button
+            onClick={onToggle}
+            className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-bold text-xs tracking-tight shadow-[0_2px_8px_rgba(37,99,235,0.25)] hover:scale-105 transition-transform"
+            title="MarginFlow — Click to expand sidebar (Ctrl+B)"
+          >
+            MF
+          </button>
+        </div>
+      )}
+
+      {/* Navigation List */}
+      <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-1">
+        {isOpen && (
+          <div className="px-2 pb-2 text-[10px] font-semibold text-[#86868B] uppercase tracking-wider">
+            Workspace
+          </div>
+        )}
 
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -156,7 +189,10 @@ export function Sidebar({
             <button
               key={item.id}
               onClick={() => onSelectModule(item.id)}
-              className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
+              title={item.label}
+              className={`w-full flex items-center ${
+                isOpen ? "justify-between px-2.5 py-1.5" : "justify-center py-2 px-0"
+              } rounded-xl text-xs font-medium transition-all ${
                 isActive
                   ? "bg-black/[0.07] text-[#1D1D1F] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
                   : "text-[#555559] hover:text-[#1D1D1F] hover:bg-black/[0.03]"
@@ -164,17 +200,20 @@ export function Sidebar({
             >
               <div className="flex items-center gap-2.5">
                 <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all relative ${
                     isActive
                       ? `${item.bgTint} ${item.iconColor}`
                       : "bg-black/[0.03] text-[#6E6E73] group-hover:bg-black/[0.05]"
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? item.iconColor : "text-[#6E6E73]"}`} strokeWidth={2} />
+                  {!isOpen && item.badge !== undefined && (
+                    <span className="w-2 h-2 rounded-full bg-purple-600 absolute -top-0.5 -right-0.5 ring-2 ring-white" />
+                  )}
                 </div>
-                <span className="tracking-tight">{item.label}</span>
+                {isOpen && <span className="tracking-tight truncate">{item.label}</span>}
               </div>
-              {item.badge !== undefined && (
+              {isOpen && item.badge !== undefined && (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-semibold border border-purple-200">
                   {item.badge}
                 </span>
@@ -184,7 +223,26 @@ export function Sidebar({
         })}
       </nav>
 
-
+      {/* Bottom Footer Toggle */}
+      <div className="p-2 border-t border-black/[0.04]">
+        <button
+          onClick={onToggle}
+          className={`w-full flex items-center ${
+            isOpen ? "gap-2 px-2.5 py-1.5" : "justify-center py-2"
+          } rounded-xl text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-black/[0.04] transition-all`}
+          title={isOpen ? "Minimize sidebar (Ctrl+B)" : "Expand sidebar (Ctrl+B)"}
+        >
+          {isOpen ? (
+            <>
+              <PanelLeftClose className="w-3.5 h-3.5" />
+              <span className="tracking-tight">Minimize</span>
+              <span className="ml-auto text-[10px] text-slate-400 font-mono">Ctrl+B</span>
+            </>
+          ) : (
+            <PanelLeftOpen className="w-4 h-4 text-slate-600" />
+          )}
+        </button>
+      </div>
     </aside>
   );
 }

@@ -1,31 +1,22 @@
-﻿"use client";
+"use client";
 
 import React from "react";
-import {
-  Search,
-  ShieldCheck,
-  ShieldAlert,
-  Plus,
-} from "lucide-react";
+import { Plus } from "lucide-react";
 import { Marketplace } from "@/domain/types";
-import { usePlatform } from "@/domain/store";
 
 interface NavbarProps {
   selectedMarketplace: Marketplace | "ALL";
   onSelectMarketplace: (mp: Marketplace | "ALL") => void;
   onOpenQuickCreate: () => void;
-  searchTerm: string;
-  onSearchChange: (val: string) => void;
+  activeModule?: string;
 }
 
 export function Navbar({
   selectedMarketplace,
   onSelectMarketplace,
   onOpenQuickCreate,
-  searchTerm,
-  onSearchChange,
+  activeModule = "dashboard",
 }: NavbarProps) {
-
   const marketplaces: { id: Marketplace | "ALL"; label: string }[] = [
     { id: "ALL", label: "All Channels" },
     { id: "Amazon India", label: "Amazon" },
@@ -34,34 +25,45 @@ export function Navbar({
     { id: "Personal Website", label: "Website" },
   ];
 
+  const moduleTitles: Record<string, string> = {
+    dashboard: "Financial & Operational Overview",
+    orders: "Order Lifecycle & Cost Snapshots",
+    returns: "Returns & Reverse Logistics",
+    claims: "SAFE-T Claims & Dispute Recoveries",
+    products: "Product Catalog & Cost Basis",
+    settlements: "Marketplace Settlement Reconciliation",
+    suppliers: "Supplier Purchases & Inflow",
+    expenses: "Operating Expense Ledger",
+    documents: "AI Document Staging Sandbox",
+    reports: "Analytics & P&L Statements",
+    audit: "Immutable Financial Audit Ledger",
+  };
+
   return (
-    <header className="h-16 bg-white/80 backdrop-blur-md border-b border-black/[0.05] px-8 flex items-center justify-between z-10 sticky top-0">
-      {/* Search Input (Apple Pill Style) */}
-      <div className="w-80 relative">
-        <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#86868B]" strokeWidth={2} />
-        <input
-          type="text"
-          placeholder="Search orders, SKUs, returns, claims..."
-          value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-9 pr-4 py-1.5 text-xs bg-black/[0.04] hover:bg-black/[0.06] focus:bg-white text-[#1D1D1F] placeholder-[#86868B] border border-transparent focus:border-black/[0.12] rounded-full focus:outline-none transition-all shadow-none focus:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
-        />
+    <header className="h-16 bg-white/80 backdrop-blur-md border-b border-black/[0.05] px-6 md:px-8 flex items-center justify-between z-10 sticky top-0 transition-all">
+      {/* Left: Clean Breadcrumb & Current View Title */}
+      <div className="flex items-center gap-2 select-none">
+        <span className="text-xs font-semibold text-slate-400">MarginFlow</span>
+        <span className="text-xs text-slate-300">/</span>
+        <span className="text-xs font-semibold text-slate-800 tracking-tight">
+          {moduleTitles[activeModule] || activeModule}
+        </span>
       </div>
 
       {/* Center/Right Controls */}
       <div className="flex items-center gap-3">
-        {/* Apple Segmented Control */}
-        <div className="flex items-center p-1 bg-black/[0.04] rounded-full text-xs">
+        {/* Pill Segmented Control (Image 2 style) */}
+        <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/50 inline-flex items-center gap-0.5 text-xs">
           {marketplaces.map((mp) => {
             const isSelected = selectedMarketplace === mp.id;
             return (
               <button
                 key={mp.id}
                 onClick={() => onSelectMarketplace(mp.id)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
                   isSelected
-                    ? "bg-white text-[#1D1D1F] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                    : "text-[#6E6E73] hover:text-[#1D1D1F]"
+                    ? "bg-white text-[#1D1D1F] shadow-[0_1px_3px_rgba(0,0,0,0.06)] font-semibold"
+                    : "text-slate-600 hover:text-slate-900 font-medium"
                 }`}
               >
                 {mp.label}
@@ -70,17 +72,16 @@ export function Navbar({
           })}
         </div>
 
-
-
-        {/* Minimalist Apple Action Button */}
+        {/* Minimalist Action Button */}
         <button
           onClick={onOpenQuickCreate}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-all active:scale-[0.98]"
+          className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-semibold rounded-full shadow-xs transition-all active:scale-[0.98]"
         >
-          <Plus className="w-3.5 h-3.5" strokeWidth={2} />
+          <Plus className="w-3.5 h-3.5" strokeWidth={2.2} />
           <span>New Transaction</span>
         </button>
       </div>
     </header>
   );
 }
+
