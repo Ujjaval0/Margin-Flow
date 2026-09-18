@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatPercent } from "@/lib/utils";
 import {
@@ -31,40 +30,18 @@ import { NavModule } from "@/components/layout/sidebar";
 import {
   ArrowUpRight,
   ArrowDownRight,
-  TrendingUp,
-  DollarSign,
-  RotateCcw,
-  ShieldCheck,
-  Package,
-  Layers,
-  ShoppingCart,
-  Banknote,
-  BadgePercent,
   Calendar,
   Search,
   ArrowUpDown,
-  Filter,
-  Target,
-  Megaphone,
   Download,
   X,
+  ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  Sparkles,
   Info,
-  ExternalLink,
   Plus,
+  RotateCcw,
   Truck,
-  Landmark,
-  CheckCircle2,
-  IndianRupee,
-  Activity,
   Check,
-  Building2,
-  ShoppingBag,
-  Store,
-  Tag,
-  Globe,
 } from "lucide-react";
 import { DateRangePreset } from "@/domain/profitability-engine";
 import { OrderModal } from "@/components/modals/order-modal";
@@ -110,18 +87,6 @@ export function DashboardView({
   } = usePlatform();
 
   const selectedMarketplace = propMarketplace ?? contextMarketplace;
-  const router = useRouter();
-
-  const handleSelectModule = useCallback(
-    (module: NavModule) => {
-      if (onSelectModule) {
-        onSelectModule(module);
-      } else {
-        router.push(module === "dashboard" ? "/" : `/${module}`);
-      }
-    },
-    [onSelectModule, router]
-  );
 
   // Dual-Mode Financial View State: "OPERATOR" (Cash & Payouts) vs "CFO" (GAAP Hierarchy)
   const [viewMode, setViewMode] = useState<"OPERATOR" | "CFO">("OPERATOR");
@@ -305,10 +270,78 @@ export function DashboardView({
     ];
   }, [latestOrderDate]);
 
-  const previewOrdersCount = useMemo(() => {
-    if (!customStartDate || !customEndDate) return 0;
-    return orders.filter((o) => o.orderDate >= customStartDate && o.orderDate <= customEndDate).length;
-  }, [orders, customStartDate, customEndDate]);
+  const formatDateSimple = (dateStr: string) => {
+    if (!dateStr) return "";
+    const [y, m, d] = dateStr.split("-").map(Number);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return dateStr;
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+
+  const [calendarViewMonth, setCalendarViewMonth] = useState(() => {
+    if (customDateRange?.startDate) {
+      const [y, m] = customDateRange.startDate.split("-").map(Number);
+      if (!isNaN(y) && !isNaN(m)) return new Date(y, m - 1, 1);
+    }
+    return new Date(2026, 8, 1); // September 2026
+  });
+
+  useEffect(() => {
+    if (isCalendarOpen && customStartDate) {
+      const [y, m] = customStartDate.split("-").map(Number);
+      if (!isNaN(y) && !isNaN(m)) {
+        setCalendarViewMonth(new Date(y, m - 1, 1));
+      }
+    }
+  }, [isCalendarOpen]);
+
+  const handleCalendarDayClick = (dateStr: string) => {
+    if (!customStartDate || (customStartDate && customEndDate)) {
+      setCustomStartDate(dateStr);
+      setCustomEndDate("");
+    } else if (customStartDate && !customEndDate) {
+      if (dateStr < customStartDate) {
+        setCustomEndDate(customStartDate);
+        setCustomStartDate(dateStr);
+      } else {
+        setCustomEndDate(dateStr);
+      }
+    }
+  };
+
+  const calendarDays = useMemo(() => {
+    const year = calendarViewMonth.getFullYear();
+    const month = calendarViewMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sun
+    const totalDays = new Date(year, month + 1, 0).getDate();
+
+    const days: ({
+      dateStr: string;
+      dayNum: number;
+      isStart: boolean;
+      isEnd: boolean;
+      isInRange: boolean;
+    } | null)[] = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(null);
+    }
+
+    for (let d = 1; d <= totalDays; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const isStart = customStartDate === dateStr;
+      const isEnd = customEndDate === dateStr;
+      const isInRange = Boolean(
+        customStartDate &&
+        customEndDate &&
+        dateStr > customStartDate &&
+        dateStr < customEndDate
+      );
+      days.push({ dateStr, dayNum: d, isStart, isEnd, isInRange });
+    }
+
+    return days;
+  }, [calendarViewMonth, customStartDate, customEndDate]);
 
   const presets: { id: DateRangePreset; label: string }[] = [
     { id: "ALL", label: "All Time" },
@@ -431,7 +464,9 @@ export function DashboardView({
               {/* Active Custom Range Indicator Pill */}
               {datePreset === "CUSTOM" && customDateRange && (
                 <div className="flex items-center gap-1.5 ml-1 mr-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200 text-xs font-semibold">
-                  <span className="font-mono">{customDateRange.startDate} → {customDateRange.endDate}</span>
+                  <span className="tabular-nums tracking-tight">
+                    {formatDateSimple(customDateRange.startDate)} → {formatDateSimple(customDateRange.endDate)}
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
@@ -473,89 +508,143 @@ export function DashboardView({
 
             {/* Custom Date Range Popover */}
             {isCalendarOpen && (
-              <div className="absolute right-0 top-full mt-2 w-[340px] sm:w-[410px] bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
-                {/* Popover Header */}
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
-                      <Calendar className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">Custom Date Range</h4>
-                      <p className="text-[10px] text-slate-500">Filter all financial metrics by custom dates</p>
-                    </div>
-                  </div>
+              <div className="absolute right-0 top-full mt-2 w-[320px] sm:w-[350px] bg-white rounded-3xl border border-slate-200 shadow-2xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
+                {/* Clean Header */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-3">
+                  <h4 className="text-sm font-bold text-slate-900 tracking-tight">Select Date Range</h4>
                   <button
                     type="button"
                     onClick={() => setIsCalendarOpen(false)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+                    title="Close"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                {/* Quick Presets Shortcuts */}
-                <div className="mb-3.5">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Quick Shortcuts
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {quickShortcuts.map((sc) => (
+                {/* Quick Range Shortcuts */}
+                <div className="grid grid-cols-4 gap-1.5 mb-3">
+                  {[
+                    { label: "7 Days", start: quickShortcuts[1].start, end: quickShortcuts[1].end },
+                    { label: "14 Days", start: quickShortcuts[2].start, end: quickShortcuts[2].end },
+                    { label: "30 Days", start: quickShortcuts[3].start, end: quickShortcuts[3].end },
+                    { label: "This Month", start: quickShortcuts[4].start, end: quickShortcuts[4].end },
+                  ].map((sc) => {
+                    const isActive = customStartDate === sc.start && customEndDate === sc.end;
+                    return (
                       <button
                         key={sc.label}
                         type="button"
                         onClick={() => {
                           setCustomStartDate(sc.start);
                           setCustomEndDate(sc.end);
+                          const [y, m] = sc.start.split("-").map(Number);
+                          if (!isNaN(y) && !isNaN(m)) {
+                            setCalendarViewMonth(new Date(y, m - 1, 1));
+                          }
                         }}
-                        className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
-                          customStartDate === sc.start && customEndDate === sc.end
-                            ? "bg-purple-100 text-purple-800 font-bold border border-purple-200"
-                            : "bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/60"
+                        className={`py-1 text-[11px] font-semibold rounded-xl transition-all text-center cursor-pointer ${
+                          isActive
+                            ? "bg-purple-600 text-white shadow-xs"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700"
                         }`}
                       >
                         {sc.label}
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
 
-                {/* Date Inputs Grid */}
-                <div className="grid grid-cols-2 gap-3 mb-3.5">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={customStartDate}
-                      onChange={(e) => setCustomStartDate(e.target.value)}
-                      className="w-full px-2.5 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={customEndDate}
-                      onChange={(e) => setCustomEndDate(e.target.value)}
-                      className="w-full px-2.5 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all"
-                    />
-                  </div>
-                </div>
-
-                {/* Live Match Preview */}
-                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-xs mb-3.5">
-                  <span className="text-slate-500 font-medium text-[11px]">Orders in selected range:</span>
-                  <span className="font-bold text-purple-700 font-mono text-xs">
-                    {previewOrdersCount} order{previewOrdersCount === 1 ? "" : "s"}
+                {/* Interactive Month Navigation */}
+                <div className="flex items-center justify-between px-1 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCalendarViewMonth(
+                        new Date(calendarViewMonth.getFullYear(), calendarViewMonth.getMonth() - 1, 1)
+                      );
+                    }}
+                    className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-600 transition cursor-pointer"
+                    title="Previous Month"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs font-bold text-slate-800">
+                    {calendarViewMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCalendarViewMonth(
+                        new Date(calendarViewMonth.getFullYear(), calendarViewMonth.getMonth() + 1, 1)
+                      );
+                    }}
+                    className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-600 transition cursor-pointer"
+                    title="Next Month"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
 
-                {/* Actions Footer */}
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                {/* Weekday Labels */}
+                <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                  {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+                    <span key={day} className="text-[10px] font-bold text-slate-400 uppercase">
+                      {day}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Calendar Days Grid */}
+                <div className="grid grid-cols-7 gap-1 text-center mb-3">
+                  {calendarDays.map((d, idx) => {
+                    if (!d) {
+                      return <div key={`empty-${idx}`} className="h-7 w-full" />;
+                    }
+                    const { dateStr, dayNum, isStart, isEnd, isInRange } = d;
+                    const isSelectedEndpoint = isStart || isEnd;
+
+                    return (
+                      <button
+                        key={dateStr}
+                        type="button"
+                        onClick={() => handleCalendarDayClick(dateStr)}
+                        className={`h-7 w-full text-xs flex items-center justify-center transition-all cursor-pointer ${
+                          isSelectedEndpoint
+                            ? "bg-purple-600 text-white font-bold rounded-lg shadow-xs"
+                            : isInRange
+                            ? "bg-purple-100 text-purple-900 font-semibold rounded-none first:rounded-l-lg last:rounded-r-lg"
+                            : "text-slate-700 hover:bg-slate-100 rounded-lg font-medium"
+                        }`}
+                      >
+                        {dayNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Selected Range Display */}
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/70 text-xs mb-3">
+                  <div className="flex items-center gap-1.5 text-slate-500">
+                    <span>From:</span>
+                    <span className="font-semibold text-slate-900 tabular-nums">
+                      {customStartDate ? formatDateSimple(customStartDate) : "Select date"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-slate-500">
+                    <span>To:</span>
+                    <span className="font-semibold text-slate-900 tabular-nums">
+                      {customEndDate
+                        ? formatDateSimple(customEndDate)
+                        : customStartDate
+                        ? formatDateSimple(customStartDate)
+                        : "—"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Clean Actions Footer */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={() => {
@@ -563,36 +652,29 @@ export function DashboardView({
                       setCustomDateRange(null);
                       setIsCalendarOpen(false);
                     }}
-                    className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                    className="px-2 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition cursor-pointer"
                   >
                     Reset (All Time)
                   </button>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsCalendarOpen(false)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (customStartDate && customEndDate) {
-                          const s = customStartDate <= customEndDate ? customStartDate : customEndDate;
-                          const e = customEndDate >= customStartDate ? customEndDate : customStartDate;
-                          setCustomDateRange({ startDate: s, endDate: e });
-                          setDatePreset("CUSTOM");
-                          setIsCalendarOpen(false);
-                        }
-                      }}
-                      disabled={!customStartDate || !customEndDate}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 shadow-sm transition-all flex items-center gap-1"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      Apply Filter
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const s = customStartDate;
+                      const e = customEndDate || customStartDate;
+                      if (s && e) {
+                        const start = s <= e ? s : e;
+                        const end = e >= s ? e : s;
+                        setCustomDateRange({ startDate: start, endDate: end });
+                        setDatePreset("CUSTOM");
+                        setIsCalendarOpen(false);
+                      }
+                    }}
+                    disabled={!customStartDate}
+                    className="px-4 py-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Apply Range
+                  </button>
                 </div>
               </div>
             )}
@@ -605,30 +687,18 @@ export function DashboardView({
         /* ─── OPTION B: OPERATOR CASH-FLOW VIEW (6-CARD GRID MATCHING SCREENSHOT) ─── */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Card 1: GROSS SALES */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative hover:border-slate-300 transition-all group">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 GROSS SALES
               </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setActiveLogicModal(grossSalesLogic)}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors"
-                  title="Click to view Gross Sales calculation logic & formula"
-                >
-                  <Info className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => handleSelectModule("orders")}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
-                  title="Open Orders Ledger"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4" strokeWidth={2.2} />
-                </div>
-              </div>
+              <button
+                onClick={() => setActiveLogicModal(grossSalesLogic)}
+                className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors cursor-pointer"
+                title="Click to view Gross Sales calculation logic & formula"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
             </div>
             <div className="my-3">
               <div className="text-2xl font-semibold text-[#1D1D1F] tracking-tight">
@@ -644,30 +714,18 @@ export function DashboardView({
           </div>
 
           {/* Card 2: TRUE PROFIT */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative hover:border-slate-300 transition-all group">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 TRUE PROFIT
               </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setActiveLogicModal(trueProfitLogic)}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 flex items-center justify-center transition-colors"
-                  title="Click to view True Profit calculation logic & formula"
-                >
-                  <Info className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => handleSelectModule("settlements")}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
-                  title="Open Settlements Ledger"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <IndianRupee className="w-4 h-4" strokeWidth={2.2} />
-                </div>
-              </div>
+              <button
+                onClick={() => setActiveLogicModal(trueProfitLogic)}
+                className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 flex items-center justify-center transition-colors cursor-pointer"
+                title="Click to view True Profit calculation logic & formula"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
             </div>
             <div className="my-3">
               <div className="text-2xl font-semibold text-[#1D1D1F] tracking-tight">
@@ -683,30 +741,18 @@ export function DashboardView({
           </div>
 
           {/* Card 3: NET PROFIT */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative hover:border-slate-300 transition-all group">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 NET PROFIT
               </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setActiveLogicModal(netProfitLogic)}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-purple-50 text-slate-400 hover:text-purple-600 flex items-center justify-center transition-colors"
-                  title="Click to view Net Profit calculation logic & formula"
-                >
-                  <Info className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => handleSelectModule("settlements")}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
-                  title="Open Settlements Ledger"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
-                <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4" strokeWidth={2.2} />
-                </div>
-              </div>
+              <button
+                onClick={() => setActiveLogicModal(netProfitLogic)}
+                className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-purple-50 text-slate-400 hover:text-purple-600 flex items-center justify-center transition-colors cursor-pointer"
+                title="Click to view Net Profit calculation logic & formula"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
             </div>
             <div className="my-3">
               <div className="text-2xl font-semibold text-[#1D1D1F] tracking-tight">
@@ -722,30 +768,18 @@ export function DashboardView({
           </div>
 
           {/* Card 4: RETURNS & RTO */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative hover:border-slate-300 transition-all group">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 RETURNS &amp; RTO
               </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setActiveLogicModal(returnsRtoLogic)}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors"
-                  title="Click to view Returns & RTO calculation logic & formula"
-                >
-                  <Info className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => handleSelectModule("returns")}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
-                  title="Open Returns Ledger"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
-                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-                  <RotateCcw className="w-4 h-4" strokeWidth={2.2} />
-                </div>
-              </div>
+              <button
+                onClick={() => setActiveLogicModal(returnsRtoLogic)}
+                className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
+                title="Click to view Returns & RTO calculation logic & formula"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
             </div>
             <div className="my-3">
               <div className="text-2xl font-semibold text-[#1D1D1F] tracking-tight">
@@ -768,30 +802,18 @@ export function DashboardView({
           </div>
 
           {/* Card 5: WHOLESALER COST (COGS) */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative hover:border-slate-300 transition-all group">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 WHOLESALER COST (COGS)
               </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setActiveLogicModal(wholesalerCogsLogic)}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors"
-                  title="Click to view Wholesaler COGS calculation logic & formula"
-                >
-                  <Info className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => handleSelectModule("suppliers")}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
-                  title="Open Suppliers Ledger"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <Landmark className="w-4 h-4" strokeWidth={2.2} />
-                </div>
-              </div>
+              <button
+                onClick={() => setActiveLogicModal(wholesalerCogsLogic)}
+                className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 flex items-center justify-center transition-colors cursor-pointer"
+                title="Click to view Wholesaler COGS calculation logic & formula"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
             </div>
             <div className="my-3">
               <div className="text-2xl font-semibold text-[#1D1D1F] tracking-tight">
@@ -807,30 +829,18 @@ export function DashboardView({
           </div>
 
           {/* Card 6: DAMAGED CLAIMS RECOVERY */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative hover:border-slate-300 transition-all group">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 DAMAGED CLAIMS RECOVERY
               </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setActiveLogicModal(damagedClaimsLogic)}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 flex items-center justify-center transition-colors"
-                  title="Click to view Damaged Claims calculation logic & formula"
-                >
-                  <Info className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => handleSelectModule("claims")}
-                  className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
-                  title="Open Claims Ledger"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4" strokeWidth={2.2} />
-                </div>
-              </div>
+              <button
+                onClick={() => setActiveLogicModal(damagedClaimsLogic)}
+                className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 flex items-center justify-center transition-colors cursor-pointer"
+                title="Click to view Damaged Claims calculation logic & formula"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
             </div>
             <div className="my-3">
               <div className="text-2xl font-semibold text-amber-600 tracking-tight">
@@ -854,25 +864,13 @@ export function DashboardView({
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500">Net Revenue</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setActiveLogicModal(netRevenueLogic)}
-                    className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
-                    title="Inspect Net Revenue Formula"
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleSelectModule("orders")}
-                    className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
-                    title="View Orders"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </button>
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center ml-1">
-                    <DollarSign className="w-4 h-4" strokeWidth={2.2} />
-                  </div>
-                </div>
+                <button
+                  onClick={() => setActiveLogicModal(netRevenueLogic)}
+                  className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center cursor-pointer transition-colors"
+                  title="Inspect Net Revenue Formula"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
               </div>
               <div className="my-2">
                 <div className="text-2xl font-semibold text-[#1D1D1F] tracking-tight">
@@ -906,25 +904,13 @@ export function DashboardView({
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500">Gross Profit</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setActiveLogicModal(grossProfitLogic)}
-                    className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
-                    title="Inspect Gross Profit Formula"
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleSelectModule("reports")}
-                    className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
-                    title="View P&L Report"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </button>
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center ml-1">
-                    <TrendingUp className="w-4 h-4" strokeWidth={2.2} />
-                  </div>
-                </div>
+                <button
+                  onClick={() => setActiveLogicModal(grossProfitLogic)}
+                  className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center cursor-pointer transition-colors"
+                  title="Inspect Gross Profit Formula"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
               </div>
               <div className="my-2">
                 <div className="text-2xl font-semibold text-[#288548] tracking-tight">
@@ -960,25 +946,13 @@ export function DashboardView({
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500">Contribution Profit</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setActiveLogicModal(contributionProfitLogic)}
-                    className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
-                    title="Inspect Contribution Profit Formula"
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleSelectModule("settlements")}
-                    className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
-                    title="View Settlements"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </button>
-                  <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center ml-1">
-                    <Layers className="w-4 h-4" strokeWidth={2.2} />
-                  </div>
-                </div>
+                <button
+                  onClick={() => setActiveLogicModal(contributionProfitLogic)}
+                  className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center cursor-pointer transition-colors"
+                  title="Inspect Contribution Profit Formula"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
               </div>
               <div className="my-2">
                 <div className="text-2xl font-semibold text-[#1D1D1F] tracking-tight">
@@ -1014,35 +988,13 @@ export function DashboardView({
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between relative">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500">Net Operating Profit</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setActiveLogicModal(netOperatingProfitLogic)}
-                    className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
-                    title="Inspect Net Operating Profit Formula"
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleSelectModule("expenses")}
-                    className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
-                    title="View OPEX"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </button>
-                  <div
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center ml-1 ${
-                      profitability.netOperatingProfit >= 0
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "bg-rose-50 text-rose-600"
-                    }`}
-                  >
-                    {profitability.netOperatingProfit >= 0 ? (
-                      <ArrowUpRight className="w-4 h-4" strokeWidth={2.2} />
-                    ) : (
-                      <ArrowDownRight className="w-4 h-4" strokeWidth={2.2} />
-                    )}
-                  </div>
-                </div>
+                <button
+                  onClick={() => setActiveLogicModal(netOperatingProfitLogic)}
+                  className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center cursor-pointer transition-colors"
+                  title="Inspect Net Operating Profit Formula"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
               </div>
               <div className="my-2">
                 <div
@@ -1088,32 +1040,19 @@ export function DashboardView({
           {/* Secondary Operational Metrics & POAS */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
             {/* Volume */}
-            <div
-              onClick={() => {
-                handleSort("unitsSold");
-                scrollToSkuTable();
-              }}
-              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group"
-              title="Click to view & sort SKUs by volume"
-            >
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Volume</span>
-                <ShoppingCart className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500 transition-colors" strokeWidth={2} />
               </div>
               <div><span className="text-xl font-semibold text-[#1D1D1F] tracking-tight tabular-nums">{profitability.totalOrders}</span><span className="text-xs text-slate-400 ml-1">orders</span></div>
               <div className="text-[11px] text-slate-500 tabular-nums">{profitability.totalUnitsSold} <span className="text-slate-400">units sold</span></div>
-              <div className="mt-auto pt-2 border-t border-slate-100 flex items-center justify-between"><span className="text-[10px] font-semibold text-blue-600 group-hover:underline">Sort by Volume ➔</span></div>
+              <div className="mt-auto pt-2 border-t border-slate-100 flex items-center justify-between"><span className="text-[10px] font-semibold text-blue-600">Total volume</span></div>
             </div>
 
             {/* POAS & Ad Spend */}
-            <div
-              onClick={() => scrollToSkuTable()}
-              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group"
-              title="Click to inspect SKU POAS breakdown"
-            >
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">POAS / Ads</span>
-                <Target className="w-3.5 h-3.5 text-slate-300 group-hover:text-amber-500 transition-colors" strokeWidth={2} />
               </div>
               <div>
                 <span className={`text-xl font-semibold tracking-tight tabular-nums ${profitability.poas >= 1.0 ? "text-[#288548]" : "text-amber-600"}`}>
@@ -1125,20 +1064,16 @@ export function DashboardView({
                 Spend: {formatINR(profitability.totalAdSpend)}
               </div>
               <div className="mt-auto pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className={`text-[10px] font-semibold group-hover:underline ${profitability.poas >= 1.0 ? "text-emerald-600" : "text-amber-600"}`}>
-                  {profitability.poas >= 1.0 ? "Profitable Scale ➔" : "High Ad Drag ➔"}
+                <span className={`text-[10px] font-semibold ${profitability.poas >= 1.0 ? "text-emerald-600" : "text-amber-600"}`}>
+                  {profitability.poas >= 1.0 ? "Profitable Scale" : "High Ad Drag"}
                 </span>
               </div>
             </div>
 
             {/* Settlement Received */}
-            <div
-              onClick={() => handleSelectModule("settlements")}
-              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2 cursor-pointer hover:border-emerald-300 transition-all"
-            >
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Settlement</span>
-                <Banknote className="w-3.5 h-3.5 text-slate-300" strokeWidth={2} />
               </div>
               <div className="text-xl font-semibold text-[#288548] tracking-tight tabular-nums">{formatINR(profitability.actualSettlementsReceived)}</div>
               <div className="text-[11px] text-slate-500">Inflow received</div>
@@ -1149,7 +1084,6 @@ export function DashboardView({
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Mkt. Fees</span>
-                <BadgePercent className="w-3.5 h-3.5 text-slate-300" strokeWidth={2} />
               </div>
               <div className="text-xl font-semibold text-[#D70015] tracking-tight tabular-nums">{formatINR(profitability.marketplaceCharges)}</div>
               <div className="text-[11px] text-slate-500">Total deducted</div>
@@ -1157,31 +1091,19 @@ export function DashboardView({
             </div>
 
             {/* Returns & RTO */}
-            <div
-              onClick={() => {
-                handleSort("returnRate");
-                scrollToSkuTable();
-              }}
-              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group"
-              title="Click to sort SKUs by return rate"
-            >
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Returns</span>
-                <RotateCcw className="w-3.5 h-3.5 text-slate-300 group-hover:text-amber-500 transition-colors" strokeWidth={2} />
               </div>
               <div className="text-xl font-semibold text-amber-600 tracking-tight tabular-nums">{formatINR(profitability.returnLosses + profitability.rtoLosses)}</div>
               <div className="text-[11px] text-slate-500">Return + RTO loss</div>
-              <div className="mt-auto pt-2 border-t border-slate-100 flex items-center justify-between"><span className="text-[10px] font-semibold text-amber-600 group-hover:underline">Rate: {formatPercent(profitability.returnRate)} ➔</span></div>
+              <div className="mt-auto pt-2 border-t border-slate-100 flex items-center justify-between"><span className="text-[10px] font-semibold text-amber-600">Rate: {formatPercent(profitability.returnRate)}</span></div>
             </div>
 
             {/* Dispute Recoveries */}
-            <div
-              onClick={() => handleSelectModule("claims")}
-              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2 cursor-pointer hover:border-indigo-300 transition-all"
-            >
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Disputes</span>
-                <ShieldCheck className="w-3.5 h-3.5 text-slate-300" strokeWidth={2} />
               </div>
               <div className="text-xl font-semibold text-[#1D1D1F] tracking-tight tabular-nums">{formatINR(profitability.claimRecoveries)}</div>
               <div className="text-[11px] text-slate-500">Recovered so far</div>
@@ -1192,7 +1114,6 @@ export function DashboardView({
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Write-offs</span>
-                <Package className="w-3.5 h-3.5 text-slate-300" strokeWidth={2} />
               </div>
               <div className="text-xl font-semibold text-slate-700 tracking-tight tabular-nums">{formatINR(profitability.damageLosses)}</div>
               <div className="text-[11px] text-slate-500">Damaged inventory</div>
@@ -1202,36 +1123,35 @@ export function DashboardView({
         </div>
       )}
 
-      {/* ─── OPTION A: QUICK RECORD ACTIONS DOCKED TOOLBAR ─── */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
-        <div className="flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-xs" />
-          <div>
-            <span className="text-xs font-bold text-slate-900 tracking-tight">Quick Record Actions:</span>
-            <span className="text-[11px] text-slate-400 ml-2 hidden md:inline">Instant direct entries to platform ledgers</span>
-          </div>
+      {/* ─── QUICK RECORD ACTIONS DOCKED TOOLBAR ─── */}
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-900 tracking-tight">Quick Actions</span>
+          <span className="text-slate-300">·</span>
+          <span className="text-xs text-slate-500">Instant entries to platform ledger</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+        {/* Pill Segmented Control matching Navbar options */}
+        <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/50 inline-flex items-center gap-0.5 text-xs w-full sm:w-auto">
           <button
             onClick={() => setIsAddOrderOpen(true)}
-            className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+            className="flex-1 sm:flex-initial px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 bg-white text-[#1D1D1F] shadow-[0_1px_3px_rgba(0,0,0,0.06)] active:scale-95 cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-slate-700" />
             <span>Add Order</span>
           </button>
           <button
             onClick={() => setIsRecordReturnOpen(true)}
-            className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+            className="flex-1 sm:flex-initial px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-white/80 hover:shadow-[0_1px_3px_rgba(0,0,0,0.06)] active:scale-95 cursor-pointer"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
             <span>Record Return</span>
           </button>
           <button
             onClick={() => setIsAddPurchaseOpen(true)}
-            className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+            className="flex-1 sm:flex-initial px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-white/80 hover:shadow-[0_1px_3px_rgba(0,0,0,0.06)] active:scale-95 cursor-pointer"
           >
-            <Truck className="w-3.5 h-3.5" />
+            <Truck className="w-3.5 h-3.5 text-slate-500" />
             <span>Add Supplier Payment</span>
           </button>
         </div>

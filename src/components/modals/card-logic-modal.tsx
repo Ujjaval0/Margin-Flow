@@ -7,8 +7,8 @@ import { formatINR, formatPercent } from "@/lib/utils";
 
 export interface CardLogicModalData {
   title: string;
-  badge: string;
-  category: string;
+  badge?: string;
+  category?: string;
   meaning: string;
   formula: string;
   equationComponents: {
@@ -40,67 +40,67 @@ export function CardLogicModal({ data, onClose }: CardLogicModalProps) {
       >
         {/* Modal Header */}
         <div className="flex items-start justify-between pb-3 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
-                {data.category}
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                {data.badge}
-              </span>
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 mt-1">{data.title}</h3>
+          <div className="pr-4">
+            <h3 className="text-lg font-bold text-slate-900 tracking-tight">{data.title}</h3>
             <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{data.meaning}</p>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer shrink-0"
+            title="Close"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Formula Box */}
-        <div className="p-3.5 rounded-2xl bg-purple-50/60 border border-purple-100">
+        {/* Calculation Formula Section */}
+        <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-100">
           <span className="text-[10px] font-bold text-purple-900 uppercase tracking-wider block mb-1">
-            Mathematical Formula
+            Calculation Formula
           </span>
-          <div className="text-xs font-mono font-semibold text-purple-950 break-words leading-relaxed">
+          <div className="text-sm font-semibold text-purple-950 tracking-tight leading-relaxed">
             {data.formula}
           </div>
         </div>
 
-        {/* Live Equation Breakdown */}
-        <div className="space-y-2">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            Current Dataset Arithmetic
+        {/* Dataset Breakdown with Chart Numerical Style */}
+        <div className="space-y-1.5">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block px-1">
+            Arithmetic Breakdown
           </span>
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
+          <div className="rounded-2xl border border-slate-200/90 divide-y divide-slate-100 bg-white overflow-hidden shadow-2xs">
             {data.equationComponents.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between">
-                <span className="text-slate-600">{item.label}</span>
-                <span className={`font-mono font-semibold ${item.color || "text-slate-800"}`}>
+              <div
+                key={idx}
+                className="flex items-center justify-between px-4 py-2.5 text-xs hover:bg-slate-50/50 transition-colors"
+              >
+                <span className="text-slate-600 font-medium">{item.label}</span>
+                <span className={`text-right font-semibold tabular-nums tracking-tight ${item.color || "text-[#1D1D1F]"}`}>
                   {item.value}
                 </span>
               </div>
             ))}
-            <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between font-bold text-xs">
-              <span className="text-slate-900">{data.resultLabel}</span>
-              <span className="font-mono text-purple-700 text-sm">{data.resultValue}</span>
+
+            {/* Total Row matching chart & card numerical style */}
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-50/90 border-t border-slate-200">
+              <span className="text-xs font-bold text-slate-900">{data.resultLabel}</span>
+              <span className="text-base font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
+                {data.resultValue}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Business Impact Note */}
-        <div className="flex items-start gap-2 p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl text-[11px] text-emerald-800 leading-relaxed">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-          <span>{data.impactNote}</span>
+        {/* Business Insight Takeaway */}
+        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl text-xs text-emerald-900">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span className="leading-snug">{data.impactNote}</span>
         </div>
 
-        {/* Modal Action */}
+        {/* Close Action */}
         <button
           onClick={onClose}
-          className="w-full py-2.5 bg-slate-900 hover:bg-black text-white text-xs font-semibold rounded-xl transition shadow-xs"
+          className="w-full py-2.5 bg-slate-900 hover:bg-black active:scale-[0.99] text-white text-xs font-semibold rounded-xl transition shadow-xs cursor-pointer"
         >
           Close Inspection
         </button>
@@ -116,10 +116,8 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
   return {
     grossSales: {
       title: "Gross Sales",
-      badge: "Catalog Demand",
-      category: "Top-Line Order Value",
-      meaning: "Total list value of all customer orders placed across selected channels.",
-      formula: "Gross Sales = Σ (Item Selling Price × Ordered Quantity)",
+      meaning: "Total catalog value of all customer orders placed across selected channels.",
+      formula: "Gross Sales = Item Selling Price × Ordered Quantity",
       equationComponents: [
         { label: "Active Orders Logged", value: `${profitability.totalOrders} orders` },
         { label: "Total Units Sold", value: `${profitability.totalUnitsSold} units` },
@@ -132,17 +130,15 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
           ),
         },
       ],
-      resultLabel: "Total Gross Catalog Sales",
+      resultLabel: "Total Gross Sales",
       resultValue: formatINR(profitability.grossSales),
-      impactNote: "Gross sales indicates total catalog demand before fee or return deductions.",
+      impactNote: "Measures top-line customer demand before any commission, logistics, or return deductions.",
     },
 
     trueProfit: {
       title: "True Profit",
-      badge: "Realized Net Cash",
-      category: "In-Pocket Cash Flow",
-      meaning: "Realized in-pocket cash after platform fees, returns, and wholesale supplier COGS.",
-      formula: "True Profit = Net Platform Payout − Wholesaler Inventory Cost (COGS)",
+      meaning: "Realized in-pocket cash remaining after all marketplace deductions and wholesale supplier COGS.",
+      formula: "True Profit = Net Platform Payout − Wholesale COGS",
       equationComponents: [
         {
           label: "Net Platform Payout (Gross − Fees − Returns + Claims)",
@@ -150,90 +146,84 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
           color: "text-blue-600",
         },
         {
-          label: "− Wholesale Product Cost (Snapshot COGS)",
+          label: "Wholesale Inventory Cost (COGS)",
           value: `−${formatINR(profitability.cogs)}`,
-          color: "text-rose-600",
+          color: "text-[#D70015]",
         },
       ],
-      resultLabel: "True Realized Profit",
+      resultLabel: "True In-Pocket Profit",
       resultValue: formatINR(profitability.trueProfit),
-      impactNote: "Represents actual net cash remaining in your pocket after paying suppliers.",
+      impactNote: "Actual net cash earned after fulfilling platform deductions and paying wholesale suppliers.",
     },
 
     netProfit: {
-      title: "Net Profit (Platform Payout)",
-      badge: "Disbursable Payout",
-      category: "Marketplace Cash Remittance",
-      meaning: "Net cash payout remitted by channels before paying supplier bills.",
-      formula: "Net Profit = Net Sales − Marketplace Deductions − Return Losses + Dispute Recoveries",
+      title: "Net Platform Payout",
+      meaning: "Net cash disbursed by marketplaces before paying wholesale suppliers.",
+      formula: "Net Payout = Net Sales − Fees & Commissions − Return Deductions + Claims",
       equationComponents: [
         {
           label: "Net Sales (Gross − Discounts)",
           value: formatINR(profitability.netSales),
-          color: "text-slate-800",
+          color: "text-[#1D1D1F]",
         },
         {
-          label: "− Marketplace Fees & Commissions",
+          label: "Marketplace Fees & Commissions",
           value: `−${formatINR(profitability.marketplaceCharges)}`,
-          color: "text-rose-600",
+          color: "text-[#D70015]",
         },
         {
-          label: "− Reverse Freight & Return Deductions",
+          label: "Return & RTO Deductions",
           value: `−${formatINR(profitability.returnLosses + profitability.rtoLosses)}`,
           color: "text-amber-600",
         },
         {
-          label: "+ Recovered Dispute Reimbursements",
+          label: "Dispute Reimbursements Credited",
           value: `+${formatINR(profitability.claimRecoveries)}`,
-          color: "text-emerald-600",
+          color: "text-[#288548]",
         },
       ],
       resultLabel: "Net Platform Payout",
       resultValue: formatINR(profitability.netPlatformPayout),
-      impactNote: "Directly matches platform remittance payouts deposited into your bank.",
+      impactNote: "Expected bank payout deposited into your account from platforms.",
     },
 
     returnsRto: {
       title: "Returns & RTO Analysis",
-      badge: "Reverse Logistics Friction",
-      category: "Fulfillment & Return Losses",
-      meaning: "Combined units and logistics losses from undelivered RTO and customer returns.",
-      formula: "Total Loss = Forward/Reverse Shipping Fees + Damaged Scrap Value",
+      meaning: "Logistics deductions and losses from courier rejections (RTO) and customer returns.",
+      formula: "Return Losses = Forward/Reverse Shipping Fees + Damaged Scrap",
       equationComponents: [
         {
-          label: "RTO (Courier Return-to-Origin)",
+          label: "Courier RTO (Undelivered)",
           value: `${profitability.rtoCount} items`,
           color: "text-amber-600",
         },
         {
           label: "Customer Returns (Delivered & Returned)",
           value: `${profitability.customerReturnCount} items`,
-          color: "text-rose-600",
+          color: "text-[#D70015]",
         },
-        { label: "Overall Return Rate %", value: formatPercent(profitability.returnRate) },
+        { label: "Overall Return Rate", value: formatPercent(profitability.returnRate) },
         {
-          label: "Total Financial Loss Deducted",
-          value: formatINR(profitability.returnLosses + profitability.rtoLosses),
-          color: "text-rose-700",
+          label: "Total Financial Return Losses",
+          value: `−${formatINR(profitability.returnLosses + profitability.rtoLosses)}`,
+          color: "text-[#D70015]",
         },
       ],
-      resultLabel: "Total Return Units (Return Rate %)",
-      resultValue: `${profitability.rtoCount + profitability.customerReturnCount} (${formatPercent(
+      resultLabel: "Total Return Units",
+      resultValue: `${profitability.rtoCount + profitability.customerReturnCount} items (${formatPercent(
         profitability.returnRate
       )})`,
-      impactNote: "Tracks undelivered courier rejections versus delivered customer returns.",
+      impactNote: "Differentiates undelivered courier transit failures from delivered customer returns.",
     },
 
     wholesalerCogs: {
       title: "Wholesaler Cost (COGS)",
-      badge: "Supplier Liability",
-      category: "Product Procurement",
-      meaning: "Total wholesale purchase cost payable to suppliers for sold units.",
-      formula: "COGS = Σ (Sold Quantity × Historical Unit Purchase Cost Snapshot)",
+      meaning: "Total inventory procurement cost payable to wholesale suppliers for sold items.",
+      formula: "Wholesaler COGS = Total Units Sold × Unit Purchase Cost",
       equationComponents: [
         { label: "Total Units Sold", value: `${profitability.totalUnitsSold} units` },
         {
-          label: "Average Unit Snapshot Cost",
+          label: "Average Cost Per Unit",
           value: formatINR(
             profitability.totalUnitsSold > 0
               ? Math.round(profitability.cogs / profitability.totalUnitsSold)
@@ -241,22 +231,20 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
           ),
         },
       ],
-      resultLabel: "Total Wholesaler COGS Payable",
+      resultLabel: "Total Wholesaler Cost",
       resultValue: formatINR(profitability.cogs),
-      impactNote: "Locked-in snapshot purchase costs payable to wholesale inventory vendors.",
+      impactNote: "Snapshot procurement liability payable to suppliers for all delivered items.",
     },
 
     damagedClaims: {
       title: "Damaged Claims Recovery",
-      badge: "Dispute Reimbursements",
-      category: "Loss Recovery Pipeline",
-      meaning: "Dispute reimbursements credited by platforms for transit or damage cases.",
-      formula: "Recovered = Σ (Approved Claims); Pending = Σ (Open Claims)",
+      meaning: "Reimbursements credited by platforms for courier transit or damage disputes.",
+      formula: "Claims Recovery = Approved SAFE-T & Transit Dispute Credits",
       equationComponents: [
         {
-          label: "Dispute Reimbursements Credited",
+          label: "Reimbursements Credited",
           value: formatINR(profitability.claimRecoveries),
-          color: "text-emerald-600",
+          color: "text-[#288548]",
         },
         {
           label: "Pending Claims Under Review",
@@ -264,106 +252,97 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
           color: "text-amber-600",
         },
         {
-          label: "Pending Claims Count",
-          value: `${profitability.pendingClaimsCount} open tickets`,
+          label: "Open Dispute Tickets",
+          value: `${profitability.pendingClaimsCount} tickets`,
         },
         {
-          label: "Physical Damaged Inventory Units",
-          value: `${profitability.damagedUnitsCount} damaged units`,
+          label: "Physical Damaged Units",
+          value: `${profitability.damagedUnitsCount} units`,
         },
       ],
       resultLabel: "Total Reimbursements Credited",
       resultValue: formatINR(profitability.claimRecoveries),
-      impactNote: "Recovers lost cash from platform SAFE-T and courier dispute claims.",
+      impactNote: "Recovers lost cash directly through dispute claims filed against logistics damage.",
     },
 
     netRevenue: {
       title: "Net Revenue",
-      badge: "Realized Sales",
-      category: "GAAP Accounting",
       meaning: "Customer catalog sales after deducting seller promotional discounts.",
       formula: "Net Revenue = Gross Sales − Promotional Discounts",
       equationComponents: [
         { label: "Gross Catalog Sales", value: formatINR(profitability.grossSales) },
         {
-          label: "− Direct Discounts",
+          label: "Promotional Discounts",
           value: `−${formatINR(profitability.discounts)}`,
           color: "text-amber-600",
         },
       ],
-      resultLabel: "Net Realized Sales",
+      resultLabel: "Net Realized Revenue",
       resultValue: formatINR(profitability.netSales),
-      impactNote: "Operating sales volume before deducting platform fees and COGS.",
+      impactNote: "True top-line sales volume before channel fees and product COGS.",
     },
 
     grossProfit: {
       title: "Gross Profit",
-      badge: "Manufacturing Margin",
-      category: "GAAP Accounting",
-      meaning: "Net revenue minus wholesale inventory purchase cost (COGS).",
-      formula: "Gross Profit = Net Revenue − Snapshot COGS",
+      meaning: "Net revenue minus wholesale inventory purchase cost.",
+      formula: "Gross Profit = Net Revenue − Wholesale COGS",
       equationComponents: [
         { label: "Net Revenue", value: formatINR(profitability.netSales) },
         {
-          label: "− Snapshot COGS",
+          label: "Wholesale COGS",
           value: `−${formatINR(profitability.cogs)}`,
-          color: "text-rose-600",
+          color: "text-[#D70015]",
         },
         { label: "Gross Margin %", value: formatPercent(profitability.grossMargin) },
       ],
       resultLabel: "Gross Profit",
       resultValue: formatINR(profitability.grossProfit),
-      impactNote: "Core product markup profit before platform logistics and commission fees.",
+      impactNote: "Product markup margin before marketplace commission and fulfillment fees.",
     },
 
     contributionProfit: {
       title: "Contribution Profit",
-      badge: "Channel Profitability",
-      category: "Unit Economics",
-      meaning: "Margin after platform commissions, logistics fees, and return losses.",
-      formula:
-        "Contribution Profit = Gross Profit − Marketplace Charges − Logistics − Return Losses + Claims",
+      meaning: "Channel operating profit after commissions, logistics fees, and return losses.",
+      formula: "Contribution Profit = Gross Profit − Fees − Return Losses + Claims",
       equationComponents: [
         { label: "Gross Profit", value: formatINR(profitability.grossProfit) },
         {
-          label: "− Marketplace Commissions & Fees",
+          label: "Marketplace Commissions & Fees",
           value: `−${formatINR(profitability.marketplaceCharges)}`,
-          color: "text-rose-600",
+          color: "text-[#D70015]",
         },
         {
-          label: "− Return & RTO Losses",
+          label: "Return & RTO Losses",
           value: `−${formatINR(profitability.returnLosses + profitability.rtoLosses)}`,
-          color: "text-amber-600",
+          color: "text-[#D70015]",
         },
         {
-          label: "+ Recovered Claims",
+          label: "Dispute Recoveries Credited",
           value: `+${formatINR(profitability.claimRecoveries)}`,
-          color: "text-emerald-600",
+          color: "text-[#288548]",
         },
       ],
       resultLabel: "Contribution Profit",
       resultValue: formatINR(profitability.contributionProfit),
-      impactNote: "Essential unit-economics test of channel sustainability.",
+      impactNote: "Primary unit-economics benchmark of channel sustainability.",
     },
 
     netOperatingProfit: {
       title: "Net Operating Profit",
-      badge: "Business Net Earnings",
-      category: "GAAP Accounting",
-      meaning: "Final net earnings after deducting business operating expenses (OPEX).",
+      meaning: "Final business net earnings after deducting operating expenses (OPEX).",
       formula: "Net Operating Profit = Contribution Profit − Operating Expenses (OPEX)",
       equationComponents: [
         { label: "Contribution Profit", value: formatINR(profitability.contributionProfit) },
         {
-          label: "− Total Operating Expenses (OPEX)",
+          label: "Total Operating Expenses (OPEX)",
           value: `−${formatINR(profitability.operatingExpenses)}`,
-          color: "text-rose-600",
+          color: "text-[#D70015]",
         },
         { label: "Net Operating Margin %", value: formatPercent(profitability.netOperatingMargin) },
       ],
       resultLabel: "Net Operating Profit",
       resultValue: formatINR(profitability.netOperatingProfit),
-      impactNote: "True commercial bottom line after financing business overheads.",
+      impactNote: "True bottom line after accounting for office, software, and business overheads.",
     },
   };
 }
