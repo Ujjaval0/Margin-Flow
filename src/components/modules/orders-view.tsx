@@ -46,11 +46,21 @@ import {
   AlertCircle,
   Pencil,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import { calculateOrderProfitability } from "@/domain/profitability-engine";
+import {
+  calculateOrderProfitability,
+  buildFinancialMaps,
+  OrderProfitability,
+} from "@/domain/profitability-engine";
+import { OrderModal } from "@/components/modals/order-modal";
+import { PlatformFilterDropdown } from "@/components/ui/marketplace-dropdown";
+import { getMarketplaceBadge } from "@/lib/marketplace-config";
+import { CsvImportModal } from "@/components/modals/csv-import-modal";
 
 interface OrdersViewProps {
-  selectedMarketplace: Marketplace | "ALL";
+  selectedMarketplace?: Marketplace | "ALL";
 }
 
 // Synthesize the Delivery & Return status matching user's exact specification
@@ -156,154 +166,6 @@ function getSynthesizedStatus(
     pillClass: "bg-blue-50 text-blue-700 border border-blue-200",
     dotColor: "bg-blue-500",
   };
-}
-
-function getPlatformBadge(marketplace: Marketplace): { label: string; pillClass: string; dotClass: string } {
-  switch (marketplace) {
-    case "Amazon India":
-      return { label: "AMAZON", pillClass: "bg-amber-50 text-amber-800 border border-amber-200/80", dotClass: "bg-amber-500" };
-    case "Flipkart":
-      return { label: "FLIPKART", pillClass: "bg-blue-50 text-blue-800 border border-blue-200/80", dotClass: "bg-blue-500" };
-    case "Meesho":
-      return { label: "MEESHO", pillClass: "bg-pink-50 text-pink-800 border border-pink-200/80", dotClass: "bg-pink-500" };
-    case "Myntra":
-      return { label: "MYNTRA", pillClass: "bg-purple-50 text-purple-800 border border-purple-200/80", dotClass: "bg-purple-500" };
-    case "WooCommerce":
-    case "Personal Website":
-      return { label: "WOOCOMMERCE", pillClass: "bg-indigo-50 text-indigo-800 border border-indigo-200/80", dotClass: "bg-indigo-500" };
-    default:
-      return { label: "OTHER", pillClass: "bg-slate-100 text-slate-700 border border-slate-200", dotClass: "bg-slate-500" };
-  }
-}
-
-// ----------------------------------------------------
-// Enhanced Custom Platform Dropdown with Icons & Counts
-// ----------------------------------------------------
-interface PlatformDropdownProps {
-  selected: string;
-  onChange: (val: string) => void;
-  counts: Record<string, number>;
-}
-
-const PLATFORM_OPTIONS = [
-  { id: "All Platforms", label: "All Platforms", icon: Layers, tag: "ALL", color: "text-slate-700 bg-slate-100" },
-  { id: "AMAZON", label: "AMAZON", icon: ShoppingBag, tag: "AMZ", color: "text-amber-700 bg-amber-50 border-amber-200" },
-  { id: "FLIPKART", label: "FLIPKART", icon: ShoppingCart, tag: "FK", color: "text-blue-700 bg-blue-50 border-blue-200" },
-  { id: "MYNTRA", label: "MYNTRA", icon: Sparkles, tag: "MYN", color: "text-purple-700 bg-purple-50 border-purple-200" },
-  { id: "MEESHO", label: "MEESHO", icon: Tag, tag: "MSH", color: "text-pink-700 bg-pink-50 border-pink-200" },
-  { id: "WOOCOMMERCE", label: "WOOCOMMERCE", icon: Globe, tag: "WC", color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
-  { id: "OTHER", label: "OTHER", icon: Store, tag: "OTH", color: "text-slate-700 bg-slate-100 border-slate-200" },
-];
-
-function EnhancedPlatformDropdown({ selected, onChange, counts }: PlatformDropdownProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const activeOption = PLATFORM_OPTIONS.find((o) => o.id === selected) || PLATFORM_OPTIONS[0];
-  const ActiveIcon = activeOption.icon;
-  const isFiltered = selected !== "All Platforms";
-
-  return (
-    <div ref={containerRef} className="relative min-w-[190px]">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between gap-2.5 px-4 py-2 bg-white rounded-full text-xs font-medium border transition shadow-xs ${
-          isOpen
-            ? "border-purple-600 ring-2 ring-purple-600/15"
-            : isFiltered
-            ? "border-purple-300 bg-purple-50/20 text-purple-900"
-            : "border-slate-200 hover:border-slate-300 text-slate-800"
-        }`}
-      >
-        <div className="flex items-center gap-2 truncate">
-          <span
-            className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-bold border ${activeOption.color}`}
-          >
-            <ActiveIcon className="w-3 h-3" />
-          </span>
-          <span className="font-semibold truncate">{activeOption.label}</span>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[11px] font-mono px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-600 font-medium">
-            {counts[selected] || 0}
-          </span>
-          <ChevronDown
-            className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
-              isOpen ? "rotate-180 text-purple-600" : ""
-            }`}
-          />
-        </div>
-      </button>
-
-      {/* Floating Animated Popup Menu */}
-      {isOpen && (
-        <div className="absolute left-0 top-full mt-1.5 w-64 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl shadow-slate-300/30 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-          <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1 flex items-center justify-between">
-            <span>Filter By Platform</span>
-            <span>Orders</span>
-          </div>
-
-          <div className="space-y-0.5">
-            {PLATFORM_OPTIONS.map((option) => {
-              const Icon = option.icon;
-              const isSelected = selected === option.id;
-              const count = counts[option.id] || 0;
-
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => {
-                    onChange(option.id);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors group ${
-                    isSelected
-                      ? "bg-purple-50 text-purple-900 font-bold"
-                      : "hover:bg-slate-50 text-slate-700 font-medium"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border text-[11px] ${option.color}`}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                    </span>
-                    <span>{option.label}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
-                        isSelected
-                          ? "bg-purple-200/80 text-purple-800 font-bold"
-                          : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-                      }`}
-                    >
-                      {count}
-                    </span>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-purple-600" />}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ----------------------------------------------------
@@ -456,187 +318,14 @@ function EnhancedStatusDropdown({ selected, onChange, counts }: StatusDropdownPr
   );
 }
 
-// ----------------------------------------------------
-// Custom Marketplace Selector Dropdown for Add Order Modal
-// ----------------------------------------------------
-interface FormMarketplaceOption {
-  id: Marketplace;
-  label: string;
-  sublabel: string;
-  estComm: number;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-}
 
-const FORM_MARKETPLACE_OPTIONS: FormMarketplaceOption[] = [
-  {
-    id: "Amazon India",
-    label: "Amazon India",
-    sublabel: "15% est. fee",
-    estComm: 15,
-    icon: ShoppingBag,
-    color: "bg-amber-500/10 text-amber-700 border-amber-500/20",
-  },
-  {
-    id: "Flipkart",
-    label: "Flipkart",
-    sublabel: "15% est. fee",
-    estComm: 15,
-    icon: ShoppingCart,
-    color: "bg-blue-500/10 text-blue-700 border-blue-500/20",
-  },
-  {
-    id: "Myntra",
-    label: "Myntra",
-    sublabel: "20% est. fee",
-    estComm: 20,
-    icon: Store,
-    color: "bg-pink-500/10 text-pink-700 border-pink-500/20",
-  },
-  {
-    id: "Meesho",
-    label: "Meesho",
-    sublabel: "0% commission",
-    estComm: 0,
-    icon: Tag,
-    color: "bg-rose-500/10 text-rose-700 border-rose-500/20",
-  },
-  {
-    id: "Personal Website",
-    label: "Direct Store / Personal Website",
-    sublabel: "2% gateway fee",
-    estComm: 2,
-    icon: Globe,
-    color: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
-  },
-  {
-    id: "Other",
-    label: "Other Channel / Offline Wholesale",
-    sublabel: "Custom / 0% fee",
-    estComm: 0,
-    icon: Layers,
-    color: "bg-slate-500/10 text-slate-700 border-slate-500/20",
-  },
-];
-
-function FormMarketplaceDropdown({
-  selected,
-  onChange,
-}: {
-  selected: Marketplace;
-  onChange: (mp: Marketplace, estComm: number) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const activeOption =
-    FORM_MARKETPLACE_OPTIONS.find((o) => o.id === selected) || FORM_MARKETPLACE_OPTIONS[0];
-  const ActiveIcon = activeOption.icon;
-
-  return (
-    <div ref={dropdownRef} className="relative w-full">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/80 rounded-xl text-xs font-semibold border transition-all shadow-sm ${
-          isOpen
-            ? "border-purple-600 ring-2 ring-purple-500/15 bg-white"
-            : "border-slate-200 text-slate-800"
-        }`}
-      >
-        <div className="flex items-center gap-2.5 truncate">
-          <span
-            className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border text-[11px] ${activeOption.color}`}
-          >
-            <ActiveIcon className="w-3.5 h-3.5" />
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-900">{activeOption.label}</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-600 font-medium">
-              {activeOption.sublabel}
-            </span>
-          </div>
-        </div>
-
-        <ChevronDown
-          className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-purple-600" : ""
-          }`}
-        />
-      </button>
-
-      {isOpen && (
-        <div className="absolute left-0 top-full mt-1.5 w-full bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-300/30 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-          <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1 flex items-center justify-between">
-            <span>Select Channel / Marketplace</span>
-            <span>Est. Platform Fee</span>
-          </div>
-          <div className="space-y-0.5">
-            {FORM_MARKETPLACE_OPTIONS.map((option) => {
-              const Icon = option.icon;
-              const isSelected = selected === option.id;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => {
-                    onChange(option.id, option.estComm);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors group ${
-                    isSelected
-                      ? "bg-purple-50 text-purple-900 font-bold"
-                      : "hover:bg-slate-50 text-slate-700 font-medium"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border text-[11px] ${option.color}`}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="font-semibold text-slate-800 group-hover:text-slate-900">
-                      {option.label}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
-                        isSelected
-                          ? "bg-purple-200/80 text-purple-800 font-semibold"
-                          : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
-                      }`}
-                    >
-                      {option.sublabel}
-                    </span>
-                    {isSelected && <Check className="w-4 h-4 text-purple-600 shrink-0" />}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ----------------------------------------------------
 // Main OrdersView Component
 // ----------------------------------------------------
-export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersViewProps) {
+export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewProps = {}) {
   const {
+    selectedMarketplace: contextMarketplace,
     orders,
     products,
     returns,
@@ -654,9 +343,11 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
     bulkUpdateOrderStatus,
   } = usePlatform();
 
+  const globalMarketplace = propMarketplace ?? contextMarketplace;
+
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [platformFilter, setPlatformFilter] = useState("All Platforms");
+  const [platformFilter, setPlatformFilter] = useState<Marketplace | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -674,130 +365,8 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
   // Edit Order Modal State
   // ----------------------------------------------------
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-  const [editMarketplace, setEditMarketplace] = useState<Marketplace>("Amazon India");
-  const [editChannelOrderId, setEditChannelOrderId] = useState("");
-  const [editDate, setEditDate] = useState("");
-  const [editSku, setEditSku] = useState("");
-  const [editProductName, setEditProductName] = useState("");
-  const [editQuantity, setEditQuantity] = useState("1");
-  const [editSupplierName, setEditSupplierName] = useState("");
-  const [editUnitCost, setEditUnitCost] = useState("");
-  const [editSellingPrice, setEditSellingPrice] = useState("");
-  const [editCommissionPercent, setEditCommissionPercent] = useState("15");
-  const [editActualReceived, setEditActualReceived] = useState("");
-  const [editStatus, setEditStatus] = useState<OrderStatus>("CONFIRMED");
-  const [editNotes, setEditNotes] = useState("");
-
   const handleOpenEdit = (order: Order) => {
     setEditingOrder(order);
-    setEditMarketplace(order.marketplace);
-    setEditChannelOrderId(order.channelOrderId || order.id);
-    setEditDate(order.orderDate);
-    const item = order.items[0];
-    setEditSku(item?.sku || "");
-    setEditProductName(item?.productName || "");
-    setEditQuantity(String(item?.quantity || 1));
-    setEditUnitCost(String(item?.snapshotUnitCost || 0));
-    setEditSellingPrice(String(item?.sellingPrice || 0));
-
-    const gross = (item?.sellingPrice || 0) * (item?.quantity || 1);
-    const estComm =
-      order.marketplaceChargesEstimate && gross > 0
-        ? String(Math.round((order.marketplaceChargesEstimate / gross) * 100))
-        : "15";
-    setEditCommissionPercent(estComm);
-
-    const settlement = settlements.find((s) => s.orderId === order.id);
-    setEditActualReceived(settlement ? String(settlement.netSettlement) : "");
-    setEditStatus(order.status);
-    setEditNotes(order.notes || "");
-  };
-
-  const handleSelectEditSku = (skuValue: string) => {
-    setEditSku(skuValue);
-    const prod = products.find((p) => p.sku === skuValue);
-    if (prod) {
-      setEditProductName(prod.name);
-      setEditUnitCost(String(prod.currentCostPrice));
-      setEditSellingPrice(String(Math.round(prod.currentCostPrice * 2.5)));
-    }
-  };
-
-  const parsedEditQty = parseFloat(editQuantity) || 0;
-  const parsedEditUnitCost = parseFloat(editUnitCost) || 0;
-  const parsedEditSellingPrice = parseFloat(editSellingPrice) || 0;
-  const parsedEditCommPercent = parseFloat(editCommissionPercent) || 0;
-  const parsedEditActualReceived = parseFloat(editActualReceived) || 0;
-
-  const editTotalWholesaleCost = parsedEditQty * parsedEditUnitCost;
-  const editGrossSales = parsedEditQty * parsedEditSellingPrice;
-  const editCommissionDeduction = Math.round(editGrossSales * (parsedEditCommPercent / 100));
-  const editExpectedSettlement = Math.max(0, editGrossSales - editCommissionDeduction);
-
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingOrder) return;
-
-    const qty = parsedEditQty || 1;
-    const unitPrice = parsedEditSellingPrice;
-    const unitCost = parsedEditUnitCost;
-
-    const updatedItems = [
-      {
-        ...(editingOrder.items[0] || {
-          id: `ITEM-${Date.now()}`,
-          discount: 0,
-          returnedQuantity: 0,
-        }),
-        sku: editSku.trim() || "SKU-ITEM",
-        productName: editProductName.trim() || "Product Item",
-        quantity: qty,
-        sellingPrice: unitPrice,
-        taxAmount: Math.round(unitPrice * qty * 0.18 * 100) / 100,
-        snapshotUnitCost: unitCost,
-        returnedQuantity: editStatus === "RTO" || editStatus === "RETURNED" ? qty : 0,
-      },
-      ...editingOrder.items.slice(1),
-    ];
-
-    const updatedOrder: Order = {
-      ...editingOrder,
-      marketplace: editMarketplace,
-      channelOrderId: editChannelOrderId.trim() || editingOrder.channelOrderId,
-      orderDate: editDate || editingOrder.orderDate,
-      status: editStatus,
-      notes: editNotes,
-      marketplaceChargesEstimate: editCommissionDeduction,
-      items: updatedItems,
-    };
-
-    updateOrder(updatedOrder);
-
-    if (parsedEditActualReceived > 0) {
-      const createdSettlement: Settlement = {
-        id: `SET-${editingOrder.id}`,
-        settlementBatchId: `BATCH-${Date.now().toString().slice(-4)}`,
-        marketplace: editMarketplace,
-        settlementDate: editDate || new Date().toISOString().split("T")[0],
-        orderId: editingOrder.id,
-        grossAmount: editGrossSales,
-        deductions: [
-          { category: "COMMISSION", name: "Marketplace Commission", amount: editCommissionDeduction },
-          {
-            category: "LOGISTICS",
-            name: "Logistics & Forwarding",
-            amount: Math.max(0, editGrossSales - parsedEditActualReceived - editCommissionDeduction),
-          },
-        ],
-        tcsTdsTax: Math.round(editGrossSales * 0.01),
-        netSettlement: parsedEditActualReceived,
-        reconciliationStatus: "RECONCILED",
-        bankTxRef: `BANK-DEP-${editingOrder.id.slice(-4)}`,
-      };
-      addSettlement(createdSettlement);
-    }
-
-    setEditingOrder(null);
   };
 
   // Single Delete Handler
@@ -826,77 +395,38 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
     }
   };
 
-  // ----------------------------------------------------
-  // Simple, Frictionless Manual Order Form State
-  // ----------------------------------------------------
-  const [formMarketplace, setFormMarketplace] = useState<Marketplace>("Amazon India");
-  const [formOrderId, setFormOrderId] = useState(`ORD-${Math.floor(100000 + Math.random() * 900000)}`);
-  const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
-  const [formSku, setFormSku] = useState("");
-  const [formProductName, setFormProductName] = useState("");
-  const [formQuantity, setFormQuantity] = useState("1");
 
-  // Wholesaler / Supplier Cost (COGS)
-  const [formSupplierName, setFormSupplierName] = useState("");
-  const [formUnitWholesaleCost, setFormUnitWholesaleCost] = useState("");
 
-  // Platform Settlement Figures
-  const [formSellingPrice, setFormSellingPrice] = useState("");
-  const [formEstCommissionPercent, setFormEstCommissionPercent] = useState("15");
-  const [formActualReceived, setFormActualReceived] = useState("");
+  // Fast indexed lookups for returns and claims to eliminate O(N * M) nested scanning
+  const financialMaps = useMemo(() => {
+    return buildFinancialMaps(returns, settlements, claims);
+  }, [returns, settlements, claims]);
 
-  // Return / RTO Flag & Detailed Fields
-  const [formIsReturned, setFormIsReturned] = useState(false);
-  const [formReturnType, setFormReturnType] = useState<ReturnType>("CUSTOMER_RETURN");
-  const [formReturnFee, setFormReturnFee] = useState("0");
-  const [formReturnReason, setFormReturnReason] = useState("");
-  const [formIsDamagedClaim, setFormIsDamagedClaim] = useState(false);
-  const [formClaimAmount, setFormClaimAmount] = useState("0");
-  const [formClaimStatus, setFormClaimStatus] = useState<"Draft" | "Filed" | "Approved" | "Rejected">("Draft");
-  const [formApprovedReimbursement, setFormApprovedReimbursement] = useState("0");
+  const returnsMap = financialMaps.returnsByOrderMap;
+  const claimsMap = financialMaps.claimsByOrderMap;
 
-  // General Notes
-  const [formNotes, setFormNotes] = useState("");
-
-  // Helper when user selects a platform
-  const handleSelectFormMarketplace = (mp: Marketplace, defaultCommission: number) => {
-    setFormMarketplace(mp);
-    setFormEstCommissionPercent(String(defaultCommission));
-  };
-
-  // Helper when user selects a catalog SKU
-  const handleSelectFormSku = (skuValue: string) => {
-    setFormSku(skuValue);
-    const prod = products.find((p) => p.sku === skuValue);
-    if (prod) {
-      setFormProductName(prod.name);
-      setFormUnitWholesaleCost(String(prod.currentCostPrice));
-      setFormSellingPrice(String(Math.round(prod.currentCostPrice * 2.5)));
+  // Precompute order profitability map using O(1) indexed lookups
+  const orderPnlMap = useMemo(() => {
+    const map = new Map<string, OrderProfitability>();
+    for (let i = 0; i < orders.length; i++) {
+      map.set(
+        orders[i].id,
+        calculateOrderProfitability(orders[i], returns, settlements, claims, financialMaps)
+      );
     }
-  };
-
-  // Live Calculations (frictionless & safe against empty strings)
-  const parsedQty = parseFloat(formQuantity) || 0;
-  const parsedUnitCost = parseFloat(formUnitWholesaleCost) || 0;
-  const parsedSellingPrice = parseFloat(formSellingPrice) || 0;
-  const parsedCommPercent = parseFloat(formEstCommissionPercent) || 0;
-  const parsedActualReceived = parseFloat(formActualReceived) || 0;
-
-  const formTotalWholesaleCost = parsedQty * parsedUnitCost;
-  const formGrossSales = parsedQty * parsedSellingPrice;
-  const formCommissionDeduction = Math.round(formGrossSales * (parsedCommPercent / 100));
-  const formExpectedSettlement = Math.max(0, formGrossSales - formCommissionDeduction);
+    return map;
+  }, [orders, returns, settlements, claims, financialMaps]);
 
   // Calculate live counts for each platform and status option
   const { platformCounts, statusCounts } = useMemo(() => {
     const pCounts: Record<string, number> = {
-      "All Platforms": orders.length,
-      AMAZON: 0,
-      FLIPKART: 0,
-      MYNTRA: 0,
-      MEESHO: 0,
-      WOOCOMMERCE: 0,
-      OTHER: 0,
+      ALL: orders.length,
+      "Amazon India": 0,
+      Flipkart: 0,
+      Myntra: 0,
+      Meesho: 0,
+      WooCommerce: 0,
+      Other: 0,
     };
 
     const sCounts: Record<string, number> = {
@@ -911,16 +441,16 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
 
     orders.forEach((order) => {
       // Platform counting
-      if (order.marketplace === "Amazon India") pCounts.AMAZON++;
-      else if (order.marketplace === "Flipkart") pCounts.FLIPKART++;
-      else if (order.marketplace === "Myntra") pCounts.MYNTRA++;
-      else if (order.marketplace === "Meesho") pCounts.MEESHO++;
-      else if (order.marketplace === "WooCommerce" || order.marketplace === "Personal Website") pCounts.WOOCOMMERCE++;
-      else pCounts.OTHER++;
+      if (order.marketplace === "Amazon India") pCounts["Amazon India"]++;
+      else if (order.marketplace === "Flipkart") pCounts.Flipkart++;
+      else if (order.marketplace === "Myntra") pCounts.Myntra++;
+      else if (order.marketplace === "Meesho") pCounts.Meesho++;
+      else if (order.marketplace === "WooCommerce" || order.marketplace === "Personal Website") pCounts.WooCommerce++;
+      else pCounts.Other++;
 
-      // Status counting
-      const orderReturns = returns.filter((r) => r.orderId === order.id);
-      const orderClaims = claims.filter((c) => c.orderId === order.id);
+      // Status counting with O(1) indexed lookup
+      const orderReturns = returnsMap.get(order.id) || (order.channelOrderId ? returnsMap.get(order.channelOrderId) : undefined) || [];
+      const orderClaims = claimsMap.get(order.id) || [];
       const synth = getSynthesizedStatus(order, orderReturns, orderClaims);
       if (sCounts[synth.key] !== undefined) {
         sCounts[synth.key]++;
@@ -928,10 +458,12 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
     });
 
     return { platformCounts: pCounts, statusCounts: sCounts };
-  }, [orders, returns, claims]);
+  }, [orders, returnsMap, claimsMap]);
 
   // Filtered orders pipeline
   const filteredOrders = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+
     return orders.filter((order) => {
       // Global header filter constraint
       if (globalMarketplace !== "ALL" && order.marketplace !== globalMarketplace) {
@@ -939,27 +471,24 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
       }
 
       // 1. Platform Dropdown Filter
-      if (platformFilter !== "All Platforms") {
-        if (platformFilter === "AMAZON" && order.marketplace !== "Amazon India") return false;
-        if (platformFilter === "FLIPKART" && order.marketplace !== "Flipkart") return false;
-        if (platformFilter === "MYNTRA" && order.marketplace !== "Myntra") return false;
-        if (platformFilter === "MEESHO" && order.marketplace !== "Meesho") return false;
-        if (platformFilter === "WOOCOMMERCE" && order.marketplace !== "WooCommerce" && order.marketplace !== "Personal Website") return false;
-        if (platformFilter === "OTHER" && order.marketplace !== "Other") return false;
+      if (platformFilter !== "ALL") {
+        if (platformFilter === "WooCommerce") {
+          if (order.marketplace !== "WooCommerce" && order.marketplace !== "Personal Website") return false;
+        } else {
+          if (order.marketplace !== platformFilter) return false;
+        }
       }
 
-      // 2. Status & Claims Dropdown Filter
-      const orderReturns = returns.filter((r) => r.orderId === order.id);
-      const orderClaims = claims.filter((c) => c.orderId === order.id);
-      const synthesized = getSynthesizedStatus(order, orderReturns, orderClaims);
-
+      // 2. Status & Claims Dropdown Filter with O(1) indexed lookup
       if (statusFilter !== "All Statuses") {
+        const orderReturns = returnsMap.get(order.id) || (order.channelOrderId ? returnsMap.get(order.channelOrderId) : undefined) || [];
+        const orderClaims = claimsMap.get(order.id) || [];
+        const synthesized = getSynthesizedStatus(order, orderReturns, orderClaims);
         if (synthesized.key !== statusFilter) return false;
       }
 
       // 3. Search Bar Filter
-      if (searchQuery.trim() !== "") {
-        const q = searchQuery.toLowerCase();
+      if (q !== "") {
         const matchesId = order.id.toLowerCase().includes(q) || order.channelOrderId.toLowerCase().includes(q);
         const matchesCustomer = order.customerName.toLowerCase().includes(q);
         const matchesItem = order.items.some(
@@ -970,7 +499,29 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
 
       return true;
     });
-  }, [orders, returns, claims, globalMarketplace, platformFilter, statusFilter, searchQuery]);
+  }, [orders, returnsMap, claimsMap, globalMarketplace, platformFilter, statusFilter, searchQuery]);
+
+  // Sync local platformFilter when globalMarketplace changes
+  useEffect(() => {
+    if (globalMarketplace && globalMarketplace !== "ALL") {
+      setPlatformFilter(globalMarketplace);
+    }
+  }, [globalMarketplace]);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [globalMarketplace, platformFilter, statusFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredOrders.slice(start, start + pageSize);
+  }, [filteredOrders, currentPage, pageSize]);
 
   // Selection helpers relative to current filtered view
   const isAllFilteredSelected =
@@ -1017,13 +568,15 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
 
     const rows = filteredOrders.map((o) => {
       const pnl = calculateOrderProfitability(o, returns, settlements, claims);
-      const orderReturns = returns.filter((r) => r.orderId === o.id);
+      const orderReturns = returns.filter(
+        (r) => r.orderId === o.id || (o.channelOrderId && r.channelOrderId === o.channelOrderId)
+      );
       const orderClaims = claims.filter((c) => c.orderId === o.id);
       const synthStatus = getSynthesizedStatus(o, orderReturns, orderClaims);
       const item = o.items[0];
-      const grossSale = o.items.reduce((sum, i) => sum + (i.sellingPrice * i.quantity - i.discount), 0);
-      const cogs = o.items.reduce((sum, i) => sum + (i.snapshotUnitCost * i.quantity), 0);
-      const platformBadge = getPlatformBadge(o.marketplace);
+      const grossSale = pnl.grossSales;
+      const cogs = pnl.cogs;
+      const platformBadge = getMarketplaceBadge(o.marketplace);
 
       return [
         `"${platformBadge.label}"`,
@@ -1053,185 +606,14 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
     document.body.removeChild(link);
   };
 
-  // Comprehensive Order Creation Handler
-  const handleCreateOrder = (e: React.FormEvent) => {
-    e.preventDefault();
 
-    const orderId = formOrderId.trim() || `ORD-${Date.now().toString().slice(-6)}`;
-    const snapshotCost = parsedUnitCost;
-    const unitPrice = parsedSellingPrice;
-    const qty = parsedQty || 1;
 
-    // 1. Create the Order
-    const createdOrder: Order = {
-      id: orderId,
-      channelOrderId: `REF-${orderId.replace("ORD-", "")}`,
-      marketplace: formMarketplace,
-      orderDate: formDate,
-      status: formIsReturned ? "RTO" : "CONFIRMED",
-      customerName: "Direct Buyer",
-      customerCity: "Mumbai",
-      customerState: "Maharashtra",
-      shippingFeeCharged: 0,
-      marketplaceChargesEstimate: formCommissionDeduction,
-      notes: formNotes,
-      items: [
-        {
-          id: `ITEM-${Date.now().toString().slice(-4)}`,
-          sku: formSku || "CUSTOM-SKU",
-          productName: formProductName || "Custom Order Item",
-          quantity: qty,
-          sellingPrice: unitPrice,
-          discount: 0,
-          taxAmount: Math.round(unitPrice * qty * 0.18 * 100) / 100,
-          snapshotUnitCost: snapshotCost,
-          returnedQuantity: formIsReturned ? qty : 0,
-        },
-      ],
-    };
-
-    addOrder(createdOrder);
-
-    // 2. If Actual Received is populated, create a reconciled Settlement record
-    if (parsedActualReceived > 0) {
-      const createdSettlement: Settlement = {
-        id: `SETTLE-${Date.now().toString().slice(-4)}`,
-        settlementBatchId: `BATCH-${Date.now().toString().slice(-4)}`,
-        marketplace: formMarketplace,
-        settlementDate: formDate,
-        orderId: createdOrder.id,
-        grossAmount: formGrossSales,
-        deductions: [
-          { category: "COMMISSION", name: "Marketplace Commission", amount: formCommissionDeduction },
-          {
-            category: "LOGISTICS",
-            name: "Logistics & Forwarding",
-            amount: Math.max(0, formGrossSales - parsedActualReceived - formCommissionDeduction),
-          },
-        ],
-        tcsTdsTax: Math.round(formGrossSales * 0.01),
-        netSettlement: parsedActualReceived,
-        reconciliationStatus: "RECONCILED",
-        bankTxRef: `BANK-DEP-${orderId.slice(-4)}`,
-      };
-      addSettlement(createdSettlement);
-    }
-
-    // 3. If marked as Returned / RTO, create linked return record and claim
-    if (formIsReturned) {
-      const retId = `RET-${Date.now().toString().slice(-4)}`;
-      const parsedFee = parseFloat(formReturnFee) || 0;
-      const parsedClaim = parseFloat(formClaimAmount) || 0;
-      const parsedReimbursement = parseFloat(formApprovedReimbursement) || 0;
-
-      let claimIdToLink: string | undefined = undefined;
-
-      if (formIsDamagedClaim) {
-        claimIdToLink = `CLM-${Date.now().toString().slice(-4)}`;
-        let mappedClaimStatus: Claim["status"] = "FILED";
-        if (formClaimStatus === "Draft") mappedClaimStatus = "NOT_FILED";
-        else if (formClaimStatus === "Approved") mappedClaimStatus = "APPROVED";
-        else if (formClaimStatus === "Rejected") mappedClaimStatus = "REJECTED";
-
-        const newClaim: Claim = {
-          id: claimIdToLink,
-          orderId: createdOrder.id,
-          returnId: retId,
-          marketplace: formMarketplace,
-          claimType: formReturnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
-          claimDate: formDate,
-          amountClaimed: parsedClaim > 0 ? parsedClaim : snapshotCost * qty,
-          amountRecovered: parsedReimbursement,
-          status: mappedClaimStatus,
-          recoveryDate: formClaimStatus === "Approved" ? formDate : undefined,
-          notes: formReturnReason || "Damaged/Defective claim logged at order creation",
-        };
-        addClaim(newClaim);
-        createdOrder.claimIds = [claimIdToLink];
-      }
-
-      const isDamaged = formIsDamagedClaim || formReturnType === "DAMAGED_RETURN";
-      const calculatedLoss = parsedFee + (isDamaged ? Math.max(0, snapshotCost * qty - parsedReimbursement) : 0);
-
-      const createdReturn: ReturnRecord = {
-        id: retId,
-        orderId: createdOrder.id,
-        channelOrderId: createdOrder.channelOrderId,
-        marketplace: formMarketplace,
-        returnDate: formDate,
-        receivedDate: formDate,
-        returnType: formReturnType,
-        returnReason: formReturnReason || (formReturnType === "RTO" ? "RTO Undelivered" : "Customer Return"),
-        sku: formSku || "CUSTOM-SKU",
-        productName: formProductName,
-        quantity: qty,
-        condition: isDamaged ? "DAMAGED" : "SELLABLE",
-        restockStatus: isDamaged ? "WRITTEN_OFF" : "PENDING_RESTOCK",
-        returnShippingCost: parsedFee,
-        otherReturnCosts: 0,
-        inventoryRecoveryValue: isDamaged ? parsedReimbursement : snapshotCost * qty,
-        lossAmount: calculatedLoss,
-        claimId: claimIdToLink,
-        notes: formReturnReason || formNotes || "Marked as Returned/RTO order",
-      };
-      addReturn(createdReturn);
-      createdOrder.returnIds = [retId];
-      createdOrder.status = formReturnType === "RTO" ? "RTO" : "RETURNED";
-    }
-
-    // Reset and close
-    setIsCreateOpen(false);
-    setFormOrderId(`ORD-${Math.floor(100000 + Math.random() * 900000)}`);
-    setFormSku("");
-    setFormProductName("");
-    setFormQuantity("1");
-    setFormUnitWholesaleCost("");
-    setFormSellingPrice("");
-    setFormActualReceived("");
-    setFormIsReturned(false);
-    setFormReturnType("CUSTOMER_RETURN");
-    setFormReturnFee("0");
-    setFormReturnReason("");
-    setFormIsDamagedClaim(false);
-    setFormClaimAmount("0");
-    setFormClaimStatus("Draft");
-    setFormApprovedReimbursement("0");
-    setFormNotes("");
+  // Batch CSV Ingestion Handler
+  const handleBatchImportOrders = (importedOrders: Order[]) => {
+    importedOrders.forEach((o) => addOrder(o));
   };
 
-  // Sample CSV Import Handlers
-  const handleSampleCsvImport = (channel: Marketplace) => {
-    const batchId = Date.now().toString().slice(-3);
-    const importedOrder: Order = {
-      id: `ORD-CSV-${batchId}`,
-      channelOrderId: `${channel.slice(0, 2).toUpperCase()}-CSV-${batchId}99`,
-      marketplace: channel,
-      orderDate: new Date().toISOString().split("T")[0],
-      status: "CONFIRMED",
-      customerName: `CSV Buyer (${channel})`,
-      customerCity: "Pune",
-      customerState: "Maharashtra",
-      shippingFeeCharged: 40,
-      marketplaceChargesEstimate: 180,
-      items: [
-        {
-          id: `ITEM-CSV-${batchId}`,
-          sku: products[1]?.sku || "ELEC-USBC-65W",
-          productName: products[1]?.name || "65W GaN Fast Charger",
-          quantity: 1,
-          sellingPrice: 1299,
-          discount: 50,
-          taxAmount: 190.5,
-          snapshotUnitCost: products[1]?.currentCostPrice || 420,
-          returnedQuantity: 0,
-        },
-      ],
-    };
-    addOrder(importedOrder);
-    setIsCsvImportOpen(false);
-  };
-
-  const isAnyFilterActive = platformFilter !== "All Platforms" || statusFilter !== "All Statuses" || searchQuery !== "";
+  const isAnyFilterActive = platformFilter !== "ALL" || statusFilter !== "All Statuses" || searchQuery !== "";
 
   return (
     <div className="space-y-5 w-full max-w-[1600px] min-w-0 mx-auto animate-in fade-in duration-300">
@@ -1303,7 +685,7 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
           </div>
 
           {/* Enhanced Custom Platform Dropdown */}
-          <EnhancedPlatformDropdown
+          <PlatformFilterDropdown
             selected={platformFilter}
             onChange={setPlatformFilter}
             counts={platformCounts}
@@ -1420,7 +802,7 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
                         <button
                           onClick={() => {
                             setSearchQuery("");
-                            setPlatformFilter("All Platforms");
+                            setPlatformFilter("ALL");
                             setStatusFilter("All Statuses");
                           }}
                           className="text-xs px-3.5 py-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 font-semibold mt-2 transition"
@@ -1432,23 +814,22 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((order) => {
-                  const pnl = calculateOrderProfitability(order, returns, settlements, claims);
-                  const orderReturns = returns.filter((r) => r.orderId === order.id);
-                  const orderClaims = claims.filter((c) => c.orderId === order.id);
+                paginatedOrders.map((order) => {
+                  const pnl =
+                    orderPnlMap.get(order.id) ||
+                    calculateOrderProfitability(order, returns, settlements, claims, financialMaps);
+                  const orderReturns =
+                    returnsMap.get(order.id) ||
+                    (order.channelOrderId ? returnsMap.get(order.channelOrderId) : undefined) ||
+                    [];
+                  const orderClaims = claimsMap.get(order.id) || [];
                   const synthStatus = getSynthesizedStatus(order, orderReturns, orderClaims);
-                  const platformBadge = getPlatformBadge(order.marketplace);
+                  const platformBadge = getMarketplaceBadge(order.marketplace);
                   const primaryItem = order.items[0];
                   const extraItemsCount = order.items.length - 1;
 
-                  const grossSale = order.items.reduce(
-                    (sum, i) => sum + i.sellingPrice * i.quantity - i.discount,
-                    0
-                  );
-                  const cogsBasis = order.items.reduce(
-                    (sum, i) => sum + i.snapshotUnitCost * i.quantity,
-                    0
-                  );
+                  const grossSale = pnl.grossSales;
+                  const cogsBasis = pnl.cogs;
 
                   return (
                     <tr
@@ -1614,22 +995,76 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
           </table>
         </div>
 
-        {/* Footer info bar */}
-        <div className="px-4 py-3 bg-slate-50/80 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
-          <div>
-            Showing <span className="font-bold text-slate-800">{filteredOrders.length}</span> of{" "}
-            <span className="font-bold text-slate-800">{orders.length}</span> total transactions
+        {/* Footer info & pagination bar */}
+        <div className="px-4 py-3 bg-slate-50/80 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between text-xs text-slate-500 gap-3">
+          <div className="flex items-center gap-4">
+            <div>
+              Showing{" "}
+              <span className="font-bold text-slate-800">
+                {filteredOrders.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+              </span>{" "}
+              to{" "}
+              <span className="font-bold text-slate-800">
+                {Math.min(currentPage * pageSize, filteredOrders.length)}
+              </span>{" "}
+              of <span className="font-bold text-slate-800">{filteredOrders.length}</span> filtered orders
+              {filteredOrders.length !== orders.length && (
+                <span className="text-slate-400 ml-1 font-normal">({orders.length} total)</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+              <span className="text-[11px] text-slate-500">Per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-white border border-slate-200 rounded-lg text-xs font-semibold py-0.5 px-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
           </div>
-          <div className="flex items-center gap-4 text-[11px]">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Delivered / Settled
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-500"></span> RTO / Pending
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-500"></span> Damaged / Losses
-            </span>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-3 text-[11px] mr-2">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Settled
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500" /> Pending
+              </span>
+            </div>
+
+            {/* Pagination buttons */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-slate-600 transition"
+                title="Previous page"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+
+              <span className="px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                Page <span className="font-bold text-slate-900">{currentPage}</span> of{" "}
+                <span className="font-bold text-slate-900">{totalPages}</span>
+              </span>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-slate-600 transition"
+                title="Next page"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1788,737 +1223,35 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
         </div>
       )}
 
-      {/* --------------------------------------------------------------------------------- */}
-      {/* SIMPLIFIED MANUAL ORDER CREATION MODAL Matching User Images with Zero Friction    */}
-      {/* --------------------------------------------------------------------------------- */}
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                Add Order
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsCreateOpen(false)}
-                className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {/* Modular Order Creation Modal */}
+      <OrderModal
+        mode="create"
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        products={products}
+        suppliers={suppliers}
+        onAddOrder={addOrder}
+        onAddSettlement={addSettlement}
+        onAddReturn={addReturn}
+        onAddClaim={addClaim}
+      />
 
-            {/* Scrollable Form Body */}
-            <form onSubmit={handleCreateOrder} className="p-6 space-y-4 overflow-y-auto text-xs">
-              {/* 1. SELECT MARKETPLACE PLATFORM */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  SELECT MARKETPLACE PLATFORM
-                </label>
-                <FormMarketplaceDropdown
-                  selected={formMarketplace}
-                  onChange={(mp, estComm) => handleSelectFormMarketplace(mp, estComm)}
-                />
-              </div>
 
-              {/* 2. ORDER ID, DATE, SKU */}
-              <div className="grid grid-cols-3 gap-2.5">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    ORDER ID / REFERENCE #
-                  </label>
-                  <input
-                    type="text"
-                    value={formOrderId}
-                    onChange={(e) => setFormOrderId(e.target.value)}
-                    placeholder="e.g. ORD-476140"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500 font-semibold"
-                    required
-                  />
-                </div>
+      {/* Modular Order Edit Modal */}
+      <OrderModal
+        mode="edit"
+        isOpen={!!editingOrder}
+        initialOrder={editingOrder}
+        onClose={() => setEditingOrder(null)}
+        products={products}
+        suppliers={suppliers}
+        onUpdateOrder={updateOrder}
+        onAddSettlement={addSettlement}
+        onAddReturn={addReturn}
+        onAddClaim={addClaim}
+      />
 
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    TRANSACTION DATE
-                  </label>
-                  <input
-                    type="date"
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500 font-mono"
-                    required
-                  />
-                </div>
 
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    SKU / ITEM CODE
-                  </label>
-                  <input
-                    type="text"
-                    list="catalog-skus-simplified"
-                    value={formSku}
-                    onChange={(e) => handleSelectFormSku(e.target.value)}
-                    placeholder="e.g. SKU-COT-01"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500"
-                    required
-                  />
-                  <datalist id="catalog-skus-simplified">
-                    {products.map((p) => (
-                      <option key={p.sku} value={p.sku}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </datalist>
-                </div>
-              </div>
-
-              {/* 3. PRODUCT TITLE & QUANTITY */}
-              <div className="grid grid-cols-4 gap-2.5">
-                <div className="col-span-3">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    PRODUCT TITLE / NAME
-                  </label>
-                  <input
-                    type="text"
-                    value={formProductName}
-                    onChange={(e) => setFormProductName(e.target.value)}
-                    placeholder="e.g. Embroidered Cotton Kurti"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    QUANTITY
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formQuantity}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setFormQuantity(e.target.value)}
-                    placeholder="1"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500 font-bold"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* 4. WHOLESALER / SUPPLIER PURCHASE COST (COGS) */}
-              <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200 space-y-2.5">
-                <div className="flex items-center gap-1.5 text-purple-700 font-bold text-xs">
-                  <Truck className="w-3.5 h-3.5 text-purple-600" />
-                  <span className="uppercase tracking-wider">WHOLESALER / SUPPLIER PURCHASE COST (COGS)</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      WHOLESALER NAME
-                    </label>
-                    <select
-                      value={formSupplierName}
-                      onChange={(e) => setFormSupplierName(e.target.value)}
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-purple-500"
-                    >
-                      <option value="">Select Supplier</option>
-                      {suppliers.map((s) => (
-                        <option key={s.id} value={s.name}>
-                          {s.name}
-                        </option>
-                      ))}
-                      <option value="Direct Supplier">Direct Supplier / Spot Purchase</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      UNIT WHOLESALER COST (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={formUnitWholesaleCost}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setFormUnitWholesaleCost(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                    />
-                  </div>
-                </div>
-
-                <div className="text-[11px] text-slate-500 font-medium">
-                  Total Wholesale COGS: <strong className="text-slate-800 font-bold font-mono">{formatINR(formTotalWholesaleCost)}</strong>
-                </div>
-              </div>
-
-              {/* 5. PLATFORM SETTLEMENT FIGURES */}
-              <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-purple-700 font-bold text-xs uppercase tracking-wider">
-                    PLATFORM SETTLEMENT FIGURES
-                  </span>
-                  <span className="text-[11px] font-medium text-slate-500">
-                    EST. COMMISSION: <strong className="text-purple-700 font-mono">{parsedCommPercent}%</strong>
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-4 gap-2">
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      SELLING PRICE (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={formSellingPrice}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setFormSellingPrice(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      EST. COMMISSION (%)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      max="100"
-                      value={formEstCommissionPercent}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setFormEstCommissionPercent(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      EXPECTED SETTLEMENT (₹)
-                    </label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={formGrossSales > 0 ? formatINR(formExpectedSettlement) : "0"}
-                      className="w-full px-2.5 py-2 bg-slate-100 border border-slate-200 rounded-xl font-mono text-xs text-slate-700 font-bold cursor-not-allowed"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      ACTUAL RECEIVED (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={formActualReceived}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setFormActualReceived(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 6. MARK AS RETURNED / RTO ORDER */}
-              <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 text-slate-800 space-y-3.5 shadow-2xs">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={formIsReturned}
-                    onChange={(e) => setFormIsReturned(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 accent-blue-600 cursor-pointer"
-                  />
-                  <span className="font-bold text-xs uppercase tracking-wider text-slate-800">
-                    MARK AS RETURNED / RTO ORDER
-                  </span>
-                </label>
-
-                {formIsReturned && (
-                  <div className="space-y-3.5 pt-1 animate-in fade-in duration-150">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                          RETURN TYPE
-                        </label>
-                        <select
-                          value={formReturnType}
-                          onChange={(e) => setFormReturnType(e.target.value as ReturnType)}
-                          className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer font-medium shadow-2xs"
-                        >
-                          <option value="CUSTOMER_RETURN">Customer Return (Delivered &amp; Returned)</option>
-                          <option value="RTO">RTO (Undelivered / Doorstep Rejection)</option>
-                          <option value="DAMAGED_RETURN">Damaged Return</option>
-                          <option value="LOST_RETURN">Lost in Transit</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                          RETURN FEE / LOGISTICS DEDUCTION (₹)
-                        </label>
-                        <input
-                          type="number"
-                          step="any"
-                          min="0"
-                          value={formReturnFee}
-                          onFocus={(e) => e.target.select()}
-                          onChange={(e) => setFormReturnFee(e.target.value)}
-                          placeholder="0"
-                          className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-blue-500 font-bold shadow-2xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                        RETURN REASON / NOTES
-                      </label>
-                      <input
-                        type="text"
-                        value={formReturnReason}
-                        onChange={(e) => setFormReturnReason(e.target.value)}
-                        placeholder="e.g. wrong size, damaged packaging"
-                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-2xs"
-                      />
-                    </div>
-
-                    {/* Sub-card: Damaged / Defective Claim */}
-                    <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 space-y-3 shadow-2xs">
-                      <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={formIsDamagedClaim}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setFormIsDamagedClaim(checked);
-                            if (checked && (!formClaimAmount || formClaimAmount === "0")) {
-                              setFormClaimAmount(String(parsedUnitCost || parsedSellingPrice || 0));
-                            }
-                          }}
-                          className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300 accent-amber-600 cursor-pointer"
-                        />
-                        <span className="font-bold text-xs uppercase tracking-wider text-amber-900">
-                          RETURNED PRODUCT IS DAMAGED / DEFECTIVE (FILE CLAIM)
-                        </span>
-                      </label>
-
-                      {formIsDamagedClaim && (
-                        <div className="grid grid-cols-3 gap-2.5 pt-1 animate-in fade-in duration-150">
-                          <div>
-                            <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                              CLAIM AMOUNT FILED
-                            </label>
-                            <input
-                              type="number"
-                              step="any"
-                              min="0"
-                              value={formClaimAmount}
-                              onFocus={(e) => e.target.select()}
-                              onChange={(e) => setFormClaimAmount(e.target.value)}
-                              placeholder="0"
-                              className="w-full px-2.5 py-2 bg-white border border-amber-200 rounded-lg font-mono text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-bold shadow-2xs"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                              CLAIM STATUS
-                            </label>
-                            <select
-                              value={formClaimStatus}
-                              onChange={(e) =>
-                                setFormClaimStatus(
-                                  e.target.value as "Draft" | "Filed" | "Approved" | "Rejected"
-                                )
-                              }
-                              className="w-full px-2.5 py-2 bg-white border border-purple-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-purple-500 font-semibold cursor-pointer shadow-2xs"
-                            >
-                              <option value="Draft">Draft</option>
-                              <option value="Filed">Filed</option>
-                              <option value="Approved">Approved</option>
-                              <option value="Rejected">Rejected</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                              APPROVED REIMBURSEMENT
-                            </label>
-                            <input
-                              type="number"
-                              step="any"
-                              min="0"
-                              value={formApprovedReimbursement}
-                              onFocus={(e) => e.target.select()}
-                              onChange={(e) => setFormApprovedReimbursement(e.target.value)}
-                              placeholder="0"
-                              className="w-full px-2.5 py-2 bg-white border border-amber-200 rounded-lg font-mono text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-bold shadow-2xs"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 7. GENERAL ORDER NOTES */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  GENERAL ORDER NOTES
-                </label>
-                <textarea
-                  rows={2}
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                  placeholder="Record packaging conditions, tracking numbers..."
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-purple-500"
-                />
-              </div>
-
-              {/* Form Footer Buttons */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold shadow-sm transition"
-                >
-                  Update Order
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      {/* --------------------------------------------------------------------------------- */}
-      {/* EDIT ORDER MODAL (Full Light Fintech, Zero Sticky Zeros, Complete Field Access) */}
-      {/* --------------------------------------------------------------------------------- */}
-      {editingOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="w-8 h-8 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center">
-                  <Pencil className="w-4 h-4" />
-                </span>
-                <div>
-                  <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                    Edit Order: {editingOrder.id}
-                  </h2>
-                  <span className="text-[11px] text-slate-500 font-mono">
-                    Channel Ref: {editChannelOrderId || editingOrder.channelOrderId}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditingOrder(null)}
-                className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Scrollable Form Body */}
-            <form onSubmit={handleSaveEdit} className="p-6 space-y-4 overflow-y-auto text-xs">
-              {/* 1. SELECT MARKETPLACE PLATFORM */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  SELECT MARKETPLACE PLATFORM
-                </label>
-                <FormMarketplaceDropdown
-                  selected={editMarketplace}
-                  onChange={(mp, estComm) => {
-                    setEditMarketplace(mp);
-                    setEditCommissionPercent(String(estComm));
-                  }}
-                />
-              </div>
-
-              {/* 2. ORDER ID, DATE, SKU */}
-              <div className="grid grid-cols-3 gap-2.5">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    CHANNEL REFERENCE #
-                  </label>
-                  <input
-                    type="text"
-                    value={editChannelOrderId}
-                    onChange={(e) => setEditChannelOrderId(e.target.value)}
-                    placeholder="e.g. REF-476140"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500 font-semibold"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    TRANSACTION DATE
-                  </label>
-                  <input
-                    type="date"
-                    value={editDate}
-                    onChange={(e) => setEditDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500 font-mono"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    SKU / ITEM CODE
-                  </label>
-                  <input
-                    type="text"
-                    list="catalog-skus-edit"
-                    value={editSku}
-                    onChange={(e) => handleSelectEditSku(e.target.value)}
-                    placeholder="e.g. SKU-COT-01"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500"
-                    required
-                  />
-                  <datalist id="catalog-skus-edit">
-                    {products.map((p) => (
-                      <option key={p.sku} value={p.sku}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </datalist>
-                </div>
-              </div>
-
-              {/* 3. PRODUCT TITLE & QUANTITY */}
-              <div className="grid grid-cols-4 gap-2.5">
-                <div className="col-span-3">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    PRODUCT TITLE / NAME
-                  </label>
-                  <input
-                    type="text"
-                    value={editProductName}
-                    onChange={(e) => setEditProductName(e.target.value)}
-                    placeholder="Product title"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    QUANTITY
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={editQuantity}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setEditQuantity(e.target.value)}
-                    placeholder="1"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500 font-bold"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* 4. WHOLESALER / SUPPLIER PURCHASE COST (COGS) */}
-              <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200 space-y-2.5">
-                <div className="flex items-center gap-1.5 text-purple-700 font-bold text-xs">
-                  <Truck className="w-3.5 h-3.5 text-purple-600" />
-                  <span className="uppercase tracking-wider">WHOLESALER / SUPPLIER PURCHASE COST (COGS)</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      WHOLESALER NAME
-                    </label>
-                    <select
-                      value={editSupplierName}
-                      onChange={(e) => setEditSupplierName(e.target.value)}
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-purple-500"
-                    >
-                      <option value="">Select Supplier</option>
-                      {suppliers.map((s) => (
-                        <option key={s.id} value={s.name}>
-                          {s.name}
-                        </option>
-                      ))}
-                      <option value="Direct Supplier">Direct Supplier / Spot Purchase</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      UNIT WHOLESALER COST (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={editUnitCost}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setEditUnitCost(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                    />
-                  </div>
-                </div>
-
-                <div className="text-[11px] text-slate-500 font-medium">
-                  Total Wholesale COGS: <strong className="text-slate-800 font-bold font-mono">{formatINR(editTotalWholesaleCost)}</strong>
-                </div>
-              </div>
-
-              {/* 5. PLATFORM SETTLEMENT FIGURES */}
-              <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-purple-700 font-bold text-xs uppercase tracking-wider">
-                    PLATFORM SETTLEMENT FIGURES
-                  </span>
-                  <span className="text-[11px] font-medium text-slate-500">
-                    EST. COMMISSION: <strong className="text-purple-700 font-mono">{parsedEditCommPercent}%</strong>
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-4 gap-2">
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      SELLING PRICE (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={editSellingPrice}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setEditSellingPrice(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      EST. COMMISSION (%)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      max="100"
-                      value={editCommissionPercent}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setEditCommissionPercent(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      EXPECTED SETTLEMENT (₹)
-                    </label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={editGrossSales > 0 ? formatINR(editExpectedSettlement) : "0"}
-                      className="w-full px-2.5 py-2 bg-slate-100 border border-slate-200 rounded-xl font-mono text-xs text-slate-700 font-bold cursor-not-allowed"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      ACTUAL RECEIVED (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={editActualReceived}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setEditActualReceived(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 6. ORDER STATUS */}
-              <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200 space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  ORDER FULFILLMENT / RETURN STATUS
-                </label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as OrderStatus)}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-purple-500"
-                >
-                  <option value="CONFIRMED">CONFIRMED (Order placed & confirmed)</option>
-                  <option value="SHIPPED">SHIPPED (In transit)</option>
-                  <option value="DELIVERED">DELIVERED (Successfully received by customer)</option>
-                  <option value="RTO">RTO (Returned to origin by courier)</option>
-                  <option value="RETURNED">RETURNED (Customer return)</option>
-                  <option value="PARTIALLY_RETURNED">PARTIALLY RETURNED</option>
-                  <option value="CANCELLED">CANCELLED</option>
-                </select>
-              </div>
-
-              {/* 7. GENERAL ORDER NOTES */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  GENERAL ORDER NOTES
-                </label>
-                <textarea
-                  rows={2}
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  placeholder="Record packaging conditions, tracking numbers, reasons for edit..."
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-purple-500"
-                />
-              </div>
-
-              {/* Form Footer Buttons */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setEditingOrder(null)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-purple-600/20 transition flex items-center gap-1.5"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Save Order Changes</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* --------------------------------------------------------------------------------- */}
       {/* SINGLE ORDER DELETE CONFIRMATION MODAL                                            */}
@@ -2599,47 +1332,13 @@ export function OrdersView({ selectedMarketplace: globalMarketplace }: OrdersVie
           </div>
         </div>
       )}
-      {isCsvImportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h2 className="text-sm font-bold text-slate-900 tracking-tight">Channel CSV Ingestion</h2>
-              <button
-                onClick={() => setIsCsvImportOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-6 space-y-3 text-xs">
-              <p className="text-slate-600 mb-2">
-                Select a channel template to simulate automatic column normalization & ingestion:
-              </p>
-              {[
-                { name: "Amazon India", label: "Amazon Order Report (.csv)", desc: "Normalizes ASINs and Easy Ship rates", color: "hover:border-amber-300 hover:bg-amber-50/50" },
-                { name: "Flipkart", label: "Flipkart Sales Report (.xlsx)", desc: "Normalizes FSNs and Ekart logistics fees", color: "hover:border-blue-300 hover:bg-blue-50/50" },
-                { name: "Meesho", label: "Meesho Orders Export (.csv)", desc: "Normalizes sub-orders & 0% fee promo", color: "hover:border-pink-300 hover:bg-pink-50/50" },
-                { name: "Myntra", label: "Myntra Omni-channel Orders (.csv)", desc: "Normalizes brand share and logistics tiers", color: "hover:border-purple-300 hover:bg-purple-50/50" },
-                { name: "WooCommerce", label: "WooCommerce / Shopify Store (.csv)", desc: "Direct format with Razorpay collection", color: "hover:border-indigo-300 hover:bg-indigo-50/50" },
-              ].map((c) => (
-                <button
-                  key={c.name}
-                  onClick={() => handleSampleCsvImport(c.name as Marketplace)}
-                  className={`w-full p-3.5 text-left rounded-2xl bg-slate-50/70 border border-slate-200 transition flex items-center justify-between group ${c.color}`}
-                >
-                  <div>
-                    <span className="font-bold text-slate-900 block text-xs">{c.label}</span>
-                    <span className="text-[11px] text-slate-500">{c.desc}</span>
-                  </div>
-                  <span className="text-xs font-semibold text-purple-600 group-hover:translate-x-1 transition-transform">
-                    Import →
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Real CSV Order Ingestion Modal */}
+      <CsvImportModal
+        isOpen={isCsvImportOpen}
+        onClose={() => setIsCsvImportOpen(false)}
+        products={products}
+        onImportOrders={handleBatchImportOrders}
+      />
     </div>
   );
 }

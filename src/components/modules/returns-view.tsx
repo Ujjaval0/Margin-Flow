@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ReturnRecord,
   ReturnType,
@@ -13,6 +13,7 @@ import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate } from "@/lib/utils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import { PlatformFilterDropdown } from "@/components/ui/marketplace-dropdown";
 import {
   Plus,
   X,
@@ -39,13 +40,14 @@ import {
 } from "lucide-react";
 
 interface ReturnsViewProps {
-  selectedMarketplace: Marketplace | "ALL";
+  selectedMarketplace?: Marketplace | "ALL";
 }
 
 type OperationalTab = "ALL" | "CUSTOMER_RETURN" | "RTO" | "OLD_RETURNS";
 
-export function ReturnsView({ selectedMarketplace }: ReturnsViewProps) {
+export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsViewProps = {}) {
   const {
+    selectedMarketplace: contextMarketplace,
     returns,
     orders,
     products,
@@ -56,11 +58,19 @@ export function ReturnsView({ selectedMarketplace }: ReturnsViewProps) {
     addClaim,
   } = usePlatform();
 
+  const selectedMarketplace = propMarketplace ?? contextMarketplace;
+
   // Navigation & Filter States
   const [activeTab, setActiveTab] = useState<OperationalTab>("ALL");
   const [localMarketplace, setLocalMarketplace] = useState<Marketplace | "ALL">(
     selectedMarketplace !== "ALL" ? selectedMarketplace : "ALL"
   );
+
+  useEffect(() => {
+    if (selectedMarketplace) {
+      setLocalMarketplace(selectedMarketplace);
+    }
+  }, [selectedMarketplace]);
   const [localCondition, setLocalCondition] = useState<ProductCondition | "ALL">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -131,6 +141,14 @@ export function ReturnsView({ selectedMarketplace }: ReturnsViewProps) {
       (r) => effectiveChannel === "ALL" || r.marketplace === effectiveChannel
     );
   }, [returns, effectiveChannel]);
+
+  const channelCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: returns.length };
+    returns.forEach((r) => {
+      counts[r.marketplace] = (counts[r.marketplace] || 0) + 1;
+    });
+    return counts;
+  }, [returns]);
 
   // Tab counts
   const allCount = channelFilteredReturns.length;
@@ -852,20 +870,11 @@ export function ReturnsView({ selectedMarketplace }: ReturnsViewProps) {
           </div>
 
           {/* Local Channel Filter Dropdown */}
-          <select
-            value={localMarketplace}
-            onChange={(e) => setLocalMarketplace(e.target.value as Marketplace | "ALL")}
-            className="px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer shadow-2xs hover:bg-slate-50"
-          >
-            <option value="ALL">All Channels</option>
-            <option value="Amazon India">Amazon</option>
-            <option value="Flipkart">Flipkart</option>
-            <option value="Meesho">Meesho</option>
-            <option value="Personal Website">Website</option>
-            <option value="Myntra">Myntra</option>
-            <option value="B2B Wholesale">B2B Wholesale</option>
-            <option value="Other">Other</option>
-          </select>
+          <PlatformFilterDropdown
+            selected={localMarketplace}
+            onChange={setLocalMarketplace}
+            counts={channelCounts}
+          />
 
           {/* Condition Filter */}
           <select

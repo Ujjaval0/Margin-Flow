@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatPercent } from "@/lib/utils";
 import {
@@ -66,207 +67,27 @@ import {
   Globe,
 } from "lucide-react";
 import { DateRangePreset } from "@/domain/profitability-engine";
-
-interface FormMarketplaceOption {
-  id: Marketplace;
-  label: string;
-  sublabel: string;
-  estComm: number;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-}
-
-const FORM_MARKETPLACE_OPTIONS: FormMarketplaceOption[] = [
-  {
-    id: "Amazon India",
-    label: "Amazon India",
-    sublabel: "15% est. fee",
-    estComm: 15,
-    icon: ShoppingBag,
-    color: "bg-amber-500/10 text-amber-700 border-amber-500/20",
-  },
-  {
-    id: "Flipkart",
-    label: "Flipkart",
-    sublabel: "15% est. fee",
-    estComm: 15,
-    icon: ShoppingCart,
-    color: "bg-blue-500/10 text-blue-700 border-blue-500/20",
-  },
-  {
-    id: "Myntra",
-    label: "Myntra",
-    sublabel: "20% est. fee",
-    estComm: 20,
-    icon: Store,
-    color: "bg-pink-500/10 text-pink-700 border-pink-500/20",
-  },
-  {
-    id: "Meesho",
-    label: "Meesho",
-    sublabel: "0% commission",
-    estComm: 0,
-    icon: Tag,
-    color: "bg-rose-500/10 text-rose-700 border-rose-500/20",
-  },
-  {
-    id: "Personal Website",
-    label: "Direct Store / Personal Website",
-    sublabel: "2% gateway fee",
-    estComm: 2,
-    icon: Globe,
-    color: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
-  },
-  {
-    id: "B2B Wholesale",
-    label: "B2B Wholesale",
-    sublabel: "0% commission",
-    estComm: 0,
-    icon: Building2,
-    color: "bg-indigo-500/10 text-indigo-700 border-indigo-500/20",
-  },
-  {
-    id: "Other",
-    label: "Other Channel / Offline Wholesale",
-    sublabel: "Custom / 0% fee",
-    estComm: 0,
-    icon: Layers,
-    color: "bg-slate-500/10 text-slate-700 border-slate-500/20",
-  },
-];
-
-function FormMarketplaceDropdown({
-  selected,
-  onChange,
-}: {
-  selected: Marketplace;
-  onChange: (mp: Marketplace, estComm: number) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const activeOption =
-    FORM_MARKETPLACE_OPTIONS.find((o) => o.id === selected) || FORM_MARKETPLACE_OPTIONS[0];
-  const ActiveIcon = activeOption.icon;
-
-  return (
-    <div ref={dropdownRef} className="relative w-full">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/80 rounded-xl text-xs font-semibold border transition-all shadow-xs ${
-          isOpen
-            ? "border-purple-600 ring-2 ring-purple-500/15 bg-white"
-            : "border-slate-200 text-slate-800"
-        }`}
-      >
-        <div className="flex items-center gap-2.5 truncate">
-          <span
-            className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border text-[11px] ${activeOption.color}`}
-          >
-            <ActiveIcon className="w-3.5 h-3.5" />
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-900">{activeOption.label}</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-600 font-medium">
-              {activeOption.sublabel}
-            </span>
-          </div>
-        </div>
-
-        <ChevronDown
-          className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-purple-600" : ""
-          }`}
-        />
-      </button>
-
-      {isOpen && (
-        <div className="absolute left-0 top-full mt-1.5 w-full bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-300/30 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-          <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1 flex items-center justify-between">
-            <span>Select Channel / Marketplace</span>
-            <span>Est. Platform Fee</span>
-          </div>
-          <div className="space-y-0.5">
-            {FORM_MARKETPLACE_OPTIONS.map((option) => {
-              const Icon = option.icon;
-              const isSelected = selected === option.id;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => {
-                    onChange(option.id, option.estComm);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors group ${
-                    isSelected
-                      ? "bg-purple-50 text-purple-900 font-bold"
-                      : "hover:bg-slate-50 text-slate-700 font-medium"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border text-[11px] ${option.color}`}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="font-semibold text-slate-800 group-hover:text-slate-900">
-                      {option.label}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
-                        isSelected
-                          ? "bg-purple-200/80 text-purple-800 font-semibold"
-                          : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
-                      }`}
-                    >
-                      {option.sublabel}
-                    </span>
-                    {isSelected && <Check className="w-4 h-4 text-purple-600 shrink-0" />}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export interface CardLogicModalData {
-  title: string;
-  badge: string;
-  category: string;
-  meaning: string;
-  formula: string;
-  equationComponents: { label: string; value: string; color?: string }[];
-  resultLabel: string;
-  resultValue: string;
-  impactNote: string;
-}
+import { OrderModal } from "@/components/modals/order-modal";
+import { RecordReturnModal } from "@/components/modals/record-return-modal";
+import { AddPurchaseModal } from "@/components/modals/add-purchase-modal";
+import {
+  CardLogicModal,
+  CardLogicModalData,
+  getCardLogicDefinitions,
+} from "@/components/modals/card-logic-modal";
+import { SkuDrawer } from "@/components/modals/sku-drawer";
 
 interface DashboardViewProps {
-  selectedMarketplace: Marketplace | "ALL";
+  selectedMarketplace?: Marketplace | "ALL";
   onSelectModule?: (module: NavModule) => void;
 }
 
-export function DashboardView({ selectedMarketplace, onSelectModule }: DashboardViewProps) {
+export function DashboardView({
+  selectedMarketplace: propMarketplace,
+  onSelectModule,
+}: DashboardViewProps = {}) {
   const {
+    selectedMarketplace: contextMarketplace,
     profitability,
     profitabilityTrends,
     marketplaceBreakdown,
@@ -288,6 +109,20 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
     addSettlement,
   } = usePlatform();
 
+  const selectedMarketplace = propMarketplace ?? contextMarketplace;
+  const router = useRouter();
+
+  const handleSelectModule = useCallback(
+    (module: NavModule) => {
+      if (onSelectModule) {
+        onSelectModule(module);
+      } else {
+        router.push(module === "dashboard" ? "/" : `/${module}`);
+      }
+    },
+    [onSelectModule, router]
+  );
+
   // Dual-Mode Financial View State: "OPERATOR" (Cash & Payouts) vs "CFO" (GAAP Hierarchy)
   const [viewMode, setViewMode] = useState<"OPERATOR" | "CFO">("OPERATOR");
 
@@ -298,311 +133,6 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
   const [isAddOrderOpen, setIsAddOrderOpen] = useState(false);
   const [isRecordReturnOpen, setIsRecordReturnOpen] = useState(false);
   const [isAddPurchaseOpen, setIsAddPurchaseOpen] = useState(false);
-
-  // Quick Add Order Form State (Parity with Orders View)
-  const [orderFormMarketplace, setOrderFormMarketplace] = useState<Marketplace>(
-    selectedMarketplace !== "ALL" ? selectedMarketplace : "Amazon India"
-  );
-  const [orderFormId, setOrderFormId] = useState(`ORD-${Math.floor(100000 + Math.random() * 900000)}`);
-  const [orderFormDate, setOrderFormDate] = useState(new Date().toISOString().split("T")[0]);
-  const [orderFormSku, setOrderFormSku] = useState(products[0]?.sku || "");
-  const [orderFormProductName, setOrderFormProductName] = useState(products[0]?.name || "");
-  const [orderFormQuantity, setOrderFormQuantity] = useState("1");
-  const [orderFormSupplierName, setOrderFormSupplierName] = useState("");
-  const [orderFormUnitCost, setOrderFormUnitCost] = useState(String(products[0]?.currentCostPrice || 350));
-  const [orderFormSellingPrice, setOrderFormSellingPrice] = useState(
-    String(products[0] ? Math.round(products[0].currentCostPrice * 2.5) : 999)
-  );
-  const [orderFormEstCommissionPercent, setOrderFormEstCommissionPercent] = useState("15");
-  const [orderFormActualReceived, setOrderFormActualReceived] = useState("");
-
-  // Return / RTO Flag & Detailed Fields
-  const [orderFormIsReturned, setOrderFormIsReturned] = useState(false);
-  const [orderFormReturnType, setOrderFormReturnType] = useState<ReturnType>("CUSTOMER_RETURN");
-  const [orderFormReturnFee, setOrderFormReturnFee] = useState("0");
-  const [orderFormReturnReason, setOrderFormReturnReason] = useState("");
-  const [orderFormIsDamagedClaim, setOrderFormIsDamagedClaim] = useState(false);
-  const [orderFormClaimAmount, setOrderFormClaimAmount] = useState("0");
-  const [orderFormClaimStatus, setOrderFormClaimStatus] = useState<"Draft" | "Filed" | "Approved" | "Rejected">("Draft");
-  const [orderFormApprovedReimbursement, setOrderFormApprovedReimbursement] = useState("0");
-  const [orderFormNotes, setOrderFormNotes] = useState("");
-
-  // Quick Record Return Form State
-  const [returnOrderId, setReturnOrderId] = useState(orders[0]?.id || "");
-  const [returnType, setReturnType] = useState<ReturnType>("CUSTOMER_RETURN");
-  const [returnCondition, setReturnCondition] = useState<ProductCondition>("SELLABLE");
-  const [returnQty, setReturnQty] = useState(1);
-  const [returnReason, setReturnReason] = useState("Defective item received by customer");
-  const [returnShipping, setReturnShipping] = useState(70);
-  const [returnRecovery, setReturnRecovery] = useState(0);
-  const [returnError, setReturnError] = useState<string | null>(null);
-
-  // Quick Add Supplier Payment / Purchase Form State
-  const [purchaseSupplierId, setPurchaseSupplierId] = useState(suppliers[0]?.id || "");
-  const [purchaseInvoiceNo, setPurchaseInvoiceNo] = useState("INV-2026-901");
-  const [purchaseSku, setPurchaseSku] = useState(products[0]?.sku || "");
-  const [purchaseQty, setPurchaseQty] = useState(100);
-  const [purchaseUnitCost, setPurchaseUnitCost] = useState(products[0]?.currentCostPrice || 350);
-  const [purchaseTaxRate, setPurchaseTaxRate] = useState(18);
-
-  // Helper when user selects a platform
-  const handleSelectOrderMarketplace = (mp: Marketplace, defaultCommission: number) => {
-    setOrderFormMarketplace(mp);
-    setOrderFormEstCommissionPercent(String(defaultCommission));
-  };
-
-  // Helper when user selects a catalog SKU
-  const handleSelectOrderSku = (skuValue: string) => {
-    setOrderFormSku(skuValue);
-    const prod = products.find((p) => p.sku === skuValue);
-    if (prod) {
-      setOrderFormProductName(prod.name);
-      setOrderFormUnitCost(String(prod.currentCostPrice));
-      setOrderFormSellingPrice(String(Math.round(prod.currentCostPrice * 2.5)));
-    }
-  };
-
-  // Live Calculations (frictionless & safe against empty strings)
-  const parsedOrderQty = parseFloat(orderFormQuantity) || 0;
-  const parsedOrderUnitCost = parseFloat(orderFormUnitCost) || 0;
-  const parsedOrderSellingPrice = parseFloat(orderFormSellingPrice) || 0;
-  const parsedOrderCommPercent = parseFloat(orderFormEstCommissionPercent) || 0;
-  const parsedOrderActualReceived = parseFloat(orderFormActualReceived) || 0;
-
-  const orderFormTotalCost = parsedOrderQty * parsedOrderUnitCost;
-  const orderFormGrossSales = parsedOrderQty * parsedOrderSellingPrice;
-  const orderFormCommissionDeduction = Math.round(orderFormGrossSales * (parsedOrderCommPercent / 100));
-  const orderFormExpectedSettlement = Math.max(0, orderFormGrossSales - orderFormCommissionDeduction);
-
-  // Quick Action Submissions
-  const handleQuickAddOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const orderId = orderFormId.trim() || `ORD-${Date.now().toString().slice(-6)}`;
-    const snapshotCost = parsedOrderUnitCost;
-    const unitPrice = parsedOrderSellingPrice;
-    const qty = parsedOrderQty || 1;
-
-    // 1. Create the Order
-    const createdOrder: Order = {
-      id: orderId,
-      channelOrderId: `REF-${orderId.replace("ORD-", "")}`,
-      marketplace: orderFormMarketplace,
-      orderDate: orderFormDate,
-      status: orderFormIsReturned ? (orderFormReturnType === "RTO" ? "RTO" : "RETURNED") : "CONFIRMED",
-      customerName: "Direct Buyer",
-      customerCity: "Mumbai",
-      customerState: "Maharashtra",
-      shippingFeeCharged: 0,
-      marketplaceChargesEstimate: orderFormCommissionDeduction,
-      notes: orderFormNotes,
-      items: [
-        {
-          id: `ITEM-${Date.now().toString().slice(-4)}`,
-          sku: orderFormSku || "CUSTOM-SKU",
-          productName: orderFormProductName || "Custom Order Item",
-          quantity: qty,
-          sellingPrice: unitPrice,
-          discount: 0,
-          taxAmount: Math.round(unitPrice * qty * 0.18 * 100) / 100,
-          snapshotUnitCost: snapshotCost,
-          returnedQuantity: orderFormIsReturned ? qty : 0,
-        },
-      ],
-    };
-
-    addOrder(createdOrder);
-
-    // 2. If Actual Received is populated, create a reconciled Settlement record
-    if (parsedOrderActualReceived > 0) {
-      const createdSettlement: Settlement = {
-        id: `SETTLE-${Date.now().toString().slice(-4)}`,
-        settlementBatchId: `BATCH-${Date.now().toString().slice(-4)}`,
-        marketplace: orderFormMarketplace,
-        settlementDate: orderFormDate,
-        orderId: createdOrder.id,
-        grossAmount: orderFormGrossSales,
-        deductions: [
-          { category: "COMMISSION", name: "Marketplace Commission", amount: orderFormCommissionDeduction },
-          {
-            category: "LOGISTICS",
-            name: "Logistics & Forwarding",
-            amount: Math.max(0, orderFormGrossSales - parsedOrderActualReceived - orderFormCommissionDeduction),
-          },
-        ],
-        tcsTdsTax: Math.round(orderFormGrossSales * 0.01),
-        netSettlement: parsedOrderActualReceived,
-        reconciliationStatus: "RECONCILED",
-        bankTxRef: `BANK-DEP-${orderId.slice(-4)}`,
-      };
-      addSettlement(createdSettlement);
-    }
-
-    // 3. If marked as Returned / RTO, create linked return record and claim
-    if (orderFormIsReturned) {
-      const retId = `RET-${Date.now().toString().slice(-4)}`;
-      const parsedFee = parseFloat(orderFormReturnFee) || 0;
-      const parsedClaim = parseFloat(orderFormClaimAmount) || 0;
-      const parsedReimbursement = parseFloat(orderFormApprovedReimbursement) || 0;
-
-      let claimIdToLink: string | undefined = undefined;
-
-      if (orderFormIsDamagedClaim) {
-        claimIdToLink = `CLM-${Date.now().toString().slice(-4)}`;
-        let mappedClaimStatus: Claim["status"] = "FILED";
-        if (orderFormClaimStatus === "Draft") mappedClaimStatus = "NOT_FILED";
-        else if (orderFormClaimStatus === "Approved") mappedClaimStatus = "APPROVED";
-        else if (orderFormClaimStatus === "Rejected") mappedClaimStatus = "REJECTED";
-
-        const newClaim: Claim = {
-          id: claimIdToLink,
-          orderId: createdOrder.id,
-          returnId: retId,
-          marketplace: orderFormMarketplace,
-          claimType: orderFormReturnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
-          claimDate: orderFormDate,
-          amountClaimed: parsedClaim > 0 ? parsedClaim : snapshotCost * qty,
-          amountRecovered: parsedReimbursement,
-          status: mappedClaimStatus,
-          recoveryDate: orderFormClaimStatus === "Approved" ? orderFormDate : undefined,
-          notes: orderFormReturnReason || "Damaged/Defective claim logged at order creation",
-        };
-        addClaim(newClaim);
-        createdOrder.claimIds = [claimIdToLink];
-      }
-
-      const isDamaged = orderFormIsDamagedClaim || orderFormReturnType === "DAMAGED_RETURN";
-      const calculatedLoss = parsedFee + (isDamaged ? Math.max(0, snapshotCost * qty - parsedReimbursement) : 0);
-
-      const createdReturn: ReturnRecord = {
-        id: retId,
-        orderId: createdOrder.id,
-        channelOrderId: createdOrder.channelOrderId,
-        marketplace: orderFormMarketplace,
-        returnDate: orderFormDate,
-        receivedDate: orderFormDate,
-        returnType: orderFormReturnType,
-        returnReason: orderFormReturnReason || (orderFormReturnType === "RTO" ? "RTO Undelivered" : "Customer Return"),
-        sku: orderFormSku || "CUSTOM-SKU",
-        productName: orderFormProductName,
-        quantity: qty,
-        condition: isDamaged ? "DAMAGED" : "SELLABLE",
-        restockStatus: isDamaged ? "WRITTEN_OFF" : "PENDING_RESTOCK",
-        returnShippingCost: parsedFee,
-        otherReturnCosts: 0,
-        inventoryRecoveryValue: isDamaged ? parsedReimbursement : snapshotCost * qty,
-        lossAmount: calculatedLoss,
-        claimId: claimIdToLink,
-        notes: orderFormReturnReason || orderFormNotes || "Marked as Returned/RTO order",
-      };
-      addReturn(createdReturn);
-      createdOrder.returnIds = [retId];
-    }
-
-    // Reset and close
-    setIsAddOrderOpen(false);
-    setOrderFormId(`ORD-${Math.floor(100000 + Math.random() * 900000)}`);
-    setOrderFormSku(products[0]?.sku || "");
-    setOrderFormProductName(products[0]?.name || "");
-    setOrderFormQuantity("1");
-    setOrderFormUnitCost(String(products[0]?.currentCostPrice || 350));
-    setOrderFormSellingPrice(String(products[0] ? Math.round(products[0].currentCostPrice * 2.5) : 999));
-    setOrderFormActualReceived("");
-    setOrderFormIsReturned(false);
-    setOrderFormReturnType("CUSTOMER_RETURN");
-    setOrderFormReturnFee("0");
-    setOrderFormReturnReason("");
-    setOrderFormIsDamagedClaim(false);
-    setOrderFormClaimAmount("0");
-    setOrderFormClaimStatus("Draft");
-    setOrderFormApprovedReimbursement("0");
-    setOrderFormNotes("");
-  };
-
-  const handleQuickRecordReturn = (e: React.FormEvent) => {
-    e.preventDefault();
-    setReturnError(null);
-
-    const order = orders.find((o) => o.id === returnOrderId);
-    if (!order) return;
-    const item = order.items[0];
-    if (!item) return;
-
-    if (returnQty > item.quantity) {
-      setReturnError(`Quantity (${returnQty}) exceeds ordered count (${item.quantity}).`);
-      return;
-    }
-
-    const retId = `RET-${Date.now().toString().slice(-5)}`;
-    const cost = item.snapshotUnitCost * returnQty;
-    let calculatedLoss = returnShipping;
-    if (returnCondition === "DAMAGED" || returnCondition === "UNUSABLE") {
-      calculatedLoss += cost - returnRecovery;
-    }
-
-    const newRet: ReturnRecord = {
-      id: retId,
-      orderId: order.id,
-      channelOrderId: order.channelOrderId,
-      marketplace: order.marketplace,
-      returnDate: new Date().toISOString().split("T")[0],
-      returnType,
-      returnReason,
-      sku: item.sku,
-      quantity: Number(returnQty),
-      condition: returnCondition,
-      returnShippingCost: Number(returnShipping),
-      otherReturnCosts: 0,
-      inventoryRecoveryValue: Number(returnRecovery),
-      lossAmount: calculatedLoss,
-    };
-
-    addReturn(newRet);
-
-    if (returnCondition === "DAMAGED" || returnType === "LOST_RETURN") {
-      const claimId = `CLM-${Date.now().toString().slice(-5)}`;
-      const newClaim: Claim = {
-        id: claimId,
-        orderId: order.id,
-        returnId: retId,
-        marketplace: order.marketplace,
-        claimType: returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
-        claimDate: new Date().toISOString().split("T")[0],
-        amountClaimed: calculatedLoss,
-        amountRecovered: 0,
-        status: "FILED",
-        notes: `Auto-generated dispute claim from Quick Return (${returnCondition}).`,
-      };
-      addClaim(newClaim);
-    }
-
-    setIsRecordReturnOpen(false);
-  };
-
-  const handleQuickAddPurchase = (e: React.FormEvent) => {
-    e.preventDefault();
-    const sup = suppliers.find((s) => s.id === purchaseSupplierId);
-    const subtotal = purchaseQty * purchaseUnitCost;
-    const taxes = Math.round(subtotal * (purchaseTaxRate / 100));
-    const totalAmount = subtotal + taxes;
-
-    const newBill: PurchaseBill = {
-      id: `PUR-${Date.now().toString().slice(-5)}`,
-      supplierId: purchaseSupplierId,
-      supplierName: sup?.name || "Wholesale Supplier",
-      invoiceNumber: purchaseInvoiceNo || `INV-${Date.now().toString().slice(-4)}`,
-      invoiceDate: new Date().toISOString().split("T")[0],
-      sku: purchaseSku,
-      quantity: Number(purchaseQty),
-      unitCost: Number(purchaseUnitCost),
-      taxes,
-      totalAmount,
-      paymentStatus: "PAID",
-    };
-
-    addPurchase(newBill);
-    setIsAddPurchaseOpen(false);
-  };
 
   // SKU Table Search, Sort & Slide-Over Drawer State
   const [skuSearch, setSkuSearch] = useState("");
@@ -665,32 +195,41 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
     "Personal Website": { fill: "#10B981", bg: "bg-emerald-500/10", text: "text-emerald-700" },
   };
 
-  const channelChartData = marketplaceBreakdown.map((m) => ({
-    name: m.marketplace.replace(" India", "").replace("Personal ", ""),
-    Revenue: m.revenue,
-    COGS: m.cogs,
-    Fees: m.fees + m.logistics,
-    Profit: m.contributionProfit,
-  }));
+  const channelChartData = useMemo(() => {
+    return marketplaceBreakdown.map((m) => ({
+      name: m.marketplace.replace(" India", "").replace("Personal ", ""),
+      Revenue: m.revenue,
+      COGS: m.cogs,
+      Fees: m.fees + m.logistics,
+      Profit: m.contributionProfit,
+    }));
+  }, [marketplaceBreakdown]);
 
-  const lossMakingSkus = skuBreakdown.filter((s) => s.profit < 0);
+  const lossMakingSkus = useMemo(() => {
+    return skuBreakdown.filter((s) => s.profit < 0);
+  }, [skuBreakdown]);
 
   // Filtered & Sorted SKUs
-  const processedSkus = skuBreakdown
-    .filter((s) => {
-      const matchesSearch =
-        s.sku.toLowerCase().includes(skuSearch.toLowerCase()) ||
-        s.productName.toLowerCase().includes(skuSearch.toLowerCase());
-      if (!matchesSearch) return false;
-      if (skuFilter === "PROFITABLE") return s.profit > 0;
-      if (skuFilter === "LOSS_MAKING") return s.profit < 0;
-      return true;
-    })
-    .sort((a, b) => {
-      const valA = a[skuSortBy];
-      const valB = b[skuSortBy];
-      return skuSortOrder === "asc" ? valA - valB : valB - valA;
-    });
+  const processedSkus = useMemo(() => {
+    const q = skuSearch.trim().toLowerCase();
+    return skuBreakdown
+      .filter((s) => {
+        if (q !== "") {
+          const matchesSearch =
+            s.sku.toLowerCase().includes(q) ||
+            s.productName.toLowerCase().includes(q);
+          if (!matchesSearch) return false;
+        }
+        if (skuFilter === "PROFITABLE") return s.profit > 0;
+        if (skuFilter === "LOSS_MAKING") return s.profit < 0;
+        return true;
+      })
+      .sort((a, b) => {
+        const valA = a[skuSortBy];
+        const valB = b[skuSortBy];
+        return skuSortOrder === "asc" ? valA - valB : valB - valA;
+      });
+  }, [skuBreakdown, skuSearch, skuFilter, skuSortBy, skuSortOrder]);
 
   const handleSort = (field: typeof skuSortBy) => {
     if (skuSortBy === field) {
@@ -781,181 +320,32 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
   ];
 
   // Logic definitions for each card
-  const grossSalesLogic: CardLogicModalData = {
-    title: "Gross Sales",
-    badge: "Catalog Demand",
-    category: "Top-Line Order Value",
-    meaning: "Total list value of all customer orders placed across selected channels.",
-    formula: "Gross Sales = Σ (Item Selling Price × Ordered Quantity)",
-    equationComponents: [
-      { label: "Active Orders Logged", value: `${profitability.totalOrders} orders` },
-      { label: "Total Units Sold", value: `${profitability.totalUnitsSold} units` },
-      {
-        label: "Average Order Value (AOV)",
-        value: formatINR(profitability.totalOrders > 0 ? Math.round(profitability.grossSales / profitability.totalOrders) : 0),
-      },
-    ],
-    resultLabel: "Total Gross Catalog Sales",
-    resultValue: formatINR(profitability.grossSales),
-    impactNote: "Gross sales indicates total catalog demand before fee or return deductions.",
-  };
-
-  const trueProfitLogic: CardLogicModalData = {
-    title: "True Profit",
-    badge: "Realized Net Cash",
-    category: "In-Pocket Cash Flow",
-    meaning: "Realized in-pocket cash after platform fees, returns, and wholesale supplier COGS.",
-    formula: "True Profit = Net Platform Payout − Wholesaler Inventory Cost (COGS)",
-    equationComponents: [
-      {
-        label: "Net Platform Payout (Gross − Fees − Returns + Claims)",
-        value: formatINR(profitability.netPlatformPayout),
-        color: "text-blue-600",
-      },
-      {
-        label: "− Wholesale Product Cost (Snapshot COGS)",
-        value: `−${formatINR(profitability.cogs)}`,
-        color: "text-rose-600",
-      },
-    ],
-    resultLabel: "True Realized Profit",
-    resultValue: formatINR(profitability.trueProfit),
-    impactNote: "Represents actual net cash remaining in your pocket after paying suppliers.",
-  };
-
-  const netProfitLogic: CardLogicModalData = {
-    title: "Net Profit (Platform Payout)",
-    badge: "Disbursable Payout",
-    category: "Marketplace Cash Remittance",
-    meaning: "Net cash payout remitted by channels before paying supplier bills.",
-    formula: "Net Profit = Net Sales − Marketplace Deductions − Return Losses + Dispute Recoveries",
-    equationComponents: [
-      { label: "Net Sales (Gross − Discounts)", value: formatINR(profitability.netSales), color: "text-slate-800" },
-      { label: "− Marketplace Fees & Commissions", value: `−${formatINR(profitability.marketplaceCharges)}`, color: "text-rose-600" },
-      { label: "− Reverse Freight & Return Deductions", value: `−${formatINR(profitability.returnLosses + profitability.rtoLosses)}`, color: "text-amber-600" },
-      { label: "+ Recovered Dispute Reimbursements", value: `+${formatINR(profitability.claimRecoveries)}`, color: "text-emerald-600" },
-    ],
-    resultLabel: "Net Platform Payout",
-    resultValue: formatINR(profitability.netPlatformPayout),
-    impactNote: "Directly matches platform remittance payouts deposited into your bank.",
-  };
-
-  const returnsRtoLogic: CardLogicModalData = {
-    title: "Returns & RTO Analysis",
-    badge: "Reverse Logistics Friction",
-    category: "Fulfillment & Return Losses",
-    meaning: "Combined units and logistics losses from undelivered RTO and customer returns.",
-    formula: "Total Loss = Forward/Reverse Shipping Fees + Damaged Scrap Value",
-    equationComponents: [
-      { label: "RTO (Courier Return-to-Origin)", value: `${profitability.rtoCount} items`, color: "text-amber-600" },
-      { label: "Customer Returns (Delivered & Returned)", value: `${profitability.customerReturnCount} items`, color: "text-rose-600" },
-      { label: "Overall Return Rate %", value: formatPercent(profitability.returnRate) },
-      { label: "Total Financial Loss Deducted", value: formatINR(profitability.returnLosses + profitability.rtoLosses), color: "text-rose-700" },
-    ],
-    resultLabel: "Total Return Units (Return Rate %)",
-    resultValue: `${profitability.rtoCount + profitability.customerReturnCount} (${formatPercent(profitability.returnRate)})`,
-    impactNote: "Tracks undelivered courier rejections versus delivered customer returns.",
-  };
-
-  const wholesalerCogsLogic: CardLogicModalData = {
-    title: "Wholesaler Cost (COGS)",
-    badge: "Supplier Liability",
-    category: "Product Procurement",
-    meaning: "Total wholesale purchase cost payable to suppliers for sold units.",
-    formula: "COGS = Σ (Sold Quantity × Historical Unit Purchase Cost Snapshot)",
-    equationComponents: [
-      { label: "Total Units Sold", value: `${profitability.totalUnitsSold} units` },
-      {
-        label: "Average Unit Snapshot Cost",
-        value: formatINR(profitability.totalUnitsSold > 0 ? Math.round(profitability.cogs / profitability.totalUnitsSold) : 0),
-      },
-    ],
-    resultLabel: "Total Wholesaler COGS Payable",
-    resultValue: formatINR(profitability.cogs),
-    impactNote: "Locked-in snapshot purchase costs payable to wholesale inventory vendors.",
-  };
-
-  const damagedClaimsLogic: CardLogicModalData = {
-    title: "Damaged Claims Recovery",
-    badge: "Dispute Reimbursements",
-    category: "Loss Recovery Pipeline",
-    meaning: "Dispute reimbursements credited by platforms for transit or damage cases.",
-    formula: "Recovered = Σ (Approved Claims); Pending = Σ (Open Claims)",
-    equationComponents: [
-      { label: "Dispute Reimbursements Credited", value: formatINR(profitability.claimRecoveries), color: "text-emerald-600" },
-      { label: "Pending Claims Under Review", value: formatINR(profitability.pendingClaimsAmount), color: "text-amber-600" },
-      { label: "Pending Claims Count", value: `${profitability.pendingClaimsCount} open tickets` },
-      { label: "Physical Damaged Inventory Units", value: `${profitability.damagedUnitsCount} damaged units` },
-    ],
-    resultLabel: "Total Reimbursements Credited",
-    resultValue: formatINR(profitability.claimRecoveries),
-    impactNote: "Recovers lost cash from platform SAFE-T and courier dispute claims.",
-  };
-
-  // CFO GAAP Logic
-  const netRevenueLogic: CardLogicModalData = {
-    title: "Net Revenue",
-    badge: "Realized Sales",
-    category: "GAAP Accounting",
-    meaning: "Customer catalog sales after deducting seller promotional discounts.",
-    formula: "Net Revenue = Gross Sales − Promotional Discounts",
-    equationComponents: [
-      { label: "Gross Catalog Sales", value: formatINR(profitability.grossSales) },
-      { label: "− Direct Discounts", value: `−${formatINR(profitability.discounts)}`, color: "text-amber-600" },
-    ],
-    resultLabel: "Net Realized Sales",
-    resultValue: formatINR(profitability.netSales),
-    impactNote: "Operating sales volume before deducting platform fees and COGS.",
-  };
-
-  const grossProfitLogic: CardLogicModalData = {
-    title: "Gross Profit",
-    badge: "Manufacturing Margin",
-    category: "GAAP Accounting",
-    meaning: "Net revenue minus wholesale inventory purchase cost (COGS).",
-    formula: "Gross Profit = Net Revenue − Snapshot COGS",
-    equationComponents: [
-      { label: "Net Revenue", value: formatINR(profitability.netSales) },
-      { label: "− Snapshot COGS", value: `−${formatINR(profitability.cogs)}`, color: "text-rose-600" },
-      { label: "Gross Margin %", value: formatPercent(profitability.grossMargin) },
-    ],
-    resultLabel: "Gross Profit",
-    resultValue: formatINR(profitability.grossProfit),
-    impactNote: "Core product markup profit before platform logistics and commission fees.",
-  };
-
-  const contributionProfitLogic: CardLogicModalData = {
-    title: "Contribution Profit",
-    badge: "Channel Profitability",
-    category: "Unit Economics",
-    meaning: "Margin after platform commissions, logistics fees, and return losses.",
-    formula: "Contribution Profit = Gross Profit − Marketplace Charges − Logistics − Return Losses + Claims",
-    equationComponents: [
-      { label: "Gross Profit", value: formatINR(profitability.grossProfit) },
-      { label: "− Marketplace Commissions & Fees", value: `−${formatINR(profitability.marketplaceCharges)}`, color: "text-rose-600" },
-      { label: "− Return & RTO Losses", value: `−${formatINR(profitability.returnLosses + profitability.rtoLosses)}`, color: "text-amber-600" },
-      { label: "+ Recovered Claims", value: `+${formatINR(profitability.claimRecoveries)}`, color: "text-emerald-600" },
-    ],
-    resultLabel: "Contribution Profit",
-    resultValue: formatINR(profitability.contributionProfit),
-    impactNote: "Essential unit-economics test of channel sustainability.",
-  };
-
-  const netOperatingProfitLogic: CardLogicModalData = {
-    title: "Net Operating Profit",
-    badge: "Business Net Earnings",
-    category: "GAAP Accounting",
-    meaning: "Final net earnings after deducting business operating expenses (OPEX).",
-    formula: "Net Operating Profit = Contribution Profit − Operating Expenses (OPEX)",
-    equationComponents: [
-      { label: "Contribution Profit", value: formatINR(profitability.contributionProfit) },
-      { label: "− Total Operating Expenses (OPEX)", value: `−${formatINR(profitability.operatingExpenses)}`, color: "text-rose-600" },
-      { label: "Net Operating Margin %", value: formatPercent(profitability.netOperatingMargin) },
-    ],
-    resultLabel: "Net Operating Profit",
-    resultValue: formatINR(profitability.netOperatingProfit),
-    impactNote: "True commercial bottom line after financing business overheads.",
-  };
+  const {
+    grossSalesLogic,
+    trueProfitLogic,
+    netProfitLogic,
+    returnsRtoLogic,
+    wholesalerCogsLogic,
+    damagedClaimsLogic,
+    netRevenueLogic,
+    grossProfitLogic,
+    contributionProfitLogic,
+    netOperatingProfitLogic,
+  } = useMemo(() => {
+    const defs = getCardLogicDefinitions(profitability);
+    return {
+      grossSalesLogic: defs.grossSales,
+      trueProfitLogic: defs.trueProfit,
+      netProfitLogic: defs.netProfit,
+      returnsRtoLogic: defs.returnsRto,
+      wholesalerCogsLogic: defs.wholesalerCogs,
+      damagedClaimsLogic: defs.damagedClaims,
+      netRevenueLogic: defs.netRevenue,
+      grossProfitLogic: defs.grossProfit,
+      contributionProfitLogic: defs.contributionProfit,
+      netOperatingProfitLogic: defs.netOperatingProfit,
+    };
+  }, [profitability]);
 
   return (
     <div className="space-y-6 w-full max-w-[1536px] mx-auto animate-in fade-in duration-300">
@@ -1229,7 +619,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
                   <Info className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => onSelectModule?.("orders")}
+                  onClick={() => handleSelectModule("orders")}
                   className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
                   title="Open Orders Ledger"
                 >
@@ -1268,7 +658,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
                   <Info className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => onSelectModule?.("settlements")}
+                  onClick={() => handleSelectModule("settlements")}
                   className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
                   title="Open Settlements Ledger"
                 >
@@ -1307,7 +697,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
                   <Info className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => onSelectModule?.("settlements")}
+                  onClick={() => handleSelectModule("settlements")}
                   className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
                   title="Open Settlements Ledger"
                 >
@@ -1346,7 +736,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
                   <Info className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => onSelectModule?.("returns")}
+                  onClick={() => handleSelectModule("returns")}
                   className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
                   title="Open Returns Ledger"
                 >
@@ -1392,7 +782,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
                   <Info className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => onSelectModule?.("suppliers")}
+                  onClick={() => handleSelectModule("suppliers")}
                   className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
                   title="Open Suppliers Ledger"
                 >
@@ -1431,7 +821,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
                   <Info className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => onSelectModule?.("claims")}
+                  onClick={() => handleSelectModule("claims")}
                   className="w-7 h-7 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-colors"
                   title="Open Claims Ledger"
                 >
@@ -1473,7 +863,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
                     <Info className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => onSelectModule?.("orders")}
+                    onClick={() => handleSelectModule("orders")}
                     className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
                     title="View Orders"
                   >
@@ -1525,7 +915,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
                     <Info className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => onSelectModule?.("reports")}
+                    onClick={() => handleSelectModule("reports")}
                     className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
                     title="View P&L Report"
                   >
@@ -1579,7 +969,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
                     <Info className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => onSelectModule?.("settlements")}
+                    onClick={() => handleSelectModule("settlements")}
                     className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
                     title="View Settlements"
                   >
@@ -1633,7 +1023,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
                     <Info className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => onSelectModule?.("expenses")}
+                    onClick={() => handleSelectModule("expenses")}
                     className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center"
                     title="View OPEX"
                   >
@@ -1743,7 +1133,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
 
             {/* Settlement Received */}
             <div
-              onClick={() => onSelectModule?.("settlements")}
+              onClick={() => handleSelectModule("settlements")}
               className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2 cursor-pointer hover:border-emerald-300 transition-all"
             >
               <div className="flex items-center justify-between">
@@ -1786,7 +1176,7 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
 
             {/* Dispute Recoveries */}
             <div
-              onClick={() => onSelectModule?.("claims")}
+              onClick={() => handleSelectModule("claims")}
               className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2 cursor-pointer hover:border-indigo-300 transition-all"
             >
               <div className="flex items-center justify-between">
@@ -2256,996 +1646,46 @@ export function DashboardView({ selectedMarketplace, onSelectModule }: Dashboard
         </div>
       </div>
 
-      {/* ─── STEP 3: SKU Economics Slide-Over Drawer Modal ─── */}
-      {selectedSkuForDrawer && (
-        <div
-          className="fixed inset-0 z-50 drawer-backdrop flex justify-end animate-in fade-in duration-200"
-          onClick={() => setSelectedSkuForDrawer(null)}
-        >
-          <div
-            className="w-full max-w-lg bg-white h-full shadow-2xl flex flex-col p-6 overflow-y-auto animate-in slide-in-from-right duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Drawer Header */}
-            <div className="flex items-start justify-between pb-4 border-b border-slate-100">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                    Unit Economics Inspection
-                  </span>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      selectedSkuForDrawer.profit >= 0
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-rose-50 text-rose-700 border-rose-200"
-                    }`}
-                  >
-                    {selectedSkuForDrawer.profit >= 0 ? "Profitable" : "Loss-Making"}
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-slate-900 mt-1 font-mono">
-                  {selectedSkuForDrawer.sku}
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {selectedSkuForDrawer.productName}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedSkuForDrawer(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Quick Metrics Grid */}
-            <div className="grid grid-cols-2 gap-3 my-5">
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/60">
-                <span className="text-[11px] text-slate-400 font-medium">Net Revenue</span>
-                <div className="text-base font-semibold text-[#1D1D1F] mt-0.5 tracking-tight tabular-nums">
-                  {formatINR(selectedSkuForDrawer.revenue)}
-                </div>
-                <span className="text-[10px] text-slate-500">{selectedSkuForDrawer.unitsSold} units sold</span>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/60">
-                <span className="text-[11px] text-slate-400 font-medium">Contribution Margin</span>
-                <div
-                  className={`text-base font-semibold mt-0.5 tracking-tight tabular-nums ${
-                    selectedSkuForDrawer.profit >= 0 ? "text-[#288548]" : "text-[#D70015]"
-                  }`}
-                >
-                  {formatPercent(selectedSkuForDrawer.margin)}
-                </div>
-                <span className="text-[10px] text-slate-500">
-                  {formatINR(selectedSkuForDrawer.profit)} net
-                </span>
-              </div>
-            </div>
-
-            {/* Per-Unit Economics Step-Down Waterfall */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 mb-5 shadow-xs">
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">
-                Unit Economics Breakdown (Per 1 Item)
-              </h4>
-              <div className="space-y-2.5 text-xs">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <span className="text-slate-600">Average Realized Unit Price</span>
-                  <span className="font-semibold text-slate-900 font-mono">
-                    {formatINR(Math.round(selectedSkuForDrawer.revenue / (selectedSkuForDrawer.unitsSold || 1)))}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-slate-600">
-                  <span>− Unit Product Cost (COGS)</span>
-                  <span className="font-mono text-slate-800">
-                    -{formatINR(Math.round(selectedSkuForDrawer.cogs / (selectedSkuForDrawer.unitsSold || 1)))}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-slate-600">
-                  <span>− Marketplace Fees &amp; Logistics</span>
-                  <span className="font-mono text-rose-600">
-                    -{formatINR(Math.round(selectedSkuForDrawer.marketplaceCharges / (selectedSkuForDrawer.unitsSold || 1)))}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-slate-600">
-                  <span>− Reverse Logistics &amp; Return Drag</span>
-                  <span className="font-mono text-amber-600">
-                    {selectedSkuForDrawer.returnLosses > 0
-                      ? `-${formatINR(Math.round(selectedSkuForDrawer.returnLosses / (selectedSkuForDrawer.unitsSold || 1)))}`
-                      : "₹0"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200 font-bold">
-                  <span className="text-slate-900">Net Unit Contribution Profit</span>
-                  <span
-                    className={`font-mono ${
-                      selectedSkuForDrawer.profit >= 0 ? "text-emerald-700" : "text-rose-600"
-                    }`}
-                  >
-                    {formatINR(Math.round(selectedSkuForDrawer.profit / (selectedSkuForDrawer.unitsSold || 1)))}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Performance Indicators */}
-            <div className="space-y-3 mb-6">
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-slate-800">POAS / Advertising Drag</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
-                    Ad Spend: {selectedSkuForDrawer.adSpend ? formatINR(selectedSkuForDrawer.adSpend) : "₹0"}
-                  </div>
-                </div>
-                <div>
-                  {selectedSkuForDrawer.poas !== undefined ? (
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                        selectedSkuForDrawer.poas >= 1.0
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
-                      {selectedSkuForDrawer.poas}x POAS
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-400">No Direct Ads</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-slate-800">Return &amp; RTO Rate</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
-                    Total Return Losses: {formatINR(selectedSkuForDrawer.returnLosses)}
-                  </div>
-                </div>
-                <div>
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                      selectedSkuForDrawer.returnRate > 0.2
-                        ? "bg-rose-100 text-rose-800"
-                        : "bg-emerald-100 text-emerald-800"
-                    }`}
-                  >
-                    {formatPercent(selectedSkuForDrawer.returnRate)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Footer */}
-            <div className="mt-auto pt-4 border-t border-slate-100 flex gap-2">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    `SKU: ${selectedSkuForDrawer.sku}\nRevenue: ${formatINR(selectedSkuForDrawer.revenue)}\nProfit: ${formatINR(selectedSkuForDrawer.profit)}\nMargin: ${formatPercent(selectedSkuForDrawer.margin)}`
-                  );
-                }}
-                className="flex-1 py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl transition"
-              >
-                Copy SKU Summary
-              </button>
-              <button
-                onClick={() => setSelectedSkuForDrawer(null)}
-                className="py-2 px-5 bg-slate-900 hover:bg-black text-white text-xs font-semibold rounded-xl transition"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SkuDrawer
+        skuData={selectedSkuForDrawer}
+        onClose={() => setSelectedSkuForDrawer(null)}
+      />
 
       {/* ─── CARD LOGIC INSPECTION MODAL ─── */}
-      {activeLogicModal && (
-        <div
-          className="fixed inset-0 z-50 bg-black/25 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setActiveLogicModal(null)}
-        >
-          <div
-            className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-5 flex flex-col gap-3.5 animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200/60">
-                    {activeLogicModal.category}
-                  </span>
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                    {activeLogicModal.badge}
-                  </span>
-                </div>
-                <h3 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
-                  {activeLogicModal.title}
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5 leading-normal">
-                  {activeLogicModal.meaning}
-                </p>
-              </div>
-              <button
-                onClick={() => setActiveLogicModal(null)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      <CardLogicModal
+        data={activeLogicModal}
+        onClose={() => setActiveLogicModal(null)}
+      />
 
-            {/* Quick Formula Strip */}
-            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
-                Formula &amp; Logic
-              </span>
-              <div className="text-xs font-semibold text-purple-700">
-                {activeLogicModal.formula}
-              </div>
-            </div>
-
-            {/* Live Data Breakdown Components */}
-            <div className="bg-slate-50/60 p-3 rounded-xl border border-slate-200/70">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                Live Calculation Breakdown
-              </span>
-              <div className="space-y-1.5 text-xs">
-                {activeLogicModal.equationComponents.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-0.5 border-b border-slate-200/40 last:border-0">
-                    <span className="text-slate-600">{item.label}</span>
-                    <span className={`font-semibold tracking-tight ${item.color || "text-[#1D1D1F]"}`}>
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200/80 font-semibold">
-                  <span className="text-slate-900">{activeLogicModal.resultLabel}</span>
-                  <span className="text-sm font-semibold tracking-tight text-[#288548]">
-                    {activeLogicModal.resultValue}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex justify-end pt-1">
-              <button
-                onClick={() => setActiveLogicModal(null)}
-                className="px-4 py-1.5 bg-slate-900 hover:bg-black text-white text-xs font-semibold rounded-xl transition shadow-xs"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── QUICK ACTION: ADD ORDER MODAL (Full Light Fintech, Return & Claim Parity) ─── */}
-      {isAddOrderOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 animate-in fade-in duration-150"
-          onClick={() => setIsAddOrderOpen(false)}
-        >
-          <div
-            className="bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="w-8 h-8 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center">
-                  <Plus className="w-4 h-4" />
-                </span>
-                <div>
-                  <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                    Add Order
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Direct entry to platform ledgers with real-time gross margin &amp; reverse logistics tracking.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddOrderOpen(false)}
-                className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Scrollable Form Body */}
-            <form onSubmit={handleQuickAddOrder} className="p-6 space-y-4 overflow-y-auto text-xs">
-              {/* 1. SELECT MARKETPLACE PLATFORM */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                  SELECT MARKETPLACE PLATFORM
-                </label>
-                <FormMarketplaceDropdown
-                  selected={orderFormMarketplace}
-                  onChange={(mp, estComm) => handleSelectOrderMarketplace(mp, estComm)}
-                />
-              </div>
-
-              {/* 2. ORDER ID, DATE, SKU */}
-              <div className="grid grid-cols-3 gap-2.5">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    ORDER ID / REFERENCE #
-                  </label>
-                  <input
-                    type="text"
-                    value={orderFormId}
-                    onChange={(e) => setOrderFormId(e.target.value)}
-                    placeholder="e.g. ORD-476140"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500 font-semibold"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    TRANSACTION DATE
-                  </label>
-                  <input
-                    type="date"
-                    value={orderFormDate}
-                    onChange={(e) => setOrderFormDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500 font-mono"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    SKU / ITEM CODE
-                  </label>
-                  <input
-                    type="text"
-                    list="dashboard-catalog-skus"
-                    value={orderFormSku}
-                    onChange={(e) => handleSelectOrderSku(e.target.value)}
-                    placeholder="e.g. SKU-COT-01"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500"
-                    required
-                  />
-                  <datalist id="dashboard-catalog-skus">
-                    {products.map((p) => (
-                      <option key={p.sku} value={p.sku}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </datalist>
-                </div>
-              </div>
-
-              {/* 3. PRODUCT TITLE & QUANTITY */}
-              <div className="grid grid-cols-4 gap-2.5">
-                <div className="col-span-3">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    PRODUCT TITLE / NAME
-                  </label>
-                  <input
-                    type="text"
-                    value={orderFormProductName}
-                    onChange={(e) => setOrderFormProductName(e.target.value)}
-                    placeholder="e.g. Embroidered Cotton Kurti"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    QUANTITY
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={orderFormQuantity}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setOrderFormQuantity(e.target.value)}
-                    placeholder="1"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500 font-bold"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* 4. WHOLESALER / SUPPLIER PURCHASE COST (COGS) */}
-              <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200 space-y-2.5">
-                <div className="flex items-center gap-1.5 text-purple-700 font-bold text-xs">
-                  <Truck className="w-3.5 h-3.5 text-purple-600" />
-                  <span className="uppercase tracking-wider">WHOLESALER / SUPPLIER PURCHASE COST (COGS)</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      WHOLESALER NAME
-                    </label>
-                    <select
-                      value={orderFormSupplierName}
-                      onChange={(e) => setOrderFormSupplierName(e.target.value)}
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-purple-500"
-                    >
-                      <option value="">Select Supplier</option>
-                      {suppliers.map((s) => (
-                        <option key={s.id} value={s.name}>
-                          {s.name}
-                        </option>
-                      ))}
-                      <option value="Direct Supplier">Direct Supplier / Spot Purchase</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      UNIT WHOLESALER COST (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={orderFormUnitCost}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setOrderFormUnitCost(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                    />
-                  </div>
-                </div>
-
-                <div className="text-[11px] text-slate-500 font-medium">
-                  Total Wholesale COGS: <strong className="text-slate-800 font-bold font-mono">{formatINR(orderFormTotalCost)}</strong>
-                </div>
-              </div>
-
-              {/* 5. PLATFORM SETTLEMENT FIGURES */}
-              <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-purple-700 font-bold text-xs uppercase tracking-wider">
-                    PLATFORM SETTLEMENT FIGURES
-                  </span>
-                  <span className="text-[11px] font-medium text-slate-500">
-                    EST. COMMISSION: <strong className="text-purple-700 font-mono">{parsedOrderCommPercent}%</strong>
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-4 gap-2">
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      SELLING PRICE (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={orderFormSellingPrice}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setOrderFormSellingPrice(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      EST. COMMISSION (%)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      max="100"
-                      value={orderFormEstCommissionPercent}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setOrderFormEstCommissionPercent(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      EXPECTED SETTLEMENT (₹)
-                    </label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={orderFormGrossSales > 0 ? formatINR(orderFormExpectedSettlement) : "0"}
-                      className="w-full px-2.5 py-2 bg-slate-100 border border-slate-200 rounded-xl font-mono text-xs text-slate-700 font-bold cursor-not-allowed"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                      ACTUAL RECEIVED (₹)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      value={orderFormActualReceived}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setOrderFormActualReceived(e.target.value)}
-                      placeholder="0"
-                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-bold"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 6. MARK AS RETURNED / RTO ORDER */}
-              <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 text-slate-800 space-y-3.5 shadow-2xs">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={orderFormIsReturned}
-                    onChange={(e) => setOrderFormIsReturned(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 accent-blue-600 cursor-pointer"
-                  />
-                  <span className="font-bold text-xs uppercase tracking-wider text-slate-800">
-                    MARK AS RETURNED / RTO ORDER
-                  </span>
-                </label>
-
-                {orderFormIsReturned && (
-                  <div className="space-y-3.5 pt-1 animate-in fade-in duration-150">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                          RETURN TYPE
-                        </label>
-                        <select
-                          value={orderFormReturnType}
-                          onChange={(e) => setOrderFormReturnType(e.target.value as ReturnType)}
-                          className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer font-medium shadow-2xs"
-                        >
-                          <option value="CUSTOMER_RETURN">Customer Return (Delivered &amp; Returned)</option>
-                          <option value="RTO">RTO (Undelivered / Doorstep Rejection)</option>
-                          <option value="DAMAGED_RETURN">Damaged Return</option>
-                          <option value="LOST_RETURN">Lost in Transit</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                          RETURN FEE / LOGISTICS DEDUCTION (₹)
-                        </label>
-                        <input
-                          type="number"
-                          step="any"
-                          min="0"
-                          value={orderFormReturnFee}
-                          onFocus={(e) => e.target.select()}
-                          onChange={(e) => setOrderFormReturnFee(e.target.value)}
-                          placeholder="0"
-                          className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:border-blue-500 font-bold shadow-2xs"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                        RETURN REASON / NOTES
-                      </label>
-                      <input
-                        type="text"
-                        value={orderFormReturnReason}
-                        onChange={(e) => setOrderFormReturnReason(e.target.value)}
-                        placeholder="e.g. wrong size, damaged packaging"
-                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 shadow-2xs"
-                      />
-                    </div>
-
-                    {/* Sub-card: Damaged / Defective Claim */}
-                    <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 space-y-3 shadow-2xs">
-                      <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={orderFormIsDamagedClaim}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setOrderFormIsDamagedClaim(checked);
-                            if (checked && (!orderFormClaimAmount || orderFormClaimAmount === "0")) {
-                              setOrderFormClaimAmount(String(parsedOrderUnitCost || parsedOrderSellingPrice || 0));
-                            }
-                          }}
-                          className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300 accent-amber-600 cursor-pointer"
-                        />
-                        <span className="font-bold text-xs uppercase tracking-wider text-amber-900">
-                          RETURNED PRODUCT IS DAMAGED / DEFECTIVE (FILE CLAIM)
-                        </span>
-                      </label>
-
-                      {orderFormIsDamagedClaim && (
-                        <div className="grid grid-cols-3 gap-2.5 pt-1 animate-in fade-in duration-150">
-                          <div>
-                            <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                              CLAIM AMOUNT FILED
-                            </label>
-                            <input
-                              type="number"
-                              step="any"
-                              min="0"
-                              value={orderFormClaimAmount}
-                              onFocus={(e) => e.target.select()}
-                              onChange={(e) => setOrderFormClaimAmount(e.target.value)}
-                              placeholder="0"
-                              className="w-full px-2.5 py-2 bg-white border border-amber-200 rounded-lg font-mono text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-bold shadow-2xs"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                              CLAIM STATUS
-                            </label>
-                            <select
-                              value={orderFormClaimStatus}
-                              onChange={(e) =>
-                                setOrderFormClaimStatus(
-                                  e.target.value as "Draft" | "Filed" | "Approved" | "Rejected"
-                                )
-                              }
-                              className="w-full px-2.5 py-2 bg-white border border-purple-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-purple-500 font-semibold cursor-pointer shadow-2xs"
-                            >
-                              <option value="Draft">Draft</option>
-                              <option value="Filed">Filed</option>
-                              <option value="Approved">Approved</option>
-                              <option value="Rejected">Rejected</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                              APPROVED REIMBURSEMENT
-                            </label>
-                            <input
-                              type="number"
-                              step="any"
-                              min="0"
-                              value={orderFormApprovedReimbursement}
-                              onFocus={(e) => e.target.select()}
-                              onChange={(e) => setOrderFormApprovedReimbursement(e.target.value)}
-                              placeholder="0"
-                              className="w-full px-2.5 py-2 bg-white border border-amber-200 rounded-lg font-mono text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-bold shadow-2xs"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 7. GENERAL ORDER NOTES */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  GENERAL ORDER NOTES
-                </label>
-                <textarea
-                  rows={2}
-                  value={orderFormNotes}
-                  onChange={(e) => setOrderFormNotes(e.target.value)}
-                  placeholder="Record packaging conditions, tracking numbers, or transaction notes..."
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-purple-500"
-                />
-              </div>
-
-              {/* Form Footer Buttons */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setIsAddOrderOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold shadow-xs transition"
-                >
-                  Submit Order
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* ─── QUICK ACTION: ADD ORDER MODAL ─── */}
+      <OrderModal
+        mode="create"
+        isOpen={isAddOrderOpen}
+        onClose={() => setIsAddOrderOpen(false)}
+        products={products}
+        suppliers={suppliers}
+        onAddOrder={addOrder}
+        onAddSettlement={addSettlement}
+        onAddReturn={addReturn}
+        onAddClaim={addClaim}
+      />
 
       {/* ─── QUICK ACTION: RECORD RETURN MODAL ─── */}
-      {isRecordReturnOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setIsRecordReturnOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 flex flex-col gap-4 animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <RotateCcw className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Record Return / RTO</h3>
-                  <p className="text-xs text-slate-500">Log reverse logistics shipping, parcel rejection, or damaged items.</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsRecordReturnOpen(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {returnError && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
-                {returnError}
-              </div>
-            )}
-
-            <form onSubmit={handleQuickRecordReturn} className="space-y-4 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Target Order</label>
-                <select
-                  value={returnOrderId}
-                  onChange={(e) => setReturnOrderId(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-amber-500"
-                >
-                  {orders.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.id} ({o.marketplace}) — {o.items[0]?.sku} ({o.items[0]?.quantity} pcs) - {o.customerName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Return Nature</label>
-                  <select
-                    value={returnType}
-                    onChange={(e) => setReturnType(e.target.value as ReturnType)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="CUSTOMER_RETURN">Customer Return (Delivered &amp; Returned)</option>
-                    <option value="RTO">RTO (Courier Reject / Undelivered)</option>
-                    <option value="LOST_RETURN">Lost in Transit by Courier</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Physical Condition</label>
-                  <select
-                    value={returnCondition}
-                    onChange={(e) => setReturnCondition(e.target.value as ProductCondition)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="SELLABLE">Sellable (Undamaged / Restockable)</option>
-                    <option value="DAMAGED">Damaged (Requires SAFE-T Dispute)</option>
-                    <option value="UNUSABLE">Unusable / Scrap</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Return Qty</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={returnQty}
-                    onChange={(e) => setReturnQty(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Reverse Freight (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={returnShipping}
-                    onChange={(e) => setReturnShipping(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Scrap Value (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={returnRecovery}
-                    onChange={(e) => setReturnRecovery(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Reason / Notes</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Customer rejected at doorstep / wrong item sent"
-                  value={returnReason}
-                  onChange={(e) => setReturnReason(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              {returnCondition === "DAMAGED" && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
-                  <span className="font-bold block">Automatic Claim Guard:</span>
-                  Marking as damaged will automatically file a dispute claim entry in the Claims Ledger to recover loss.
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsRecordReturnOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold transition shadow-xs"
-                >
-                  Log Return
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <RecordReturnModal
+        isOpen={isRecordReturnOpen}
+        onClose={() => setIsRecordReturnOpen(false)}
+        orders={orders}
+        onAddReturn={(ret) => addReturn(ret)}
+      />
 
       {/* ─── QUICK ACTION: ADD SUPPLIER PAYMENT MODAL ─── */}
-      {isAddPurchaseOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setIsAddPurchaseOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 flex flex-col gap-4 animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <Truck className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Add Supplier Purchase / Payment</h3>
-                  <p className="text-xs text-slate-500">Record wholesale inventory purchases and COGS liability.</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsAddPurchaseOpen(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleQuickAddPurchase} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Wholesale Supplier</label>
-                  <select
-                    value={purchaseSupplierId}
-                    onChange={(e) => setPurchaseSupplierId(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
-                  >
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.contactPerson})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Invoice / Bill Ref</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. INV-9921"
-                    value={purchaseInvoiceNo}
-                    onChange={(e) => setPurchaseInvoiceNo(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Purchased Product SKU</label>
-                <select
-                  value={purchaseSku}
-                  onChange={(e) => {
-                    setPurchaseSku(e.target.value);
-                    const prod = products.find((p) => p.sku === e.target.value);
-                    if (prod) setPurchaseUnitCost(prod.currentCostPrice);
-                  }}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
-                >
-                  {products.map((p) => (
-                    <option key={p.sku} value={p.sku}>
-                      {p.sku} — {p.name} (Current Cost: ₹{p.currentCostPrice})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={purchaseQty}
-                    onChange={(e) => setPurchaseQty(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Unit Cost (₹)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={purchaseUnitCost}
-                    onChange={(e) => setPurchaseUnitCost(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">GST Tax Rate (%)</label>
-                  <select
-                    value={purchaseTaxRate}
-                    onChange={(e) => setPurchaseTaxRate(parseInt(e.target.value) || 18)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
-                  >
-                    <option value={0}>0%</option>
-                    <option value={5}>5%</option>
-                    <option value={12}>12%</option>
-                    <option value={18}>18%</option>
-                    <option value={28}>28%</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Purchase Calculation Summary */}
-              <div className="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-center justify-between text-xs">
-                <div>
-                  <span className="text-emerald-900 font-bold block">Total Billed to Supplier:</span>
-                  <span className="text-[11px] text-emerald-700 font-medium">
-                    Subtotal: {formatINR(purchaseQty * purchaseUnitCost)} + GST ({purchaseTaxRate}%): {formatINR(Math.round(purchaseQty * purchaseUnitCost * (purchaseTaxRate / 100)))}
-                  </span>
-                </div>
-                <span className="text-lg font-bold text-emerald-900 font-mono">
-                  {formatINR(purchaseQty * purchaseUnitCost + Math.round(purchaseQty * purchaseUnitCost * (purchaseTaxRate / 100)))}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsAddPurchaseOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition shadow-xs"
-                >
-                  Record Purchase
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <AddPurchaseModal
+        isOpen={isAddPurchaseOpen}
+        onClose={() => setIsAddPurchaseOpen(false)}
+        suppliers={suppliers}
+        products={products}
+        onAddPurchase={(purchase) => addPurchase(purchase)}
+      />
     </div>
   );
 }

@@ -1,3 +1,24 @@
 {
-  "/page": "app/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/jobs/[id]/route": "app/api/jobs/[id]/route.js",
+  "/api/idp-extract/route": "app/api/idp-extract/route.js",
+  "/api/webhooks/woocommerce/route": "app/api/webhooks/woocommerce/route.js",
+  "/api/webhooks/shopify/route": "app/api/webhooks/shopify/route.js",
+  "/api/jobs/route": "app/api/jobs/route.js",
+  "/api/webhooks/generic/route": "app/api/webhooks/generic/route.js",
+  "/api/upload-bill/route": "app/api/upload-bill/route.js",
+  "/(dashboard)/documents/page": "app/(dashboard)/documents/page.js",
+  "/(dashboard)/claims/page": "app/(dashboard)/claims/page.js",
+  "/(dashboard)/page": "app/(dashboard)/page.js",
+  "/(dashboard)/audit/page": "app/(dashboard)/audit/page.js",
+  "/(dashboard)/orders/page": "app/(dashboard)/orders/page.js",
+  "/(dashboard)/ledger/page": "app/(dashboard)/ledger/page.js",
+  "/(dashboard)/returns/page": "app/(dashboard)/returns/page.js",
+  "/(dashboard)/products/page": "app/(dashboard)/products/page.js",
+  "/(dashboard)/expenses/page": "app/(dashboard)/expenses/page.js",
+  "/(dashboard)/settlements/page": "app/(dashboard)/settlements/page.js",
+  "/(dashboard)/purchases/page": "app/(dashboard)/purchases/page.js",
+  "/(dashboard)/suppliers/page": "app/(dashboard)/suppliers/page.js",
+  "/(dashboard)/webhooks/page": "app/(dashboard)/webhooks/page.js",
+  "/(dashboard)/reports/page": "app/(dashboard)/reports/page.js"
 }

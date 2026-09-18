@@ -95,6 +95,7 @@ export interface Product {
   supplierId: string;
   active: boolean;
   channelAliases: Partial<Record<Marketplace, string>>; // Maps marketplace SKU to master SKU
+  stockQuantity?: number; // Physical warehouse inventory units
 }
 
 // Partition 2: Orders

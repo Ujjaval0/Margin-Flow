@@ -9,11 +9,12 @@ import { ColumnDef } from "@tanstack/react-table";
 import { X, ArrowDownRight } from "lucide-react";
 
 interface ClaimsViewProps {
-  selectedMarketplace: Marketplace | "ALL";
+  selectedMarketplace?: Marketplace | "ALL";
 }
 
-export function ClaimsView({ selectedMarketplace }: ClaimsViewProps) {
-  const { claims, addClaim, updateClaim } = usePlatform();
+export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewProps = {}) {
+  const { selectedMarketplace: contextMarketplace, claims, addClaim, updateClaim } = usePlatform();
+  const selectedMarketplace = propMarketplace ?? contextMarketplace;
 
   const [isRecordRecoveryOpen, setIsRecordRecoveryOpen] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);

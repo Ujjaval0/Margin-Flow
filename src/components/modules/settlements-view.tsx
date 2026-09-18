@@ -11,13 +11,15 @@ import { formatINR } from "@/lib/utils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus, X, Clock, AlertCircle, CheckCircle2, ChevronRight, Banknote } from "lucide-react";
+import { FormMarketplaceDropdown } from "@/components/ui/marketplace-dropdown";
 
 interface SettlementsViewProps {
-  selectedMarketplace: Marketplace | "ALL";
+  selectedMarketplace?: Marketplace | "ALL";
 }
 
-export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
-  const { settlements, orders, addSettlement, settlementAging } = usePlatform();
+export function SettlementsView({ selectedMarketplace: propMarketplace }: SettlementsViewProps = {}) {
+  const { selectedMarketplace: contextMarketplace, settlements, orders, addSettlement, settlementAging } = usePlatform();
+  const selectedMarketplace = propMarketplace ?? contextMarketplace;
 
   const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null);
   const [selectedAgingTab, setSelectedAgingTab] = useState<"ALL" | "0-7" | "8-14" | "14+">("ALL");
@@ -526,16 +528,10 @@ export function SettlementsView({ selectedMarketplace }: SettlementsViewProps) {
                 </div>
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Channel</label>
-                  <select
-                    value={marketplace}
-                    onChange={(e) => setMarketplace(e.target.value as Marketplace)}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
-                  >
-                    <option value="Amazon India">Amazon India</option>
-                    <option value="Flipkart">Flipkart</option>
-                    <option value="Meesho">Meesho</option>
-                    <option value="Personal Website">Personal Website</option>
-                  </select>
+                  <FormMarketplaceDropdown
+                    selected={marketplace}
+                    onChange={(val) => setMarketplace(val)}
+                  />
                 </div>
               </div>
 

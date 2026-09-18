@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useMemo } from "react";
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from "react";
 import {
   Product,
   Order,
@@ -44,6 +44,8 @@ import {
   SettlementAgingSummary,
 } from "./profitability-engine";
 
+export const LEDGER_STORAGE_KEY = "MARGINFLOW_PERSISTENT_LEDGER_V1";
+
 interface PlatformContextType {
   products: Product[];
   orders: Order[];
@@ -56,7 +58,9 @@ interface PlatformContextType {
   aiDocuments: AIStagedDocument[];
   auditLogs: FinancialAuditLog[];
 
-  // Date-Range & Engine State
+  // Channel & Date-Range Filter State
+  selectedMarketplace: Marketplace | "ALL";
+  setSelectedMarketplace: (mp: Marketplace | "ALL") => void;
   datePreset: DateRangePreset;
   setDatePreset: (preset: DateRangePreset) => void;
   customDateRange: DateFilterRange | null;
@@ -74,6 +78,12 @@ interface PlatformContextType {
   skuBreakdown: SkuProfitability[];
   settlementAging: SettlementAgingSummary;
   guardrailStatus: GuardrailCheckResult[];
+
+  // Persistent Ledger Management
+  isHydrated: boolean;
+  resetLedgerToDefaults: () => void;
+  exportLedgerSnapshot: () => string;
+  importLedgerSnapshot: (jsonString: string) => boolean;
 
   // Actions
   addOrder: (order: Order) => void;
@@ -115,6 +125,7 @@ interface PlatformContextType {
 const PlatformContext = createContext<PlatformContextType | null>(null);
 
 export function PlatformProvider({ children }: { children: React.ReactNode }) {
+  const [isHydrated, setIsHydrated] = useState(false);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
   const [returns, setReturns] = useState<ReturnRecord[]>(INITIAL_RETURNS);
@@ -127,6 +138,90 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [auditLogs, setAuditLogs] = useState<FinancialAuditLog[]>(INITIAL_AUDIT_LOGS);
   const [datePreset, setDatePreset] = useState<DateRangePreset>("ALL");
   const [customDateRange, setCustomDateRange] = useState<DateFilterRange | null>(null);
+  const [selectedMarketplace, setSelectedMarketplace] = useState<Marketplace | "ALL">("ALL");
+
+  // Rehydrate persistent ledger from localStorage on client mount
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(LEDGER_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.data) {
+            if (Array.isArray(parsed.data.products)) setProducts(parsed.data.products);
+            if (Array.isArray(parsed.data.orders)) setOrders(parsed.data.orders);
+            if (Array.isArray(parsed.data.returns)) setReturns(parsed.data.returns);
+            if (Array.isArray(parsed.data.settlements)) setSettlements(parsed.data.settlements);
+            if (Array.isArray(parsed.data.claims)) setClaims(parsed.data.claims);
+            if (Array.isArray(parsed.data.suppliers)) setSuppliers(parsed.data.suppliers);
+            if (Array.isArray(parsed.data.purchases)) setPurchases(parsed.data.purchases);
+            if (Array.isArray(parsed.data.expenses)) setExpenses(parsed.data.expenses);
+            if (Array.isArray(parsed.data.aiDocuments)) setAiDocuments(parsed.data.aiDocuments);
+            if (Array.isArray(parsed.data.auditLogs)) setAuditLogs(parsed.data.auditLogs);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to rehydrate persistent ledger from storage:", e);
+    } finally {
+      setIsHydrated(true);
+    }
+  }, []);
+
+  // Debounced synchronization of state mutations to local ledger storage (prevents UI thread freezing)
+  useEffect(() => {
+    if (!isHydrated) return;
+    const timer = setTimeout(() => {
+      try {
+        if (typeof window !== "undefined") {
+          const snapshot = {
+            version: 1,
+            timestamp: new Date().toISOString(),
+            data: {
+              products,
+              orders,
+              returns,
+              settlements,
+              claims,
+              suppliers,
+              purchases,
+              expenses,
+              aiDocuments,
+              auditLogs,
+            },
+          };
+          const serialized = JSON.stringify(snapshot);
+          if ("requestIdleCallback" in window) {
+            (window as any).requestIdleCallback(() => {
+              try {
+                localStorage.setItem(LEDGER_STORAGE_KEY, serialized);
+              } catch (err) {
+                console.error("Failed to save ledger to localStorage:", err);
+              }
+            });
+          } else {
+            localStorage.setItem(LEDGER_STORAGE_KEY, serialized);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to synchronize persistent ledger to storage:", e);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [
+    isHydrated,
+    products,
+    orders,
+    returns,
+    settlements,
+    claims,
+    suppliers,
+    purchases,
+    expenses,
+    aiDocuments,
+    auditLogs,
+  ]);
 
   // Derive dynamic anchor date from latest order in dataset
   const effectiveAnchorDate = useMemo(() => {
@@ -211,12 +306,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       returns,
       settlements,
       claims,
-      aiDocuments
+      aiDocuments,
+      expenses
     );
-  }, [products, orders, returns, settlements, claims, aiDocuments]);
+  }, [products, orders, returns, settlements, claims, aiDocuments, expenses]);
 
   // Actions
-  const addOrder = (order: Order) => {
+  const addOrder = useCallback((order: Order) => {
     setOrders((prev) => [order, ...prev]);
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
@@ -230,9 +326,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Order created in system",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const updateOrderStatus = (orderId: string, status: Order["status"]) => {
+  const updateOrderStatus = useCallback((orderId: string, status: Order["status"]) => {
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id === orderId) {
@@ -253,9 +349,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         return o;
       })
     );
-  };
+  }, []);
 
-  const updateOrder = (updatedOrder: Order) => {
+  const updateOrder = useCallback((updatedOrder: Order) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
     );
@@ -271,9 +367,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Order manually edited",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const deleteOrder = (orderId: string) => {
+  const deleteOrder = useCallback((orderId: string) => {
     setOrders((prev) => prev.filter((o) => o.id !== orderId));
     setReturns((prev) => prev.filter((r) => r.orderId !== orderId));
     setSettlements((prev) => prev.filter((s) => s.orderId !== orderId));
@@ -290,9 +386,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Order deleted from ledger",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const deleteOrders = (orderIds: string[]) => {
+  const deleteOrders = useCallback((orderIds: string[]) => {
     const idSet = new Set(orderIds);
     setOrders((prev) => prev.filter((o) => !idSet.has(o.id)));
     setReturns((prev) => prev.filter((r) => !idSet.has(r.orderId)));
@@ -310,9 +406,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: `Bulk deleted ${orderIds.length} orders from ledger`,
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const bulkUpdateOrderStatus = (orderIds: string[], status: Order["status"]) => {
+  const bulkUpdateOrderStatus = useCallback((orderIds: string[], status: Order["status"]) => {
     const idSet = new Set(orderIds);
     setOrders((prev) =>
       prev.map((o) => (idSet.has(o.id) ? { ...o, status } : o))
@@ -329,7 +425,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: `Bulk updated ${orderIds.length} orders to ${status}`,
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
   const calculateClaimDeadline = (marketplace: Marketplace, returnDateStr: string): string => {
     const returnDate = new Date(returnDateStr);
@@ -340,7 +436,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     return deadline.toISOString().split("T")[0];
   };
 
-  const addReturn = (returnRecord: ReturnRecord) => {
+  const addReturn = useCallback((returnRecord: ReturnRecord) => {
     const enrichedRecord: ReturnRecord = {
       ...returnRecord,
       receivedDate: returnRecord.receivedDate || returnRecord.returnDate,
@@ -353,15 +449,38 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     };
 
     setReturns((prev) => [enrichedRecord, ...prev]);
-    // Link return to order
+    // Link return to order and update line-item returned quantity & order status
     setOrders((prev) =>
       prev.map((o) => {
-        if (o.id === enrichedRecord.orderId) {
+        if (
+          o.id === enrichedRecord.orderId ||
+          (enrichedRecord.channelOrderId && o.channelOrderId === enrichedRecord.channelOrderId)
+        ) {
           const currentReturns = o.returnIds || [];
+          const updatedItems = o.items.map((item) => {
+            if (item.sku === enrichedRecord.sku) {
+              return {
+                ...item,
+                returnedQuantity: (item.returnedQuantity || 0) + enrichedRecord.quantity,
+              };
+            }
+            return item;
+          });
+
+          const totalOrdered = updatedItems.reduce((acc, it) => acc + it.quantity, 0);
+          const totalReturned = updatedItems.reduce((acc, it) => acc + (it.returnedQuantity || 0), 0);
+          const newStatus =
+            enrichedRecord.returnType === "RTO"
+              ? "RTO"
+              : totalReturned >= totalOrdered
+              ? "RETURNED"
+              : "PARTIALLY_RETURNED";
+
           return {
             ...o,
-            status: enrichedRecord.returnType === "RTO" ? "RTO" : "PARTIALLY_RETURNED",
-            returnIds: [...currentReturns, enrichedRecord.id],
+            items: updatedItems,
+            status: newStatus,
+            returnIds: Array.from(new Set([...currentReturns, enrichedRecord.id])),
           };
         }
         return o;
@@ -380,9 +499,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: `Logged return for ${enrichedRecord.sku} (${enrichedRecord.marketplace})`,
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const updateReturn = (updated: ReturnRecord) => {
+  const updateReturn = useCallback((updated: ReturnRecord) => {
     setReturns((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
@@ -396,12 +515,17 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Return record updated",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const restockReturn = (returnId: string) => {
+  const restockReturn = useCallback((returnId: string) => {
+    let restockedSku = "";
+    let restockedQty = 0;
+
     setReturns((prev) =>
       prev.map((r) => {
         if (r.id === returnId) {
+          restockedSku = r.sku;
+          restockedQty = r.quantity;
           return {
             ...r,
             condition: "SELLABLE",
@@ -411,6 +535,17 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         return r;
       })
     );
+
+    if (restockedSku && restockedQty > 0) {
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.sku === restockedSku
+            ? { ...p, stockQuantity: (p.stockQuantity ?? 0) + restockedQty }
+            : p
+        )
+      );
+    }
+
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -423,16 +558,52 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Item inspected and put away back to active sellable inventory",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const deleteReturn = (returnId: string) => {
-    setReturns((prev) => prev.filter((r) => r.id !== returnId));
-    setOrders((prev) =>
-      prev.map((o) => ({
-        ...o,
-        returnIds: o.returnIds?.filter((id) => id !== returnId),
-      }))
-    );
+  const deleteReturn = useCallback((returnId: string) => {
+    setReturns((prevReturns) => {
+      const returnToDelete = prevReturns.find((r) => r.id === returnId);
+      if (returnToDelete) {
+        setOrders((prevOrders) =>
+          prevOrders.map((o) => {
+            if (
+              o.id === returnToDelete.orderId ||
+              (returnToDelete.channelOrderId && o.channelOrderId === returnToDelete.channelOrderId)
+            ) {
+              const updatedReturnIds = o.returnIds?.filter((id) => id !== returnId) || [];
+              const updatedItems = o.items.map((item) => {
+                if (item.sku === returnToDelete.sku) {
+                  return {
+                    ...item,
+                    returnedQuantity: Math.max(0, (item.returnedQuantity || 0) - returnToDelete.quantity),
+                  };
+                }
+                return item;
+              });
+              const totalReturned = updatedItems.reduce((acc, it) => acc + (it.returnedQuantity || 0), 0);
+              const totalOrdered = updatedItems.reduce((acc, it) => acc + it.quantity, 0);
+
+              let newStatus = o.status;
+              if (updatedReturnIds.length === 0 || totalReturned === 0) {
+                newStatus = "DELIVERED";
+              } else if (totalReturned < totalOrdered) {
+                newStatus = "PARTIALLY_RETURNED";
+              }
+
+              return {
+                ...o,
+                status: newStatus,
+                items: updatedItems,
+                returnIds: updatedReturnIds,
+              };
+            }
+            return o;
+          })
+        );
+      }
+      return prevReturns.filter((r) => r.id !== returnId);
+    });
+
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -445,13 +616,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Return record deleted",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const addClaim = (claim: Claim) => {
+  const addClaim = useCallback((claim: Claim) => {
     setClaims((prev) => [claim, ...prev]);
-  };
+  }, []);
 
-  const updateClaim = (claimId: string, recoveredAmount: number, status: Claim["status"]) => {
+  const updateClaim = useCallback((claimId: string, recoveredAmount: number, status: Claim["status"]) => {
     setClaims((prev) =>
       prev.map((c) => {
         if (c.id === claimId) {
@@ -477,9 +648,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         return c;
       })
     );
-  };
+  }, []);
 
-  const updateProductCost = (sku: string, newCost: number, reason: string) => {
+  const updateProductCost = useCallback((sku: string, newCost: number, reason: string) => {
     setProducts((prev) =>
       prev.map((p) => {
         if (p.sku === sku) {
@@ -519,21 +690,21 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         return p;
       })
     );
-  };
+  }, []);
 
-  const addSettlement = (settlement: Settlement) => {
+  const addSettlement = useCallback((settlement: Settlement) => {
     setSettlements((prev) => [settlement, ...prev]);
-  };
+  }, []);
 
-  const addExpense = (expense: Expense) => {
+  const addExpense = useCallback((expense: Expense) => {
     setExpenses((prev) => [expense, ...prev]);
-  };
+  }, []);
 
-  const addPurchase = (purchase: PurchaseBill) => {
+  const addPurchase = useCallback((purchase: PurchaseBill) => {
     setPurchases((prev) => [purchase, ...prev]);
-  };
+  }, []);
 
-  const addSupplier = (supplier: Supplier) => {
+  const addSupplier = useCallback((supplier: Supplier) => {
     setSuppliers((prev) => [supplier, ...prev]);
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
@@ -547,9 +718,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "New wholesale supplier configured",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const updateSupplier = (supplier: Supplier) => {
+  const updateSupplier = useCallback((supplier: Supplier) => {
     setSuppliers((prev) =>
       prev.map((s) => (s.id === supplier.id ? supplier : s))
     );
@@ -565,9 +736,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Supplier details modified",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const deleteSupplier = (supplierId: string) => {
+  const deleteSupplier = useCallback((supplierId: string) => {
     setSuppliers((prev) => prev.filter((s) => s.id !== supplierId));
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
@@ -581,9 +752,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Supplier removed from directory",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const recordSupplierPayment = (
+  const recordSupplierPayment = useCallback((
     supplierId: string,
     amount: number,
     paymentMethod: string,
@@ -602,6 +773,28 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         return s;
       })
     );
+
+    // Reconcile open purchase bills for this supplier FIFO
+    setPurchases((prev) => {
+      let remainingPayment = amount;
+      return prev.map((bill) => {
+        if (
+          bill.supplierId === supplierId &&
+          bill.paymentStatus !== "PAID" &&
+          remainingPayment > 0
+        ) {
+          if (remainingPayment >= bill.totalAmount) {
+            remainingPayment -= bill.totalAmount;
+            return { ...bill, paymentStatus: "PAID" as const };
+          } else {
+            remainingPayment = 0;
+            return { ...bill, paymentStatus: "PARTIAL" as const };
+          }
+        }
+        return bill;
+      });
+    });
+
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -614,9 +807,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: notes || "Supplier balance payout recorded",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const updateStagedDocumentField = (
+  const updateStagedDocumentField = useCallback((
     docId: string,
     field: keyof AIStagedDocument["extractedData"],
     val: any
@@ -652,9 +845,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         return doc;
       })
     );
-  };
+  }, []);
 
-  const addStagedDocument = (doc: AIStagedDocument) => {
+  const addStagedDocument = useCallback((doc: AIStagedDocument) => {
     setAiDocuments((prev) => [doc, ...prev]);
 
     // Audit log for document ingestion
@@ -671,101 +864,124 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       sourceDocumentId: doc.fileName,
     };
     setAuditLogs((prev) => [log, ...prev]);
-  };
+  }, []);
 
-  const approveStagedDocument = (docId: string) => {
-    const doc = aiDocuments.find((d) => d.id === docId);
-    if (!doc) return;
+  const approveStagedDocument = useCallback((docId: string) => {
+    setAiDocuments((prevDocs) => {
+      const doc = prevDocs.find((d) => d.id === docId);
+      if (!doc) return prevDocs;
 
-    // Convert staged document into an Order if it's an Invoice
-    if (doc.fileType === "INVOICE" && doc.extractedData.orderId?.value) {
-      const orderId = `ORD-${Date.now().toString().slice(-4)}`;
-      const newOrder: Order = {
-        id: orderId,
-        channelOrderId: doc.extractedData.orderId.value,
-        marketplace: doc.extractedData.marketplace?.value || "Personal Website",
-        orderDate: doc.extractedData.orderDate?.value || new Date().toISOString().split("T")[0],
-        status: "CONFIRMED",
-        customerName: "Extracted Customer",
-        customerCity: "Mumbai",
-        customerState: "Maharashtra",
-        shippingFeeCharged: 0,
-        marketplaceChargesEstimate: Math.round(Number(doc.extractedData.totalAmount?.value || 0) * 0.15),
-        items: [
-          {
-            id: `ITEM-${Date.now().toString().slice(-3)}`,
-            sku: doc.extractedData.sku?.value || "ELEC-WEM-01",
-            productName: doc.extractedData.productName?.value || "Extracted Item",
-            quantity: Number(doc.extractedData.quantity?.value || 1),
-            sellingPrice: Number(doc.extractedData.unitPrice?.value || 0),
-            discount: Number(doc.extractedData.discount?.value || 0),
-            taxAmount: Number(doc.extractedData.taxAmount?.value || 0),
-            snapshotUnitCost: 380, // Snapshot preserved
-            returnedQuantity: 0,
-          },
-        ],
-        documentIds: [doc.id],
-      };
-      setOrders((prev) => [newOrder, ...prev]);
-    }
-
-    // Convert staged document into a PurchaseBill if it's a Supplier Bill
-    if (doc.fileType === "SUPPLIER_BILL") {
-      const purchaseId = `PUR-${Date.now().toString().slice(-4)}`;
-      const unitCost = Number(doc.extractedData.unitPrice?.value || 0);
-      const sku = doc.extractedData.sku?.value || "ELEC-WEM-01";
-      const newPurchase: PurchaseBill = {
-        id: purchaseId,
-        supplierId: "SUP-001",
-        supplierName: "Apex Components Ltd",
-        invoiceNumber: doc.extractedData.invoiceNumber?.value || `BILL-${Date.now()}`,
-        invoiceDate: doc.extractedData.orderDate?.value || new Date().toISOString().split("T")[0],
-        sku: sku,
-        quantity: Number(doc.extractedData.quantity?.value || 1),
-        unitCost: unitCost,
-        taxes: Number(doc.extractedData.taxAmount?.value || 0),
-        totalAmount: Number(doc.extractedData.totalAmount?.value || 0),
-        paymentStatus: "PAID",
-        documentUrl: doc.fileName,
-      };
-      setPurchases((prev) => [newPurchase, ...prev]);
-
-      // If unitCost is positive, update product historical cost basis
-      if (unitCost > 0) {
-        updateProductCost(sku, unitCost, `Supplier Bill Approved (${doc.fileName})`);
+      // Convert staged document into an Order if it's an Invoice
+      if (doc.fileType === "INVOICE" && doc.extractedData.orderId?.value) {
+        const orderId = `ORD-${Date.now().toString().slice(-4)}`;
+        const newOrder: Order = {
+          id: orderId,
+          channelOrderId: doc.extractedData.orderId.value,
+          marketplace: doc.extractedData.marketplace?.value || "Personal Website",
+          orderDate: doc.extractedData.orderDate?.value || new Date().toISOString().split("T")[0],
+          status: "CONFIRMED",
+          customerName: "Extracted Customer",
+          customerCity: "Mumbai",
+          customerState: "Maharashtra",
+          shippingFeeCharged: 0,
+          marketplaceChargesEstimate: Math.round(Number(doc.extractedData.totalAmount?.value || 0) * 0.15),
+          items: [
+            {
+              id: `ITEM-${Date.now().toString().slice(-3)}`,
+              sku: doc.extractedData.sku?.value || "ELEC-WEM-01",
+              productName: doc.extractedData.productName?.value || "Extracted Item",
+              quantity: Number(doc.extractedData.quantity?.value || 1),
+              sellingPrice: Number(doc.extractedData.unitPrice?.value || 0),
+              discount: Number(doc.extractedData.discount?.value || 0),
+              taxAmount: Number(doc.extractedData.taxAmount?.value || 0),
+              snapshotUnitCost: 380, // Snapshot preserved
+              returnedQuantity: 0,
+            },
+          ],
+          documentIds: [doc.id],
+        };
+        setOrders((prev) => [newOrder, ...prev]);
       }
-    }
 
-    // Mark document as approved
-    setAiDocuments((prev) =>
-      prev.map((d) => (d.id === docId ? { ...d, status: "APPROVED_POSTED" as const } : d))
-    );
+      // Convert staged document into a PurchaseBill if it's a Supplier Bill
+      if (doc.fileType === "SUPPLIER_BILL") {
+        const purchaseId = `PUR-${Date.now().toString().slice(-4)}`;
+        const unitCost = Number(doc.extractedData.unitPrice?.value || 0);
+        const sku = doc.extractedData.sku?.value || "ELEC-WEM-01";
+        const newPurchase: PurchaseBill = {
+          id: purchaseId,
+          supplierId: "SUP-001",
+          supplierName: "Apex Components Ltd",
+          invoiceNumber: doc.extractedData.invoiceNumber?.value || `BILL-${Date.now()}`,
+          invoiceDate: doc.extractedData.orderDate?.value || new Date().toISOString().split("T")[0],
+          sku: sku,
+          quantity: Number(doc.extractedData.quantity?.value || 1),
+          unitCost: unitCost,
+          taxes: Number(doc.extractedData.taxAmount?.value || 0),
+          totalAmount: Number(doc.extractedData.totalAmount?.value || 0),
+          paymentStatus: "PAID",
+          documentUrl: doc.fileName,
+        };
+        setPurchases((prev) => [newPurchase, ...prev]);
 
-    // Audit log
-    const log: FinancialAuditLog = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      entityType: doc.fileType === "SUPPLIER_BILL" ? "PURCHASE" : "ORDER",
-      entityId: doc.extractedData.invoiceNumber?.value || doc.id,
-      fieldName: "status",
-      oldValue: "STAGED_AI_EXTRACTION",
-      newValue: "COMMITTED_TO_LEDGER",
-      modifiedBy: "Human Reviewer (Operator)",
-      reason: "Confirmed AI extraction fields and passed invariant check",
-      sourceDocumentId: doc.fileName,
-    };
-    setAuditLogs((prev) => [log, ...prev]);
-  };
+        // If unitCost is positive, update product historical cost basis
+        if (unitCost > 0) {
+          updateProductCost(sku, unitCost, `Supplier Bill Approved (${doc.fileName})`);
+        }
+      }
 
-  const rejectStagedDocument = (docId: string) => {
+      // Audit log
+      const log: FinancialAuditLog = {
+        id: `AUD-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        entityType: doc.fileType === "SUPPLIER_BILL" ? "PURCHASE" : "ORDER",
+        entityId: doc.extractedData.invoiceNumber?.value || doc.id,
+        fieldName: "status",
+        oldValue: "STAGED_AI_EXTRACTION",
+        newValue: "COMMITTED_TO_LEDGER",
+        modifiedBy: "Human Reviewer (Operator)",
+        reason: "Confirmed AI extraction fields and passed invariant check",
+        sourceDocumentId: doc.fileName,
+      };
+      setAuditLogs((prev) => [log, ...prev]);
+
+      return prevDocs.map((d) => (d.id === docId ? { ...d, status: "APPROVED_POSTED" as const } : d));
+    });
+  }, [updateProductCost]);
+
+  const rejectStagedDocument = useCallback((docId: string) => {
     setAiDocuments((prev) =>
       prev.map((d) => (d.id === docId ? { ...d, status: "REJECTED" as const } : d))
     );
-  };
+  }, []);
 
-  return (
-    <PlatformContext.Provider
-      value={{
+  const resetLedgerToDefaults = useCallback(() => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(LEDGER_STORAGE_KEY);
+      }
+    } catch (e) {
+      console.error("Failed to clear persistent ledger:", e);
+    }
+    setProducts(INITIAL_PRODUCTS);
+    setOrders(INITIAL_ORDERS);
+    setReturns(INITIAL_RETURNS);
+    setSettlements(INITIAL_SETTLEMENTS);
+    setClaims(INITIAL_CLAIMS);
+    setSuppliers(INITIAL_SUPPLIERS);
+    setPurchases(INITIAL_PURCHASES);
+    setExpenses(INITIAL_EXPENSES);
+    setAiDocuments(INITIAL_AI_DOCUMENTS);
+    setAuditLogs(INITIAL_AUDIT_LOGS);
+    setDatePreset("ALL");
+    setCustomDateRange(null);
+  }, []);
+
+  const exportLedgerSnapshot = useCallback((): string => {
+    const snapshot = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data: {
         products,
         orders,
         returns,
@@ -776,43 +992,153 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         expenses,
         aiDocuments,
         auditLogs,
-        datePreset,
-        setDatePreset,
-        customDateRange,
-        setCustomDateRange,
-        profitability,
-        priorProfitability,
-        profitabilityTrends,
-        marketplaceBreakdown,
-        skuBreakdown,
-        settlementAging,
-        guardrailStatus,
-        addOrder,
-        updateOrder,
-        deleteOrder,
-        deleteOrders,
-        updateOrderStatus,
-        bulkUpdateOrderStatus,
-        addReturn,
-        updateReturn,
-        restockReturn,
-        deleteReturn,
-        addClaim,
-        updateClaim,
-        updateProductCost,
-        addSettlement,
-        addExpense,
-        addPurchase,
-        addSupplier,
-        updateSupplier,
-        deleteSupplier,
-        recordSupplierPayment,
-        addStagedDocument,
-        updateStagedDocumentField,
-        approveStagedDocument,
-        rejectStagedDocument,
-      }}
-    >
+      },
+    };
+    return JSON.stringify(snapshot, null, 2);
+  }, [
+    products,
+    orders,
+    returns,
+    settlements,
+    claims,
+    suppliers,
+    purchases,
+    expenses,
+    aiDocuments,
+    auditLogs,
+  ]);
+
+  const importLedgerSnapshot = useCallback((jsonString: string): boolean => {
+    try {
+      const parsed = JSON.parse(jsonString);
+      const data = parsed?.data || parsed;
+      if (!data || typeof data !== "object") return false;
+
+      if (Array.isArray(data.products)) setProducts(data.products);
+      if (Array.isArray(data.orders)) setOrders(data.orders);
+      if (Array.isArray(data.returns)) setReturns(data.returns);
+      if (Array.isArray(data.settlements)) setSettlements(data.settlements);
+      if (Array.isArray(data.claims)) setClaims(data.claims);
+      if (Array.isArray(data.suppliers)) setSuppliers(data.suppliers);
+      if (Array.isArray(data.purchases)) setPurchases(data.purchases);
+      if (Array.isArray(data.expenses)) setExpenses(data.expenses);
+      if (Array.isArray(data.aiDocuments)) setAiDocuments(data.aiDocuments);
+      if (Array.isArray(data.auditLogs)) setAuditLogs(data.auditLogs);
+      return true;
+    } catch (e) {
+      console.error("Failed to parse imported ledger snapshot:", e);
+      return false;
+    }
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      products,
+      orders,
+      returns,
+      settlements,
+      claims,
+      suppliers,
+      purchases,
+      expenses,
+      aiDocuments,
+      auditLogs,
+      isHydrated,
+      resetLedgerToDefaults,
+      exportLedgerSnapshot,
+      importLedgerSnapshot,
+      selectedMarketplace,
+      setSelectedMarketplace,
+      datePreset,
+      setDatePreset,
+      customDateRange,
+      setCustomDateRange,
+      profitability,
+      priorProfitability,
+      profitabilityTrends,
+      marketplaceBreakdown,
+      skuBreakdown,
+      settlementAging,
+      guardrailStatus,
+      addOrder,
+      updateOrder,
+      deleteOrder,
+      deleteOrders,
+      updateOrderStatus,
+      bulkUpdateOrderStatus,
+      addReturn,
+      updateReturn,
+      restockReturn,
+      deleteReturn,
+      addClaim,
+      updateClaim,
+      updateProductCost,
+      addSettlement,
+      addExpense,
+      addPurchase,
+      addSupplier,
+      updateSupplier,
+      deleteSupplier,
+      recordSupplierPayment,
+      addStagedDocument,
+      updateStagedDocumentField,
+      approveStagedDocument,
+      rejectStagedDocument,
+    }),
+    [
+      products,
+      orders,
+      returns,
+      settlements,
+      claims,
+      suppliers,
+      purchases,
+      expenses,
+      aiDocuments,
+      auditLogs,
+      isHydrated,
+      resetLedgerToDefaults,
+      exportLedgerSnapshot,
+      importLedgerSnapshot,
+      selectedMarketplace,
+      datePreset,
+      customDateRange,
+      profitability,
+      priorProfitability,
+      profitabilityTrends,
+      marketplaceBreakdown,
+      skuBreakdown,
+      settlementAging,
+      guardrailStatus,
+      addOrder,
+      updateOrder,
+      deleteOrder,
+      deleteOrders,
+      updateOrderStatus,
+      bulkUpdateOrderStatus,
+      addReturn,
+      updateReturn,
+      restockReturn,
+      deleteReturn,
+      addClaim,
+      updateClaim,
+      updateProductCost,
+      addSettlement,
+      addExpense,
+      addPurchase,
+      addSupplier,
+      updateSupplier,
+      deleteSupplier,
+      recordSupplierPayment,
+      addStagedDocument,
+      updateStagedDocumentField,
+      approveStagedDocument,
+      rejectStagedDocument,
+    ]
+  );
+
+  return (
+    <PlatformContext.Provider value={contextValue}>
       {children}
     </PlatformContext.Provider>
   );

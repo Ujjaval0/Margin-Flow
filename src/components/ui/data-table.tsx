@@ -11,7 +11,7 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowUpDown, Search, X } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -38,6 +38,39 @@ export function DataTable<TData, TValue>({
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const query = String(filterValue).toLowerCase().trim();
+      if (!query) return true;
+
+      // 1. If searchKey is specified, prioritize checking that property on row.original
+      if (searchKey) {
+        const directVal = (row.original as Record<string, unknown>)[searchKey];
+        if (
+          directVal !== undefined &&
+          directVal !== null &&
+          String(directVal).toLowerCase().includes(query)
+        ) {
+          return true;
+        }
+      }
+
+      // 2. Also search all top-level and nested primitive values in row.original
+      const searchInObject = (obj: unknown, depth = 0): boolean => {
+        if (depth > 2 || obj === null || obj === undefined) return false;
+        if (typeof obj === "string" || typeof obj === "number") {
+          return String(obj).toLowerCase().includes(query);
+        }
+        if (Array.isArray(obj)) {
+          return obj.some((item) => searchInObject(item, depth + 1));
+        }
+        if (typeof obj === "object") {
+          return Object.values(obj).some((val) => searchInObject(val, depth + 1));
+        }
+        return false;
+      };
+
+      return searchInObject(row.original);
+    },
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -53,12 +86,24 @@ export function DataTable<TData, TValue>({
     <div className="space-y-3 w-full min-w-0">
       {searchKey && (
         <div className="flex items-center justify-between px-1">
-          <input
-            placeholder={searchPlaceholder}
-            value={globalFilter ?? ""}
-            onChange={(event) => setGlobalFilter(event.target.value)}
-            className="w-72 text-xs px-3.5 py-1.5 bg-white border border-black/[0.06] rounded-full focus:outline-none focus:border-black/[0.2] text-[#1D1D1F] placeholder-[#86868B] shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition"
-          />
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              placeholder={searchPlaceholder}
+              value={globalFilter ?? ""}
+              onChange={(event) => setGlobalFilter(event.target.value)}
+              className="w-72 text-xs pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-800 placeholder-slate-400 shadow-2xs transition"
+            />
+            {globalFilter && (
+              <button
+                type="button"
+                onClick={() => setGlobalFilter("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           <div className="text-xs text-[#86868B]">
             {table.getRowModel().rows.length} of {data.length} records
           </div>

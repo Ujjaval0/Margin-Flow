@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   title: "MarginFlow | Financial Intelligence Platform",
   description:
     "Transaction-level multi-channel profit engine & financial intelligence for modern e-commerce.",
+  icons: {
+    icon: "/margin-flow-icon.png",
+    shortcut: "/margin-flow-icon.png",
+    apple: "/margin-flow-icon.png",
+  },
 };
 
 export default function RootLayout({

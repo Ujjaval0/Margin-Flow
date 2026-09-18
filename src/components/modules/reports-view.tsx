@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatPercent } from "@/lib/utils";
 import { calculateOrderProfitability } from "@/domain/profitability-engine";
@@ -47,12 +47,26 @@ export function ReportsView() {
     profitability,
     marketplaceBreakdown,
     skuBreakdown,
+    selectedMarketplace,
   } = usePlatform();
 
   // Top-level Navigation: "analytics" (Analytics & Insights) vs "pnl" (P&L Ledger Statement)
   const [activeTab, setActiveTab] = useState<"analytics" | "pnl">("analytics");
   const [selectedChannel, setSelectedChannel] = useState<string>("All Channels");
   const channels = ["All Channels", "Amazon", "Flipkart", "Meesho", "Website"];
+
+  // Sync selectedChannel when global marketplace filter changes
+  useEffect(() => {
+    if (!selectedMarketplace || selectedMarketplace === "ALL") {
+      setSelectedChannel("All Channels");
+    } else if (selectedMarketplace === "Amazon India") {
+      setSelectedChannel("Amazon");
+    } else if (selectedMarketplace === "Personal Website") {
+      setSelectedChannel("Website");
+    } else {
+      setSelectedChannel(selectedMarketplace);
+    }
+  }, [selectedMarketplace]);
 
   const channelFilteredOrders = useMemo(() => {
     if (selectedChannel === "All Channels") return orders;

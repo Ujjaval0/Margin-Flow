@@ -4,6 +4,7 @@ import {
   Settlement,
   Claim,
   Product,
+  Expense,
   AIStagedDocument,
   GuardrailCheckResult,
 } from "./types";
@@ -17,7 +18,8 @@ export function runSystemGuardrailDiagnostics(
   returns: ReturnRecord[],
   settlements: Settlement[],
   claims: Claim[],
-  aiDocs: AIStagedDocument[]
+  aiDocs: AIStagedDocument[],
+  expenses: Expense[] = []
 ): GuardrailCheckResult[] {
   const results: GuardrailCheckResult[] = [];
 
@@ -64,18 +66,25 @@ export function runSystemGuardrailDiagnostics(
     count: duplicateOrders,
   });
 
-  // P3 Guardrail: Return Quantity Ceiling (Cannot return more than ordered)
-  let overReturnCount = 0;
+  // P3 Guardrail: Cumulative Return Quantity Ceiling (Cannot return more than ordered)
+  const cumulativeReturnsByItem = new Map<string, number>();
   returns.forEach((ret) => {
-    const matchedOrder = orders.find(
-      (o) => o.id === ret.orderId || o.channelOrderId === ret.channelOrderId
-    );
-    if (matchedOrder) {
-      const lineItem = matchedOrder.items.find((i) => i.sku === ret.sku);
-      if (lineItem && ret.quantity > lineItem.quantity) {
+    const key = `${ret.orderId || ret.channelOrderId}:${ret.sku}`;
+    cumulativeReturnsByItem.set(key, (cumulativeReturnsByItem.get(key) || 0) + ret.quantity);
+  });
+
+  let overReturnCount = 0;
+  orders.forEach((o) => {
+    o.items.forEach((item) => {
+      const keyId = `${o.id}:${item.sku}`;
+      const keyChannel = o.channelOrderId ? `${o.channelOrderId}:${item.sku}` : "";
+      const totalReturned =
+        (cumulativeReturnsByItem.get(keyId) || 0) +
+        (keyChannel && keyChannel !== keyId ? cumulativeReturnsByItem.get(keyChannel) || 0 : 0);
+      if (totalReturned > item.quantity) {
         overReturnCount++;
       }
-    }
+    });
   });
   results.push({
     partition: "P3: Reverse Logistics",
@@ -83,8 +92,8 @@ export function runSystemGuardrailDiagnostics(
     status: overReturnCount === 0 ? "HEALTHY" : "CRITICAL",
     details:
       overReturnCount === 0
-        ? "All return quantities satisfy: Sum(Returned) <= Sum(Ordered)."
-        : `${overReturnCount} return items exceed original ordered units!`,
+        ? "All return quantities satisfy: Cumulative Sum(Returned) <= Sum(Ordered) per line item."
+        : `${overReturnCount} order line items have cumulative returns exceeding ordered quantity!`,
     count: overReturnCount,
   });
 
@@ -127,13 +136,34 @@ export function runSystemGuardrailDiagnostics(
     count: overRecoveredClaims,
   });
 
-  // P6 Guardrail: Tax Separation from Operating Expenses
+  // P6 Guardrail: Tax Separation from Operating Expenses & Statutory Isolation
+  let taxDilutionIssues = 0;
+  expenses.forEach((e) => {
+    if (/gst|tcs|tds|tax liability|income tax/i.test(e.category) || /gst|tcs|tds/i.test(e.description || "")) {
+      taxDilutionIssues++;
+    }
+  });
+
+  let settlementTaxLeakage = 0;
+  settlements.forEach((s) => {
+    const taxDeductionsInDeductions = s.deductions.filter(
+      (d) => /tcs|tds|gst/i.test(d.name) || /tax/i.test(d.category)
+    );
+    if (taxDeductionsInDeductions.length > 0 && s.tcsTdsTax === 0) {
+      settlementTaxLeakage++;
+    }
+  });
+
+  const totalP6Violations = taxDilutionIssues + settlementTaxLeakage;
   results.push({
     partition: "P6: Profitability Ledger",
     name: "Tax Liability Isolation",
-    status: "HEALTHY",
-    details: "TCS, TDS, and GST are isolated in tax ledgers and barred from OPEX dilution.",
-    count: 0,
+    status: totalP6Violations === 0 ? "HEALTHY" : "WARNING",
+    details:
+      totalP6Violations === 0
+        ? "TCS, TDS, and GST are verified isolated in statutory balance sheet accounts; zero OPEX dilution."
+        : `${totalP6Violations} tax transactions detected contaminating operational expense or deduction ledgers.`,
+    count: totalP6Violations,
   });
 
   // P7 AI Guardrail: Document Staging & Arithmetic Invariants

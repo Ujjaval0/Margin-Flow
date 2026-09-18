@@ -16,7 +16,13 @@ import {
   ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
+  Scale,
+  Webhook,
+  PlugZap,
 } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { usePlatform } from "@/domain/store";
 
 export type NavModule =
@@ -31,28 +37,49 @@ export type NavModule =
   | "expenses"
   | "documents"
   | "reports"
-  | "audit";
+  | "audit"
+  | "ledger"
+  | "webhooks";
 
 interface SidebarProps {
-  activeModule: NavModule;
-  onSelectModule: (module: NavModule) => void;
+  activeModule?: NavModule;
+  onSelectModule?: (module: NavModule) => void;
   isOpen: boolean;
   onToggle: () => void;
 }
 
 export function Sidebar({
-  activeModule,
+  activeModule: propActiveModule,
   onSelectModule,
   isOpen,
   onToggle,
 }: SidebarProps) {
   const { aiDocuments } = usePlatform();
+  const pathname = usePathname();
+  const [optimisticModule, setOptimisticModule] = React.useState<NavModule | null>(null);
 
-  const pendingDocsCount = aiDocuments.filter((d) => d.status === "STAGED_NEEDS_REVIEW").length;
+  // Synchronize optimistic selection whenever route pathname settles
+  React.useEffect(() => {
+    setOptimisticModule(null);
+  }, [pathname]);
 
-  const navItems = [
+  // Determine active module immediately from optimistic selection, prop, or pathname
+  const activeModule = React.useMemo(() => {
+    if (optimisticModule) return optimisticModule;
+    if (propActiveModule) return propActiveModule;
+    if (!pathname || pathname === "/" || pathname === "/dashboard") return "dashboard";
+    const segment = pathname.split("/")[1] as NavModule;
+    return segment || "dashboard";
+  }, [optimisticModule, propActiveModule, pathname]);
+
+  const pendingDocsCount = React.useMemo(() => {
+    return aiDocuments.filter((d) => d.status === "STAGED_NEEDS_REVIEW").length;
+  }, [aiDocuments]);
+
+  const navItems = React.useMemo(() => [
     {
       id: "dashboard" as NavModule,
+      href: "/",
       label: "Dashboard",
       icon: LayoutDashboard,
       iconColor: "text-blue-600",
@@ -60,6 +87,7 @@ export function Sidebar({
     },
     {
       id: "orders" as NavModule,
+      href: "/orders",
       label: "Orders",
       icon: ShoppingCart,
       iconColor: "text-indigo-600",
@@ -67,6 +95,7 @@ export function Sidebar({
     },
     {
       id: "returns" as NavModule,
+      href: "/returns",
       label: "Returns & RTO",
       icon: RotateCcw,
       iconColor: "text-amber-600",
@@ -74,6 +103,7 @@ export function Sidebar({
     },
     {
       id: "claims" as NavModule,
+      href: "/claims",
       label: "Claims & Disputes",
       icon: ShieldAlert,
       iconColor: "text-rose-600",
@@ -81,6 +111,7 @@ export function Sidebar({
     },
     {
       id: "products" as NavModule,
+      href: "/products",
       label: "Products & SKUs",
       icon: Package,
       iconColor: "text-teal-600",
@@ -88,6 +119,7 @@ export function Sidebar({
     },
     {
       id: "settlements" as NavModule,
+      href: "/settlements",
       label: "Settlements",
       icon: Landmark,
       iconColor: "text-emerald-600",
@@ -95,6 +127,7 @@ export function Sidebar({
     },
     {
       id: "suppliers" as NavModule,
+      href: "/suppliers",
       label: "Suppliers",
       icon: Building2,
       iconColor: "text-cyan-600",
@@ -102,6 +135,7 @@ export function Sidebar({
     },
     {
       id: "purchases" as NavModule,
+      href: "/purchases",
       label: "Purchases & Bills",
       icon: Truck,
       iconColor: "text-amber-600",
@@ -109,6 +143,7 @@ export function Sidebar({
     },
     {
       id: "expenses" as NavModule,
+      href: "/expenses",
       label: "Operating Expenses",
       icon: Receipt,
       iconColor: "text-violet-600",
@@ -116,6 +151,7 @@ export function Sidebar({
     },
     {
       id: "documents" as NavModule,
+      href: "/documents",
       label: "AI Staging Sandbox",
       icon: FileCheck2,
       iconColor: "text-purple-600",
@@ -124,12 +160,37 @@ export function Sidebar({
     },
     {
       id: "reports" as NavModule,
+      href: "/reports",
       label: "Analytics & P&L",
       icon: BarChart3,
       iconColor: "text-orange-600",
       bgTint: "bg-orange-500/10",
     },
-  ];
+    {
+      id: "audit" as NavModule,
+      href: "/audit",
+      label: "Audit Trail",
+      icon: ShieldCheck,
+      iconColor: "text-emerald-600",
+      bgTint: "bg-emerald-500/10",
+    },
+    {
+      id: "ledger" as NavModule,
+      href: "/ledger",
+      label: "General Ledger",
+      icon: Scale,
+      iconColor: "text-indigo-600",
+      bgTint: "bg-indigo-500/10",
+    },
+    {
+      id: "webhooks" as NavModule,
+      href: "/webhooks",
+      label: "Store Integrations",
+      icon: PlugZap,
+      iconColor: "text-blue-600",
+      bgTint: "bg-blue-500/10",
+    },
+  ], [pendingDocsCount]);
 
   return (
     <aside
@@ -140,19 +201,21 @@ export function Sidebar({
       {/* Brand Header */}
       {isOpen ? (
         <div className="p-4 pb-3 flex items-center justify-between border-b border-black/[0.03]">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-bold text-xs tracking-tight shadow-[0_2px_8px_rgba(37,99,235,0.25)] shrink-0">
-              MF
-            </div>
-            <div className="min-w-0">
-              <span className="font-semibold tracking-tight text-sm text-[#1D1D1F] block leading-none truncate">
-                MarginFlow
-              </span>
-              <span className="text-[11px] text-[#86868B] tracking-tight mt-0.5 block font-normal truncate">
-                Financial Intelligence
-              </span>
-            </div>
-          </div>
+          <Link
+            href="/"
+            onClick={() => setOptimisticModule("dashboard")}
+            className="flex items-center gap-2.5 min-w-0 group hover:opacity-90 transition-opacity"
+            title="MarginFlow Dashboard"
+          >
+            <Image
+              src="/margin-flow-logo.png"
+              alt="Margin Flow"
+              width={160}
+              height={44}
+              priority
+              className="h-8 w-auto object-contain"
+            />
+          </Link>
 
           <button
             onClick={onToggle}
@@ -166,10 +229,17 @@ export function Sidebar({
         <div className="p-4 pb-3 flex items-center justify-center border-b border-black/[0.03]">
           <button
             onClick={onToggle}
-            className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-bold text-xs tracking-tight shadow-[0_2px_8px_rgba(37,99,235,0.25)] hover:scale-105 transition-transform"
+            className="w-9 h-9 rounded-xl bg-white border border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.06)] flex items-center justify-center p-1.5 hover:scale-105 hover:border-slate-300 transition-all shrink-0"
             title="MarginFlow — Click to expand sidebar (Ctrl+B)"
           >
-            MF
+            <Image
+              src="/margin-flow-icon.png"
+              alt="Margin Flow"
+              width={26}
+              height={26}
+              priority
+              className="w-full h-full object-contain"
+            />
           </button>
         </div>
       )}
@@ -186,9 +256,14 @@ export function Sidebar({
           const Icon = item.icon;
           const isActive = activeModule === item.id;
           return (
-            <button
+            <Link
               key={item.id}
-              onClick={() => onSelectModule(item.id)}
+              href={item.href}
+              prefetch={true}
+              onClick={() => {
+                setOptimisticModule(item.id);
+                onSelectModule?.(item.id);
+              }}
               title={item.label}
               className={`w-full flex items-center ${
                 isOpen ? "justify-between px-2.5 py-1.5" : "justify-center py-2 px-0"
@@ -218,7 +293,7 @@ export function Sidebar({
                   {item.badge}
                 </span>
               )}
-            </button>
+            </Link>
           );
         })}
       </nav>

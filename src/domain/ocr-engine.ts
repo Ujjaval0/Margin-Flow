@@ -68,46 +68,59 @@ export function processDocumentOCR(
     text.match(/^([A-Za-z\s]+(?:Enterprises|Electronics|Tech|Solutions|Pvt Ltd|Industries|Wholesale))/m);
   const vendorName = vendorMatch ? vendorMatch[1].trim() : (fileType === "SUPPLIER_BILL" ? "Apex Components Ltd" : "D2C Direct Store");
 
+  // Check if document content is an unparsed binary scan or sparse text
+  const isBinaryScan =
+    text.startsWith("[Binary Scan:") ||
+    text.includes("Binary Document Scan") ||
+    text.length < 15;
+
   // Extract SKU
-  const skuMatch =
-    text.match(/(?:sku|item code|product code|model)[:.\s]*([A-Z0-9\-_]+)/i) ||
-    text.match(/([A-Z]{3,4}-[A-Z0-9]+-[0-9]{2})/);
-  const sku = skuMatch ? skuMatch[1].trim() : "ELEC-WEM-01";
+  const skuMatch = !isBinaryScan
+    ? text.match(/(?:sku|item code|product code|model)[:.\s]*([A-Z0-9\-_]+)/i) ||
+      text.match(/([A-Z]{3,4}-[A-Z0-9]+-[0-9]{2})/)
+    : null;
+  const sku = skuMatch ? skuMatch[1].trim() : undefined;
 
   // Extract Product Name / Description
-  const prodMatch =
-    text.match(/(?:description|item name|product|item)[:.\s]*([A-Za-z0-9\s\-–]+?)(?:\n|qty|price|hsn)/i);
-  const productName = prodMatch ? prodMatch[1].trim() : (sku.includes("WEM") ? "Wireless Ergonomic Mouse" : "Fast Charging Cable");
+  const prodMatch = !isBinaryScan
+    ? text.match(/(?:description|item name|product|item)[:.\s]*([A-Za-z0-9\s\-–]+?)(?:\n|qty|price|hsn)/i)
+    : null;
+  const productName = prodMatch ? prodMatch[1].trim() : undefined;
 
   // Extract Quantity
-  const qtyMatch =
-    text.match(/(?:qty|quantity|units|pcs)[:.\s]*([0-9]+)/i) ||
-    text.match(/\b([0-9]{1,4})\s*(?:units|pcs|pieces)\b/i);
-  const quantity = qtyMatch ? parseInt(qtyMatch[1], 10) : 10;
+  const qtyMatch = !isBinaryScan
+    ? text.match(/(?:qty|quantity|units|pcs)[:.\s]*([0-9]+)/i) ||
+      text.match(/\b([0-9]{1,4})\s*(?:units|pcs|pieces)\b/i)
+    : null;
+  const quantity = qtyMatch ? parseInt(qtyMatch[1], 10) : undefined;
 
   // Extract Unit Price
-  const priceMatch =
-    text.match(/(?:rate|unit price|price|cost)[:.\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i) ||
-    text.match(/@\s*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/);
-  const unitPrice = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, "")) : 380;
+  const priceMatch = !isBinaryScan
+    ? text.match(/(?:rate|unit price|price|cost)[:.\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i) ||
+      text.match(/@\s*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/)
+    : null;
+  const unitPrice = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, "")) : undefined;
 
   // Extract Discount
-  const discMatch = text.match(/(?:discount|rebate|disc)[:.\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
+  const discMatch = !isBinaryScan
+    ? text.match(/(?:discount|rebate|disc)[:.\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i)
+    : null;
   const discount = discMatch ? parseFloat(discMatch[1].replace(/,/g, "")) : 0;
 
   // Extract Tax / GST
-  const taxMatch =
-    text.match(/(?:tax|gst|igst|cgst\+sgst|vat)[:.\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
-  const subtotal = quantity * unitPrice - discount;
-  const taxAmount = taxMatch ? parseFloat(taxMatch[1].replace(/,/g, "")) : Math.round(subtotal * 0.18);
+  const taxMatch = !isBinaryScan
+    ? text.match(/(?:tax|gst|igst|cgst\+sgst|vat)[:.\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i)
+    : null;
+  const taxAmount = taxMatch ? parseFloat(taxMatch[1].replace(/,/g, "")) : 0;
 
-  // Extract Declared Total
-  const totalMatch =
-    text.match(/(?:total|grand total|net payable|invoice total|final amount)[:.\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i) ||
-    text.match(/total\s*amount[:.\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
-  const declaredTotal = totalMatch ? parseFloat(totalMatch[1].replace(/,/g, "")) : (subtotal + taxAmount);
+  // Extract Declared Total strictly from document text (DO NOT tautologically compute total)
+  const totalMatch = !isBinaryScan
+    ? text.match(/(?:total|grand total|net payable|invoice total|final amount)[:.\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i) ||
+      text.match(/total\s*amount[:.\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i)
+    : null;
+  const declaredTotal = totalMatch ? parseFloat(totalMatch[1].replace(/,/g, "")) : undefined;
 
-  // Run arithmetic invariant check
+  // Run authentic arithmetic invariant check against declared total
   const arithmeticValidation = validateDocumentArithmetic(
     quantity,
     unitPrice,
@@ -124,116 +137,144 @@ export function processDocumentOCR(
     fileType,
     uploadDate: new Date().toISOString().split("T")[0],
     status: "STAGED_NEEDS_REVIEW",
-    rawTextPreview: text.length > 20 ? text : generateSampleBillText(fileName, invoiceNumber, orderDate, vendorName, sku, productName, quantity, unitPrice, discount, taxAmount, declaredTotal),
+    rawTextPreview:
+      !isBinaryScan && text.length > 20
+        ? text
+        : `[Binary / Image Document Scan: ${fileName}]\nOptical character recognition could not detect clear machine text.\nPlease review and enter required invoice entities in the Human-in-the-Loop staging sandbox.`,
     extractedData: {
       marketplace: marketplace
-        ? { value: marketplace, confidence: 0.98, provenance: "AI_EXTRACTED" }
+        ? { value: marketplace, confidence: 0.95, provenance: "AI_EXTRACTED" }
         : undefined,
-      orderId: {
-        value: invoiceNumber,
-        confidence: 0.96,
-        provenance: "AI_EXTRACTED",
-      },
-      invoiceNumber: {
-        value: invoiceNumber,
-        confidence: 0.98,
-        provenance: "AI_EXTRACTED",
-      },
+      orderId: invoiceNumber
+        ? {
+            value: invoiceNumber,
+            confidence: invMatch ? 0.95 : 0.4,
+            provenance: invMatch ? "AI_EXTRACTED" : "MANUALLY_ENTERED",
+          }
+        : undefined,
+      invoiceNumber: invoiceNumber
+        ? {
+            value: invoiceNumber,
+            confidence: invMatch ? 0.95 : 0.4,
+            provenance: invMatch ? "AI_EXTRACTED" : "MANUALLY_ENTERED",
+          }
+        : undefined,
       orderDate: {
         value: orderDate,
-        confidence: 0.95,
-        provenance: "AI_EXTRACTED",
+        confidence: dateMatch ? 0.95 : 0.5,
+        provenance: dateMatch ? "AI_EXTRACTED" : "MANUALLY_ENTERED",
       },
-      sku: {
-        value: sku,
-        confidence: 0.94,
-        provenance: "AI_EXTRACTED",
-      },
-      productName: {
-        value: productName,
-        confidence: 0.92,
-        provenance: "AI_EXTRACTED",
-      },
-      quantity: {
-        value: quantity,
-        confidence: 0.99,
-        provenance: "AI_EXTRACTED",
-      },
-      unitPrice: {
-        value: unitPrice,
-        confidence: 0.97,
-        provenance: "AI_EXTRACTED",
-      },
+      sku: sku
+        ? {
+            value: sku,
+            confidence: 0.92,
+            provenance: "AI_EXTRACTED",
+          }
+        : {
+            value: "",
+            confidence: 0,
+            provenance: "MANUALLY_ENTERED",
+            isFlaggedAnomaly: true,
+            anomalyMessage: "SKU not detected in document OCR.",
+          },
+      productName: productName
+        ? {
+            value: productName,
+            confidence: 0.88,
+            provenance: "AI_EXTRACTED",
+          }
+        : undefined,
+      quantity:
+        quantity !== undefined
+          ? {
+              value: quantity,
+              confidence: 0.96,
+              provenance: "AI_EXTRACTED",
+            }
+          : {
+              value: 0,
+              confidence: 0,
+              provenance: "MANUALLY_ENTERED",
+              isFlaggedAnomaly: true,
+              anomalyMessage: "Quantity not detected in document.",
+            },
+      unitPrice:
+        unitPrice !== undefined
+          ? {
+              value: unitPrice,
+              confidence: 0.94,
+              provenance: "AI_EXTRACTED",
+            }
+          : {
+              value: 0,
+              confidence: 0,
+              provenance: "MANUALLY_ENTERED",
+              isFlaggedAnomaly: true,
+              anomalyMessage: "Unit price not detected in document.",
+            },
       discount: {
         value: discount,
-        confidence: 0.91,
+        confidence: discMatch ? 0.9 : 0.6,
         provenance: "AI_EXTRACTED",
       },
       taxAmount: {
         value: taxAmount,
-        confidence: 0.95,
+        confidence: taxMatch ? 0.92 : 0.5,
         provenance: "AI_EXTRACTED",
       },
       totalAmount: {
-        value: declaredTotal,
-        confidence: 0.99,
-        provenance: "AI_EXTRACTED",
+        value: declaredTotal !== undefined ? declaredTotal : arithmeticValidation.calculatedTotal,
+        confidence: declaredTotal !== undefined ? 0.98 : 0,
+        provenance: declaredTotal !== undefined ? "AI_EXTRACTED" : "MANUALLY_ENTERED",
         isFlaggedAnomaly: !arithmeticValidation.passed,
         anomalyMessage: !arithmeticValidation.passed
-          ? `Calculated sum ₹${arithmeticValidation.calculatedTotal} does not match declared ₹${declaredTotal}`
+          ? arithmeticValidation.message
           : undefined,
       },
     },
     arithmeticValidation,
     catalogValidation: {
-      skuMatched: sku.length > 0,
+      skuMatched: Boolean(sku && sku.length > 0),
       matchedSkuId: sku || undefined,
-      suggestion: sku ? `Auto-detected SKU: ${sku}` : "No catalog SKU detected",
+      suggestion: sku ? `Detected SKU candidate: ${sku}` : "No catalog SKU detected in document OCR.",
     },
   };
 
   return stagedDocument;
 }
 
-/**
- * Formats a clean paper document preview if raw text was sparse
- */
 export function generateSampleBillText(
   fileName: string,
   invoiceNo: string,
-  date: string,
-  vendor: string,
+  orderDate: string,
+  vendorName: string,
   sku: string,
   productName: string,
-  qty: number,
-  price: number,
+  quantity: number,
+  unitPrice: number,
   discount: number,
-  tax: number,
-  total: number
+  taxAmount: number,
+  totalAmount: number
 ): string {
-  return `=====================================================
-TAX INVOICE / SUPPLIER PURCHASE BILL
-=====================================================
-Document File: ${fileName}
-Billed By:     ${vendor}
-GSTIN:         27AAACA9021B1ZT
-Invoice No:    ${invoiceNo}
-Date:          ${date}
-Place of Supply: Maharashtra (27)
------------------------------------------------------
-Item Description:  ${productName}
-SKU Code:          ${sku}
-HSN/SAC:           84716060
-Quantity:          ${qty} units
-Unit Price:        ₹${price.toFixed(2)}
-Subtotal:          ₹${(qty * price).toFixed(2)}
-Discount:         -₹${discount.toFixed(2)}
-Taxable Value:     ₹${(qty * price - discount).toFixed(2)}
-IGST (18%):       +₹${tax.toFixed(2)}
------------------------------------------------------
-TOTAL AMOUNT DUE:  ₹${total.toFixed(2)}
-=====================================================
-Payment Terms: Net 15 Days
-Authorized Signatory: ${vendor} Commercial Finance
-[OCR Verification: Engine v2.4 Multi-pass Complete]`;
+  return `TAX INVOICE / VENDOR BILL
+--------------------------------------------------
+Vendor / Supplier : ${vendorName}
+Invoice No        : ${invoiceNo}
+Date              : ${orderDate}
+File Reference    : ${fileName}
+
+LINE ITEMS:
+--------------------------------------------------
+SKU               : ${sku}
+Description       : ${productName}
+Quantity          : ${quantity}
+Unit Price        : INR ${unitPrice.toFixed(2)}
+Discount          : INR ${discount.toFixed(2)}
+Tax (GST)         : INR ${taxAmount.toFixed(2)}
+--------------------------------------------------
+Subtotal          : INR ${(quantity * unitPrice).toFixed(2)}
+Total Amount      : INR ${totalAmount.toFixed(2)}
+--------------------------------------------------
+Authorized Signatory / E-Invoice System
+`;
 }
