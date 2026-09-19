@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Plus, Pencil, X, Truck } from "lucide-react";
 import {
   Order,
@@ -43,6 +44,12 @@ export function OrderModal({
   onAddReturn,
   onAddClaim,
 }: OrderModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
   // Determine starting marketplace
   const startingMarketplace: Marketplace =
     initialOrder?.marketplace ||
@@ -156,11 +163,21 @@ export function OrderModal({
     e.preventDefault();
 
     if (mode === "edit" && initialOrder) {
+      const isNowReturned = isReturned;
+      const updatedStatus = isNowReturned
+        ? returnType === "RTO"
+          ? "RTO"
+          : "RETURNED"
+        : initialOrder.status === "RETURNED" || initialOrder.status === "RTO"
+        ? "CONFIRMED"
+        : initialOrder.status;
+
       const updatedOrder: Order = {
         ...initialOrder,
         channelOrderId: channelOrderId.trim() || initialOrder.channelOrderId,
         marketplace,
         orderDate,
+        status: updatedStatus,
         customerName: initialOrder.customerName || "Customer",
         marketplaceChargesEstimate: commissionDeduction,
         notes,
@@ -174,12 +191,95 @@ export function OrderModal({
             discount: initialOrder.items[0]?.discount || 0,
             taxAmount: Math.round(parsedSellingPrice * parsedQty * 0.18 * 100) / 100,
             snapshotUnitCost: parsedUnitCost,
+            returnedQuantity: isNowReturned ? parsedQty : 0,
           },
           ...initialOrder.items.slice(1),
         ],
       };
 
       onUpdateOrder?.(updatedOrder);
+
+      // If return is enabled in edit mode, log/update the return and optional claim
+      if (isNowReturned && onAddReturn) {
+        const retId = `RET-${Date.now().toString().slice(-4)}`;
+        const parsedFee = parseFloat(returnFee) || 0;
+        const parsedClaim = parseFloat(claimAmount) || 0;
+        const parsedReimbursement = parseFloat(approvedReimbursement) || 0;
+
+        if (isDamagedClaim && onAddClaim) {
+          const claimId = `CLM-${Date.now().toString().slice(-4)}`;
+          let mappedClaimStatus: Claim["status"] = "FILED";
+          if (claimStatus === "Draft") mappedClaimStatus = "NOT_FILED";
+          else if (claimStatus === "Approved") mappedClaimStatus = "APPROVED";
+          else if (claimStatus === "Rejected") mappedClaimStatus = "REJECTED";
+
+          const newClaim: Claim = {
+            id: claimId,
+            orderId: updatedOrder.id,
+            returnId: retId,
+            marketplace,
+            claimType: returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
+            claimDate: orderDate,
+            amountClaimed: parsedClaim > 0 ? parsedClaim : parsedUnitCost * parsedQty,
+            amountRecovered: parsedReimbursement,
+            status: mappedClaimStatus,
+            notes: `Claim from Order Edit (${returnType})`,
+          };
+          onAddClaim(newClaim);
+        }
+
+        const newReturnRecord = {
+          id: retId,
+          orderId: updatedOrder.id,
+          channelOrderId: updatedOrder.channelOrderId,
+          marketplace,
+          returnDate: orderDate,
+          returnType,
+          returnReason: returnReason || "Return recorded via Order Edit",
+          sku: sku || "CUSTOM-SKU",
+          quantity: parsedQty,
+          condition: isDamagedClaim ? ("DAMAGED" as const) : ("SELLABLE" as const),
+          returnShippingCost: returnType === "RTO" ? parsedFee : Math.round(parsedFee * 0.6),
+          customerReturnFee: returnType === "RTO" ? 0 : parsedFee,
+          otherReturnCosts: 0,
+          inventoryRecoveryValue: parsedReimbursement,
+          lossAmount: isDamagedClaim
+            ? parsedUnitCost * parsedQty + parsedFee - parsedReimbursement
+            : parsedFee,
+        };
+
+        onAddReturn(newReturnRecord);
+      }
+
+      // Optional settlement payout in edit mode
+      if (parsedActualReceived > 0 && onAddSettlement) {
+        const createdSettlement: Settlement = {
+          id: `SETTLE-${Date.now().toString().slice(-4)}`,
+          settlementBatchId: `BATCH-${Date.now().toString().slice(-4)}`,
+          marketplace,
+          settlementDate: orderDate,
+          orderId: updatedOrder.id,
+          grossAmount: grossSales,
+          deductions: [
+            {
+              category: "COMMISSION",
+              name: "Marketplace Commission",
+              amount: commissionDeduction,
+            },
+            {
+              category: "LOGISTICS",
+              name: "Logistics & Forwarding",
+              amount: Math.max(0, grossSales - parsedActualReceived - commissionDeduction),
+            },
+          ],
+          tcsTdsTax: Math.round(grossSales * 0.01),
+          netSettlement: parsedActualReceived,
+          reconciliationStatus: "RECONCILED",
+          bankTxRef: `BANK-DEP-${updatedOrder.id.slice(-4)}`,
+        };
+        onAddSettlement(createdSettlement);
+      }
+
       onClose();
       return;
     }
@@ -290,6 +390,7 @@ export function OrderModal({
         quantity: parsedQty,
         condition: isDamagedClaim ? "DAMAGED" : "SELLABLE",
         returnShippingCost: parsedFee,
+        customerReturnFee: (returnType === 'RTO') ? 0 : parsedFee,
         otherReturnCosts: 0,
         inventoryRecoveryValue: parsedReimbursement,
         lossAmount: isDamagedClaim
@@ -303,7 +404,9 @@ export function OrderModal({
     onClose();
   };
 
-  return (
+  if (!isOpen || !mounted) return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150"
       onClick={onClose}
@@ -585,150 +688,148 @@ export function OrderModal({
             </div>
           </div>
 
-          {/* 5. Mark as Returned / RTO Order (Only in create mode) */}
-          {mode === "create" && (
-            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 text-slate-800 space-y-3.5 shadow-2xs">
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={isReturned}
-                  onChange={(e) => setIsReturned(e.target.checked)}
-                  className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 accent-purple-600 cursor-pointer"
-                />
-                <span className="font-bold text-xs uppercase tracking-wider text-slate-800">
-                  Mark as Returned / RTO Order
-                </span>
-              </label>
+          {/* 5. Mark as Returned / RTO Order */}
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 text-slate-800 space-y-3.5 shadow-2xs">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isReturned}
+                onChange={(e) => setIsReturned(e.target.checked)}
+                className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 accent-purple-600 cursor-pointer"
+              />
+              <span className="font-bold text-xs uppercase tracking-wider text-slate-800">
+                Mark as Returned / RTO Order
+              </span>
+            </label>
 
-              {isReturned && (
-                <div className="space-y-3.5 pt-1 animate-in fade-in duration-150">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                        Return Type
-                      </label>
-                      <select
-                        value={returnType}
-                        onChange={(e) => setReturnType(e.target.value as ReturnType)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-purple-500 cursor-pointer font-medium shadow-2xs"
-                      >
-                        <option value="CUSTOMER_RETURN">Customer Return (Delivered &amp; Returned)</option>
-                        <option value="RTO">RTO (Undelivered / Doorstep Rejection)</option>
-                        <option value="DAMAGED_RETURN">Damaged Return</option>
-                        <option value="LOST_RETURN">Lost in Transit</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                        Return Fee / Logistics Deduction (₹)
-                      </label>
-                      <input
-                        type="number"
-                        step="any"
-                        min="0"
-                        value={returnFee}
-                        onFocus={(e) => e.target.select()}
-                        onChange={(e) => setReturnFee(e.target.value)}
-                        placeholder="0"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl tabular-nums text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-semibold shadow-2xs"
-                      />
-                    </div>
+            {isReturned && (
+              <div className="space-y-3.5 pt-1 animate-in fade-in duration-150">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                      Return Type
+                    </label>
+                    <select
+                      value={returnType}
+                      onChange={(e) => setReturnType(e.target.value as ReturnType)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-purple-500 cursor-pointer font-medium shadow-2xs"
+                    >
+                      <option value="CUSTOMER_RETURN">Customer Return (Delivered &amp; Returned)</option>
+                      <option value="RTO">RTO (Undelivered / Doorstep Rejection)</option>
+                      <option value="DAMAGED_RETURN">Damaged Return</option>
+                      <option value="LOST_RETURN">Lost in Transit</option>
+                    </select>
                   </div>
 
                   <div>
                     <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                      Return Reason / Notes
+                      Return Fee / Logistics Deduction (₹)
                     </label>
                     <input
-                      type="text"
-                      value={returnReason}
-                      onChange={(e) => setReturnReason(e.target.value)}
-                      placeholder="e.g. wrong size, damaged packaging"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-purple-500 shadow-2xs"
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={returnFee}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => setReturnFee(e.target.value)}
+                      placeholder="0"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl tabular-nums text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-semibold shadow-2xs"
                     />
                   </div>
-
-                  {/* Damaged Claim Sub-Card */}
-                  <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 space-y-3 shadow-2xs">
-                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={isDamagedClaim}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setIsDamagedClaim(checked);
-                          if (checked && (!claimAmount || claimAmount === "0")) {
-                            setClaimAmount(String(parsedUnitCost || parsedSellingPrice || 0));
-                          }
-                        }}
-                        className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300 accent-amber-600 cursor-pointer"
-                      />
-                      <span className="font-bold text-xs uppercase tracking-wider text-amber-900">
-                        Returned Product is Damaged / Defective (File SAFE-T Claim)
-                      </span>
-                    </label>
-
-                    {isDamagedClaim && (
-                      <div className="grid grid-cols-3 gap-2.5 pt-1 animate-in fade-in duration-150">
-                        <div>
-                          <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                            Claim Amount Filed
-                          </label>
-                          <input
-                            type="number"
-                            step="any"
-                            min="0"
-                            value={claimAmount}
-                            onFocus={(e) => e.target.select()}
-                            onChange={(e) => setClaimAmount(e.target.value)}
-                            placeholder="0"
-                            className="w-full px-2.5 py-2 bg-white border border-amber-200 rounded-lg tabular-nums text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-semibold shadow-2xs"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                            Claim Status
-                          </label>
-                          <select
-                            value={claimStatus}
-                            onChange={(e) =>
-                              setClaimStatus(
-                                e.target.value as "Draft" | "Filed" | "Approved" | "Rejected"
-                              )
-                            }
-                            className="w-full px-2.5 py-2 bg-white border border-purple-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-purple-500 font-semibold cursor-pointer shadow-2xs"
-                          >
-                            <option value="Draft">Draft</option>
-                            <option value="Filed">Filed</option>
-                            <option value="Approved">Approved</option>
-                            <option value="Rejected">Rejected</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                            Approved Reimbursement
-                          </label>
-                          <input
-                            type="number"
-                            step="any"
-                            min="0"
-                            value={approvedReimbursement}
-                            onFocus={(e) => e.target.select()}
-                            onChange={(e) => setApprovedReimbursement(e.target.value)}
-                            placeholder="0"
-                            className="w-full px-2.5 py-2 bg-white border border-amber-200 rounded-lg tabular-nums text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-semibold shadow-2xs"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
-              )}
-            </div>
-          )}
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                    Return Reason / Notes
+                  </label>
+                  <input
+                    type="text"
+                    value={returnReason}
+                    onChange={(e) => setReturnReason(e.target.value)}
+                    placeholder="e.g. wrong size, damaged packaging"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-purple-500 shadow-2xs"
+                  />
+                </div>
+
+                {/* Damaged Claim Sub-Card */}
+                <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 space-y-3 shadow-2xs">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isDamagedClaim}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setIsDamagedClaim(checked);
+                        if (checked && (!claimAmount || claimAmount === "0")) {
+                          setClaimAmount(String(parsedUnitCost || parsedSellingPrice || 0));
+                        }
+                      }}
+                      className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300 accent-amber-600 cursor-pointer"
+                    />
+                    <span className="font-bold text-xs uppercase tracking-wider text-amber-900">
+                      Returned Product is Damaged / Defective (File SAFE-T Claim)
+                    </span>
+                  </label>
+
+                  {isDamagedClaim && (
+                    <div className="grid grid-cols-3 gap-2.5 pt-1 animate-in fade-in duration-150">
+                      <div>
+                        <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
+                          Claim Amount Filed
+                        </label>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          value={claimAmount}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => setClaimAmount(e.target.value)}
+                          placeholder="0"
+                          className="w-full px-2.5 py-2 bg-white border border-amber-200 rounded-lg tabular-nums text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-semibold shadow-2xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
+                          Claim Status
+                        </label>
+                        <select
+                          value={claimStatus}
+                          onChange={(e) =>
+                            setClaimStatus(
+                              e.target.value as "Draft" | "Filed" | "Approved" | "Rejected"
+                            )
+                          }
+                          className="w-full px-2.5 py-2 bg-white border border-purple-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-purple-500 font-semibold cursor-pointer shadow-2xs"
+                        >
+                          <option value="Draft">Draft</option>
+                          <option value="Filed">Filed</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
+                          Approved Reimbursement
+                        </label>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          value={approvedReimbursement}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => setApprovedReimbursement(e.target.value)}
+                          placeholder="0"
+                          className="w-full px-2.5 py-2 bg-white border border-amber-200 rounded-lg tabular-nums text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-semibold shadow-2xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* 6. General Order Notes */}
           <div>
@@ -770,6 +871,7 @@ export function OrderModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

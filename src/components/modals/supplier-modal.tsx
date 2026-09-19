@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Building2, Pencil, X, Check } from "lucide-react";
 import { Supplier } from "@/domain/types";
 
@@ -19,6 +20,12 @@ export function SupplierModal({
   initialSupplier = null,
   onSave,
 }: SupplierModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
   const [name, setName] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [phone, setPhone] = useState("");
@@ -90,7 +97,9 @@ export function SupplierModal({
     onClose();
   };
 
-  return (
+  if (!isOpen || !mounted) return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 animate-in fade-in duration-150"
       onClick={onClose}
@@ -287,6 +296,7 @@ export function SupplierModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

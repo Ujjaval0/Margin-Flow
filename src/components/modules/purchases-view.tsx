@@ -99,14 +99,12 @@ export function PurchasesView() {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden p-1">
-        <DataTable
-          columns={purchaseColumns}
-          data={purchases}
-          searchKey="invoiceNumber"
-          searchPlaceholder="Search bills by invoice or SKU..."
-        />
-      </div>
+      <DataTable
+        columns={purchaseColumns}
+        data={purchases}
+        searchKey="invoiceNumber"
+        searchPlaceholder="Search bills by invoice or SKU..."
+      />
 
       {/* Add Purchase Bill Modal */}
       <AddPurchaseModal

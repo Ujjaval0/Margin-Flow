@@ -29,6 +29,14 @@ module.exports = {
         "2xl": "1.25rem",
         "3xl": "1.5rem",
       },
+      boxShadow: {
+        "2xs": "0 1px 2px 0 rgba(0, 0, 0, 0.03)",
+        "xs": "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+      },
+      spacing: {
+        "4.5": "1.125rem",
+        "0.2": "0.05rem",
+      },
     },
   },
   plugins: [],

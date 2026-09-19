@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { RotateCcw, X } from "lucide-react";
 import { Order, ReturnRecord, Claim, ReturnType, ProductCondition } from "@/domain/types";
 
@@ -19,16 +20,24 @@ export function RecordReturnModal({
   onAddReturn,
   onAddClaim,
 }: RecordReturnModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   const [returnOrderId, setReturnOrderId] = useState(orders[0]?.id || "");
   const [returnType, setReturnType] = useState<ReturnType>("CUSTOMER_RETURN");
   const [returnCondition, setReturnCondition] = useState<ProductCondition>("SELLABLE");
   const [returnQty, setReturnQty] = useState(1);
   const [returnReason, setReturnReason] = useState("Defective item received by customer");
   const [returnShipping, setReturnShipping] = useState(70);
+  const [customerReturnFee, setCustomerReturnFee] = useState(50);
   const [returnRecovery, setReturnRecovery] = useState(0);
   const [returnError, setReturnError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +55,8 @@ export function RecordReturnModal({
 
     const retId = `RET-${Date.now().toString().slice(-5)}`;
     const cost = item.snapshotUnitCost * returnQty;
-    let calculatedLoss = returnShipping;
+    const fee = returnType === "RTO" ? 0 : Number(customerReturnFee);
+    let calculatedLoss = returnShipping + fee;
     if (returnCondition === "DAMAGED" || returnCondition === "UNUSABLE") {
       calculatedLoss += cost - returnRecovery;
     }
@@ -63,6 +73,7 @@ export function RecordReturnModal({
       quantity: Number(returnQty),
       condition: returnCondition,
       returnShippingCost: Number(returnShipping),
+      customerReturnFee: fee,
       otherReturnCosts: 0,
       inventoryRecoveryValue: Number(returnRecovery),
       lossAmount: calculatedLoss,
@@ -90,7 +101,7 @@ export function RecordReturnModal({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={onClose}
@@ -168,7 +179,7 @@ export function RecordReturnModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <div>
               <label className="font-semibold text-slate-700 block mb-1">Return Qty</label>
               <input
@@ -176,27 +187,39 @@ export function RecordReturnModal({
                 min="1"
                 value={returnQty}
                 onChange={(e) => setReturnQty(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
               />
             </div>
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Reverse Freight (₹)</label>
+              <label className="font-semibold text-slate-700 block mb-1">Freight (₹)</label>
               <input
                 type="number"
                 min="0"
                 value={returnShipping}
                 onChange={(e) => setReturnShipping(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
               />
             </div>
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Scrap Value (₹)</label>
+              <label className="font-semibold text-slate-700 block mb-1">Return Fee (₹)</label>
+              <input
+                type="number"
+                min="0"
+                disabled={returnType === "RTO"}
+                value={returnType === "RTO" ? 0 : customerReturnFee}
+                onChange={(e) => setCustomerReturnFee(Math.max(0, parseInt(e.target.value) || 0))}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                title={returnType === "RTO" ? "No customer return fee for RTO orders" : undefined}
+              />
+            </div>
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Scrap (₹)</label>
               <input
                 type="number"
                 min="0"
                 value={returnRecovery}
                 onChange={(e) => setReturnRecovery(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
               />
             </div>
           </div>
@@ -236,6 +259,7 @@ export function RecordReturnModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

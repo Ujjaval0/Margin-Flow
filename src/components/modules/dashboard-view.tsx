@@ -42,6 +42,7 @@ import {
   RotateCcw,
   Truck,
   Check,
+  Package,
 } from "lucide-react";
 import { DateRangePreset } from "@/domain/profitability-engine";
 import { OrderModal } from "@/components/modals/order-modal";
@@ -79,6 +80,10 @@ export function DashboardView({
     products,
     suppliers,
     purchases,
+    inventoryMetrics,
+    feesBreakdown,
+    claimsSummary,
+    settlementSummary,
     addOrder,
     addReturn,
     addPurchase,
@@ -156,6 +161,7 @@ export function DashboardView({
   const CHANNEL_PALETTE: Record<string, { fill: string; bg: string; text: string }> = {
     "Amazon India": { fill: "#F59E0B", bg: "bg-amber-500/10", text: "text-amber-700" },
     Flipkart: { fill: "#3B82F6", bg: "bg-blue-500/10", text: "text-blue-700" },
+    Myntra: { fill: "#F97316", bg: "bg-orange-500/10", text: "text-orange-700" },
     Meesho: { fill: "#EC4899", bg: "bg-pink-500/10", text: "text-pink-700" },
     "Personal Website": { fill: "#10B981", bg: "bg-emerald-500/10", text: "text-emerald-700" },
   };
@@ -196,6 +202,20 @@ export function DashboardView({
       });
   }, [skuBreakdown, skuSearch, skuFilter, skuSortBy, skuSortOrder]);
 
+  // SKU Table Pagination (Max 10 records per chapter/page)
+  const [skuPage, setSkuPage] = useState(1);
+  const SKU_PAGE_SIZE = 10;
+
+  useEffect(() => {
+    setSkuPage(1);
+  }, [skuSearch, skuFilter]);
+
+  const totalSkuPages = Math.max(1, Math.ceil(processedSkus.length / SKU_PAGE_SIZE));
+  const paginatedSkus = useMemo(() => {
+    const start = (skuPage - 1) * SKU_PAGE_SIZE;
+    return processedSkus.slice(start, start + SKU_PAGE_SIZE);
+  }, [processedSkus, skuPage, SKU_PAGE_SIZE]);
+
   const handleSort = (field: typeof skuSortBy) => {
     if (skuSortBy === field) {
       setSkuSortOrder(skuSortOrder === "asc" ? "desc" : "asc");
@@ -205,11 +225,28 @@ export function DashboardView({
     }
   };
 
+  // Helper to get local YYYY-MM-DD string
+  const getTodayLocalDateStr = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
   // Custom Date-Range Popover State
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [customStartDate, setCustomStartDate] = useState(customDateRange?.startDate || "2026-09-01");
-  const [customEndDate, setCustomEndDate] = useState(customDateRange?.endDate || "2026-09-07");
+  const [customStartDate, setCustomStartDate] = useState(customDateRange?.startDate || "");
+  const [customEndDate, setCustomEndDate] = useState(customDateRange?.endDate || "");
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
+
+  const latestDataDate = useMemo(() => {
+    if (orders && orders.length > 0) {
+      return orders.reduce((max, o) => (o.orderDate > max ? o.orderDate : max), orders[0].orderDate);
+    }
+    return getTodayLocalDateStr();
+  }, [orders]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -220,55 +257,6 @@ export function DashboardView({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    if (customDateRange) {
-      setCustomStartDate(customDateRange.startDate);
-      setCustomEndDate(customDateRange.endDate);
-    }
-  }, [customDateRange]);
-
-  const latestOrderDate = useMemo(() => {
-    if (orders.length === 0) return "2026-09-07";
-    return orders.reduce((max, o) => (o.orderDate > max ? o.orderDate : max), orders[0].orderDate);
-  }, [orders]);
-
-  const quickShortcuts = useMemo(() => {
-    const formatDate = (d: Date) => {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    };
-
-    const anchor = new Date(latestOrderDate + "T00:00:00");
-    const anchorYear = anchor.getFullYear();
-    const anchorMonth = anchor.getMonth();
-
-    const d7 = new Date(anchor);
-    d7.setDate(d7.getDate() - 6);
-
-    const d14 = new Date(anchor);
-    d14.setDate(d14.getDate() - 13);
-
-    const d30 = new Date(anchor);
-    d30.setDate(d30.getDate() - 29);
-
-    const thisMonthStart = new Date(anchorYear, anchorMonth, 1);
-    const thisMonthEnd = new Date(anchorYear, anchorMonth + 1, 0);
-
-    const lastMonthStart = new Date(anchorYear, anchorMonth - 1, 1);
-    const lastMonthEnd = new Date(anchorYear, anchorMonth, 0);
-
-    return [
-      { label: "Today", start: latestOrderDate, end: latestOrderDate },
-      { label: "Last 7 Days", start: formatDate(d7), end: latestOrderDate },
-      { label: "Last 14 Days", start: formatDate(d14), end: latestOrderDate },
-      { label: "Last 30 Days", start: formatDate(d30), end: latestOrderDate },
-      { label: "This Month", start: formatDate(thisMonthStart), end: formatDate(thisMonthEnd) },
-      { label: "Last Month", start: formatDate(lastMonthStart), end: formatDate(lastMonthEnd) },
-    ];
-  }, [latestOrderDate]);
 
   const formatDateSimple = (dateStr: string) => {
     if (!dateStr) return "";
@@ -283,31 +271,70 @@ export function DashboardView({
       const [y, m] = customDateRange.startDate.split("-").map(Number);
       if (!isNaN(y) && !isNaN(m)) return new Date(y, m - 1, 1);
     }
-    return new Date(2026, 8, 1); // September 2026
+    const [y, m] = latestDataDate.split("-").map(Number);
+    if (!isNaN(y) && !isNaN(m)) return new Date(y, m - 1, 1);
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
+  // Default selection to existing custom range or latest data date when opening
   useEffect(() => {
-    if (isCalendarOpen && customStartDate) {
-      const [y, m] = customStartDate.split("-").map(Number);
-      if (!isNaN(y) && !isNaN(m)) {
-        setCalendarViewMonth(new Date(y, m - 1, 1));
+    if (isCalendarOpen) {
+      if (customDateRange?.startDate) {
+        setCustomStartDate(customDateRange.startDate);
+        setCustomEndDate(customDateRange.endDate || customDateRange.startDate);
+        const [y, m] = customDateRange.startDate.split("-").map(Number);
+        if (!isNaN(y) && !isNaN(m)) {
+          setCalendarViewMonth(new Date(y, m - 1, 1));
+        }
+      } else {
+        const [y, m] = latestDataDate.split("-").map(Number);
+        if (!isNaN(y) && !isNaN(m)) {
+          setCalendarViewMonth(new Date(y, m - 1, 1));
+        }
+        setCustomStartDate(latestDataDate);
+        setCustomEndDate(latestDataDate);
       }
+      setHoveredDate(null);
     }
-  }, [isCalendarOpen]);
+  }, [isCalendarOpen, customDateRange, latestDataDate]);
+
+  const selectToday = () => {
+    setCustomStartDate(latestDataDate);
+    setCustomEndDate(latestDataDate);
+    const [y, m] = latestDataDate.split("-").map(Number);
+    if (!isNaN(y) && !isNaN(m)) {
+      setCalendarViewMonth(new Date(y, m - 1, 1));
+    }
+    setHoveredDate(null);
+  };
 
   const handleCalendarDayClick = (dateStr: string) => {
     if (!customStartDate || (customStartDate && customEndDate)) {
       setCustomStartDate(dateStr);
       setCustomEndDate("");
-    } else if (customStartDate && !customEndDate) {
+      setHoveredDate(null);
+    } else {
       if (dateStr < customStartDate) {
         setCustomEndDate(customStartDate);
         setCustomStartDate(dateStr);
       } else {
         setCustomEndDate(dateStr);
       }
+      setHoveredDate(null);
     }
   };
+
+  const selectedDaysCount = useMemo(() => {
+    if (!customStartDate) return 0;
+    const end = customEndDate || customStartDate;
+    const startObj = new Date(customStartDate + "T00:00:00");
+    const endObj = new Date(end + "T00:00:00");
+    const minTime = Math.min(startObj.getTime(), endObj.getTime());
+    const maxTime = Math.max(startObj.getTime(), endObj.getTime());
+    const diffMs = maxTime - minTime;
+    return Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1;
+  }, [customStartDate, customEndDate]);
 
   const calendarDays = useMemo(() => {
     const year = calendarViewMonth.getFullYear();
@@ -318,38 +345,77 @@ export function DashboardView({
     const days: ({
       dateStr: string;
       dayNum: number;
+      dayOfWeek: number;
       isStart: boolean;
       isEnd: boolean;
+      isSingleDay: boolean;
       isInRange: boolean;
+      isInHover: boolean;
+      isToday: boolean;
+      isLastDay: boolean;
     } | null)[] = [];
 
     for (let i = 0; i < firstDay; i++) {
       days.push(null);
     }
 
+    const todayStr = getTodayLocalDateStr();
+
     for (let d = 1; d <= totalDays; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const dayOfWeek = new Date(year, month, d).getDay();
       const isStart = customStartDate === dateStr;
       const isEnd = customEndDate === dateStr;
-      const isInRange = Boolean(
-        customStartDate &&
-        customEndDate &&
-        dateStr > customStartDate &&
-        dateStr < customEndDate
+      const isSingleDay = Boolean(
+        customStartDate && customEndDate && customStartDate === customEndDate && isStart
       );
-      days.push({ dateStr, dayNum: d, isStart, isEnd, isInRange });
+
+      const minDate =
+        customStartDate && customEndDate
+          ? customStartDate < customEndDate
+            ? customStartDate
+            : customEndDate
+          : customStartDate;
+      const maxDate =
+        customStartDate && customEndDate
+          ? customStartDate > customEndDate
+            ? customStartDate
+            : customEndDate
+          : "";
+
+      const isInRange = Boolean(minDate && maxDate && dateStr > minDate && dateStr < maxDate);
+
+      let isInHover = false;
+      if (customStartDate && !customEndDate && hoveredDate && hoveredDate !== customStartDate) {
+        const minH = customStartDate < hoveredDate ? customStartDate : hoveredDate;
+        const maxH = customStartDate > hoveredDate ? customStartDate : hoveredDate;
+        isInHover = dateStr > minH && dateStr <= maxH;
+      }
+
+      const isToday = dateStr === todayStr;
+
+      days.push({
+        dateStr,
+        dayNum: d,
+        dayOfWeek,
+        isStart,
+        isEnd,
+        isSingleDay,
+        isInRange,
+        isInHover,
+        isToday,
+        isLastDay: d === totalDays,
+      });
     }
 
     return days;
-  }, [calendarViewMonth, customStartDate, customEndDate]);
+  }, [calendarViewMonth, customStartDate, customEndDate, hoveredDate]);
 
   const presets: { id: DateRangePreset; label: string }[] = [
     { id: "ALL", label: "All Time" },
     { id: "TODAY", label: "Today" },
     { id: "LAST_7_DAYS", label: "Last 7 Days" },
     { id: "LAST_30_DAYS", label: "Last 30 Days" },
-    { id: "THIS_MONTH", label: "This Month" },
-    { id: "PREVIOUS_MONTH", label: "Last Month" },
   ];
 
   // Logic definitions for each card
@@ -444,13 +510,13 @@ export function DashboardView({
           </div>
 
           {/* Right: Date-Range Selector & Interactive Custom Calendar Popover */}
-          <div ref={calendarRef} className="relative self-start md:self-auto">
-            <div className="flex items-center bg-[#F1F3F5] border border-slate-200/50 rounded-full p-1 text-xs max-w-full">
+          <div ref={calendarRef} className={`relative self-start md:self-auto max-w-full ${isCalendarOpen ? "z-40" : "z-10"}`}>
+            <div className="flex items-center bg-[#F1F3F5] border border-slate-200/50 rounded-full p-1 text-xs max-w-full overflow-x-auto no-scrollbar">
               {/* Interactive Calendar Trigger Button */}
               <button
                 type="button"
                 onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shrink-0 transition-all cursor-pointer ${
                   isCalendarOpen || datePreset === "CUSTOM"
                     ? "bg-purple-600 text-white shadow-xs"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
@@ -458,12 +524,12 @@ export function DashboardView({
                 title="Open Custom Date Picker"
               >
                 <Calendar className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline">Custom</span>
+                <span>Custom</span>
               </button>
 
               {/* Active Custom Range Indicator Pill */}
               {datePreset === "CUSTOM" && customDateRange && (
-                <div className="flex items-center gap-1.5 ml-1 mr-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200 text-xs font-semibold">
+                <div className="flex items-center gap-1.5 ml-1 mr-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200 text-xs font-semibold shrink-0">
                   <span className="tabular-nums tracking-tight">
                     {formatDateSimple(customDateRange.startDate)} → {formatDateSimple(customDateRange.endDate)}
                   </span>
@@ -482,7 +548,7 @@ export function DashboardView({
               )}
 
               {/* Preset Buttons */}
-              <div className="flex items-center gap-0.5 ml-1">
+              <div className="flex items-center gap-0.5 ml-1 shrink-0">
                 {presets.map((p) => {
                   const isSelected = datePreset === p.id;
                   return (
@@ -508,55 +574,32 @@ export function DashboardView({
 
             {/* Custom Date Range Popover */}
             {isCalendarOpen && (
-              <div className="absolute right-0 top-full mt-2 w-[320px] sm:w-[350px] bg-white rounded-3xl border border-slate-200 shadow-2xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
-                {/* Clean Header */}
+              <div className="absolute right-0 top-full mt-2 w-[310px] sm:w-[335px] max-w-[calc(100vw-2rem)] bg-white rounded-3xl border border-slate-200/90 shadow-2xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
+                {/* Clean Header with Today quick button */}
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-3">
                   <h4 className="text-sm font-bold text-slate-900 tracking-tight">Select Date Range</h4>
-                  <button
-                    type="button"
-                    onClick={() => setIsCalendarOpen(false)}
-                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
-                    title="Close"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Quick Range Shortcuts */}
-                <div className="grid grid-cols-4 gap-1.5 mb-3">
-                  {[
-                    { label: "7 Days", start: quickShortcuts[1].start, end: quickShortcuts[1].end },
-                    { label: "14 Days", start: quickShortcuts[2].start, end: quickShortcuts[2].end },
-                    { label: "30 Days", start: quickShortcuts[3].start, end: quickShortcuts[3].end },
-                    { label: "This Month", start: quickShortcuts[4].start, end: quickShortcuts[4].end },
-                  ].map((sc) => {
-                    const isActive = customStartDate === sc.start && customEndDate === sc.end;
-                    return (
-                      <button
-                        key={sc.label}
-                        type="button"
-                        onClick={() => {
-                          setCustomStartDate(sc.start);
-                          setCustomEndDate(sc.end);
-                          const [y, m] = sc.start.split("-").map(Number);
-                          if (!isNaN(y) && !isNaN(m)) {
-                            setCalendarViewMonth(new Date(y, m - 1, 1));
-                          }
-                        }}
-                        className={`py-1 text-[11px] font-semibold rounded-xl transition-all text-center cursor-pointer ${
-                          isActive
-                            ? "bg-purple-600 text-white shadow-xs"
-                            : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                        }`}
-                      >
-                        {sc.label}
-                      </button>
-                    );
-                  })}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={selectToday}
+                      className="px-2.5 py-1 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 active:bg-purple-200 rounded-full transition cursor-pointer"
+                      title="Select Today's Date"
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsCalendarOpen(false)}
+                      className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+                      title="Close"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Interactive Month Navigation */}
-                <div className="flex items-center justify-between px-1 mb-2">
+                <div className="flex items-center justify-between px-1 mb-2.5">
                   <button
                     type="button"
                     onClick={() => {
@@ -569,7 +612,7 @@ export function DashboardView({
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <span className="text-xs font-bold text-slate-800">
+                  <span className="text-xs font-bold text-slate-900">
                     {calendarViewMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
                   </span>
                   <button
@@ -587,59 +630,112 @@ export function DashboardView({
                 </div>
 
                 {/* Weekday Labels */}
-                <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
                   {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-                    <span key={day} className="text-[10px] font-bold text-slate-400 uppercase">
+                    <span key={day} className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                       {day}
                     </span>
                   ))}
                 </div>
 
                 {/* Calendar Days Grid */}
-                <div className="grid grid-cols-7 gap-1 text-center mb-3">
+                <div
+                  className="grid grid-cols-7 gap-y-1 text-center mb-3"
+                  onMouseLeave={() => setHoveredDate(null)}
+                >
                   {calendarDays.map((d, idx) => {
                     if (!d) {
-                      return <div key={`empty-${idx}`} className="h-7 w-full" />;
+                      return <div key={`empty-${idx}`} className="h-8 w-full" />;
                     }
-                    const { dateStr, dayNum, isStart, isEnd, isInRange } = d;
-                    const isSelectedEndpoint = isStart || isEnd;
+                    const {
+                      dateStr,
+                      dayNum,
+                      dayOfWeek,
+                      isStart,
+                      isEnd,
+                      isSingleDay,
+                      isInRange,
+                      isInHover,
+                      isToday,
+                      isLastDay,
+                    } = d;
+
+                    let cellClass = "text-slate-700 hover:bg-slate-100 rounded-xl font-medium";
+
+                    if (isSingleDay) {
+                      cellClass = "bg-purple-600 text-white font-bold rounded-xl shadow-xs";
+                    } else if (isStart) {
+                      const roundR = dayOfWeek === 6 ? "rounded-r-xl" : "rounded-r-none";
+                      cellClass = `bg-purple-600 text-white font-bold rounded-l-xl ${roundR} shadow-xs`;
+                    } else if (isEnd) {
+                      const roundL = dayOfWeek === 0 ? "rounded-l-xl" : "rounded-l-none";
+                      cellClass = `bg-purple-600 text-white font-bold rounded-r-xl ${roundL} shadow-xs`;
+                    } else if (isInRange) {
+                      const roundL = dayOfWeek === 0 || dayNum === 1 ? "rounded-l-lg" : "rounded-l-none";
+                      const roundR = dayOfWeek === 6 || isLastDay ? "rounded-r-lg" : "rounded-r-none";
+                      cellClass = `bg-purple-100 text-purple-900 font-semibold ${roundL} ${roundR}`;
+                    } else if (isInHover) {
+                      if (hoveredDate === dateStr) {
+                        cellClass = "bg-purple-500 text-white font-bold rounded-r-xl rounded-l-none";
+                      } else {
+                        cellClass = "bg-purple-50 text-purple-800 font-medium rounded-none";
+                      }
+                    } else if (isToday) {
+                      cellClass = "text-purple-700 font-bold ring-1.5 ring-purple-500 bg-purple-50/60 rounded-xl";
+                    }
 
                     return (
                       <button
                         key={dateStr}
                         type="button"
                         onClick={() => handleCalendarDayClick(dateStr)}
-                        className={`h-7 w-full text-xs flex items-center justify-center transition-all cursor-pointer ${
-                          isSelectedEndpoint
-                            ? "bg-purple-600 text-white font-bold rounded-lg shadow-xs"
-                            : isInRange
-                            ? "bg-purple-100 text-purple-900 font-semibold rounded-none first:rounded-l-lg last:rounded-r-lg"
-                            : "text-slate-700 hover:bg-slate-100 rounded-lg font-medium"
-                        }`}
+                        onMouseEnter={() => {
+                          if (customStartDate && !customEndDate) {
+                            setHoveredDate(dateStr);
+                          }
+                        }}
+                        className={`h-8 w-full text-xs flex items-center justify-center transition-colors cursor-pointer relative ${cellClass}`}
                       >
-                        {dayNum}
+                        <span>{dayNum}</span>
+                        {isToday && !isStart && !isEnd && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-purple-600 absolute bottom-0.5 left-1/2 -translate-x-1/2" />
+                        )}
                       </button>
                     );
                   })}
                 </div>
 
-                {/* Selected Range Display */}
-                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/70 text-xs mb-3">
-                  <div className="flex items-center gap-1.5 text-slate-500">
-                    <span>From:</span>
-                    <span className="font-semibold text-slate-900 tabular-nums">
-                      {customStartDate ? formatDateSimple(customStartDate) : "Select date"}
-                    </span>
+                {/* Direct Date Input Fields & Range Display */}
+                <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      From
+                    </label>
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomStartDate(val);
+                        if (val) {
+                          const [y, m] = val.split("-").map(Number);
+                          if (!isNaN(y) && !isNaN(m)) setCalendarViewMonth(new Date(y, m - 1, 1));
+                        }
+                      }}
+                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200/90 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
+                    />
                   </div>
-                  <div className="flex items-center gap-1.5 text-slate-500">
-                    <span>To:</span>
-                    <span className="font-semibold text-slate-900 tabular-nums">
-                      {customEndDate
-                        ? formatDateSimple(customEndDate)
-                        : customStartDate
-                        ? formatDateSimple(customStartDate)
-                        : "—"}
-                    </span>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      To
+                    </label>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      min={customStartDate || undefined}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200/90 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500"
+                    />
                   </div>
                 </div>
 
@@ -650,6 +746,8 @@ export function DashboardView({
                     onClick={() => {
                       setDatePreset("ALL");
                       setCustomDateRange(null);
+                      setCustomStartDate("");
+                      setCustomEndDate("");
                       setIsCalendarOpen(false);
                     }}
                     className="px-2 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition cursor-pointer"
@@ -659,18 +757,17 @@ export function DashboardView({
                   <button
                     type="button"
                     onClick={() => {
-                      const s = customStartDate;
-                      const e = customEndDate || customStartDate;
-                      if (s && e) {
-                        const start = s <= e ? s : e;
-                        const end = e >= s ? e : s;
-                        setCustomDateRange({ startDate: start, endDate: end });
-                        setDatePreset("CUSTOM");
-                        setIsCalendarOpen(false);
-                      }
+                      if (!customStartDate) return;
+                      const start = customStartDate;
+                      const end = customEndDate || customStartDate;
+                      const finalStart = start <= end ? start : end;
+                      const finalEnd = start <= end ? end : start;
+                      setCustomDateRange({ startDate: finalStart, endDate: finalEnd });
+                      setDatePreset("CUSTOM");
+                      setIsCalendarOpen(false);
                     }}
                     disabled={!customStartDate}
-                    className="px-4 py-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                    className="px-4 py-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5"
                   >
                     <Check className="w-3.5 h-3.5" />
                     Apply Range
@@ -1327,37 +1424,50 @@ export function DashboardView({
       {/* ─── STEP 2: Interactive SKU Economics Deep-Dive Table ─── */}
       <div id="sku-economics-table" className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden scroll-mt-20">
         {/* Table Header & Filtering Controls */}
-        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+        <div className="p-4 sm:p-5 border-b border-slate-100/80 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-gradient-to-r from-slate-50/40 via-white to-white">
+          {/* Left: Title & Description (Logo removed per request) */}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">
                 Product SKU Profitability &amp; Unit Economics
               </h2>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold border border-slate-200/70 tabular-nums">
                 {processedSkus.length} SKUs
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed max-w-2xl">
               Net revenue, COGS, marketplace charges, return losses, and true contribution margin per SKU. Click any row to inspect unit breakdown.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-xs">
+          {/* Right: Unified Controls Strip (Search + Filter Pills + Export) */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0 self-start xl:self-center">
             {/* Search Input */}
-            <div className="relative w-44">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <div className="relative w-full sm:w-48 md:w-56">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search SKU or name..."
                 value={skuSearch}
                 onChange={(e) => setSkuSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs text-slate-800 focus:outline-none focus:border-slate-400 transition"
+                className="w-full pl-8 pr-7 py-1.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 rounded-full text-xs text-slate-800 placeholder:text-slate-400 transition-all outline-none"
               />
+              {skuSearch && (
+                <button
+                  type="button"
+                  onClick={() => setSkuSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
 
-            {/* Filter Pills (Image 2 Pill Control) */}
-            <div className="flex items-center p-1 bg-[#F1F3F5] rounded-full border border-slate-200/50 gap-0.5">
+            {/* Filter Pills (Clean Apple-Style Segmented Control, no dots) */}
+            <div className="inline-flex items-center p-1 bg-[#F1F3F5] rounded-full border border-slate-200/50 gap-0.5 shrink-0">
               <button
+                type="button"
                 onClick={() => setSkuFilter("ALL")}
                 className={`px-3.5 py-1 rounded-full text-xs transition-all ${
                   skuFilter === "ALL"
@@ -1368,6 +1478,7 @@ export function DashboardView({
                 All
               </button>
               <button
+                type="button"
                 onClick={() => setSkuFilter("PROFITABLE")}
                 className={`px-3.5 py-1 rounded-full text-xs transition-all ${
                   skuFilter === "PROFITABLE"
@@ -1378,6 +1489,7 @@ export function DashboardView({
                 Profitable
               </button>
               <button
+                type="button"
                 onClick={() => setSkuFilter("LOSS_MAKING")}
                 className={`px-3.5 py-1 rounded-full text-xs transition-all ${
                   skuFilter === "LOSS_MAKING"
@@ -1391,8 +1503,9 @@ export function DashboardView({
 
             {/* Export CSV Button */}
             <button
+              type="button"
               onClick={exportSkuCsv}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-800 text-xs font-semibold shadow-xs transition"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/80 hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] text-slate-700 text-xs font-semibold shadow-xs transition-all shrink-0 cursor-pointer"
               title="Download SKU unit economics as CSV"
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
@@ -1401,9 +1514,22 @@ export function DashboardView({
           </div>
         </div>
 
-        {/* Scrollable Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs tabular-nums">
+        {/* Scrollable Fixed Table (width-locked so columns never shrink or shift) */}
+        <div className="overflow-x-auto min-h-[340px]">
+          <table className="table-fixed w-full min-w-[1140px] text-left text-xs tabular-nums">
+            <colgroup>
+              <col style={{ width: "260px" }} />
+              <col style={{ width: "95px" }} />
+              <col style={{ width: "115px" }} />
+              <col style={{ width: "105px" }} />
+              <col style={{ width: "115px" }} />
+              <col style={{ width: "115px" }} />
+              <col style={{ width: "125px" }} />
+              <col style={{ width: "95px" }} />
+              <col style={{ width: "95px" }} />
+              <col style={{ width: "85px" }} />
+              <col style={{ width: "95px" }} />
+            </colgroup>
             <thead className="bg-slate-50/75 border-b border-slate-200/80 text-slate-500 font-semibold">
               <tr>
                 <th className="px-4 py-3">SKU &amp; Product Name</th>
@@ -1411,7 +1537,7 @@ export function DashboardView({
                   onClick={() => handleSort("unitsSold")}
                   className="px-4 py-3 text-right cursor-pointer hover:text-slate-900 select-none"
                 >
-                  <div className="inline-flex items-center gap-1">
+                  <div className="inline-flex items-center gap-1 justify-end">
                     Units Sold <ArrowUpDown className="w-3 h-3 text-slate-400" />
                   </div>
                 </th>
@@ -1419,7 +1545,7 @@ export function DashboardView({
                   onClick={() => handleSort("revenue")}
                   className="px-4 py-3 text-right cursor-pointer hover:text-slate-900 select-none"
                 >
-                  <div className="inline-flex items-center gap-1">
+                  <div className="inline-flex items-center gap-1 justify-end">
                     Net Revenue <ArrowUpDown className="w-3 h-3 text-slate-400" />
                   </div>
                 </th>
@@ -1430,7 +1556,7 @@ export function DashboardView({
                   onClick={() => handleSort("profit")}
                   className="px-4 py-3 text-right cursor-pointer hover:text-slate-900 select-none"
                 >
-                  <div className="inline-flex items-center gap-1">
+                  <div className="inline-flex items-center gap-1 justify-end">
                     Net Contribution <ArrowUpDown className="w-3 h-3 text-slate-400" />
                   </div>
                 </th>
@@ -1438,7 +1564,7 @@ export function DashboardView({
                   onClick={() => handleSort("margin")}
                   className="px-4 py-3 text-right cursor-pointer hover:text-slate-900 select-none"
                 >
-                  <div className="inline-flex items-center gap-1">
+                  <div className="inline-flex items-center gap-1 justify-end">
                     Margin % <ArrowUpDown className="w-3 h-3 text-slate-400" />
                   </div>
                 </th>
@@ -1448,21 +1574,21 @@ export function DashboardView({
                   onClick={() => handleSort("returnRate")}
                   className="px-4 py-3 text-right cursor-pointer hover:text-slate-900 select-none"
                 >
-                  <div className="inline-flex items-center gap-1">
+                  <div className="inline-flex items-center gap-1 justify-end">
                     Return Rate <ArrowUpDown className="w-3 h-3 text-slate-400" />
                   </div>
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {processedSkus.length === 0 ? (
+              {paginatedSkus.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-slate-400 text-xs">
+                  <td colSpan={11} className="px-4 py-16 text-center text-slate-400 text-xs">
                     No SKUs matched your search or filter criteria.
                   </td>
                 </tr>
               ) : (
-                processedSkus.map((s) => {
+                paginatedSkus.map((s) => {
                   const isLoss = s.profit < 0;
                   return (
                     <tr
@@ -1471,38 +1597,40 @@ export function DashboardView({
                       className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
                       title="Click to inspect unit economics"
                     >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-between">
-                          <div className="font-mono font-bold text-slate-900 text-xs group-hover:text-blue-600 transition-colors">
+                      <td className="px-4 py-3 align-middle">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="font-mono font-bold text-xs text-slate-900 bg-slate-100 group-hover:bg-blue-50 group-hover:text-blue-700 px-2 py-0.5 rounded-md border border-slate-200/80 transition-colors inline-block tracking-tight truncate shrink-0 max-w-[170px]">
                             {s.sku}
-                          </div>
-                          <span className="opacity-0 group-hover:opacity-100 text-[10px] text-blue-600 font-semibold flex items-center transition-opacity">
+                          </span>
+                          <span className="opacity-0 group-hover:opacity-100 text-[10px] text-blue-600 font-semibold flex items-center transition-opacity shrink-0">
                             Inspect <ChevronRight className="w-3 h-3 ml-0.5" />
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-500 truncate max-w-xs">{s.productName}</div>
+                        <div className="text-[11px] text-slate-500 mt-1 truncate" title={s.productName}>
+                          {s.productName}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-800 tabular-nums">
+                      <td className="px-4 py-3 text-right font-semibold text-slate-800 tabular-nums align-middle">
                         {s.unitsSold} <span className="text-[10px] text-slate-400 font-normal">units</span>
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums align-middle">
                         {formatINR(s.revenue)}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-semibold text-slate-600 tracking-tight tabular-nums">
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-slate-600 tracking-tight tabular-nums align-middle">
                         {formatINR(s.cogs)}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-semibold text-[#D70015] tracking-tight tabular-nums">
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-[#D70015] tracking-tight tabular-nums align-middle">
                         -{formatINR(s.marketplaceCharges)}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-semibold text-amber-600 tracking-tight tabular-nums">
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-amber-600 tracking-tight tabular-nums align-middle">
                         {s.returnLosses > 0 ? `-${formatINR(s.returnLosses)}` : "₹0"}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right align-middle">
                         <span className={`text-sm font-semibold tracking-tight tabular-nums ${isLoss ? "text-[#D70015]" : "text-[#288548]"}`}>
                           {formatINR(s.profit)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right align-middle">
                         <span
                           className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             isLoss
@@ -1515,10 +1643,10 @@ export function DashboardView({
                           {formatPercent(s.margin)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right text-slate-600 font-medium">
+                      <td className="px-4 py-3 text-right text-slate-600 font-medium align-middle">
                         {s.adSpend ? formatINR(s.adSpend) : "—"}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right align-middle">
                         {s.poas !== undefined ? (
                           <span
                             className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -1533,7 +1661,7 @@ export function DashboardView({
                           <span className="text-slate-300">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right align-middle">
                         <span
                           className={`font-mono text-xs font-semibold ${
                             s.returnRate > 0.2 ? "text-amber-700" : "text-slate-600"
@@ -1550,19 +1678,80 @@ export function DashboardView({
           </table>
         </div>
 
-        {/* Table Summary Footer */}
-        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 gap-2">
-          <span>Click any row to open the SKU unit economics drilldown. Click column headers to sort.</span>
-          <span className="font-medium text-slate-600">
-            Total Analyzed Contribution Profit:{" "}
+        {/* Table Summary & 10-Record Chapter Pagination Footer */}
+        <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex flex-col md:flex-row items-center justify-between text-xs text-slate-500 gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-500">
+              {processedSkus.length === 0 ? (
+                "0 SKUs found"
+              ) : (
+                <>
+                  Showing <span className="font-semibold text-slate-800 tabular-nums">{(skuPage - 1) * SKU_PAGE_SIZE + 1}</span>–<span className="font-semibold text-slate-800 tabular-nums">{Math.min(skuPage * SKU_PAGE_SIZE, processedSkus.length)}</span> of <span className="font-semibold text-slate-800 tabular-nums">{processedSkus.length}</span> SKUs
+                </>
+              )}
+            </span>
+          </div>
+
+          {/* Chapter / Pagination Controls */}
+          {totalSkuPages > 1 && (
+            <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-xl border border-slate-200/80 shadow-2xs">
+              <button
+                type="button"
+                disabled={skuPage === 1}
+                onClick={() => setSkuPage((p) => Math.max(1, p - 1))}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
+                title="Previous 10 SKUs"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Prev</span>
+              </button>
+
+              <div className="flex items-center gap-1 px-1">
+                {Array.from({ length: totalSkuPages }).map((_, i) => {
+                  const pageNum = i + 1;
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      onClick={() => setSkuPage(pageNum)}
+                      className={`w-7 h-7 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center justify-center ${
+                        skuPage === pageNum
+                          ? "bg-slate-900 text-white shadow-xs"
+                          : "text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                disabled={skuPage === totalSkuPages}
+                onClick={() => setSkuPage((p) => Math.min(totalSkuPages, p + 1))}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
+                title="Next 10 SKUs"
+              >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Total Contribution Pill */}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-400">Total Analyzed Profit:</span>
             <span
-              className={`font-bold tabular-nums font-mono ${
-                profitability.contributionProfit >= 0 ? "text-emerald-700" : "text-rose-600"
+              className={`font-bold tabular-nums font-mono text-xs px-2.5 py-1 rounded-full border shadow-2xs ${
+                profitability.contributionProfit >= 0
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-rose-50 text-rose-700 border-rose-200"
               }`}
             >
               {formatINR(profitability.contributionProfit)}
             </span>
-          </span>
+          </div>
         </div>
       </div>
 

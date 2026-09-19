@@ -339,7 +339,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     const unitCost = product ? product.currentCostPrice : 350;
     const isLoss = newCondition === "DAMAGED" || newCondition === "UNUSABLE";
 
-    let calculatedLoss = ret.returnShippingCost;
+    let calculatedLoss = ret.returnShippingCost + (ret.customerReturnFee ?? 0);
     if (isLoss) {
       calculatedLoss += unitCost * ret.quantity - ret.inventoryRecoveryValue;
     }
@@ -411,7 +411,8 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       unitCostBasis = product.currentCostPrice;
     }
 
-    let calculatedLoss = returnShipping;
+    const calculatedCustomerFee = returnType === "RTO" ? 0 : returnShipping;
+    let calculatedLoss = returnShipping + calculatedCustomerFee;
     if (condition === "DAMAGED" || condition === "UNUSABLE") {
       calculatedLoss += unitCostBasis * quantity - recoveryValue;
     }
@@ -432,6 +433,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       condition,
       restockStatus: condition === "SELLABLE" ? "RESTOCKED" : "PENDING_RESTOCK",
       returnShippingCost: returnShipping,
+      customerReturnFee: calculatedCustomerFee,
       otherReturnCosts: 10,
       inventoryRecoveryValue: recoveryValue,
       lossAmount: calculatedLoss,
@@ -468,7 +470,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     const product = products.find((p) => p.sku === editingReturn.sku);
     const unitCost = product ? product.currentCostPrice : 350;
 
-    let calculatedLoss = editingReturn.returnShippingCost;
+    let calculatedLoss = editingReturn.returnShippingCost + (editingReturn.customerReturnFee ?? 0);
     if (
       editingReturn.condition === "DAMAGED" ||
       editingReturn.condition === "UNUSABLE"
@@ -479,6 +481,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
     updateReturn({
       ...editingReturn,
+      customerReturnFee: editingReturn.customerReturnFee ?? 0,
       lossAmount: calculatedLoss,
     });
     setEditingReturn(null);
@@ -654,9 +657,12 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                 </span>
               )}
             </div>
-            <span className="text-[11px] text-slate-500 font-medium tabular-nums block">
-              Freight: {formatINR(r.returnShippingCost)}
-            </span>
+            <div className="text-[11px] text-slate-500 font-medium tabular-nums flex items-center gap-1.5 flex-wrap">
+              <span>Freight: {formatINR(r.returnShippingCost)}</span>
+              {(r.customerReturnFee ?? 0) > 0 && (
+                <span>• Fee: {formatINR(r.customerReturnFee)}</span>
+              )}
+            </div>
           </div>
         );
       },
@@ -725,7 +731,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
             )}
 
             <button
-              onClick={() => setEditingReturn(r)}
+              onClick={() => setEditingReturn({ ...r, customerReturnFee: r.customerReturnFee ?? 0 })}
               title="Edit return record details"
               className="p-1 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
             >

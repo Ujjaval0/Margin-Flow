@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, CheckCircle2 } from "lucide-react";
 import { ProfitabilityMetrics } from "@/domain/profitability-engine";
 import { formatINR, formatPercent } from "@/lib/utils";
@@ -27,9 +28,16 @@ export interface CardLogicModalProps {
 }
 
 export function CardLogicModal({ data, onClose }: CardLogicModalProps) {
-  if (!data) return null;
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  if (!data || !mounted) return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={onClose}
@@ -105,7 +113,8 @@ export function CardLogicModal({ data, onClose }: CardLogicModalProps) {
           Close Inspection
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -150,6 +159,11 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
           value: `−${formatINR(profitability.cogs)}`,
           color: "text-[#D70015]",
         },
+        {
+          label: "Realized Margin on Sales",
+          value: formatPercent(profitability.grossSales > 0 ? profitability.trueProfit / profitability.grossSales : 0),
+          color: "text-[#288548]",
+        },
       ],
       resultLabel: "True In-Pocket Profit",
       resultValue: formatINR(profitability.trueProfit),
@@ -157,20 +171,29 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
     },
 
     netProfit: {
-      title: "Net Platform Payout",
+      title: "Net Profit / Platform Payout",
       meaning: "Net cash disbursed by marketplaces before paying wholesale suppliers.",
-      formula: "Net Payout = Net Sales − Fees & Commissions − Return Deductions + Claims",
+      formula: "Net Payout = Net Sales − Platform Fees − Shipping Logistics − Return Deductions + Claims",
       equationComponents: [
         {
-          label: "Net Sales (Gross − Discounts)",
+          label: "Net Sales (Gross − Discounts − Refunds)",
           value: formatINR(profitability.netSales),
           color: "text-[#1D1D1F]",
         },
         {
-          label: "Marketplace Fees & Commissions",
+          label: "Marketplace Commissions & Fees",
           value: `−${formatINR(profitability.marketplaceCharges)}`,
           color: "text-[#D70015]",
         },
+        ...(profitability.shippingLogisticsCosts > 0
+          ? [
+              {
+                label: "Shipping & Forward Logistics Fees",
+                value: `−${formatINR(profitability.shippingLogisticsCosts)}`,
+                color: "text-[#D70015]",
+              },
+            ]
+          : []),
         {
           label: "Return & RTO Deductions",
           value: `−${formatINR(profitability.returnLosses + profitability.rtoLosses)}`,
@@ -182,9 +205,9 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
           color: "text-[#288548]",
         },
       ],
-      resultLabel: "Net Platform Payout",
+      resultLabel: "Net Platform Remittance Payout",
       resultValue: formatINR(profitability.netPlatformPayout),
-      impactNote: "Expected bank payout deposited into your account from platforms.",
+      impactNote: "Expected bank payout deposited into your account from platforms before inventory payments.",
     },
 
     returnsRto: {

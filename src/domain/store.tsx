@@ -14,6 +14,10 @@ import {
   AIStagedDocument,
   FinancialAuditLog,
   GuardrailCheckResult,
+  InventoryMetrics,
+  FeesBreakdown,
+  ClaimsSummary,
+  SettlementSummary,
 } from "./types";
 import {
   INITIAL_PRODUCTS,
@@ -44,7 +48,7 @@ import {
   SettlementAgingSummary,
 } from "./profitability-engine";
 
-export const LEDGER_STORAGE_KEY = "MARGINFLOW_PERSISTENT_LEDGER_V1";
+export const LEDGER_STORAGE_KEY = "MARGINFLOW_PERSISTENT_LEDGER_V2";
 
 interface PlatformContextType {
   products: Product[];
@@ -78,6 +82,10 @@ interface PlatformContextType {
   skuBreakdown: SkuProfitability[];
   settlementAging: SettlementAgingSummary;
   guardrailStatus: GuardrailCheckResult[];
+  inventoryMetrics: InventoryMetrics;
+  feesBreakdown: FeesBreakdown;
+  claimsSummary: ClaimsSummary;
+  settlementSummary: SettlementSummary;
 
   // Persistent Ledger Management
   isHydrated: boolean;
@@ -234,16 +242,54 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     return resolveDatePreset(datePreset, effectiveAnchorDate, customDateRange);
   }, [datePreset, effectiveAnchorDate, customDateRange]);
 
-  const currentDataset = useMemo(() => {
+  const isMarketplaceMatch = useCallback(
+    (mp?: string | null) => {
+      if (!selectedMarketplace || selectedMarketplace === "ALL") return true;
+      if (!mp) return false;
+      if (mp === selectedMarketplace) return true;
+      if (selectedMarketplace === "Amazon India" && (mp === "Amazon" || mp === "Amazon India")) return true;
+      if (selectedMarketplace === "Personal Website" && (mp === "Website" || mp === "Personal Website")) return true;
+      return false;
+    },
+    [selectedMarketplace]
+  );
+
+  const dateFilteredCurrent = useMemo(() => {
     if (datePreset === "ALL") {
       return { orders, returns, settlements, claims, expenses };
     }
     return filterDatasetByDateRange(orders, returns, settlements, claims, expenses, dateRanges.current);
   }, [orders, returns, settlements, claims, expenses, datePreset, dateRanges]);
 
-  const priorDataset = useMemo(() => {
+  const dateFilteredPrior = useMemo(() => {
     return filterDatasetByDateRange(orders, returns, settlements, claims, expenses, dateRanges.previous);
   }, [orders, returns, settlements, claims, expenses, dateRanges]);
+
+  const currentDataset = useMemo(() => {
+    if (selectedMarketplace === "ALL") {
+      return dateFilteredCurrent;
+    }
+    return {
+      orders: dateFilteredCurrent.orders.filter((o) => isMarketplaceMatch(o.marketplace)),
+      returns: dateFilteredCurrent.returns.filter((r) => isMarketplaceMatch(r.marketplace)),
+      settlements: dateFilteredCurrent.settlements.filter((s) => isMarketplaceMatch(s.marketplace)),
+      claims: dateFilteredCurrent.claims.filter((c) => isMarketplaceMatch(c.marketplace)),
+      expenses: dateFilteredCurrent.expenses.filter((e) => isMarketplaceMatch(e.marketplace)),
+    };
+  }, [dateFilteredCurrent, selectedMarketplace, isMarketplaceMatch]);
+
+  const priorDataset = useMemo(() => {
+    if (selectedMarketplace === "ALL") {
+      return dateFilteredPrior;
+    }
+    return {
+      orders: dateFilteredPrior.orders.filter((o) => isMarketplaceMatch(o.marketplace)),
+      returns: dateFilteredPrior.returns.filter((r) => isMarketplaceMatch(r.marketplace)),
+      settlements: dateFilteredPrior.settlements.filter((s) => isMarketplaceMatch(s.marketplace)),
+      claims: dateFilteredPrior.claims.filter((c) => isMarketplaceMatch(c.marketplace)),
+      expenses: dateFilteredPrior.expenses.filter((e) => isMarketplaceMatch(e.marketplace)),
+    };
+  }, [dateFilteredPrior, selectedMarketplace, isMarketplaceMatch]);
 
   // Compute live profitability & guardrails
   const profitability = useMemo(() => {
@@ -278,13 +324,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   const marketplaceBreakdown = useMemo(() => {
     return calculateMarketplaceProfitability(
-      currentDataset.orders,
-      currentDataset.returns,
-      currentDataset.settlements,
-      currentDataset.claims,
-      currentDataset.expenses
+      dateFilteredCurrent.orders,
+      dateFilteredCurrent.returns,
+      dateFilteredCurrent.settlements,
+      dateFilteredCurrent.claims,
+      dateFilteredCurrent.expenses
     );
-  }, [currentDataset]);
+  }, [dateFilteredCurrent]);
 
   const skuBreakdown = useMemo(() => {
     return calculateSkuProfitability(
@@ -296,8 +342,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, [currentDataset]);
 
   const settlementAging = useMemo(() => {
-    return calculateSettlementAging(orders, settlements, effectiveAnchorDate);
-  }, [orders, settlements, effectiveAnchorDate]);
+    return calculateSettlementAging(currentDataset.orders, currentDataset.settlements, effectiveAnchorDate);
+  }, [currentDataset.orders, currentDataset.settlements, effectiveAnchorDate]);
 
   const guardrailStatus = useMemo(() => {
     return runSystemGuardrailDiagnostics(
@@ -311,9 +357,137 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     );
   }, [products, orders, returns, settlements, claims, aiDocuments, expenses]);
 
+  const inventoryMetrics = useMemo<InventoryMetrics>(() => {
+    let purchasedQuantity = 0;
+    purchases.forEach((p) => {
+      purchasedQuantity += p.quantity;
+    });
+
+    let currentStock = 0;
+    let inventoryValue = 0;
+    products.forEach((p) => {
+      const stock = p.stockQuantity ?? 0;
+      currentStock += stock;
+      inventoryValue += stock * (p.currentCostPrice || 0);
+    });
+
+    const isDamaged = (cond: string) => cond === "DAMAGED" || cond === "UNUSABLE" || cond === "MISSING";
+    let goodReturnedQuantity = 0;
+    let damagedReturnedQuantity = 0;
+    returns.forEach((r) => {
+      if (isDamaged(r.condition)) {
+        damagedReturnedQuantity += r.quantity;
+      } else {
+        goodReturnedQuantity += r.quantity;
+      }
+    });
+
+    const soldQuantity = profitability.totalUnitsSold;
+    const openingStock = Math.max(0, currentStock + soldQuantity - goodReturnedQuantity - purchasedQuantity);
+
+    return {
+      openingStock,
+      purchasedQuantity,
+      soldQuantity,
+      goodReturnedQuantity,
+      damagedReturnedQuantity,
+      currentStock,
+      inventoryValue: Math.round(inventoryValue * 100) / 100,
+    };
+  }, [products, purchases, returns, profitability.totalUnitsSold]);
+
+  const feesBreakdown = useMemo<FeesBreakdown>(() => {
+    return {
+      platformCommission: profitability.marketplaceCharges,
+      shippingLogistics: profitability.shippingLogisticsCosts,
+      customerReturnFees: profitability.customerReturnFees,
+      otherDeductions: Math.max(
+        0,
+        Math.round(
+          (profitability.totalFees -
+            (profitability.marketplaceCharges +
+              profitability.shippingLogisticsCosts +
+              profitability.customerReturnFees)) *
+            100
+        ) / 100
+      ),
+      totalFees: profitability.totalFees,
+    };
+  }, [profitability]);
+
+  const claimsSummary = useMemo<ClaimsSummary>(() => {
+    let claimsFiled = 0;
+    let pendingClaims = 0;
+    let approvedClaims = 0;
+    let reimbursementReceived = 0;
+    let outstandingClaimAmount = 0;
+
+    currentDataset.claims.forEach((c) => {
+      claimsFiled += 1;
+      if (c.status === "FILED" || c.status === "UNDER_REVIEW") {
+        pendingClaims += 1;
+        outstandingClaimAmount += Math.max(0, c.amountClaimed - c.amountRecovered);
+      } else if (
+        c.status === "APPROVED" ||
+        c.status === "RECOVERED" ||
+        c.status === "PARTIALLY_RECOVERED"
+      ) {
+        approvedClaims += 1;
+        reimbursementReceived += c.amountRecovered;
+        if (c.status === "PARTIALLY_RECOVERED") {
+          outstandingClaimAmount += Math.max(0, c.amountClaimed - c.amountRecovered);
+        }
+      }
+    });
+
+    return {
+      claimsFiled,
+      pendingClaims,
+      approvedClaims,
+      reimbursementReceived: Math.round(reimbursementReceived * 100) / 100,
+      outstandingClaimAmount: Math.round(outstandingClaimAmount * 100) / 100,
+    };
+  }, [currentDataset.claims]);
+
+  const settlementSummary = useMemo<SettlementSummary>(() => {
+    let totalDeductions = 0;
+    currentDataset.settlements.forEach((s) => {
+      s.deductions.forEach((d) => {
+        totalDeductions += d.amount;
+      });
+      totalDeductions += s.tcsTdsTax || 0;
+    });
+
+    const expectedSettlement = Math.round(
+      (profitability.grossSales - profitability.marketplaceCharges - profitability.shippingLogisticsCosts) * 100
+    ) / 100;
+
+    return {
+      expectedSettlement,
+      actualReceived: profitability.actualSettlementsReceived,
+      pendingSettlement: profitability.outstandingSettlementEstimated,
+      totalDeductions: Math.round(totalDeductions * 100) / 100,
+    };
+  }, [currentDataset.settlements, profitability]);
+
   // Actions
   const addOrder = useCallback((order: Order) => {
     setOrders((prev) => [order, ...prev]);
+
+    // Inventory Engine: Sale = inventory - quantity
+    setProducts((prev) =>
+      prev.map((p) => {
+        const item = order.items.find((i) => i.sku === p.sku);
+        if (item) {
+          return {
+            ...p,
+            stockQuantity: Math.max(0, (p.stockQuantity ?? 0) - item.quantity),
+          };
+        }
+        return p;
+      })
+    );
+
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -323,7 +497,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       oldValue: "N/A",
       newValue: order.status,
       modifiedBy: "Operator (Manual/Import)",
-      reason: "Order created in system",
+      reason: "Order created in system and stock deducted",
     };
     setAuditLogs((prev) => [log, ...prev]);
   }, []);
@@ -352,9 +526,31 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateOrder = useCallback((updatedOrder: Order) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
-    );
+    setOrders((prev) => {
+      const oldOrder = prev.find((o) => o.id === updatedOrder.id);
+      if (oldOrder) {
+        // State-aware Inventory Delta: adjust inventory based on delta of ordered quantities
+        setProducts((pList) =>
+          pList.map((p) => {
+            const oldItem = oldOrder.items.find((i) => i.sku === p.sku);
+            const newItem = updatedOrder.items.find((i) => i.sku === p.sku);
+            const oldQty = oldItem ? oldItem.quantity : 0;
+            const newQty = newItem ? newItem.quantity : 0;
+            const delta = newQty - oldQty;
+            if (delta !== 0) {
+              // If newQty > oldQty, additional stock sold (-delta). If newQty < oldQty, stock restored.
+              return {
+                ...p,
+                stockQuantity: Math.max(0, (p.stockQuantity ?? 0) - delta),
+              };
+            }
+            return p;
+          })
+        );
+      }
+      return prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
+    });
+
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -364,13 +560,32 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       oldValue: "Previous state",
       newValue: `Updated: ${updatedOrder.marketplace}, ${updatedOrder.items[0]?.productName || ""}`,
       modifiedBy: "Operator",
-      reason: "Order manually edited",
+      reason: "Order manually edited with delta recalculation",
     };
     setAuditLogs((prev) => [log, ...prev]);
   }, []);
 
   const deleteOrder = useCallback((orderId: string) => {
-    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    setOrders((prev) => {
+      const orderToDelete = prev.find((o) => o.id === orderId);
+      if (orderToDelete) {
+        // Restore inventory for items sold in this order that were not returned
+        setProducts((pList) =>
+          pList.map((p) => {
+            const item = orderToDelete.items.find((i) => i.sku === p.sku);
+            if (item) {
+              const activeSoldQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
+              return {
+                ...p,
+                stockQuantity: (p.stockQuantity ?? 0) + activeSoldQty,
+              };
+            }
+            return p;
+          })
+        );
+      }
+      return prev.filter((o) => o.id !== orderId);
+    });
     setReturns((prev) => prev.filter((r) => r.orderId !== orderId));
     setSettlements((prev) => prev.filter((s) => s.orderId !== orderId));
     setClaims((prev) => prev.filter((c) => c.orderId !== orderId));
@@ -383,7 +598,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       oldValue: "Active",
       newValue: "DELETED",
       modifiedBy: "Operator",
-      reason: "Order deleted from ledger",
+      reason: "Order deleted and associated inventory restored",
     };
     setAuditLogs((prev) => [log, ...prev]);
   }, []);
@@ -437,6 +652,14 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addReturn = useCallback((returnRecord: ReturnRecord) => {
+    const isDamaged =
+      returnRecord.condition === "DAMAGED" ||
+      returnRecord.condition === "UNUSABLE" ||
+      returnRecord.condition === "MISSING";
+
+    const effectiveReturnFee =
+      returnRecord.returnType === "RTO" ? 0 : (returnRecord.customerReturnFee ?? 0);
+
     const enrichedRecord: ReturnRecord = {
       ...returnRecord,
       receivedDate: returnRecord.receivedDate || returnRecord.returnDate,
@@ -445,10 +668,50 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         calculateClaimDeadline(returnRecord.marketplace, returnRecord.returnDate),
       restockStatus:
         returnRecord.restockStatus ||
-        (returnRecord.condition === "SELLABLE" ? "PENDING_RESTOCK" : "WRITTEN_OFF"),
+        (!isDamaged ? "RESTOCKED" : "WRITTEN_OFF"),
+      customerReturnFee: effectiveReturnFee,
     };
 
     setReturns((prev) => [enrichedRecord, ...prev]);
+
+    // Inventory Engine:
+    // Good/Undamaged return = inventory + quantity
+    // Damaged return = no inventory addition (written off)
+    if (!isDamaged) {
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.sku === enrichedRecord.sku
+            ? { ...p, stockQuantity: (p.stockQuantity ?? 0) + enrichedRecord.quantity }
+            : p
+        )
+      );
+    }
+
+    // Auto-create Claim if damaged/lost and no claim exists
+    if (isDamaged || enrichedRecord.returnType === "LOST_RETURN") {
+      setClaims((prev) => {
+        const existingClaim = prev.find(
+          (c) => c.orderId === enrichedRecord.orderId || c.returnId === enrichedRecord.id
+        );
+        if (!existingClaim) {
+          const autoClaim: Claim = {
+            id: `CLM-${Date.now().toString().slice(-4)}`,
+            orderId: enrichedRecord.orderId,
+            returnId: enrichedRecord.id,
+            marketplace: enrichedRecord.marketplace,
+            claimType: enrichedRecord.returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
+            claimDate: enrichedRecord.returnDate,
+            amountClaimed: enrichedRecord.lossAmount,
+            amountRecovered: enrichedRecord.inventoryRecoveryValue || 0,
+            status: "FILED",
+            notes: `Auto-generated claim from return (${enrichedRecord.condition})`,
+          };
+          return [autoClaim, ...prev];
+        }
+        return prev;
+      });
+    }
+
     // Link return to order and update line-item returned quantity & order status
     setOrders((prev) =>
       prev.map((o) => {
@@ -494,7 +757,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       entityId: enrichedRecord.id,
       fieldName: "reverse_logistics",
       oldValue: "None",
-      newValue: `${enrichedRecord.returnType} (${enrichedRecord.condition}) - Loss ₹${enrichedRecord.lossAmount}`,
+      newValue: `${enrichedRecord.returnType} (${enrichedRecord.condition}) - Return Fee ₹${enrichedRecord.customerReturnFee}`,
       modifiedBy: "Operator",
       reason: `Logged return for ${enrichedRecord.sku} (${enrichedRecord.marketplace})`,
     };
@@ -502,7 +765,82 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateReturn = useCallback((updated: ReturnRecord) => {
-    setReturns((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    setReturns((prev) => {
+      const oldReturn = prev.find((r) => r.id === updated.id);
+      if (oldReturn) {
+        const oldIsDamaged =
+          oldReturn.condition === "DAMAGED" ||
+          oldReturn.condition === "UNUSABLE" ||
+          oldReturn.condition === "MISSING";
+        const newIsDamaged =
+          updated.condition === "DAMAGED" ||
+          updated.condition === "UNUSABLE" ||
+          updated.condition === "MISSING";
+
+        // CRITICAL STATE-AWARE EDIT RULE:
+        // Good Return -> Damaged Return: Remove previous inventory addition
+        // Damaged Return -> Good Return: Add product back into inventory
+        if (!oldIsDamaged && newIsDamaged) {
+          // Was Good, now Damaged: undo the stock addition!
+          setProducts((pList) =>
+            pList.map((p) =>
+              p.sku === updated.sku
+                ? { ...p, stockQuantity: Math.max(0, (p.stockQuantity ?? 0) - oldReturn.quantity) }
+                : p
+            )
+          );
+          // Enable claim tracking if none exists
+          setClaims((cList) => {
+            const hasClaim = cList.some((c) => c.returnId === updated.id || c.orderId === updated.orderId);
+            if (!hasClaim) {
+              const newClaim: Claim = {
+                id: `CLM-${Date.now().toString().slice(-4)}`,
+                orderId: updated.orderId,
+                returnId: updated.id,
+                marketplace: updated.marketplace,
+                claimType: updated.returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
+                claimDate: updated.returnDate,
+                amountClaimed: updated.lossAmount,
+                amountRecovered: updated.inventoryRecoveryValue || 0,
+                status: "FILED",
+                notes: `Claim enabled after return updated to ${updated.condition}`,
+              };
+              return [newClaim, ...cList];
+            }
+            return cList;
+          });
+        } else if (oldIsDamaged && !newIsDamaged) {
+          // Was Damaged, now Good: add to stock!
+          setProducts((pList) =>
+            pList.map((p) =>
+              p.sku === updated.sku
+                ? { ...p, stockQuantity: (p.stockQuantity ?? 0) + updated.quantity }
+                : p
+            )
+          );
+          // Disable / close linked claim if it was draft/filed
+          setClaims((cList) =>
+            cList.map((c) =>
+              c.returnId === updated.id && (c.status === "FILED" || c.status === "NOT_FILED" || c.status === "UNDER_REVIEW")
+                ? { ...c, status: "CLOSED" as const, notes: "Auto-closed: return marked SELLABLE/GOOD" }
+                : c
+            )
+          );
+        } else if (!newIsDamaged && oldReturn.quantity !== updated.quantity) {
+          // Remained Good, but quantity changed: apply delta
+          const delta = updated.quantity - oldReturn.quantity;
+          setProducts((pList) =>
+            pList.map((p) =>
+              p.sku === updated.sku
+                ? { ...p, stockQuantity: Math.max(0, (p.stockQuantity ?? 0) + delta) }
+                : p
+            )
+          );
+        }
+      }
+      return prev.map((r) => (r.id === updated.id ? updated : r));
+    });
+
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -510,9 +848,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       entityId: updated.id,
       fieldName: "return_update",
       oldValue: "Previous state",
-      newValue: `${updated.condition}, Qty: ${updated.quantity}, Loss: ₹${updated.lossAmount}`,
+      newValue: `${updated.condition}, Qty: ${updated.quantity}, Fee: ₹${updated.customerReturnFee}`,
       modifiedBy: "Operator",
-      reason: "Return record updated",
+      reason: "Return state updated with delta recalculation",
     };
     setAuditLogs((prev) => [log, ...prev]);
   }, []);
@@ -1060,6 +1398,10 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       skuBreakdown,
       settlementAging,
       guardrailStatus,
+      inventoryMetrics,
+      feesBreakdown,
+      claimsSummary,
+      settlementSummary,
       addOrder,
       updateOrder,
       deleteOrder,
@@ -1110,6 +1452,10 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       skuBreakdown,
       settlementAging,
       guardrailStatus,
+      inventoryMetrics,
+      feesBreakdown,
+      claimsSummary,
+      settlementSummary,
       addOrder,
       updateOrder,
       deleteOrder,

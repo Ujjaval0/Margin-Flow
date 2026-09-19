@@ -35,9 +35,6 @@ export function Navbar({
     { id: "Flipkart", label: "Flipkart" },
     { id: "Myntra", label: "Myntra" },
     { id: "Meesho", label: "Meesho" },
-    { id: "WooCommerce", label: "WooCommerce" },
-    { id: "Personal Website", label: "Website" },
-    { id: "B2B Wholesale", label: "B2B" },
   ];
 
   const moduleTitles: Record<string, string> = {
@@ -58,34 +55,34 @@ export function Navbar({
   };
 
   return (
-    <header className="h-16 bg-white/80 backdrop-blur-md border-b border-black/[0.05] px-6 md:px-8 flex items-center justify-between z-10 sticky top-0 transition-all">
+    <header className="shrink-0 h-16 w-full bg-white/80 backdrop-blur-md border-b border-black/[0.05] px-4 sm:px-6 md:px-8 flex items-center justify-between z-20 sticky top-0 transition-all">
       {/* Left: Clean Breadcrumb & Current View Title */}
-      <div className="flex items-center gap-2 select-none">
+      <div className="flex items-center gap-2 select-none shrink-0 mr-3">
         <Image
           src="/margin-flow-icon.png"
           alt="Margin Flow"
           width={18}
           height={18}
-          className="w-4 h-4 object-contain opacity-80"
+          className="w-4 h-4 object-contain opacity-80 shrink-0"
         />
         <span className="text-xs font-semibold text-slate-500">MarginFlow</span>
         <span className="text-xs text-slate-300">/</span>
-        <span className="text-xs font-semibold text-slate-800 tracking-tight">
+        <span className="text-xs font-semibold text-slate-800 tracking-tight whitespace-nowrap">
           {moduleTitles[activeModule] || activeModule}
         </span>
       </div>
 
       {/* Center/Right Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0 overflow-x-auto no-scrollbar py-1">
         {/* Pill Segmented Control (Image 2 style) */}
-        <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/50 inline-flex items-center gap-0.5 text-xs">
+        <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/50 inline-flex items-center gap-0.5 text-xs shrink-0">
           {marketplaces.map((mp) => {
             const isSelected = selectedMarketplace === mp.id;
             return (
               <button
                 key={mp.id}
                 onClick={() => onSelectMarketplace(mp.id)}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                className={`px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                   isSelected
                     ? "bg-white text-[#1D1D1F] shadow-[0_1px_3px_rgba(0,0,0,0.06)] font-semibold"
                     : "text-slate-600 hover:text-slate-900 font-medium"

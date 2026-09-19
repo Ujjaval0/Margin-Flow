@@ -150,6 +150,7 @@ export interface ReturnRecord {
   restockStatus?: RestockStatus; // Restock disposition tracking
   claimDeadline?: string;        // Marketplace SLA claim expiration date
   returnShippingCost: number;
+  customerReturnFee: number;      // Marketplace return processing fee (always recorded for CUSTOMER_RETURN, never for RTO)
   otherReturnCosts: number;
   inventoryRecoveryValue: number; // e.g., scrap value or salvage value if damaged
   lossAmount: number;             // Net write-off loss
@@ -310,3 +311,41 @@ export interface GuardrailCheckResult {
   details: string;
   count?: number;
 }
+
+// Dashboard Inventory Card Metrics
+export interface InventoryMetrics {
+  openingStock: number;
+  purchasedQuantity: number;
+  soldQuantity: number;
+  goodReturnedQuantity: number;
+  damagedReturnedQuantity: number;
+  currentStock: number;
+  inventoryValue: number;
+}
+
+// Dashboard Fees Breakdown Card Metrics
+export interface FeesBreakdown {
+  platformCommission: number;
+  shippingLogistics: number;
+  customerReturnFees: number;
+  otherDeductions: number;
+  totalFees: number;
+}
+
+// Dashboard Claims Summary Card Metrics
+export interface ClaimsSummary {
+  claimsFiled: number;
+  pendingClaims: number;
+  approvedClaims: number;
+  reimbursementReceived: number;
+  outstandingClaimAmount: number;
+}
+
+// Dashboard Settlement Summary Card Metrics
+export interface SettlementSummary {
+  expectedSettlement: number;
+  actualReceived: number;
+  pendingSettlement: number;
+  totalDeductions: number;
+}
+

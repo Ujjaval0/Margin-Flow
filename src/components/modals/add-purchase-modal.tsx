@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Truck, X } from "lucide-react";
 import { Supplier, Product, PurchaseBill } from "@/domain/types";
 import { formatINR } from "@/lib/utils";
@@ -20,6 +21,13 @@ export function AddPurchaseModal({
   products,
   onAddPurchase,
 }: AddPurchaseModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   const [purchaseSupplierId, setPurchaseSupplierId] = useState(suppliers[0]?.id || "");
   const [purchaseInvoiceNo, setPurchaseInvoiceNo] = useState("INV-2026-901");
   const [purchaseSku, setPurchaseSku] = useState(products[0]?.sku || "");
@@ -27,7 +35,7 @@ export function AddPurchaseModal({
   const [purchaseUnitCost, setPurchaseUnitCost] = useState(products[0]?.currentCostPrice || 350);
   const [purchaseTaxRate, setPurchaseTaxRate] = useState(18);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const subtotal = purchaseQty * purchaseUnitCost;
   const taxes = Math.round(subtotal * (purchaseTaxRate / 100));
@@ -55,7 +63,7 @@ export function AddPurchaseModal({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={onClose}
@@ -196,6 +204,7 @@ export function AddPurchaseModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

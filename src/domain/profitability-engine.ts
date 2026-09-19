@@ -19,6 +19,7 @@ export interface ProfitabilityMetrics {
 
   marketplaceCharges: number;
   shippingLogisticsCosts: number;
+  customerReturnFees: number;      // NEW: Marketplace return processing fee (customer returns only)
   returnLosses: number;
   rtoLosses: number;
   damageLosses: number;
@@ -51,6 +52,9 @@ export interface ProfitabilityMetrics {
   pendingClaimsAmount: number; // Claims amount under review / pending
   pendingClaimsCount: number; // Count of pending claims
   damagedUnitsCount: number; // Number of units in damaged or unusable condition
+
+  // Dashboard Card: Total Fees (platform + logistics + return fees + other)
+  totalFees: number;
 }
 
 export interface OrderProfitability {
@@ -119,6 +123,10 @@ export interface MonthlyProfitability {
 
 export interface IndexedFinancialMaps {
   returnUnitsMap: Map<string, number>;
+  /** Condition-aware: only SELLABLE/good returns (COGS should be reversed) */
+  goodReturnUnitsMap: Map<string, number>;
+  /** Condition-aware: only DAMAGED/UNUSABLE returns (COGS stays intact) */
+  damagedReturnUnitsMap: Map<string, number>;
   returnsByOrderMap: Map<string, ReturnRecord[]>;
   settlementsByOrderMap: Map<string, Settlement[]>;
   claimsByOrderMap: Map<string, Claim[]>;
@@ -130,12 +138,21 @@ export function buildFinancialMaps(
   claims: Claim[]
 ): IndexedFinancialMaps {
   const returnUnitsMap = new Map<string, number>();
+  const goodReturnUnitsMap = new Map<string, number>();
+  const damagedReturnUnitsMap = new Map<string, number>();
   const returnsByOrderMap = new Map<string, ReturnRecord[]>();
+
+  const isDamaged = (cond: string) =>
+    cond === "DAMAGED" || cond === "UNUSABLE" || cond === "MISSING";
+
   for (let i = 0; i < returns.length; i++) {
     const r = returns[i];
+    const condMap = isDamaged(r.condition) ? damagedReturnUnitsMap : goodReturnUnitsMap;
+
     if (r.orderId) {
       const uKey = `${r.orderId}:${r.sku}`;
       returnUnitsMap.set(uKey, (returnUnitsMap.get(uKey) || 0) + r.quantity);
+      condMap.set(uKey, (condMap.get(uKey) || 0) + r.quantity);
       const list = returnsByOrderMap.get(r.orderId);
       if (list) list.push(r);
       else returnsByOrderMap.set(r.orderId, [r]);
@@ -143,6 +160,7 @@ export function buildFinancialMaps(
     if (r.channelOrderId) {
       const uKey = `${r.channelOrderId}:${r.sku}`;
       returnUnitsMap.set(uKey, (returnUnitsMap.get(uKey) || 0) + r.quantity);
+      condMap.set(uKey, (condMap.get(uKey) || 0) + r.quantity);
       const list = returnsByOrderMap.get(r.channelOrderId);
       if (list) list.push(r);
       else returnsByOrderMap.set(r.channelOrderId, [r]);
@@ -169,7 +187,14 @@ export function buildFinancialMaps(
     }
   }
 
-  return { returnUnitsMap, returnsByOrderMap, settlementsByOrderMap, claimsByOrderMap };
+  return {
+    returnUnitsMap,
+    goodReturnUnitsMap,
+    damagedReturnUnitsMap,
+    returnsByOrderMap,
+    settlementsByOrderMap,
+    claimsByOrderMap,
+  };
 }
 
 /**
@@ -199,6 +224,40 @@ export function getReturnedUnitsForItem(
         r.sku === itemSku
     )
     .reduce((sum, r) => sum + r.quantity, 0);
+}
+
+/**
+ * Condition-aware helper: gets returned units that are GOOD / SELLABLE (eligible for COGS reversal).
+ * For DAMAGED / UNUSABLE returns, COGS is NOT reversed; original COGS remains intact.
+ */
+export function getGoodReturnedUnitsForItem(
+  order: Order,
+  itemSku: string,
+  returns: ReturnRecord[],
+  goodReturnUnitsMap?: Map<string, number>
+): number {
+  if (goodReturnUnitsMap) {
+    const k1 = `${order.id}:${itemSku}`;
+    const val1 = goodReturnUnitsMap.get(k1);
+    if (val1 !== undefined) return val1;
+    if (order.channelOrderId) {
+      const k2 = `${order.channelOrderId}:${itemSku}`;
+      const val2 = goodReturnUnitsMap.get(k2);
+      if (val2 !== undefined) return val2;
+    }
+  }
+  const isDamaged = (cond: string) => cond === "DAMAGED" || cond === "UNUSABLE" || cond === "MISSING";
+  const matchedReturns = returns.filter(
+    (r) =>
+      (r.orderId === order.id || (order.channelOrderId && r.channelOrderId === order.channelOrderId)) &&
+      r.sku === itemSku
+  );
+  if (matchedReturns.length > 0) {
+    return matchedReturns
+      .filter((r) => !isDamaged(r.condition))
+      .reduce((sum, r) => sum + r.quantity, 0);
+  }
+  return order.items.find((i) => i.sku === itemSku)?.returnedQuantity || 0;
 }
 
 /**
@@ -259,6 +318,8 @@ export function calculateBusinessProfitability(
   let customerReturnCount = 0;
   let damagedUnitsCount = 0;
 
+  let customerReturnFees = 0;
+
   returns.forEach((ret) => {
     totalReturnedUnits += ret.quantity;
     const loss = ret.lossAmount; // Exact net loss, no double counting of shipping
@@ -269,6 +330,10 @@ export function calculateBusinessProfitability(
     } else {
       returnLosses += loss;
       customerReturnCount += ret.quantity;
+    }
+
+    if (ret.customerReturnFee) {
+      customerReturnFees += ret.customerReturnFee;
     }
 
     if (ret.condition === "DAMAGED" || ret.condition === "UNUSABLE") {
@@ -366,6 +431,10 @@ export function calculateBusinessProfitability(
     Math.round((netSales - marketplaceCharges - shippingLogisticsCosts - actualSettlementsReceived) * 100) / 100
   );
 
+  const totalFees = Math.round(
+    (marketplaceCharges + shippingLogisticsCosts + customerReturnFees) * 100
+  ) / 100;
+
   return {
     grossSales,
     discounts,
@@ -376,6 +445,7 @@ export function calculateBusinessProfitability(
     grossMargin,
     marketplaceCharges,
     shippingLogisticsCosts,
+    customerReturnFees,
     returnLosses,
     rtoLosses,
     damageLosses,
@@ -401,6 +471,7 @@ export function calculateBusinessProfitability(
     pendingClaimsAmount,
     pendingClaimsCount,
     damagedUnitsCount,
+    totalFees,
   };
 }
 
@@ -508,8 +579,8 @@ export function calculateMarketplaceProfitability(
   const marketplaces: Marketplace[] = [
     "Amazon India",
     "Flipkart",
+    "Myntra",
     "Meesho",
-    "Personal Website",
   ];
 
   const maps = buildFinancialMaps(returns, settlements, claims);
@@ -605,15 +676,23 @@ export function calculateSkuProfitability(
   expenses: Expense[] = []
 ): SkuProfitability[] {
   const returnUnitsMap = new Map<string, number>();
+  const goodReturnUnitsMap = new Map<string, number>();
+  const isDamaged = (cond: string) => cond === "DAMAGED" || cond === "UNUSABLE" || cond === "MISSING";
   for (let i = 0; i < returns.length; i++) {
     const r = returns[i];
     if (r.orderId) {
       const uKey = `${r.orderId}:${r.sku}`;
       returnUnitsMap.set(uKey, (returnUnitsMap.get(uKey) || 0) + r.quantity);
+      if (!isDamaged(r.condition)) {
+        goodReturnUnitsMap.set(uKey, (goodReturnUnitsMap.get(uKey) || 0) + r.quantity);
+      }
     }
     if (r.channelOrderId) {
       const uKey = `${r.channelOrderId}:${r.sku}`;
       returnUnitsMap.set(uKey, (returnUnitsMap.get(uKey) || 0) + r.quantity);
+      if (!isDamaged(r.condition)) {
+        goodReturnUnitsMap.set(uKey, (goodReturnUnitsMap.get(uKey) || 0) + r.quantity);
+      }
     }
   }
 
@@ -658,7 +737,8 @@ export function calculateSkuProfitability(
       };
 
       const returnedQty = getReturnedUnitsForItem(order, item.sku, returns, returnUnitsMap) || item.returnedQuantity || 0;
-      const deliveredQty = Math.max(0, item.quantity - returnedQty);
+      const goodReturnedQty = getGoodReturnedUnitsForItem(order, item.sku, returns, goodReturnUnitsMap);
+      const deliveredQty = Math.max(0, item.quantity - goodReturnedQty);
       const refundedAmount = getRefundedAmountForItem(item, returnedQty);
       const itemNetRevenue = Math.max(0, item.sellingPrice * item.quantity - item.discount - refundedAmount);
 
@@ -854,7 +934,11 @@ export function filterDatasetByDateRange(
   expenses: Expense[],
   range: DateFilterRange
 ) {
-  const isBetween = (dStr: string) => dStr >= range.startDate && dStr <= range.endDate;
+  const isBetween = (dStr: string | undefined | null) => {
+    if (!dStr) return false;
+    const dateOnly = dStr.slice(0, 10);
+    return dateOnly >= range.startDate && dateOnly <= range.endDate;
+  };
 
   const filteredOrders = orders.filter((o) => isBetween(o.orderDate));
   const filteredReturns = returns.filter((r) => isBetween(r.returnDate));

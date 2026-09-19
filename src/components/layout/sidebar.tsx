@@ -194,7 +194,7 @@ export function Sidebar({
 
   return (
     <aside
-      className={`bg-[#FBFBFD] flex flex-col h-screen border-r border-black/[0.06] select-none text-[#1D1D1F] transition-all duration-300 ease-in-out shrink-0 ${
+      className={`bg-[#FBFBFD] flex flex-col h-full border-r border-black/[0.06] select-none text-[#1D1D1F] transition-all duration-300 ease-in-out shrink-0 ${
         isOpen ? "w-64" : "w-[72px]"
       }`}
     >
@@ -265,7 +265,7 @@ export function Sidebar({
                 onSelectModule?.(item.id);
               }}
               title={item.label}
-              className={`w-full flex items-center ${
+              className={`group w-full flex items-center ${
                 isOpen ? "justify-between px-2.5 py-1.5" : "justify-center py-2 px-0"
               } rounded-xl text-xs font-medium transition-all ${
                 isActive
