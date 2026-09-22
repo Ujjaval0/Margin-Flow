@@ -43,59 +43,15 @@ export function analyzeFinancialQuery(
     return {
       answer:
         "I'm dedicated exclusively as your store assistant to help you understand and manage your MarginFlow data—such as your sales, profit margins, orders, returns, and inventory. Let me know what you'd like to explore in your numbers!",
-      chips: [
-        {
-          id: "chip-why-profit",
-          label: "Why did profit drop?",
-          type: "NAVIGATE",
-          payload: { query: "Why did my profit drop?" },
-        },
-        {
-          id: "chip-poas",
-          label: "Check ad bleed (POAS)",
-          type: "NAVIGATE",
-          payload: { query: "Which SKUs have positive ROAS but negative POAS?" },
-        },
-        {
-          id: "chip-orders",
-          label: "View Orders Ledger",
-          type: "NAVIGATE",
-          payload: { route: "/orders" },
-        },
-        {
-          id: "chip-returns",
-          label: "View Returns & RTO",
-          type: "NAVIGATE",
-          payload: { route: "/returns" },
-        },
-      ],
+      chips: [],
     };
   }
 
   // 0.1 Warm Conversational Greetings
   if (q === "hi" || q === "hello" || q === "hey" || q.includes("who are you") || q.includes("what can you do")) {
     return {
-      answer: `Hello! I'm Flow, your store assistant. I have full real-time access to your store's performance across all active channels. Currently, your store has generated ${formatINR(waterfall.netRevenue)} in net sales with a ${waterfall.netMarginPercent.toFixed(1)}% net operating margin (${formatINR(waterfall.netOperatingProfit)} profit). What would you like to examine today?`,
-      chips: [
-        {
-          id: "chip-why-profit",
-          label: "Why did my profit drop?",
-          type: "NAVIGATE",
-          payload: { query: "Why did my profit drop?" },
-        },
-        {
-          id: "chip-poas-audit",
-          label: "Check ad bleed (POAS)",
-          type: "NAVIGATE",
-          payload: { query: "Which SKUs have positive ROAS but negative POAS?" },
-        },
-        {
-          id: "chip-overdue-payouts",
-          label: "Overdue payouts (>14d)",
-          type: "NAVIGATE",
-          payload: { query: "Show overdue settlements past 14 days" },
-        },
-      ],
+      answer: `Hello! I'm Flow, your store assistant. I have full real-time access to your store's performance across all active channels. Currently, your store has generated ${formatINR(waterfall.netRevenue)} in net sales with a ${waterfall.netMarginPercent.toFixed(1)}% net operating margin (${formatINR(waterfall.netOperatingProfit)} profit). What would you like to explore today?`,
+      chips: [],
     };
   }
 
@@ -150,7 +106,7 @@ export function analyzeFinancialQuery(
       ? `Net Operating Profit is down ${changeText}% period-over-period to ${formatINR(waterfall.netOperatingProfit)} (${waterfall.netMarginPercent.toFixed(1)}% margin). The primary drag is ${formatINR(waterfall.returnAndRtoLoss)} in returns & RTO courier freight${worstSku ? `, led by negative contribution on ${worstSku.sku} (-${formatINR(Math.abs(worstSku.netProfit))})` : ""}.`
       : `Net Operating Profit is up ${changeText}% to ${formatINR(waterfall.netOperatingProfit)} with a healthy ${waterfall.netMarginPercent.toFixed(1)}% net margin on ${formatINR(waterfall.netRevenue)} net revenue. Growth is driven by ${heroSkus[0]?.sku || "hero products"} generating strong POAS (${waterfall.blendedPoas.toFixed(2)}x) across channels.`;
 
-    return { answer, chips };
+    return { answer, chips: chips.slice(0, 2) };
   }
 
   // 2. POAS / Ad Bleed / ROAS Analysis
@@ -208,7 +164,7 @@ export function analyzeFinancialQuery(
       ? `There is ${formatINR(overdueAmt)} in delayed marketplace disbursements aging past 14 days across ${count} un-settled orders. Cross-reference your bank credit UTRs against open settlement batches to confirm whether withholding adjustments or bank clearance holds apply.`
       : `Disbursement cycle is healthy: 100% of pending settlement batches are within the 0–14 day standard cycle (${formatINR(settlementAging.within7DaysAmount)} cycle-safe). Net bank deposit matching is fully balanced.`;
 
-    return { answer, chips };
+    return { answer, chips: chips.slice(0, 2) };
   }
 
   // 4. Returns, Damaged Stock & Claims
@@ -242,7 +198,7 @@ export function analyzeFinancialQuery(
       ? `Total returns & RTO loss stands at ${formatINR(waterfall.returnAndRtoLoss)}. You have ${unclaimed.length} unfiled damaged returns totaling ${formatINR(unclaimed.reduce((s, r) => s + r.lossAmount, 0))} in recoverable capital. File Amazon SAFE-T or Flipkart dispute before the 30-day SLA window closes.`
       : `Returns & RTO losses total ${formatINR(waterfall.returnAndRtoLoss)}. All physical damaged returns currently have active dispute claims filed with marketplace partner portals.`;
 
-    return { answer, chips };
+    return { answer, chips: chips.slice(0, 2) };
   }
 
   // 5. Default Executive Overview
@@ -273,5 +229,37 @@ export function analyzeFinancialQuery(
 
   const answer = `Across all channels, MarginFlow reports ${formatINR(waterfall.netRevenue)} in net sales and ${formatINR(waterfall.netOperatingProfit)} in net operating cash profit (${waterfall.netMarginPercent.toFixed(1)}% margin). ${topHero ? `Top contributor is ${topHero.sku} generating ${formatINR(topHero.netProfit)} net profit.` : ""} Total ad spend is ${formatINR(waterfall.totalAdSpend)} at ${waterfall.blendedPoas.toFixed(2)}x POAS.`;
 
+  return { answer, chips: chips.slice(0, 2) };
+}
+
+/**
+ * Parses out Action Chips block from the LLM text output
+ */
+export function parseResponseAndChips(
+  rawText: string,
+  context: GroundedFinancialContext
+): { answer: string; chips: AIActionChip[] } {
+  let answer = rawText.trim();
+  let chips: AIActionChip[] = [];
+
+  // Look for ```action_chips ... ``` or ```json ... ``` block
+  const chipBlockMatch = rawText.match(/```(?:action_chips|json)?\s*([\s\S]*?)\s*```/);
+  if (chipBlockMatch) {
+    try {
+      const parsed = JSON.parse(chipBlockMatch[1]);
+      if (Array.isArray(parsed)) {
+        chips = parsed.slice(0, 2);
+      }
+      // Remove the code block from visible answer
+      answer = answer.replace(/```(?:action_chips|json)?\s*[\s\S]*?\s*```/, "").trim();
+    } catch {
+      // ignore parse errors
+    }
+  }
+
+  // Ensure answer is in clean plain English without markdown asterisks
+  answer = answer.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*/g, "");
+
   return { answer, chips };
 }
+

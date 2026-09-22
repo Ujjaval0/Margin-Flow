@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { generateObject } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { AIStagedDocument, Marketplace } from "./types";
 import { validateDocumentArithmetic } from "./guardrails";
 import { processDocumentOCR } from "./ocr-engine";
@@ -74,38 +76,15 @@ export async function executeIDPPipeline(
 ): Promise<IDPPipelineResult> {
   const apiKey = options?.apiKey || process.env.GEMINI_API_KEY;
 
-  // 1. If Gemini API key is available, execute structured LLM extraction
+  // 1. If Gemini API key is available, execute structured LLM extraction via Vercel AI SDK
   if (apiKey) {
     try {
-      const prompt = `You are a statutory financial document extraction engine.
-Extract data from the invoice/bill text below strictly matching this JSON schema:
-${JSON.stringify(InvoiceExtractionSchema.shape)}
-
-DOCUMENT TEXT:
-${rawText}
-
-Return ONLY raw JSON, with no markdown formatting or commentary.`;
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseMimeType: "application/json",
-            },
-          }),
-        }
-      );
-
-      if (response.ok) {
-        const json = await response.json();
-        const responseText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (responseText) {
-          const parsed = JSON.parse(responseText);
-          const validated = InvoiceExtractionSchema.parse(parsed);
+      const google = createGoogleGenerativeAI({ apiKey });
+      const { object: validated } = await generateObject({
+        model: google("gemini-1.5-flash"),
+        schema: InvoiceExtractionSchema,
+        prompt: `You are a statutory financial document extraction engine. Extract data from the invoice/bill text below:\n\nDOCUMENT TEXT:\n${rawText}`,
+      });
 
           // Convert to AIStagedDocument
           const primaryItem = validated.lineItems[0] || {
@@ -206,8 +185,6 @@ Return ONLY raw JSON, with no markdown formatting or commentary.`;
               discrepancyMessage: passed ? undefined : `Variance ₹${diff}`,
             },
           };
-        }
-      }
     } catch (llmError) {
       console.warn("LLM IDP extraction failed, falling back to deterministic parser:", llmError);
     }

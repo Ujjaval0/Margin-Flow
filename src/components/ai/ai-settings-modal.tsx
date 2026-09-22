@@ -112,9 +112,11 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Accept": "application/json",
+          "x-ai-stream": "false",
           "x-ai-provider": selectedProvider,
           "x-ai-key": apiKey.trim(),
-          "x-ai-model": meta.defaultModel,
+          "x-ai-model": modelInput.trim() || meta.defaultModel,
           "x-ai-base-url": customBaseUrl.trim(),
         },
         body: JSON.stringify({
@@ -133,11 +135,24 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
         }),
       });
 
-      const data = await res.json();
-      if (data.success) {
-        setTestState({ status: "ok", msg: "Key verified & active." });
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const data = await res.json();
+        if (data.success && data.source === "LLM_PROVIDER") {
+          setTestState({ status: "ok", msg: "Key verified & active." });
+        } else {
+          setTestState({
+            status: "err",
+            msg: data.diagnosticMessage || data.error || "Verification failed.",
+          });
+        }
       } else {
-        setTestState({ status: "err", msg: data.error || "Verification failed." });
+        const text = await res.text();
+        if (res.ok && text.trim()) {
+          setTestState({ status: "ok", msg: "Key verified & active." });
+        } else {
+          setTestState({ status: "err", msg: "Verification failed." });
+        }
       }
     } catch (e: any) {
       setTestState({ status: "err", msg: e.message || "Network error." });

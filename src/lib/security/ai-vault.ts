@@ -10,6 +10,7 @@
 
 export type AIProvider =
   | "gemini"
+  | "groq"
   | "deepseek"
   | "moonshot"
   | "openrouter"
@@ -46,6 +47,24 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
     ],
     placeholderKey: "AIzaSy...",
     keyDocsUrl: "https://aistudio.google.com/app/apikey",
+  },
+  groq: {
+    id: "groq",
+    name: "Groq (Ultra-Fast LPU)",
+    defaultModel: "llama-3.3-70b-versatile",
+    recommendedModels: [
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "deepseek-r1-distill-llama-70b",
+      "llama-3.2-1b-preview",
+      "llama-3.2-3b-preview",
+      "mixtral-8x7b-32768",
+      "gemma2-9b-it",
+      "qwen-qwq-32b",
+    ],
+    placeholderKey: "gsk_...",
+    keyDocsUrl: "https://console.groq.com/keys",
+    defaultBaseUrl: "https://api.groq.com/openai/v1",
   },
   deepseek: {
     id: "deepseek",

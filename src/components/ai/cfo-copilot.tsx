@@ -7,7 +7,6 @@ import {
   Send,
   Settings2,
   ArrowRight,
-  RefreshCw,
   AlertCircle,
 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -15,6 +14,7 @@ import { usePlatform } from "@/domain/store";
 import { serializeFinancialContext, AIActionChip } from "@/domain/ai-context";
 import { loadAISettings, AISettings, PROVIDER_REGISTRY } from "@/lib/security/ai-vault";
 import { computeAnomalyRadar } from "@/domain/anomaly-radar";
+import { parseResponseAndChips } from "@/domain/deterministic-analyst";
 import { formatINR } from "@/lib/utils";
 import { AssistantEmblem } from "./assistant-emblem";
 import type { SkuEconomicsItem } from "@/components/modals/sku-drawer";
@@ -79,14 +79,11 @@ export function CfoCopilot() {
       return;
     }
 
-    const itemsText = anomalyBriefing.items
-      .map(
-        (it, idx) =>
-          `**${idx + 1}. ${it.title}** (${it.metricHighlight}):\n${it.description}`
-      )
+    const anomalySummary = anomalyBriefing.items
+      .map((it) => `${it.title} (${it.metricHighlight}):\n${it.description}`)
       .join("\n\n");
 
-    const chips: AIActionChip[] = anomalyBriefing.items.map((it) => ({
+    const chips: AIActionChip[] = anomalyBriefing.items.slice(0, 2).map((it) => ({
       id: `chip-radar-${it.id}`,
       label: `${it.actionLabel} ➔`,
       type: "NAVIGATE",
@@ -103,7 +100,7 @@ export function CfoCopilot() {
     const asstMsg: ChatMessage = {
       id: `msg-asst-${Date.now() + 1}`,
       sender: "assistant",
-      text: `**Operational Anomaly Radar (Deterministic Scan)**\n\nTotal exposure identified: **${formatINR(anomalyBriefing.totalExposureAmount)}** across ${anomalyBriefing.totalAnomaliesCount} operational areas:\n\n${itemsText}`,
+      text: `I reviewed your store numbers and identified ${anomalyBriefing.totalAnomaliesCount} operational areas with a total exposure of ${formatINR(anomalyBriefing.totalExposureAmount)}.\n\n${anomalySummary}`,
       chips,
       source: "MarginFlow Anomaly Engine",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -166,24 +163,6 @@ export function CfoCopilot() {
               type: "NAVIGATE",
               payload: { query: "Why did my profit drop?" },
             },
-            {
-              id: "chip-poas-audit",
-              label: "Check ad bleed (POAS)",
-              type: "NAVIGATE",
-              payload: { query: "Which SKUs have positive ROAS but negative POAS?" },
-            },
-            {
-              id: "chip-overdue-payouts",
-              label: "Overdue payouts (>14d)",
-              type: "NAVIGATE",
-              payload: { query: "Show overdue settlements past 14 days" },
-            },
-            {
-              id: "chip-orders",
-              label: "View Orders Ledger",
-              type: "NAVIGATE",
-              payload: { route: "/orders" },
-            },
           ],
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
@@ -240,11 +219,7 @@ export function CfoCopilot() {
         id: `msg-guard-${Date.now() + 1}`,
         sender: "assistant",
         text: "I'm dedicated exclusively as your store assistant to help you understand and manage your MarginFlow data — such as your sales, profit margins, orders, returns, and inventory. Let me know what you'd like to explore in your numbers!",
-        chips: [
-          { id: "chip-profit", label: "Why did my profit drop?", type: "NAVIGATE", payload: { query: "Why did my profit drop?" } },
-          { id: "chip-poas", label: "Check ad bleed (POAS)", type: "NAVIGATE", payload: { query: "Which SKUs have positive ROAS but negative POAS?" } },
-          { id: "chip-orders", label: "View Orders Ledger", type: "NAVIGATE", payload: { route: "/orders" } },
-        ],
+        chips: [],
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, userMsg, guardrailMsg]);
@@ -303,21 +278,81 @@ export function CfoCopilot() {
         body: JSON.stringify({ prompt: query, context }),
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get("content-type") || "";
 
-      if (data.success) {
-        const assistantMsg: ChatMessage = {
-          id: `msg-asst-${Date.now()}`,
+      if (contentType.includes("application/json")) {
+        const data = await res.json();
+        if (data.success) {
+          const assistantMsg: ChatMessage = {
+            id: `msg-asst-${Date.now()}`,
+            sender: "assistant",
+            text: data.answer,
+            chips: data.chips || [],
+            source: data.source,
+            diagnosticMessage: data.diagnosticMessage || null,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          };
+          setMessages((prev) => [...prev, assistantMsg]);
+        } else {
+          throw new Error(data.error || "Failed to analyze query.");
+        }
+      } else {
+        // Vercel AI SDK text stream
+        const assistantMsgId = `msg-asst-${Date.now()}`;
+        const sourceHeader = res.headers.get("x-ai-source") || "LLM_PROVIDER";
+
+        const initialAssistantMsg: ChatMessage = {
+          id: assistantMsgId,
           sender: "assistant",
-          text: data.answer,
-          chips: data.chips || [],
-          source: data.source,
-          diagnosticMessage: data.diagnosticMessage || null,
+          text: "",
+          source: sourceHeader,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         };
-        setMessages((prev) => [...prev, assistantMsg]);
-      } else {
-        throw new Error(data.error || "Failed to analyze query.");
+
+        setMessages((prev) => [...prev, initialAssistantMsg]);
+        setIsLoading(false);
+
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedText = "";
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            accumulatedText += chunk;
+
+            // Strip action_chips fence from live visible text
+            let visibleText = accumulatedText;
+            const chipBlockStart = visibleText.indexOf("```action_chips");
+            if (chipBlockStart !== -1) {
+              visibleText = visibleText.slice(0, chipBlockStart).trimEnd();
+            } else {
+              const fenceStart = visibleText.indexOf("```json");
+              if (fenceStart !== -1 && visibleText.includes('"type"')) {
+                visibleText = visibleText.slice(0, fenceStart).trimEnd();
+              }
+            }
+
+            // Strip markdown asterisks & headers from live streaming buffer
+            visibleText = visibleText.replace(/\*\*(.*?)\*\*/g, "$1").replace(/^#+\s+/gm, "");
+
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMsgId ? { ...msg, text: visibleText } : msg
+              )
+            );
+          }
+        }
+
+        // Stream completed: finalize answer and parse action chips
+        const { answer, chips } = parseResponseAndChips(accumulatedText, context);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId ? { ...msg, text: answer, chips } : msg
+          )
+        );
       }
     } catch (err: any) {
       const errorMsg: ChatMessage = {
@@ -479,7 +514,17 @@ export function CfoCopilot() {
                             : "bg-[#FFFFFF] border border-[#E7E4DA] text-[#242320] shadow-[0_1px_2px_rgba(0,0,0,0.02)] rounded-tl-xs"
                         }`}
                       >
-                        <p className="whitespace-pre-line text-xs">{msg.text}</p>
+                        {msg.text ? (
+                          <p className="whitespace-pre-line text-xs">
+                            {msg.text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/^#+\s+/gm, "")}
+                          </p>
+                        ) : (
+                          <div className="flex items-center gap-1.5 py-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce [animation-delay:-0.32s]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce [animation-delay:-0.16s]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce" />
+                          </div>
+                        )}
 
                         {/* Diagnostic Banner — shown when API failed and local engine answered */}
                         {!isUser && msg.diagnosticMessage && (
@@ -512,9 +557,12 @@ export function CfoCopilot() {
                 })}
 
                 {isLoading && (
-                  <div className="flex items-center gap-2 text-xs text-[#6B685F] py-1 px-1">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#D97757]" />
-                    <span>Reviewing your store numbers...</span>
+                  <div className="flex flex-col items-start animate-in fade-in duration-200">
+                    <div className="bg-[#FFFFFF] border border-[#E7E4DA] rounded-2xl rounded-tl-xs px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce [animation-delay:-0.32s]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce [animation-delay:-0.16s]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce" />
+                    </div>
                   </div>
                 )}
 

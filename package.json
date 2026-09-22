@@ -9,7 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.76",
+    "@ai-sdk/openai": "^4.0.72",
     "@tanstack/react-table": "^8.21.2",
+    "ai": "^7.0.109",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
     "next": "^15.1.7",
