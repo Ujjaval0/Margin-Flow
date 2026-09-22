@@ -8,6 +8,7 @@ import {
   Settings2,
   ArrowRight,
   RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePlatform } from "@/domain/store";
@@ -34,6 +35,7 @@ interface ChatMessage {
   text: string;
   chips?: AIActionChip[];
   source?: string;
+  diagnosticMessage?: string | null;
   timestamp: string;
 }
 
@@ -194,6 +196,62 @@ export function CfoCopilot() {
     if (!query || isLoading) return;
 
     const qLower = query.toLowerCase();
+
+    // Client-side off-topic guardrail (saves API cost, instant response)
+    const isOffTopic =
+      qLower.includes("movie") ||
+      qLower.includes("film") ||
+      qLower.includes("cinema") ||
+      qLower.includes("music") ||
+      qLower.includes("song") ||
+      qLower.includes("singer") ||
+      qLower.includes("actor") ||
+      qLower.includes("actress") ||
+      qLower.includes("hollywood") ||
+      qLower.includes("bollywood") ||
+      qLower.includes("netflix") ||
+      qLower.includes("spotify") ||
+      qLower.includes("youtube") ||
+      qLower.includes("cricket") ||
+      qLower.includes("football") ||
+      qLower.includes("sports") ||
+      qLower.includes("ipl") ||
+      qLower.includes("weather") ||
+      qLower.includes("news") ||
+      qLower.includes("politics") ||
+      qLower.includes("election") ||
+      qLower.includes("game") ||
+      qLower.includes("gaming") ||
+      qLower.includes("recipe") ||
+      qLower.includes("cooking") ||
+      qLower.includes("dating") ||
+      qLower.includes("explicit") ||
+      qLower.includes("porn") ||
+      qLower.includes("sex");
+
+    if (isOffTopic) {
+      const userMsg: ChatMessage = {
+        id: `msg-user-${Date.now()}`,
+        sender: "user",
+        text: query,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      const guardrailMsg: ChatMessage = {
+        id: `msg-guard-${Date.now() + 1}`,
+        sender: "assistant",
+        text: "I'm dedicated exclusively as your store assistant to help you understand and manage your MarginFlow data — such as your sales, profit margins, orders, returns, and inventory. Let me know what you'd like to explore in your numbers!",
+        chips: [
+          { id: "chip-profit", label: "Why did my profit drop?", type: "NAVIGATE", payload: { query: "Why did my profit drop?" } },
+          { id: "chip-poas", label: "Check ad bleed (POAS)", type: "NAVIGATE", payload: { query: "Which SKUs have positive ROAS but negative POAS?" } },
+          { id: "chip-orders", label: "View Orders Ledger", type: "NAVIGATE", payload: { route: "/orders" } },
+        ],
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((prev) => [...prev, userMsg, guardrailMsg]);
+      setInputQuery("");
+      return;
+    }
+
     if (
       qLower.includes("anomaly") ||
       qLower.includes("radar") ||
@@ -254,6 +312,7 @@ export function CfoCopilot() {
           text: data.answer,
           chips: data.chips || [],
           source: data.source,
+          diagnosticMessage: data.diagnosticMessage || null,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         };
         setMessages((prev) => [...prev, assistantMsg]);
@@ -421,6 +480,16 @@ export function CfoCopilot() {
                         }`}
                       >
                         <p className="whitespace-pre-line text-xs">{msg.text}</p>
+
+                        {/* Diagnostic Banner — shown when API failed and local engine answered */}
+                        {!isUser && msg.diagnosticMessage && (
+                          <div className="mt-2.5 pt-2 border-t border-[#ECEAE2] flex items-start gap-1.5">
+                            <AlertCircle className="w-3 h-3 text-amber-600 shrink-0 mt-0.5" />
+                            <p className="text-[10px] text-amber-800 leading-relaxed">
+                              {msg.diagnosticMessage}
+                            </p>
+                          </div>
+                        )}
 
                         {/* Interactive Action Chips */}
                         {msg.chips && msg.chips.length > 0 && (

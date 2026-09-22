@@ -56,7 +56,6 @@ export function Navbar({
     expenses: "Operating Expense Ledger",
     documents: "AI Document Staging Sandbox",
     reports: "Analytics & P&L Statements",
-    audit: "Immutable Financial Audit Ledger",
     ledger: "Double-Entry General Ledger & Trial Balance",
     webhooks: "Store Integrations",
   };

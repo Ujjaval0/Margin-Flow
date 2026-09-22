@@ -22,7 +22,6 @@ import {
   Check,
   ArrowUpRight,
   Receipt,
-  Layers,
   Sparkles,
 } from "lucide-react";
 import { SupplierModal } from "@/components/modals/supplier-modal";
@@ -215,13 +214,13 @@ export function SuppliersView() {
   // Filtered Suppliers List
   const filteredSuppliers = useMemo(() => {
     if (!searchQuery.trim()) return suppliers;
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
     return suppliers.filter(
       (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.contactPerson.toLowerCase().includes(q) ||
-        s.phone.toLowerCase().includes(q) ||
-        s.email.toLowerCase().includes(q) ||
+        (s.name && s.name.toLowerCase().includes(q)) ||
+        (s.contactPerson && s.contactPerson.toLowerCase().includes(q)) ||
+        (s.phone && s.phone.toLowerCase().includes(q)) ||
+        (s.email && s.email.toLowerCase().includes(q)) ||
         (s.gstin && s.gstin.toLowerCase().includes(q)) ||
         (s.paymentTerms && s.paymentTerms.toLowerCase().includes(q))
     );
@@ -271,27 +270,23 @@ export function SuppliersView() {
   return (
     <div className="space-y-6 w-full max-w-[1600px] min-w-0 mx-auto animate-in fade-in duration-300">
       {/* --------------------------------------------------------------------------------- */}
-      {/* 1. Header Banner matching image features in clean Light Fintech aesthetic         */}
+      {/* 1. Page Header (Minimal Apple Aesthetic)                                          */}
       {/* --------------------------------------------------------------------------------- */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1.5 max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-[11px] font-bold uppercase tracking-wider">
-            <Layers className="w-3 h-3" />
-            <span>WHOLESALER & SUPPLIER PAYABLE LEDGER</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-1">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
             Wholesale Supplier Cost & Payables
           </h1>
-          <p className="text-xs text-slate-500 leading-relaxed">
+          <p className="text-xs text-[#86868B] mt-1 leading-relaxed">
             Manage supplier contact details, edit payment terms, track total balance paid till date, and record payout logs.
           </p>
         </div>
 
         <button
           onClick={() => setIsAddOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full text-xs font-semibold shadow-sm shadow-purple-600/20 transition shrink-0"
+          className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full text-xs font-semibold shadow-sm shadow-purple-600/20 transition shrink-0 cursor-pointer"
         >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
+          <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
           <span>Add New Supplier</span>
         </button>
       </div>

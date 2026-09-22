@@ -33,6 +33,7 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
   const [apiKey, setApiKey] = useState<string>("");
   const [showKey, setShowKey] = useState<boolean>(false);
   const [customBaseUrl, setCustomBaseUrl] = useState<string>("");
+  const [modelInput, setModelInput] = useState<string>(settings.model || "");
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [testState, setTestState] = useState<{ status: "idle" | "testing" | "ok" | "err"; msg?: string }>({
     status: "idle",
@@ -45,6 +46,7 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
       setSelectedProvider(current.activeProvider);
       setApiKey(current.keys[current.activeProvider] || "");
       setCustomBaseUrl(current.customBaseUrl || "");
+      setModelInput(current.model || PROVIDER_REGISTRY[current.activeProvider]?.defaultModel || "");
       setShowKey(false);
       setTestState({ status: "idle" });
       setSavedSuccess(false);
@@ -56,17 +58,17 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
     setApiKey(settings.keys[p] || "");
     setShowKey(false);
     setTestState({ status: "idle" });
+    setModelInput(PROVIDER_REGISTRY[p]?.defaultModel || "");
     setCustomBaseUrl(
       p === "custom" ? settings.customBaseUrl || "http://localhost:11434/v1" : ""
     );
   };
 
   const handleSave = () => {
-    const meta = PROVIDER_REGISTRY[selectedProvider];
     const updated: AISettings = {
       ...settings,
       activeProvider: selectedProvider,
-      model: meta.defaultModel,
+      model: modelInput.trim() || PROVIDER_REGISTRY[selectedProvider]?.defaultModel || "",
       keys: {
         ...settings.keys,
         [selectedProvider]: apiKey.trim(),
@@ -214,6 +216,38 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
               />
             </div>
           )}
+
+          {/* Model Picker */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-[#1D1D1F] block">
+              Model
+            </label>
+            {selectedProvider === "custom" ? (
+              // Free-text input for Custom/Local — model names are arbitrary
+              <input
+                type="text"
+                value={modelInput}
+                onChange={(e) => setModelInput(e.target.value)}
+                placeholder="e.g. llama3, mistral, qwen2.5"
+                className="w-full h-9 px-3 bg-[#F5F5F7] rounded-xl border border-black/[0.06] text-xs font-mono text-[#1D1D1F] placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-black"
+              />
+            ) : (
+              <div className="relative">
+                <select
+                  value={modelInput}
+                  onChange={(e) => setModelInput(e.target.value)}
+                  className="w-full h-9 pl-3 pr-8 bg-[#F5F5F7] rounded-xl border border-black/[0.06] text-xs font-mono text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black appearance-none cursor-pointer"
+                >
+                  {currentMeta.recommendedModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            )}
+          </div>
 
           {/* API Key Input */}
           <div className="space-y-1.5">

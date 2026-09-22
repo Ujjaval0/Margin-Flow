@@ -13,7 +13,6 @@ import {
   Receipt,
   FileCheck2,
   BarChart3,
-  ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
   Scale,
@@ -38,7 +37,6 @@ export type NavModule =
   | "expenses"
   | "documents"
   | "reports"
-  | "audit"
   | "ledger"
   | "webhooks";
 
@@ -169,14 +167,6 @@ export function Sidebar({
       bgTint: "bg-orange-500/10",
     },
     {
-      id: "audit" as NavModule,
-      href: "/audit",
-      label: "Audit Trail",
-      icon: ShieldCheck,
-      iconColor: "text-emerald-600",
-      bgTint: "bg-emerald-500/10",
-    },
-    {
       id: "ledger" as NavModule,
       href: "/ledger",
       label: "General Ledger",
@@ -209,7 +199,7 @@ export function Sidebar({
             className="flex items-center gap-2.5 min-w-0 group hover:opacity-90 transition-opacity"
             title="MarginFlow Dashboard"
           >
-            <MarginFlowLogo className="h-6 w-auto text-[#1D1D1F]" />
+            <MarginFlowLogo className="h-7 w-auto text-[#1D1D1F]" />
           </Link>
         </div>
       ) : (
