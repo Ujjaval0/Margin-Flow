@@ -145,6 +145,9 @@ export function processDocumentOCR(
       marketplace: marketplace
         ? { value: marketplace, confidence: 0.95, provenance: "AI_EXTRACTED" }
         : undefined,
+      vendorName: vendorName
+        ? { value: vendorName, confidence: vendorMatch ? 0.92 : 0.6, provenance: "AI_EXTRACTED" }
+        : undefined,
       orderId: invoiceNumber
         ? {
             value: invoiceNumber,

@@ -7,6 +7,7 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ["var(--font-inter)", "-apple-system", "BlinkMacSystemFont", "SF Pro Text", "sans-serif"],
+        mono: ["var(--font-geist-mono)", "SF Mono", "Menlo", "Monaco", "Consolas", "monospace"],
       },
       colors: {
         apple: {
@@ -39,5 +40,13 @@ module.exports = {
       },
     },
   },
+  safelist: [
+    {
+      pattern: /(bg|text|border)-(amber|blue|pink|rose|indigo|emerald|purple|teal|cyan|violet|orange|slate)-(50|100|200|300|400|500|600|700|800|900|950)/,
+    },
+    {
+      pattern: /(bg|border)-(amber|blue|pink|rose|indigo|emerald|purple|teal|cyan|violet|orange|slate)-500\/(10|15|20|25)/,
+    },
+  ],
   plugins: [],
 }

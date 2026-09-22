@@ -47,7 +47,7 @@ export function FormMarketplaceDropdown({
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/70 rounded-xl text-xs font-semibold border transition-all shadow-2xs cursor-pointer ${
           isOpen
-            ? "border-purple-600 ring-2 ring-purple-500/15 bg-white"
+            ? "border-slate-900 ring-2 ring-slate-900/10 bg-white text-slate-900"
             : "border-slate-200/90 text-slate-800"
         }`}
       >
@@ -67,7 +67,7 @@ export function FormMarketplaceDropdown({
 
         <ChevronDown
           className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-purple-600" : ""
+            isOpen ? "rotate-180 text-slate-900" : ""
           }`}
         />
       </button>
@@ -92,7 +92,7 @@ export function FormMarketplaceDropdown({
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors group cursor-pointer ${
                     isSelected
-                      ? "bg-purple-50 text-purple-950 font-bold"
+                      ? "bg-slate-100 text-slate-950 font-bold"
                       : "hover:bg-slate-50 text-slate-700 font-medium"
                   }`}
                 >
@@ -111,13 +111,13 @@ export function FormMarketplaceDropdown({
                     <span
                       className={`text-[11px] tabular-nums font-semibold px-2.5 py-0.5 rounded-full ${
                         isSelected
-                          ? "bg-purple-100 text-purple-800"
+                          ? "bg-slate-900 text-white"
                           : "bg-slate-100 text-slate-600 group-hover:bg-slate-200/70"
                       }`}
                     >
                       {option.sublabel}
                     </span>
-                    {isSelected && <Check className="w-4 h-4 text-purple-600 shrink-0" />}
+                    {isSelected && <Check className="w-4 h-4 text-slate-900 shrink-0" />}
                   </div>
                 </button>
               );
@@ -176,11 +176,11 @@ export function PlatformFilterDropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between gap-2.5 px-4 py-2 bg-white rounded-full text-xs font-medium border transition shadow-xs ${
+        className={`w-full flex items-center justify-between gap-2.5 px-4 py-2 bg-white rounded-full text-xs font-medium border transition shadow-xs cursor-pointer ${
           isOpen
-            ? "border-purple-600 ring-2 ring-purple-600/15"
+            ? "border-slate-900 ring-2 ring-slate-900/10 text-slate-900"
             : !isAll
-            ? "border-purple-300 bg-purple-50/20 text-purple-900"
+            ? "border-slate-900 bg-slate-50 text-slate-950 font-semibold ring-1 ring-slate-900/10"
             : "border-slate-200 hover:border-slate-300 text-slate-800"
         }`}
       >
@@ -196,12 +196,16 @@ export function PlatformFilterDropdown({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[11px] font-mono px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-600 font-medium">
+          <span
+            className={`text-[11px] font-mono px-1.5 py-0.2 rounded-md font-medium ${
+              !isAll ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+            }`}
+          >
             {currentCount}
           </span>
           <ChevronDown
             className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
-              isOpen ? "rotate-180 text-purple-600" : ""
+              isOpen ? "rotate-180 text-slate-900" : ""
             }`}
           />
         </div>
@@ -222,8 +226,8 @@ export function PlatformFilterDropdown({
                 onChange("ALL");
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors group ${
-                isAll ? "bg-purple-50 text-purple-900 font-bold" : "hover:bg-slate-50 text-slate-700 font-medium"
+              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors group cursor-pointer ${
+                isAll ? "bg-slate-100 text-slate-950 font-bold" : "hover:bg-slate-50 text-slate-700 font-medium"
               }`}
             >
               <div className="flex items-center gap-2.5">
@@ -236,7 +240,7 @@ export function PlatformFilterDropdown({
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
                   {totalCount}
                 </span>
-                {isAll && <Check className="w-3.5 h-3.5 text-purple-600" />}
+                {isAll && <Check className="w-3.5 h-3.5 text-slate-900" />}
               </div>
             </button>
 
@@ -254,9 +258,9 @@ export function PlatformFilterDropdown({
                     onChange(option.id);
                     setIsOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors group ${
+                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors group cursor-pointer ${
                     isSelected
-                      ? "bg-purple-50 text-purple-900 font-bold"
+                      ? "bg-slate-100 text-slate-950 font-bold"
                       : "hover:bg-slate-50 text-slate-700 font-medium"
                   }`}
                 >
@@ -273,13 +277,13 @@ export function PlatformFilterDropdown({
                     <span
                       className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
                         isSelected
-                          ? "bg-purple-200/80 text-purple-800 font-bold"
+                          ? "bg-slate-900 text-white font-bold"
                           : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
                       }`}
                     >
                       {count}
                     </span>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-purple-600" />}
+                    {isSelected && <Check className="w-3.5 h-3.5 text-slate-900" />}
                   </div>
                 </button>
               );

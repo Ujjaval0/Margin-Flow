@@ -226,12 +226,12 @@ function EnhancedStatusDropdown({ selected, onChange, counts }: StatusDropdownPr
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between gap-2.5 px-4 py-2 bg-white rounded-full text-xs font-medium border transition shadow-xs ${
+        className={`w-full flex items-center justify-between gap-2.5 px-4 py-2 bg-white rounded-full text-xs font-medium border transition shadow-xs cursor-pointer ${
           isOpen
-            ? "border-purple-600 ring-2 ring-purple-600/15"
+            ? "border-slate-900 ring-2 ring-slate-900/10 text-slate-900"
             : isFiltered
-            ? "border-purple-400 bg-purple-50/20 text-purple-900 ring-1 ring-purple-500/20"
-            : "border-purple-200/90 hover:border-purple-300 text-slate-800"
+            ? "border-slate-900 bg-slate-50 text-slate-950 font-semibold ring-1 ring-slate-900/10"
+            : "border-slate-200 hover:border-slate-300 text-slate-800"
         }`}
       >
         <div className="flex items-center gap-2 truncate">
@@ -244,12 +244,16 @@ function EnhancedStatusDropdown({ selected, onChange, counts }: StatusDropdownPr
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[11px] font-mono px-1.5 py-0.2 rounded-md bg-purple-100/70 text-purple-800 font-medium">
+          <span
+            className={`text-[11px] font-mono px-1.5 py-0.2 rounded-md font-medium ${
+              isFiltered ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
+            }`}
+          >
             {counts[selected] || 0}
           </span>
           <ChevronDown
-            className={`w-3.5 h-3.5 text-purple-500 transition-transform duration-200 ${
-              isOpen ? "rotate-180 text-purple-700" : ""
+            className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+              isOpen ? "rotate-180 text-slate-900" : ""
             }`}
           />
         </div>
@@ -279,9 +283,9 @@ function EnhancedStatusDropdown({ selected, onChange, counts }: StatusDropdownPr
                         onChange(item.id);
                         setIsOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors group ${
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors group cursor-pointer ${
                         isSelected
-                          ? "bg-purple-50 text-purple-900 font-bold"
+                          ? "bg-slate-100 text-slate-950 font-bold"
                           : "hover:bg-slate-50 text-slate-700 font-medium"
                       }`}
                     >
@@ -298,13 +302,13 @@ function EnhancedStatusDropdown({ selected, onChange, counts }: StatusDropdownPr
                         <span
                           className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
                             isSelected
-                              ? "bg-purple-200/80 text-purple-800 font-bold"
-                              : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
+                              ? "bg-slate-900 text-white font-bold"
+                              : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
                           }`}
                         >
                           {count}
                         </span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-purple-600" />}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-slate-900" />}
                       </div>
                     </button>
                   );
@@ -312,6 +316,93 @@ function EnhancedStatusDropdown({ selected, onChange, counts }: StatusDropdownPr
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ----------------------------------------------------
+// Custom Bulk Status Dropdown (Apple/Linear UI)
+// ----------------------------------------------------
+interface BulkStatusDropdownProps {
+  onSelect: (status: OrderStatus) => void;
+}
+
+const BULK_STATUS_OPTIONS: {
+  id: OrderStatus;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badgeClass: string;
+}[] = [
+  { id: "CONFIRMED", label: "Mark Confirmed", icon: CheckCircle2, badgeClass: "text-blue-700 bg-blue-50 border-blue-200" },
+  { id: "SHIPPED", label: "Mark Shipped", icon: Truck, badgeClass: "text-indigo-700 bg-indigo-50 border-indigo-200" },
+  { id: "DELIVERED", label: "Mark Delivered", icon: Package, badgeClass: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+  { id: "RTO", label: "Mark RTO", icon: RotateCcw, badgeClass: "text-amber-700 bg-amber-50 border-amber-200" },
+  { id: "RETURNED", label: "Mark Returned", icon: RotateCcw, badgeClass: "text-orange-700 bg-orange-50 border-orange-200" },
+  { id: "CANCELLED", label: "Mark Cancelled", icon: X, badgeClass: "text-rose-700 bg-rose-50 border-rose-200" },
+];
+
+function BulkStatusDropdown({ onSelect }: BulkStatusDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200/90 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 shadow-2xs transition-all cursor-pointer"
+      >
+        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Status:</span>
+        <span className="text-slate-800">Choose Status...</span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+            isOpen ? "rotate-180 text-slate-900" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-52 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+          <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
+            Update Status
+          </div>
+          <div className="space-y-0.5">
+            {BULK_STATUS_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    onSelect(opt.id);
+                    setIsOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-slate-950 hover:bg-slate-100 transition-colors text-left group cursor-pointer"
+                >
+                  <span
+                    className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 border ${opt.badgeClass}`}
+                  >
+                    <Icon className="w-3 h-3" />
+                  </span>
+                  <span className="font-semibold text-slate-800 group-hover:text-slate-950">
+                    {opt.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -503,7 +594,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
 
   // Sync local platformFilter when globalMarketplace changes
   useEffect(() => {
-    if (globalMarketplace && globalMarketplace !== "ALL") {
+    if (globalMarketplace) {
       setPlatformFilter(globalMarketplace);
     }
   }, [globalMarketplace]);
@@ -624,7 +715,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
             <h1 className="text-2xl font-bold tracking-tight text-[#1D1D1F]">
               Orders Ledger
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-xs font-semibold">
+            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold tabular-nums">
               {orders.length} total orders
             </span>
           </div>
@@ -653,7 +744,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
 
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-xs font-semibold text-white transition shadow-sm shadow-purple-600/20"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-white transition shadow-xs"
           >
             <Plus className="w-4 h-4" strokeWidth={2.5} />
             <span>Add Order</span>
@@ -672,7 +763,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
               placeholder="Search order ref, SKU, or name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 bg-slate-50/70 border border-slate-200 rounded-full text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/15 transition shadow-xs"
+              className="w-full pl-9 pr-8 py-2 bg-slate-50/70 border border-slate-200 rounded-full text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-900/10 transition shadow-xs"
             />
             {searchQuery && (
               <button
@@ -700,54 +791,34 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
         </div>
       </div>
 
-      {/* Floating / Sticky Bulk Actions Bar */}
+      {/* Floating / Sticky Bulk Actions Bar (Minimal White) */}
       {selectedOrderIds.length > 0 && (
-        <div className="bg-purple-50/90 border border-purple-200 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200 shadow-sm">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-3 sm:px-4 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200 shadow-sm">
           <div className="flex items-center gap-3">
-            <span className="w-6 h-6 rounded-lg bg-purple-600 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+            <span className="w-6 h-6 rounded-lg bg-slate-900 text-white font-bold text-xs flex items-center justify-center shadow-xs">
               {selectedOrderIds.length}
             </span>
-            <span className="text-xs font-bold text-purple-950">
+            <span className="text-xs font-bold text-slate-900">
               {selectedOrderIds.length} order{selectedOrderIds.length > 1 ? "s" : ""} selected
             </span>
             <button
               type="button"
               onClick={() => setSelectedOrderIds([])}
-              className="text-[11px] text-purple-700 hover:text-purple-950 underline font-semibold ml-1"
+              className="text-[11px] text-slate-500 hover:text-slate-900 underline font-medium ml-1 transition-colors"
             >
               Deselect all
             </button>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Bulk Status Update Selector */}
-            <div className="flex items-center gap-1.5 bg-white border border-purple-200 px-3.5 py-1.5 rounded-full shadow-xs">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Change Status:</span>
-              <select
-                onChange={(e) => {
-                  if (e.target.value) {
-                    handleBulkStatusChange(e.target.value as OrderStatus);
-                    e.target.value = "";
-                  }
-                }}
-                defaultValue=""
-                className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer"
-              >
-                <option value="" disabled>Choose Status...</option>
-                <option value="CONFIRMED">Mark Confirmed</option>
-                <option value="SHIPPED">Mark Shipped</option>
-                <option value="DELIVERED">Mark Delivered</option>
-                <option value="RTO">Mark RTO</option>
-                <option value="RETURNED">Mark Returned</option>
-                <option value="CANCELLED">Mark Cancelled</option>
-              </select>
-            </div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Custom Bulk Status Update Dropdown */}
+            <BulkStatusDropdown onSelect={handleBulkStatusChange} />
 
             {/* Bulk Delete Button */}
             <button
               type="button"
               onClick={() => setIsBulkDeleteConfirmOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition shadow-xs"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-rose-600 hover:text-rose-700 border border-rose-200/90 text-xs font-semibold transition-all shadow-2xs cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Delete Selected ({selectedOrderIds.length})</span>
@@ -772,7 +843,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                     }}
                     onChange={handleToggleSelectAll}
                     title={isAllFilteredSelected ? "Deselect all orders" : "Select all orders"}
-                    className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 accent-purple-600 cursor-pointer"
+                    className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900 border-slate-300 accent-slate-900 cursor-pointer"
                   />
                 </th>
                 <th className="py-3.5 px-4 font-semibold">PLATFORM & DATE</th>
@@ -805,7 +876,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                             setPlatformFilter("ALL");
                             setStatusFilter("All Statuses");
                           }}
-                          className="text-xs px-3.5 py-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 font-semibold mt-2 transition"
+                          className="text-xs px-3.5 py-1.5 rounded-lg bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200 font-semibold mt-2 transition"
                         >
                           Reset all filters
                         </button>
@@ -836,7 +907,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                       key={order.id}
                       className={`transition-colors duration-150 text-slate-800 group ${
                         selectedOrderIds.includes(order.id)
-                          ? "bg-purple-50/50 hover:bg-purple-50/80"
+                          ? "bg-slate-100/90 hover:bg-slate-100 font-medium"
                           : "hover:bg-slate-50/70"
                       }`}
                     >
@@ -846,7 +917,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                           type="checkbox"
                           checked={selectedOrderIds.includes(order.id)}
                           onChange={() => handleToggleSelectOrder(order.id)}
-                          className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 accent-purple-600 cursor-pointer"
+                          className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900 border-slate-300 accent-slate-900 cursor-pointer"
                         />
                       </td>
 
@@ -868,7 +939,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                       {/* 2. ORDER ID & SKU */}
                       <td className="py-3.5 px-4 align-middle">
                         <div>
-                          <span className="font-semibold text-slate-900 block text-xs tracking-tight group-hover:text-purple-700 transition-colors tabular-nums">
+                          <span className="font-semibold text-slate-900 block text-xs tracking-tight group-hover:text-slate-950 transition-colors tabular-nums">
                             {order.id}
                           </span>
                           <span className="text-[11px] text-slate-500 block truncate max-w-[150px] tabular-nums font-medium">
@@ -965,7 +1036,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                             type="button"
                             onClick={() => setSelectedOrder(order)}
                             title="View Profitability Breakdown"
-                            className="p-1.5 rounded-lg bg-slate-50 hover:bg-purple-50 text-slate-600 hover:text-purple-700 border border-slate-200 hover:border-purple-300 transition shadow-xs"
+                            className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 transition shadow-xs"
                           >
                             <ArrowUpRight className="w-3.5 h-3.5" />
                           </button>
@@ -1021,7 +1092,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                   setPageSize(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="bg-white border border-slate-200 rounded-lg text-xs font-semibold py-0.5 px-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
+                className="bg-white border border-slate-200 rounded-lg text-xs font-semibold py-0.5 px-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer"
               >
                 <option value={25}>25</option>
                 <option value={50}>50</option>
@@ -1075,7 +1146,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
           <div className="bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 w-full max-w-xl max-h-[88vh] flex flex-col overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
-                <span className="text-[11px] font-mono text-purple-600 font-semibold block">
+                <span className="text-[11px] font-mono text-slate-500 font-semibold block">
                   {selectedOrder.marketplace} • {selectedOrder.channelOrderId}
                 </span>
                 <h2 className="text-base font-bold text-slate-900 tracking-tight mt-0.5">

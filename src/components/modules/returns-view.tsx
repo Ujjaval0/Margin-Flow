@@ -730,6 +730,24 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               </button>
             )}
 
+            {/* 1-Click SAFE-T Dispute Generator */}
+            {(r.condition === "DAMAGED" || r.condition === "UNUSABLE" || r.returnType === "DAMAGED_RETURN" || !r.claimId) && (
+              <button
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("marginflow_open_dispute_modal", {
+                      detail: { returnRecord: r },
+                    })
+                  )
+                }
+                title="1-Click SAFE-T Dispute Packet Generator"
+                className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200/60 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-2xs transition active:scale-95 cursor-pointer shrink-0"
+              >
+                <ShieldAlert className="w-3 h-3 text-purple-700" />
+                <span>Draft Claim</span>
+              </button>
+            )}
+
             <button
               onClick={() => setEditingReturn({ ...r, customerReturnFee: r.customerReturnFee ?? 0 })}
               title="Edit return record details"

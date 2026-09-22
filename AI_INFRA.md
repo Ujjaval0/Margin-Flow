@@ -1,156 +1,163 @@
-﻿# AI Architecture & Infrastructure Specification (`AI_INFRA.md`)
+# AI Architecture & Capabilities Specification (`AI_INFRA.md`)
 
-> **Live Engineering & Product Specification**  
-> **Date:** 2026-09-16  
-> **Target System:** Unified E-Commerce Financial Intelligence Platform  
-> **Status:** Architecture Reference & Implementation Blueprint  
-
----
-
-## 1. Executive Summary & Market Landscape
-
-In multi-channel e-commerce (Amazon India, Flipkart, Meesho, D2C/Website), standalone generic chatbots create minimal retention. High-performing e-commerce platforms (such as *Sellerboard*, *Sellerise*, *Helium 10*, *Shopify Sidekick*, and enterprise AI ERPs like *SAP Joule / Microsoft Copilot for Finance*) embed AI directly into financial calculation and operational exception-handling workflows.
-
-### Competitor Landscape & Patterns
-
-| Competitor / System | Primary AI Capability | Value Delivered | Limitation / Risk |
-|---|---|---|---|
-| **Sellerboard / Sellerise** | Profit analytics & fee reimbursement detection | Uncovers hidden FBA overcharges & lost inventory | Mostly reactive table views; minimal natural language exploration |
-| **Helium 10** | SEO, listing copy, and PPC bidding automation | Accelerates product launches and ad keyword management | Focused on growth/marketing rather than true post-fee net margin & cash flow |
-| **Shopify Sidekick** | Conversational business copilot | Answers natural language questions regarding store sales, discounts, and customer behavior | Constrained to Shopify-only ecosystem; lacks Indian multi-marketplace nuance (e.g., Meesho RTO, SAFE-T claims) |
-| **ClaimLane / AI Dispute Platforms** | Autonomous evidence compilation for chargebacks and shipping claims | Ingests courier scans and order proof to submit carrier claims before deadlines | Requires strict guardrails to prevent submitting incomplete or policy-violating disputes |
-| **Enterprise ERP Copilots (SAP Joule, MS Finance)** | Reconciles bank statements against open invoices; flags variance anomalies | Eliminates manual cross-referencing of deduction manifests | High complexity; requires disciplined data models and deterministic data preparation |
+> **Live System Specification & Production Reference**  
+> **System:** MarginFlow — Unified E-Commerce Financial Intelligence Platform  
+> **Assistant Codename:** `Flow`  
+> **Core Philosophy:** Frictionless, Deterministic, Zero-Math Hallucination, Zero Clutter  
 
 ---
 
-## 2. The 4 High-Impact AI Implementations for Our Platform
+## 1. System Architecture Overview
 
-To deliver tangible return on investment (ROI) to sellers, AI is structured into four specialized functional pillars:
-
-```
-                                  ┌─────────────────────────────────────────────────────────────┐
-                                  │               UNIFIED AI INTELLIGENCE LAYER                 │
-                                  └──────────────────────────────┬──────────────────────────────┘
-                                                                 │
-         ┌───────────────────────────────┬───────────────────────┴───────────────────────┬───────────────────────────────┐
-         ▼                               ▼                                               ▼                               ▼
- ┌──────────────────────┐    ┌──────────────────────┐                        ┌──────────────────────┐    ┌──────────────────────┐
- │ 1. CFO Copilot &     │    │ 2. Anomaly & Margin  │                        │ 3. One-Click SAFE-T  │    │ 4. Restock & Working │
- │ Natural Language     │    │ Leakage Radar        │                        │ Claim Generator      │    │ Capital Advisor      │
- │ Insights Assistant   │    │                      │                        │                      │    │                      │
- ├──────────────────────┤    ├──────────────────────┤                        ├──────────────────────┤    ├──────────────────────┤
- │ Natural Q&A on P&L,  │    │ Proactive alerts on  │                        │ Auto-compiles order, │    │ Forecasts stockout   │
- │ ad drag, and margins │    │ hidden deductions &  │                        │ return photo & policy│    │ dates & recommends   │
- │ with instant filters │    │ negative-margin SKUs │                        │ proof into claim text│    │ supplier reorders    │
- └──────────────────────┘    └──────────────────────┘                        └──────────────────────┘    └──────────────────────┘
-```
-
----
-
-### Implementation 1: CFO Conversational Copilot ("Chat With Your P&L")
-- **Role:** An interactive drawer or assistant that allows operators to query financial data in natural language without manually downloading spreadsheets or configuring multidimensional filters.
-- **Core Capabilities:**
-  - Dynamic answers grounded in active date-range and marketplace context.
-  - Generates comparative explanations: *"Why did net operating profit drop 6% vs. last week?"* ➔ Breaks down ad spend surge, Flipkart return spike, and specific SKU COGS shifts.
-  - Identifies POAS (Profit on Ad Spend) drag: *"Which SKUs have positive ROAS but negative POAS?"*
-  - Interactive Action Chips: In-line buttons allowing users to click *"Apply Meesho Filter"*, *"Inspect Elephant Toy SKU"*, or *"Export Breakdown"*.
-
----
-
-### Implementation 2: Proactive Anomaly & Margin Leakage Radar
-- **Role:** Autonomous background monitoring engine that surfaces critical financial risks before they compound into substantial balance sheet losses.
-- **Trigger Heuristics:**
-  1. **Fee Creep Detection:** Flags marketplace commissions, pick-and-pack charges, or fixed fees that deviate >10% from standard category rate cards.
-  2. **Ad Bleed on High-Return SKUs:** Detects campaigns driving high sales volume for products with >25% return/RTO rates (spending advertising capital to generate logistics write-offs).
-  3. **Settlement Lag & Overdue Disbursement:** Flags delivered orders aging past 14 days without an associated reconciled settlement batch.
-  4. **Cost Discrepancy Alert:** Identifies orders where historical cost snapshots indicate a unit cost compression.
-
----
-
-### Implementation 3: One-Click SAFE-T & Dispute Claim Packet Generator
-- **Role:** Intelligent claims compilation engine that eliminates 15+ minutes of manual claim drafting per damaged or lost return.
-- **Workflow:**
-  1. User selects a return tagged as `DAMAGED_RETURN`, `LOST_RETURN`, or an illegitimate `CUSTOMER_RETURN`.
-  2. The AI reads the order metadata (Marketplace Channel, Order ID, Tracking Number, Delivered Date, Return Received Date, Invoice Unit Cost).
-  3. The engine cross-checks the marketplace filing window (e.g., within 30 days for Amazon India SAFE-T; 7 days for Flipkart dispute).
-  4. Generates a structured dispute packet including:
-     - Policy-compliant claim rationale.
-     - Quantified financial loss itemization (Product Unit Cost + Forward/Reverse Shipping Loss − Salvage Value).
-     - Required photo/document evidence checklist.
-  5. Operator reviews and copies or submits the packet directly to the marketplace partner portal.
-
----
-
-### Implementation 4: Predictive Restock & Working Capital Advisor
-- **Role:** Supply chain and working capital optimization assistant.
-- **Core Capabilities:**
-  - Computes run-rate velocity per SKU across all channels simultaneously.
-  - Predicts **Days of Inventory Remaining (DOIR)** factoring in supplier lead times.
-  - Generates optimized supplier Purchase Order (PO) recommendations that maximize contribution margin without trapping excess cash in slow-moving inventory.
-
----
-
-## 3. Safe AI Infrastructure & Execution Guardrails
-
-In financial software, hallucinated arithmetic or accidental ledger writes destroy user trust. The AI layer is architected under strict **non-destructive, deterministic boundaries**:
-
-```
- ┌─────────────────────────────────────────────────────────────────────────┐
- │                            USER INTERACTION                             │
- └────────────────────────────────────┬────────────────────────────────────┘
-                                      │ Natural Language / Action Trigger
-                                      ▼
- ┌─────────────────────────────────────────────────────────────────────────┐
- │               DETERMINISTIC DATA PREPARATION (TypeScript)               │
- │ • All sums, margins, POAS, and settlement aging computed deterministically │
- │ • Raw mathematical aggregates compiled into structured JSON context      │
- └────────────────────────────────────┬────────────────────────────────────┘
-                                      │ Pre-Calculated Grounded Context
-                                      ▼
- ┌─────────────────────────────────────────────────────────────────────────┐
- │                   LLM INFERENCE & REASONING LAYER                       │
- │ • Generates natural language summaries, insights, and claim narratives  │
- │ • Zero direct math calculation — LLM explains verified system metrics   │
- └────────────────────────────────────┬────────────────────────────────────┘
-                                      │ Structured Proposals & Action Intents
-                                      ▼
- ┌─────────────────────────────────────────────────────────────────────────┐
- │              HUMAN-IN-THE-LOOP (HITL) EXECUTION GATEWAY                 │
- │ • Read-Only default: Copilot can change filters, navigate, and suggest  │
- │ • Ledger mutation requires explicit user confirmation (Review Modal)   │
- │ • Zero silent database writes                                           │
- └─────────────────────────────────────────────────────────────────────────┘
-```
-
-### Core Invariants of the AI Layer:
-1. **Zero Hallucinated Math:** The LLM is never tasked with summing raw orders or calculating division ratios. All numbers provided in AI responses are sourced directly from the deterministic outputs of `src/domain/profitability-engine.ts`.
-2. **Read-Only Context Injection:** The AI context is built as a sanitized read-only projection containing current active filters, metric snapshots, SKU anomalies, and settlement aging summaries.
-3. **Partition 7 HITL Compatibility:** For document ingestion (supplier bills, invoices), AI extractions are quarantined in `STAGED_NEEDS_REVIEW` until validated against arithmetic invariants (`Qty × UnitPrice − Discount + Tax ≡ TotalAmount`).
-4. **Actionable UI Integration:** AI insights return structured action objects that bind to platform UI handlers (e.g., `SET_CHANNEL_FILTER`, `OPEN_SKU_DRAWER`, `GENERATE_CLAIM_DRAFT`).
-
----
-
-## 4. Technical Implementation Roadmap
+MarginFlow integrates AI into high-friction e-commerce workflows (reconciliation, ingestion, disputes, and anomaly audits) while strictly protecting financial accuracy through pre-computed deterministic domain engines.
 
 ```mermaid
-flowchart LR
-    Phase1["Phase 1: CFO Copilot & Q&A"] --> Phase2["Phase 2: Anomaly & Margin Radar"]
-    Phase2 --> Phase3["Phase 3: SAFE-T Claim Drafter"]
-    Phase3 --> Phase4["Phase 4: Predictive Restock"]
+flowchart TD
+    subgraph Client["Client-Side Browser (React / Next.js 15)"]
+        UI["MarginFlow Web App\n(Dashboard, Orders, Returns, Claims)"]
+        Vault["BYOK Key Vault\n(localStorage only • Zero-Leak)"]
+        FlowUI["Flow Assistant Drawer\n(⌘J • Action Chips • Opt-in Radar)"]
+        DisputeModal["1-Click SAFE-T Modal\n(Evidence & Policy Drafter)"]
+        CsvModal["Smart CSV Auto-Mapper\n(Amazon, Flipkart, Meesho, Shopify)"]
+    end
+
+    subgraph DeterministicEngine["Deterministic TypeScript Domain Engines (Zero-Hallucination)"]
+        ProfitEngine["profitability-engine.ts\n(Waterfall, P&L, POAS, ROAS)"]
+        AnomalyEngine["anomaly-radar.ts\n(Weight Bumps, Fee Creep, Settlement Lag)"]
+        MapperEngine["csv-auto-mapper.ts\n(Header Matcher, COGS Snapshot Linker)"]
+        LocalAnalyst["deterministic-analyst.ts\n(100% Offline / Free Rule Reasoning)"]
+    end
+
+    subgraph SecureProxy["Next.js Ephemeral API Route Proxies"]
+        CopilotAPI["/api/ai-copilot\n(x-ai-key header • Zero-Persistence)"]
+        DisputeAPI["/api/ai-dispute\n(Policy Generator • Transient)"]
+    end
+
+    subgraph ModelProviders["Configurable Model Providers (User Selected)"]
+        Moonshot["Moonshot AI (Kimi)"]
+        Gemini["Google Gemini 2.0 / 1.5"]
+        OpenAI["OpenAI (GPT-4o, o3-mini)"]
+        OpenRouter["OpenRouter (Claude, Llama, DeepSeek)"]
+        Mistral["Mistral AI"]
+        Nvidia["NVIDIA NIM"]
+        LocalFallback["Local Engine (Zero Cost / Offline)"]
+    end
+
+    UI --> ProfitEngine
+    UI --> FlowUI
+    UI --> DisputeModal
+    UI --> CsvModal
+
+    CsvModal --> MapperEngine
+    FlowUI --> AnomalyEngine
+    DisputeModal --> DisputeAPI
+
+    FlowUI --> CopilotAPI
+    FlowUI -.->|Fallback if No Key| LocalAnalyst
+
+    Vault -.->|Ephemeral In-Memory Header| CopilotAPI
+    Vault -.->|Ephemeral In-Memory Header| DisputeAPI
+
+    CopilotAPI --> Moonshot
+    CopilotAPI --> Gemini
+    CopilotAPI --> OpenAI
+    CopilotAPI --> OpenRouter
+    CopilotAPI --> Mistral
+    CopilotAPI --> Nvidia
 ```
 
-### Phase 1: Interactive CFO Copilot
-- Create `src/components/ai/cfo-copilot.tsx` slide-over panel.
-- Implement domain context serializer (`src/domain/ai-context.ts`) that bundles current profitability metrics, top performing SKUs, loss-making items, and settlement aging.
-- Equip with quick-prompt chips (*"Margin Overview"*, *"POAS Audit"*, *"Return Rate Spikes"*).
+---
 
-### Phase 2: AI Margin Leak & Anomaly Radar
-- Create automated detection functions in `src/domain/anomaly-engine.ts`.
-- Render an executive AI briefing card at the top of the dashboard.
+## 2. The 3 Non-Negotiable Rules for Financial AI
 
-### Phase 3: Autonomous SAFE-T Dispute Generator
-- Add a "Draft SAFE-T Claim" action to the Returns & Claims modules.
-- Pre-fill formal dispute documentation with verified tracking and cost snapshot evidence.
+Every AI capability in MarginFlow strictly adheres to these three product principles:
 
-### Phase 4: Demand & Inventory Forecasting
-- Extend product catalog with lead-time parameters and stockout probability scoring.
+1. **Rule 1: Zero Hallucinated Math**  
+   The LLM is **never** permitted to calculate raw financial math (sums, margins, deduction totals, POAS, or overcharges). All mathematics are deterministically pre-computed in TypeScript domain engines. The LLM only receives verified context and explains the numbers or drafts narratives.
+2. **Rule 2: Action Chips Over Long Essays**  
+   Operators do not read walls of conversational text. Responses are concise and include clickable **Interactive Action Chips** (`[Inspect ELEC-ANC-EB ➔]`, `[⚡ Draft SAFE-T Claim]`, `[Filter Flipkart]`) that mutate filters or open drawers with a single click.
+3. **Rule 3: Optimistic UI & Ambient Opt-In (Zero Clutter)**  
+   No heavy, intrusive banners cluttering the main dashboard. Advanced audits (like the Anomaly Radar) run quietly and surface discrete opt-in prompts inside Flow. If the user wants details, they click `[View]`; if dismissed, the UI stays completely clean.
+
+---
+
+## 3. Live AI Capabilities Inventory
+
+### A. The "Flow" Assistant Drawer (`cfo-copilot.tsx`)
+- **Invocation:** Click "Flow" in the top navigation bar or press `⌘J` / `Ctrl+J`.
+- **Capabilities:**
+  - **P&L Variance Diagnosis:** Breaks down exact drivers behind profit drops (e.g., return freight surges, COGS inflation, or marketplace fee hikes).
+  - **POAS vs. ROAS Ad Bleed Audit:** Identifies SKUs showing high ROAS on paper that actually lose money due to return rates and marketplace deductions.
+  - **Overdue Settlement Aging:** Flags orders delivered past 14 days without bank credit reconciliation.
+  - **Returns & RTO Drivers:** Pinpoints loss-making return categories and highlights claim deadlines.
+  - **Context Grounding:** Reads current store filters (selected marketplace, active date range) without manual prompt input.
+
+### B. On-Demand Operational Anomaly Radar (`anomaly-radar.ts`)
+- **Philosophy:** Runs deterministically in the background; presented inside Flow as an opt-in prompt (`⚡ 2 anomalies detected. View details? [View] [Dismiss]`).
+- **Core Detectors:**
+  1. **Courier Volumetric Weight Overcharges:** Cross-references catalog dead weights against carrier freight bills. Flags sub-500g parcels billed above rate slabs ($>\text{₹}80$), calculating exact excess freight at risk.
+  2. **Marketplace Commission Fee Creep:** Identifies orders where actual platform deductions exceed standard rate cards by $>15\%$ relative.
+  3. **High-Return / RTO Bleed:** Detects SKUs with $>20\%$ return rates eroding contribution margin through return shipping and customer return fees.
+  4. **Disbursement Aging Lag:** Tracks delivered orders older than 14 days with missing bank settlement credits.
+- **Output:** Exact quantified rupee impact + direct action chips to navigate to Claims, Settlements, or Returns.
+
+### C. 1-Click SAFE-T & Return Dispute Generator (`dispute-packet-modal.tsx`)
+- **Trigger:** Accessible directly from any damaged return row in the Returns or Claims modules.
+- **Workflow:**
+  1. Captures order ID, channel reference, return type, tracking AWB, and catalog cost snapshot (`snapshotUnitCost`).
+  2. Synthesizes a formal claim narrative citing Amazon India SAFE-T policy or Flipkart Seller Protection SLAs.
+  3. Itemizes financial loss: Product Wholesale Cost + Forward Shipping + Reverse Freight − Salvage Value.
+  4. Provides a required photographic evidence checklist and an instant `[Copy Claim Text]` button.
+
+### D. Smart CSV Auto-Mapper (`csv-auto-mapper.ts` + `csv-import-modal.tsx`)
+- **Supported Formats:**
+  - **Amazon MTR (Merchant Tax Report)** (`asin`, `seller-sku`, `order-id`, `item-price`, `ship-city`)
+  - **Flipkart Order Export** (`fsn`, `sub_order_id`, `final_sale_amount`, `order_state`)
+  - **Meesho Supplier Sheet** (`sub order no`, `supplier discounted price`, `packet id`, `meesho`)
+  - **Shopify Orders Export** (`lineitem sku`, `financial status`, `billing name`)
+  - **Generic ERP CSVs**
+- **Capabilities:**
+  - Auto-skips non-header metadata/title rows (scans top 8 rows for header density).
+  - Normalizes currencies (`₹`, `,`, negative brackets `(50.00)` $\rightarrow$ `-50`) and standardizes dates to `YYYY-MM-DD`.
+  - Links channel aliases (`B08WEM01-IND`, `FLIP-MOUSE-WEM`, `MSHO-98311-MSE`) to master catalog items, locking historical `snapshotUnitCost` at ingest time.
+  - Dual-view modal: "Normalized Orders Preview" and "Auto-Mapped Columns Breakdown" with confidence scoring.
+
+### E. Multi-Provider BYOK Key Vault (`ai-vault.ts` + `ai-settings-modal.tsx`)
+- **Zero-Knowledge Security:** All API keys are stored exclusively in the user's browser `localStorage`. No keys are ever written to the platform database or persisted in server logs.
+- **Supported Providers:**
+  - **Moonshot AI (Kimi)** (`moonshot-v1-8k`, `moonshot-v1-32k`)
+  - **Google Gemini** (`gemini-2.0-flash`, `gemini-1.5-flash`)
+  - **OpenAI** (`gpt-4o`, `gpt-4o-mini`, `o3-mini`)
+  - **OpenRouter** (`anthropic/claude-3.5-sonnet`, `meta-llama/llama-3.3-70b-instruct`, `deepseek/deepseek-r1`)
+  - **Mistral AI** (`mistral-small-latest`, `mistral-large-latest`)
+  - **NVIDIA NIM** (`meta/llama-3.1-70b-instruct`)
+  - **Custom Base URL** (for self-hosted vLLM or Ollama endpoints)
+  - **Local Deterministic Fallback** (runs 100% offline with zero cost if no key is configured)
+
+---
+
+## 4. How AI Boosts Seller Productivity
+
+| Task | Traditional Manual Process | MarginFlow AI Process | Productivity Gain |
+| :--- | :--- | :--- | :--- |
+| **Marketplace CSV Import** | Download 3 separate sheets; manually rename 15+ headers in Excel; match SKUs manually. (30–45 mins) | Drag & drop raw sheet; auto-detects format, auto-maps columns, and locks COGS. (< 3 secs) | **~90% time saved** on data entry |
+| **SAFE-T Dispute Filing** | Lookup return ticket; calculate net unit loss; draft formal policy email to Amazon/Flipkart. (15–20 mins) | Click `[⚡ Draft SAFE-T Claim]`; packet is pre-filled with policy citations and loss math. (30 secs) | **Eliminates 15 mins/ticket**, stops lost revenue |
+| **P&L Anomaly Auditing** | Export orders; build pivot tables to find why margin slipped or which ad campaign is bleeding. (2–3 hours) | Ask Flow: *"Why did profit drop?"* or click on-demand Anomaly Radar prompt. (Instant) | **Instant financial clarity**, zero spreadsheet work |
+| **Courier Freight Auditing** | Cross-reference carrier weight slabs against actual product dimensions on hundreds of orders. | Anomaly Radar automatically flags sub-500g parcels charged on heavy freight tiers. | **Recovers ₹1,000s in silent freight leakage** |
+
+---
+
+## 5. Codebase Mapping & Implementation Files
+
+| Component / Layer | Primary Source File(s) | Responsibility |
+| :--- | :--- | :--- |
+| **Copilot Drawer** | [`src/components/ai/cfo-copilot.tsx`](file:///c:/Users/freak/Desktop/Unified%20platform/src/components/ai/cfo-copilot.tsx) | Minimalist assistant drawer, action chip dispatch, opt-in prompt |
+| **BYOK Security Vault** | [`src/lib/security/ai-vault.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/lib/security/ai-vault.ts) | Client-side key encryption, provider registry, secure headers |
+| **AI Settings Modal** | [`src/components/ai/ai-settings-modal.tsx`](file:///c:/Users/freak/Desktop/Unified%20platform/src/components/ai/ai-settings-modal.tsx) | Provider & model selector UI (Moonshot, Gemini, OpenAI, etc.) |
+| **Dispute Modal** | [`src/components/modals/dispute-packet-modal.tsx`](file:///c:/Users/freak/Desktop/Unified%20platform/src/components/modals/dispute-packet-modal.tsx) | 1-Click SAFE-T dispute packet preview & copy drawer |
+| **CSV Auto-Mapper Engine**| [`src/domain/csv-auto-mapper.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/domain/csv-auto-mapper.ts) | Multi-format detection, header scoring, catalog COGS locking |
+| **CSV Import Modal** | [`src/components/modals/csv-import-modal.tsx`](file:///c:/Users/freak/Desktop/Unified%20platform/src/components/modals/csv-import-modal.tsx) | Drag-drop upload UI, preview table, column mapping inspection |
+| **Anomaly Radar Engine** | [`src/domain/anomaly-radar.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/domain/anomaly-radar.ts) | Deterministic math for weight overcharges, fee creep, and lag |
+| **Copilot API Proxy** | [`src/app/api/ai-copilot/route.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/app/api/ai-copilot/route.ts) | Ephemeral proxy injecting grounded context into LLM providers |
+| **Dispute API Proxy** | [`src/app/api/ai-dispute/route.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/app/api/ai-dispute/route.ts) | Ephemeral proxy generating policy-compliant claim narratives |
+| **Local Deterministic AI**| [`src/domain/deterministic-analyst.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/domain/deterministic-analyst.ts) | Zero-cost, zero-API-key local offline reasoning engine |

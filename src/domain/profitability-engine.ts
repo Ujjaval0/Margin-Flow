@@ -581,6 +581,7 @@ export function calculateMarketplaceProfitability(
     "Flipkart",
     "Myntra",
     "Meesho",
+    "Personal Website",
   ];
 
   const maps = buildFinancialMaps(returns, settlements, claims);

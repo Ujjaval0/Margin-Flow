@@ -121,13 +121,16 @@ interface PlatformContextType {
     notes?: string
   ) => void;
   addStagedDocument: (doc: AIStagedDocument) => void;
+  addStagedDocuments: (docs: AIStagedDocument[]) => void;
   approveStagedDocument: (docId: string) => void;
+  batchApproveStagedDocuments: (docIds: string[]) => void;
   updateStagedDocumentField: (
     docId: string,
     field: keyof AIStagedDocument["extractedData"],
     val: any
   ) => void;
   rejectStagedDocument: (docId: string) => void;
+  deleteStagedDocument: (docId: string) => void;
 }
 
 const PlatformContext = createContext<PlatformContextType | null>(null);
@@ -1204,6 +1207,25 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setAuditLogs((prev) => [log, ...prev]);
   }, []);
 
+  const addStagedDocuments = useCallback((docs: AIStagedDocument[]) => {
+    if (docs.length === 0) return;
+    setAiDocuments((prev) => [...docs, ...prev]);
+
+    const newLogs: FinancialAuditLog[] = docs.map((doc, idx) => ({
+      id: `AUD-${Date.now()}-${idx}`,
+      timestamp: new Date().toISOString(),
+      entityType: "DOCUMENT",
+      entityId: doc.id,
+      fieldName: "status",
+      oldValue: "EXTERNAL_FILE",
+      newValue: "STAGED_NEEDS_REVIEW",
+      modifiedBy: "Batch Ingestion Engine",
+      reason: `Uploaded document ${doc.fileName} ingested and queued for review`,
+      sourceDocumentId: doc.fileName,
+    }));
+    setAuditLogs((prev) => [...newLogs, ...prev]);
+  }, []);
+
   const approveStagedDocument = useCallback((docId: string) => {
     setAiDocuments((prevDocs) => {
       const doc = prevDocs.find((d) => d.id === docId);
@@ -1291,6 +1313,17 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setAiDocuments((prev) =>
       prev.map((d) => (d.id === docId ? { ...d, status: "REJECTED" as const } : d))
     );
+  }, []);
+
+  const batchApproveStagedDocuments = useCallback(
+    (docIds: string[]) => {
+      docIds.forEach((id) => approveStagedDocument(id));
+    },
+    [approveStagedDocument]
+  );
+
+  const deleteStagedDocument = useCallback((docId: string) => {
+    setAiDocuments((prev) => prev.filter((d) => d.id !== docId));
   }, []);
 
   const resetLedgerToDefaults = useCallback(() => {
@@ -1423,9 +1456,12 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       deleteSupplier,
       recordSupplierPayment,
       addStagedDocument,
+      addStagedDocuments,
       updateStagedDocumentField,
       approveStagedDocument,
+      batchApproveStagedDocuments,
       rejectStagedDocument,
+      deleteStagedDocument,
     }),
     [
       products,
@@ -1477,9 +1513,12 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       deleteSupplier,
       recordSupplierPayment,
       addStagedDocument,
+      addStagedDocuments,
       updateStagedDocumentField,
       approveStagedDocument,
+      batchApproveStagedDocuments,
       rejectStagedDocument,
+      deleteStagedDocument,
     ]
   );
 

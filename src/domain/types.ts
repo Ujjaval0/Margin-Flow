@@ -264,6 +264,7 @@ export interface AIStagedDocument {
   rawTextPreview: string;
   extractedData: {
     marketplace?: ExtractedField<Marketplace>;
+    vendorName?: ExtractedField<string>;
     orderId?: ExtractedField<string>;
     invoiceNumber?: ExtractedField<string>;
     orderDate?: ExtractedField<string>;

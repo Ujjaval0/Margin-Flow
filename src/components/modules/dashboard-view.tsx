@@ -43,6 +43,7 @@ import {
   Truck,
   Check,
   Package,
+  AlertTriangle,
 } from "lucide-react";
 import { DateRangePreset } from "@/domain/profitability-engine";
 import { OrderModal } from "@/components/modals/order-modal";
@@ -78,6 +79,7 @@ export function DashboardView({
     returns,
     claims,
     products,
+    settlements,
     suppliers,
     purchases,
     inventoryMetrics,
@@ -95,6 +97,12 @@ export function DashboardView({
 
   // Dual-Mode Financial View State: "OPERATOR" (Cash & Payouts) vs "CFO" (GAAP Hierarchy)
   const [viewMode, setViewMode] = useState<"OPERATOR" | "CFO">("OPERATOR");
+
+  // Mounted state to guarantee Recharts renders properly on client without zero-dimension collapse
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Card Logic Inspection Modal State
   const [activeLogicModal, setActiveLogicModal] = useState<CardLogicModalData | null>(null);
@@ -832,7 +840,7 @@ export function DashboardView({
                 {formatPercent(profitability.grossSales > 0 ? profitability.trueProfit / profitability.grossSales : 0)} margin on sales
               </div>
             </div>
-            <div className="text-[11px] text-purple-700 font-medium pt-2.5 border-t border-slate-100">
+            <div className="text-[11px] text-slate-500 pt-2.5 border-t border-slate-100">
               Platform payout AFTER returns and claims, AFTER paying supplier COGS
             </div>
           </div>
@@ -890,7 +898,7 @@ export function DashboardView({
                 <span className="text-rose-600">Cust Ret: {profitability.customerReturnCount}</span>
               </div>
             </div>
-            <div className="text-[11px] text-slate-400 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <div className="text-[11px] text-slate-500 pt-2.5 border-t border-slate-100 flex items-center justify-between">
               <span>Total customer return fee deductions &amp; RTO logs</span>
               <span className="text-rose-600 font-semibold">
                 -{formatINR(profitability.returnLosses + profitability.rtoLosses)}
@@ -920,7 +928,7 @@ export function DashboardView({
                 Product inventory cost ({profitability.totalUnitsSold} units sold)
               </div>
             </div>
-            <div className="text-[11px] text-slate-400 pt-2.5 border-t border-slate-100">
+            <div className="text-[11px] text-slate-500 pt-2.5 border-t border-slate-100">
               Total purchase cost payable to wholesale suppliers
             </div>
           </div>
@@ -948,7 +956,7 @@ export function DashboardView({
                 <span className="text-slate-600 font-semibold">{profitability.damagedUnitsCount} damaged</span>
               </div>
             </div>
-            <div className="text-[11px] text-slate-400 pt-2.5 border-t border-slate-100">
+            <div className="text-[11px] text-slate-500 pt-2.5 border-t border-slate-100">
               Reimbursements received from platforms for damage disputes
             </div>
           </div>
@@ -991,7 +999,7 @@ export function DashboardView({
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2.5 border-t border-slate-100">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2.5 border-t border-slate-100">
                 <span>Gross: {formatINR(profitability.grossSales)}</span>
                 <span className="text-amber-600 font-medium">-{formatINR(profitability.discounts)} disc</span>
               </div>
@@ -1031,7 +1039,7 @@ export function DashboardView({
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2.5 border-t border-slate-100">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2.5 border-t border-slate-100">
                 <span>COGS: {formatINR(profitability.cogs)}</span>
                 <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                   {formatPercent(profitability.grossMargin)} Margin
@@ -1073,7 +1081,7 @@ export function DashboardView({
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2.5 border-t border-slate-100">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2.5 border-t border-slate-100">
                 <span>Post Fees &amp; Returns</span>
                 <span className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
                   {formatPercent(profitability.contributionMargin)} Margin
@@ -1119,7 +1127,7 @@ export function DashboardView({
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2.5 border-t border-slate-100">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2.5 border-t border-slate-100">
                 <span>OPEX: {formatINR(profitability.operatingExpenses)}</span>
                 <span
                   className={`font-semibold px-2 py-0.5 rounded-full ${
@@ -1282,34 +1290,44 @@ export function DashboardView({
               </span>
             </div>
           </div>
-          <div className="h-72 w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={channelChartData} barCategoryGap="25%">
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis
-                  stroke="#64748b"
-                  fontSize={11}
-                  tickLine={false}
-                  tickFormatter={(v) => `₹${v}`}
-                />
-                <Tooltip
-                  formatter={(value: any) => [formatINR(Number(value)), ""]}
-                  contentStyle={{
-                    backgroundColor: "#FFFFFF",
-                    borderRadius: "12px",
-                    border: "1px solid #e2e8f0",
-                    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
-                    fontSize: "12px",
-                    padding: "8px 12px",
-                  }}
-                />
-                <Bar dataKey="Revenue" fill="#2563EB" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="COGS" fill="#94A3B8" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Fees" fill="#F43F5E" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Profit" fill="#10B981" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-72 w-full min-w-0 relative">
+            {!isMounted ? (
+              <div className="h-72 w-full flex items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-xl">
+                Loading analytics chart...
+              </div>
+            ) : channelChartData.length === 0 ? (
+              <div className="h-72 w-full flex items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-xl">
+                No channel data available
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={280}>
+                <BarChart data={channelChartData} barCategoryGap="20%" margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} />
+                  <YAxis
+                    stroke="#64748b"
+                    fontSize={11}
+                    tickLine={false}
+                    tickFormatter={(v) => `₹${Number(v) >= 1000 ? `${(Number(v) / 1000).toFixed(0)}k` : v}`}
+                  />
+                  <Tooltip
+                    formatter={(value: any) => [formatINR(Number(value)), ""]}
+                    contentStyle={{
+                      backgroundColor: "#FFFFFF",
+                      borderRadius: "12px",
+                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+                      fontSize: "12px",
+                      padding: "8px 12px",
+                    }}
+                  />
+                  <Bar dataKey="Revenue" fill="#2563EB" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="COGS" fill="#94A3B8" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Fees" fill="#F43F5E" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Profit" fill="#10B981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -1321,38 +1339,48 @@ export function DashboardView({
             </h2>
             <p className="text-xs text-[#6E6E73] mt-0.5">Sales share percentage across channels</p>
           </div>
-          <div className="h-52 w-full flex items-center justify-center my-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={marketplaceBreakdown}
-                  dataKey="revenue"
-                  nameKey="marketplace"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={56}
-                  outerRadius={76}
-                  paddingAngle={4}
-                >
-                  {marketplaceBreakdown.map((entry) => (
-                    <Cell
-                      key={`cell-${entry.marketplace}`}
-                      fill={CHANNEL_PALETTE[entry.marketplace]?.fill || "#64748B"}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: any) => formatINR(Number(value))}
-                  contentStyle={{
-                    backgroundColor: "#FFFFFF",
-                    borderRadius: "12px",
-                    border: "1px solid #e2e8f0",
-                    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
-                    fontSize: "12px",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="h-52 w-full my-2 relative">
+            {!isMounted ? (
+              <div className="h-52 w-full flex items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-xl">
+                Loading distribution...
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={208} minWidth={0} minHeight={208}>
+                <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <Pie
+                    data={
+                      marketplaceBreakdown.some((m) => m.revenue > 0)
+                        ? marketplaceBreakdown.filter((m) => m.revenue > 0)
+                        : [{ marketplace: "No Revenue", revenue: 1 }]
+                    }
+                    dataKey="revenue"
+                    nameKey="marketplace"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={54}
+                    outerRadius={74}
+                    paddingAngle={3}
+                  >
+                    {marketplaceBreakdown.map((entry) => (
+                      <Cell
+                        key={`cell-${entry.marketplace}`}
+                        fill={CHANNEL_PALETTE[entry.marketplace]?.fill || "#64748B"}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: any) => formatINR(Number(value))}
+                    contentStyle={{
+                      backgroundColor: "#FFFFFF",
+                      borderRadius: "12px",
+                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+                      fontSize: "12px",
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
           <div className="space-y-2 pt-3 border-t border-slate-100 text-xs">
             {marketplaceBreakdown.map((m) => {
@@ -1383,40 +1411,61 @@ export function DashboardView({
 
       {/* Loss-making SKU Alert Banner */}
       {lossMakingSkus.length > 0 && (
-        <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 shadow-sm flex items-start gap-3 text-xs">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 mt-1 shrink-0 animate-pulse" />
-          <div className="flex-1">
-            <div
+        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-black/[0.08] shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs transition-all">
+          <div className="flex items-start gap-3.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-[#D70015]/[0.08] border border-[#D70015]/15 text-[#D70015] flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-[#1D1D1F] text-xs sm:text-[13px] tracking-tight">
+                  Margin Erosion Advisory
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#D70015]/[0.08] border border-[#D70015]/15 text-[10px] font-semibold text-[#D70015] tracking-wide">
+                  {lossMakingSkus.length === 1 ? "1 SKU at Risk" : `${lossMakingSkus.length} SKUs at Risk`}
+                </span>
+              </div>
+              <p className="text-[#86868B] text-xs leading-relaxed">
+                {lossMakingSkus.length === 1
+                  ? "1 product SKU is currently operating at a net loss"
+                  : `${lossMakingSkus.length} product SKUs are currently operating at a net loss`}{" "}
+                after factoring in reverse logistics freight and return damage write-offs.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 flex-wrap shrink-0 pl-12 md:pl-0">
+            {lossMakingSkus.map((s) => (
+              <button
+                key={s.sku}
+                onClick={() => {
+                  setSkuSearch(s.sku);
+                  setSkuFilter("ALL");
+                  scrollToSkuTable();
+                }}
+                className="group px-3 py-1.5 rounded-xl bg-white hover:bg-neutral-50 border border-black/[0.08] hover:border-black/[0.14] text-[#1D1D1F] shadow-2xs hover:shadow-xs transition-all flex items-center gap-2 active:scale-[0.98]"
+                title={`Inspect unit economics for ${s.sku}`}
+              >
+                <span className="font-mono text-xs font-semibold text-[#1D1D1F]">{s.sku}</span>
+                <span className="px-1.5 py-0.5 rounded-md bg-[#D70015]/[0.08] text-[#D70015] text-[11px] font-semibold tabular-nums border border-[#D70015]/15">
+                  {formatINR(s.profit)}
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-[#86868B] group-hover:text-[#1D1D1F] group-hover:translate-x-0.5 transition-all" />
+              </button>
+            ))}
+
+            <button
               onClick={() => {
                 setSkuFilter("LOSS_MAKING");
                 setSkuSearch("");
                 scrollToSkuTable();
               }}
-              className="cursor-pointer hover:underline"
+              className="px-3.5 py-1.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:scale-[0.98] text-white font-medium text-xs shadow-xs hover:shadow transition-all flex items-center gap-1.5 shrink-0"
+              title="Filter table to all loss-making products"
             >
-              <span className="font-bold text-amber-950">Loss-Making SKU Advisory: </span>
-              <span className="text-amber-900">
-                {lossMakingSkus.length} product SKU operates at a negative contribution margin after reverse logistics shipping &amp; damage write-offs. (Click to filter table)
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {lossMakingSkus.map((s) => (
-                <button
-                  key={s.sku}
-                  onClick={() => {
-                    setSkuSearch(s.sku);
-                    setSkuFilter("ALL");
-                    scrollToSkuTable();
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100 border border-amber-200 text-amber-950 font-mono text-[11px] font-bold shadow-xs transition-colors flex items-center gap-1.5"
-                  title="Click to view this SKU in table"
-                >
-                  <span>{s.sku}:</span>
-                  <span className="text-rose-600">{formatINR(s.profit)}</span>
-                  <ChevronRight className="w-3 h-3 text-amber-600" />
-                </button>
-              ))}
-            </div>
+              <span>Filter Table</span>
+              <ArrowDownRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}

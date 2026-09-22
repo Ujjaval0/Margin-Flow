@@ -11,14 +11,17 @@
   --radius: 1rem;
 }
 
-html,
-body {
+html {
   height: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100%;
   width: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
   margin: 0;
   padding: 0;
-  overscroll-behavior: none;
 }
 
 body {
@@ -123,6 +126,22 @@ body {
   animation-fill-mode: both;
 }
 
+.animate-in.duration-150 {
+  animation-duration: 150ms;
+}
+
+.animate-in.duration-200 {
+  animation-duration: 200ms;
+}
+
+.animate-in.duration-300 {
+  animation-duration: 300ms;
+}
+
+.animate-in.duration-500 {
+  animation-duration: 500ms;
+}
+
 .fade-in {
   animation-name: mfFadeIn;
 }
@@ -133,5 +152,34 @@ body {
 
 .slide-in-from-top-2 {
   animation-name: mfSlideInFromTop2;
+}
+
+@keyframes mfPageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-transition {
+  animation: mfPageEnter 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+/* Global micro-smoothness for buttons and interactive controls */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in, .page-transition {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 

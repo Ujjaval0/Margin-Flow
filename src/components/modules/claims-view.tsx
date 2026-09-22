@@ -6,14 +6,14 @@ import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate, formatPercent } from "@/lib/utils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { X, ArrowDownRight } from "lucide-react";
+import { X, ArrowDownRight, Sparkles } from "lucide-react";
 
 interface ClaimsViewProps {
   selectedMarketplace?: Marketplace | "ALL";
 }
 
 export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewProps = {}) {
-  const { selectedMarketplace: contextMarketplace, claims, addClaim, updateClaim } = usePlatform();
+  const { selectedMarketplace: contextMarketplace, claims, returns, addClaim, updateClaim } = usePlatform();
   const selectedMarketplace = propMarketplace ?? contextMarketplace;
 
   const [isRecordRecoveryOpen, setIsRecordRecoveryOpen] = useState(false);
@@ -169,6 +169,25 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
             Marketplace claims lifecycle: Amazon SAFE-T, lost transit cases, and reimbursement matching.
           </p>
         </div>
+
+        <button
+          onClick={() => {
+            const unclaimed = returns.find(
+              (r) => !r.claimId && (r.condition === "DAMAGED" || r.returnType === "DAMAGED_RETURN")
+            ) || returns[0];
+            if (unclaimed) {
+              window.dispatchEvent(
+                new CustomEvent("marginflow_open_dispute_modal", {
+                  detail: { returnRecord: unclaimed },
+                })
+              );
+            }
+          }}
+          className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-mono text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition active:scale-95 cursor-pointer"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Draft AI Dispute Claim</span>
+        </button>
       </div>
 
       {/* KPI Cards */}

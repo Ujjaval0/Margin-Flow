@@ -24,6 +24,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { usePlatform } from "@/domain/store";
+import { MarginFlowLogo } from "@/components/MarginFlowLogo";
 
 export type NavModule =
   | "dashboard"
@@ -56,30 +57,31 @@ export function Sidebar({
 }: SidebarProps) {
   const { aiDocuments } = usePlatform();
   const pathname = usePathname();
-  const [optimisticModule, setOptimisticModule] = React.useState<NavModule | null>(null);
 
-  // Synchronize optimistic selection whenever route pathname settles
-  React.useEffect(() => {
-    setOptimisticModule(null);
-  }, [pathname]);
-
-  // Determine active module immediately from optimistic selection, prop, or pathname
+  // Determine active module cleanly from prop or pathname without double-render state
   const activeModule = React.useMemo(() => {
-    if (optimisticModule) return optimisticModule;
     if (propActiveModule) return propActiveModule;
     if (!pathname || pathname === "/" || pathname === "/dashboard") return "dashboard";
-    const segment = pathname.split("/")[1] as NavModule;
+    const cleanPath = pathname.replace(/\/$/, "").split("?")[0];
+    const segment = cleanPath.split("/")[1] as NavModule;
     return segment || "dashboard";
-  }, [optimisticModule, propActiveModule, pathname]);
+  }, [propActiveModule, pathname]);
 
   const pendingDocsCount = React.useMemo(() => {
     return aiDocuments.filter((d) => d.status === "STAGED_NEEDS_REVIEW").length;
   }, [aiDocuments]);
 
+  const handleNavClick = (id: NavModule) => {
+    onSelectModule?.(id);
+    if (typeof window !== "undefined" && window.innerWidth < 768 && isOpen) {
+      onToggle();
+    }
+  };
+
   const navItems = React.useMemo(() => [
     {
       id: "dashboard" as NavModule,
-      href: "/",
+      href: "/dashboard",
       label: "Dashboard",
       icon: LayoutDashboard,
       iconColor: "text-blue-600",
@@ -194,60 +196,39 @@ export function Sidebar({
 
   return (
     <aside
-      className={`bg-[#FBFBFD] flex flex-col h-full border-r border-black/[0.06] select-none text-[#1D1D1F] transition-all duration-300 ease-in-out shrink-0 ${
+      className={`bg-[#FBFBFD] flex flex-col h-full border-r border-black/[0.06] select-none text-[#1D1D1F] transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 relative z-30 ${
         isOpen ? "w-64" : "w-[72px]"
       }`}
     >
       {/* Brand Header */}
       {isOpen ? (
-        <div className="p-4 pb-3 flex items-center justify-between border-b border-black/[0.03]">
+        <div className="h-16 px-4 flex items-center justify-between border-b border-black/[0.04] shrink-0">
           <Link
-            href="/"
-            onClick={() => setOptimisticModule("dashboard")}
+            href="/dashboard"
+            onClick={() => handleNavClick("dashboard")}
             className="flex items-center gap-2.5 min-w-0 group hover:opacity-90 transition-opacity"
             title="MarginFlow Dashboard"
           >
-            <Image
-              src="/margin-flow-logo.png"
-              alt="Margin Flow"
-              width={160}
-              height={44}
-              priority
-              className="h-8 w-auto object-contain"
-            />
+            <MarginFlowLogo className="h-6 w-auto text-[#1D1D1F]" />
           </Link>
-
-          <button
-            onClick={onToggle}
-            className="w-7 h-7 rounded-lg hover:bg-black/[0.05] text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors shrink-0"
-            title="Minimize sidebar (Ctrl+B)"
-          >
-            <PanelLeftClose className="w-4 h-4" />
-          </button>
         </div>
       ) : (
-        <div className="p-4 pb-3 flex items-center justify-center border-b border-black/[0.03]">
-          <button
-            onClick={onToggle}
-            className="w-9 h-9 rounded-xl bg-white border border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.06)] flex items-center justify-center p-1.5 hover:scale-105 hover:border-slate-300 transition-all shrink-0"
-            title="MarginFlow — Click to expand sidebar (Ctrl+B)"
+        <div className="h-16 flex items-center justify-center border-b border-black/[0.04] shrink-0">
+          <Link
+            href="/dashboard"
+            onClick={() => handleNavClick("dashboard")}
+            className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-black/[0.04] transition-colors"
+            title="MarginFlow Dashboard"
           >
-            <Image
-              src="/margin-flow-icon.png"
-              alt="Margin Flow"
-              width={26}
-              height={26}
-              priority
-              className="w-full h-full object-contain"
-            />
-          </button>
+            <MarginFlowLogo variant="mark" className="w-5 h-5 text-[#1D1D1F]" />
+          </Link>
         </div>
       )}
 
       {/* Navigation List */}
-      <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-1 no-scrollbar">
         {isOpen && (
-          <div className="px-2 pb-2 text-[10px] font-semibold text-[#86868B] uppercase tracking-wider">
+          <div className="px-3 pt-1 pb-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
             Workspace
           </div>
         )}
@@ -260,64 +241,87 @@ export function Sidebar({
               key={item.id}
               href={item.href}
               prefetch={true}
-              onClick={() => {
-                setOptimisticModule(item.id);
-                onSelectModule?.(item.id);
-              }}
-              title={item.label}
-              className={`group w-full flex items-center ${
-                isOpen ? "justify-between px-2.5 py-1.5" : "justify-center py-2 px-0"
-              } rounded-xl text-xs font-medium transition-all ${
+              onClick={() => handleNavClick(item.id)}
+              className={`group relative w-full flex items-center ${
+                isOpen ? "justify-between px-3 py-2" : "justify-center py-2 px-0"
+              } rounded-xl text-xs font-medium border transition-colors duration-100 ${
                 isActive
-                  ? "bg-black/[0.07] text-[#1D1D1F] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                  : "text-[#555559] hover:text-[#1D1D1F] hover:bg-black/[0.03]"
+                  ? "bg-white text-slate-900 border-black/[0.05] shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-black/[0.03] border-transparent"
               }`}
             >
               <div className="flex items-center gap-2.5">
                 <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all relative ${
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors duration-100 relative ${
                     isActive
                       ? `${item.bgTint} ${item.iconColor}`
-                      : "bg-black/[0.03] text-[#6E6E73] group-hover:bg-black/[0.05]"
+                      : "bg-transparent text-slate-500 group-hover:text-slate-900"
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? item.iconColor : "text-[#6E6E73]"}`} strokeWidth={2} />
+                  <Icon className={`w-4 h-4 ${isActive ? item.iconColor : "text-slate-500 group-hover:text-slate-900"}`} strokeWidth={1.75} />
                   {!isOpen && item.badge !== undefined && (
-                    <span className="w-2 h-2 rounded-full bg-purple-600 absolute -top-0.5 -right-0.5 ring-2 ring-white" />
+                    <span className="w-2 h-2 rounded-full bg-blue-600 absolute -top-0.5 -right-0.5 ring-2 ring-white" />
                   )}
                 </div>
                 {isOpen && <span className="tracking-tight truncate">{item.label}</span>}
               </div>
               {isOpen && item.badge !== undefined && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-semibold border border-purple-200">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold border border-blue-200/80">
                   {item.badge}
                 </span>
+              )}
+
+              {/* Floating Tooltip for Collapsed Sidebar */}
+              {!isOpen && (
+                <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 -translate-x-1 transition-all whitespace-nowrap shadow-xl z-50">
+                  {item.label}
+                  {item.badge !== undefined && (
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[9px]">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
               )}
             </Link>
           );
         })}
       </nav>
 
-      {/* Bottom Footer Toggle */}
-      <div className="p-2 border-t border-black/[0.04]">
-        <button
-          onClick={onToggle}
-          className={`w-full flex items-center ${
-            isOpen ? "gap-2 px-2.5 py-1.5" : "justify-center py-2"
-          } rounded-xl text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-black/[0.04] transition-all`}
-          title={isOpen ? "Minimize sidebar (Ctrl+B)" : "Expand sidebar (Ctrl+B)"}
-        >
-          {isOpen ? (
-            <>
-              <PanelLeftClose className="w-3.5 h-3.5" />
-              <span className="tracking-tight">Minimize</span>
-              <span className="ml-auto text-[10px] text-slate-400 font-mono">Ctrl+B</span>
-            </>
-          ) : (
-            <PanelLeftOpen className="w-4 h-4 text-slate-600" />
-          )}
-        </button>
-      </div>
+      {/* Modern, Clean Bottom Footer */}
+      {isOpen ? (
+        <div className="p-2.5 border-t border-black/[0.04] shrink-0">
+          <button
+            onClick={onToggle}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-black/[0.04] transition-colors group cursor-pointer"
+            title="Collapse sidebar (⌘B)"
+            aria-label="Collapse sidebar"
+          >
+            <div className="flex items-center gap-2.5">
+              <PanelLeftClose className="w-4 h-4 text-slate-400 group-hover:text-slate-800 transition-colors" />
+              <span className="tracking-tight text-slate-600 group-hover:text-slate-900 font-medium">
+                Collapse
+              </span>
+            </div>
+            <kbd className="text-[10px] font-mono text-slate-400 bg-black/[0.03] border border-black/[0.04] px-1.5 py-0.5 rounded-md">
+              ⌘B
+            </kbd>
+          </button>
+        </div>
+      ) : (
+        <div className="p-2.5 border-t border-black/[0.04] flex justify-center shrink-0">
+          <button
+            onClick={onToggle}
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-black/[0.04] transition-colors group relative cursor-pointer"
+            title="Expand sidebar (⌘B)"
+            aria-label="Expand sidebar"
+          >
+            <PanelLeftOpen className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+            <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-all whitespace-nowrap shadow-xl z-50">
+              Expand <kbd className="ml-1 text-[9px] font-mono text-slate-400">⌘B</kbd>
+            </div>
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

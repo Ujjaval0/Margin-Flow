@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PlatformProvider } from "@/domain/store";
-import { ChunkErrorListener } from "@/components/providers/chunk-error-listener";
 
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-geist-mono",
 });
 
 export const metadata: Metadata = {
@@ -27,9 +32,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full overflow-hidden`}>
-      <body className="bg-[#F5F5F7] text-[#1D1D1F] h-full overflow-hidden font-sans antialiased selection:bg-neutral-900 selection:text-white m-0 p-0">
-        <ChunkErrorListener />
+    <html lang="en" className={`${inter.variable} ${geistMono.variable} h-full scroll-smooth`}>
+      <body className={`${inter.className} bg-[#F5F5F7] text-[#1D1D1F] min-h-full font-sans antialiased selection:bg-neutral-900 selection:text-white m-0 p-0`}>
         <PlatformProvider>{children}</PlatformProvider>
       </body>
     </html>

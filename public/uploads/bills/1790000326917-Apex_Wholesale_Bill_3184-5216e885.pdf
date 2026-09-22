@@ -1,0 +1,20 @@
+TAX INVOICE / VENDOR BILL
+--------------------------------------------------
+Vendor / Supplier : Apex Electronics Components Pvt Ltd
+Invoice No        : APX-2026-9230
+Date              : 2026-09-21
+File Reference    : Apex_Wholesale_Bill_3184.pdf
+
+LINE ITEMS:
+--------------------------------------------------
+SKU               : ELEC-WEM-01
+Description       : Wireless Ergonomic Mouse (Batch 42)
+Quantity          : 50
+Unit Price        : INR 380.00
+Discount          : INR 500.00
+Tax (GST)         : INR 3330.00
+--------------------------------------------------
+Subtotal          : INR 19000.00
+Total Amount      : INR 21830.00
+--------------------------------------------------
+Authorized Signatory / E-Invoice System
