@@ -6,20 +6,46 @@ import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate, formatPercent } from "@/lib/utils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { X, ArrowDownRight, Sparkles } from "lucide-react";
+import { X, ArrowDownRight, Sparkles, Trash2, Pencil } from "lucide-react";
+import { ClaimBreakdownModal, ClaimCardType } from "@/components/modals/claim-breakdown-modal";
 
 interface ClaimsViewProps {
   selectedMarketplace?: Marketplace | "ALL";
 }
 
 export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewProps = {}) {
-  const { selectedMarketplace: contextMarketplace, claims, returns, addClaim, updateClaim } = usePlatform();
+  const { selectedMarketplace: contextMarketplace, claims, returns, addClaim, updateClaim, editClaim, deleteClaim, deleteClaims } = usePlatform();
   const selectedMarketplace = propMarketplace ?? contextMarketplace;
 
   const [isRecordRecoveryOpen, setIsRecordRecoveryOpen] = useState(false);
+  const [activeBreakdownCard, setActiveBreakdownCard] = useState<ClaimCardType | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [recoveryAmount, setRecoveryAmount] = useState<number>(0);
   const [resolutionStatus, setResolutionStatus] = useState<ClaimStatus>("RECOVERED");
+
+  // Edit modal state
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingClaim, setEditingClaim] = useState<Claim | null>(null);
+  const [editFields, setEditFields] = useState<{
+    claimType: Claim["claimType"];
+    claimDate: string;
+    amountClaimed: number;
+    amountRecovered: number;
+    status: ClaimStatus;
+    marketplace: Marketplace;
+    notes: string;
+  }>({
+    claimType: "LOST_IN_TRANSIT",
+    claimDate: "",
+    amountClaimed: 0,
+    amountRecovered: 0,
+    status: "FILED",
+    marketplace: "Amazon India",
+    notes: "",
+  });
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const filteredClaims = claims.filter(
     (c) => selectedMarketplace === "ALL" || c.marketplace === selectedMarketplace
@@ -59,7 +85,119 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
     setSelectedClaim(null);
   };
 
+  const handleOpenEdit = (claim: Claim) => {
+    setEditingClaim(claim);
+    setEditFields({
+      claimType: claim.claimType,
+      claimDate: claim.claimDate,
+      amountClaimed: claim.amountClaimed,
+      amountRecovered: claim.amountRecovered,
+      status: claim.status,
+      marketplace: claim.marketplace,
+      notes: claim.notes ?? "",
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleSubmitEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingClaim) return;
+    editClaim(editingClaim.id, {
+      claimType: editFields.claimType,
+      claimDate: editFields.claimDate,
+      amountClaimed: Number(editFields.amountClaimed),
+      amountRecovered: Number(editFields.amountRecovered),
+      status: editFields.status,
+      marketplace: editFields.marketplace,
+      notes: editFields.notes || undefined,
+    });
+    setIsEditOpen(false);
+    setEditingClaim(null);
+  };
+
+  // Selection helpers
+  const allDisplayedIds = displayedClaims.map((c) => c.id);
+  const allSelected = allDisplayedIds.length > 0 && allDisplayedIds.every((id) => selectedIds.has(id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allDisplayedIds));
+    }
+  };
+
+  const toggleSelectRow = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkDelete = () => {
+    const ids = Array.from(selectedIds);
+    if (window.confirm(`Delete ${ids.length} selected claim${ids.length > 1 ? "s" : ""}?`)) {
+      deleteClaims(ids);
+      setSelectedIds(new Set());
+    }
+  };
+
+  const marketplaceOptions: Marketplace[] = [
+    "Amazon India",
+    "Flipkart",
+    "Meesho",
+    "Personal Website",
+    "Myntra",
+    "WooCommerce",
+    "B2B Wholesale",
+    "Other",
+  ];
+
+  const claimTypeOptions: { value: Claim["claimType"]; label: string }[] = [
+    { value: "LOST_IN_TRANSIT", label: "Lost in Transit" },
+    { value: "DAMAGED_INVOICE", label: "Damaged Invoice" },
+    { value: "WRONG_RETURN_ITEM", label: "Wrong Return Item" },
+    { value: "FEE_DISPUTE", label: "Fee Dispute" },
+  ];
+
+  const statusOptions: { value: ClaimStatus; label: string }[] = [
+    { value: "NOT_FILED", label: "Not Filed" },
+    { value: "FILED", label: "Filed" },
+    { value: "UNDER_REVIEW", label: "Under Review" },
+    { value: "APPROVED", label: "Approved" },
+    { value: "PARTIALLY_RECOVERED", label: "Partially Recovered" },
+    { value: "RECOVERED", label: "Recovered" },
+    { value: "REJECTED", label: "Rejected" },
+    { value: "CLOSED", label: "Closed" },
+  ];
+
   const columns: ColumnDef<Claim>[] = [
+    {
+      id: "select",
+      header: () => (
+        <input
+          type="checkbox"
+          checked={allSelected}
+          onChange={toggleSelectAll}
+          className="w-3.5 h-3.5 accent-[#1D1D1F] cursor-pointer"
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.has(row.original.id)}
+          onChange={() => toggleSelectRow(row.original.id)}
+          className="w-3.5 h-3.5 accent-[#1D1D1F] cursor-pointer"
+        />
+      ),
+      enableSorting: false,
+    },
     {
       accessorKey: "id",
       header: "Claim / Order Ref",
@@ -147,12 +285,32 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
       cell: ({ row }) => {
         const claim = row.original;
         return (
-          <button
-            onClick={() => handleOpenRecovery(claim)}
-            className="px-3 py-1 rounded-full bg-black/[0.04] hover:bg-black/[0.08] text-[#1D1D1F] font-medium text-[11px] transition"
-          >
-            Record Credit
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handleOpenRecovery(claim)}
+              className="px-3 py-1 rounded-full bg-black/[0.04] hover:bg-black/[0.08] text-[#1D1D1F] font-medium text-[11px] transition cursor-pointer"
+            >
+              Record Credit
+            </button>
+            <button
+              onClick={() => handleOpenEdit(claim)}
+              className="p-1 rounded-full text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+              title="Edit Claim"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm(`Delete claim ${claim.id} for order ${claim.orderId}?`)) {
+                  deleteClaim(claim.id);
+                }
+              }}
+              className="p-1 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+              title="Delete Claim"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         );
       },
     },
@@ -192,23 +350,55 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-          <span className="text-xs text-[#86868B] font-medium">Disputed Amount</span>
+        <div
+          onClick={() => setActiveBreakdownCard("disputedAmount")}
+          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#86868B] font-medium">Disputed Amount</span>
+            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              Breakdown &rarr;
+            </span>
+          </div>
           <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{formatINR(totalClaimed)}</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">{filteredClaims.length} disputes filed</span>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-          <span className="text-xs text-[#86868B] font-medium">Recovered Reimbursements</span>
+        <div
+          onClick={() => setActiveBreakdownCard("recoveredReimbursements")}
+          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#86868B] font-medium">Recovered Reimbursements</span>
+            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              Breakdown &rarr;
+            </span>
+          </div>
           <div className="text-2xl font-semibold text-[#288548] mt-1 tracking-tight">{formatINR(totalRecovered)}</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">Credited to bank</span>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-          <span className="text-xs text-[#86868B] font-medium">Outstanding Balance</span>
+        <div
+          onClick={() => setActiveBreakdownCard("outstandingBalance")}
+          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#86868B] font-medium">Outstanding Balance</span>
+            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              Breakdown &rarr;
+            </span>
+          </div>
           <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{formatINR(outstandingAmount)}</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">Pending approval</span>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-          <span className="text-xs text-[#86868B] font-medium">Recovery Rate</span>
+        <div
+          onClick={() => setActiveBreakdownCard("recoveryRate")}
+          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#86868B] font-medium">Recovery Rate</span>
+            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              Breakdown &rarr;
+            </span>
+          </div>
           <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{formatPercent(recoveryRate)}</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">Resolution efficiency</span>
         </div>
@@ -238,6 +428,28 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
         </div>
       </div>
 
+      {/* Bulk delete toolbar */}
+      {someSelected && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-rose-50 border border-rose-200/70 rounded-xl">
+          <span className="text-xs font-medium text-rose-700">
+            {selectedIds.size} claim{selectedIds.size > 1 ? "s" : ""} selected
+          </span>
+          <button
+            onClick={handleBulkDelete}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-semibold transition cursor-pointer"
+          >
+            <Trash2 className="w-3 h-3" />
+            Delete Selected
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto text-[11px] text-rose-500 hover:text-rose-700 font-medium transition cursor-pointer"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+
       <DataTable
         columns={columns}
         data={displayedClaims}
@@ -247,20 +459,20 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
 
       {/* Record Recovery Modal */}
       {isRecordRecoveryOpen && selectedClaim && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-black/[0.06] w-full max-w-md overflow-hidden">
-            <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+            <div className="px-6 py-4 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
               <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">
                 Record Recovery Credit: {selectedClaim.id}
               </h2>
               <button
                 onClick={() => setIsRecordRecoveryOpen(false)}
-                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition"
+                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <form onSubmit={handleSubmitRecovery} className="p-6 space-y-4 text-xs">
+            <form id="record-recovery-form" onSubmit={handleSubmitRecovery} className="p-6 space-y-4 text-xs overflow-y-auto flex-1 min-h-0">
               <div className="p-3.5 bg-[#FAFAFC] rounded-2xl border border-black/[0.04] space-y-1.5">
                 <div className="flex justify-between text-[#6E6E73] items-center">
                   <span>Claimed:</span>
@@ -300,25 +512,162 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                   <option value="CLOSED">Closed Without Recovery</option>
                 </select>
               </div>
-
-              <div className="pt-3 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsRecordRecoveryOpen(false)}
-                  className="px-4 py-1.5 rounded-full text-[#6E6E73] hover:bg-black/[0.03] text-xs font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-1.5 bg-[#1D1D1F] hover:bg-black text-white rounded-full text-xs font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)]"
-                >
-                  Commit Credit
-                </button>
-              </div>
             </form>
+
+            <div className="px-6 py-4 border-t border-black/[0.05] bg-slate-50/50 flex justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsRecordRecoveryOpen(false)}
+                className="px-4 py-2 rounded-xl text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="record-recovery-form"
+                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-colors"
+              >
+                Commit Credit
+              </button>
+            </div>
           </div>
         </div>
+      )}
+
+      {/* Edit Claim Modal */}
+      {isEditOpen && editingClaim && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl border border-black/[0.08] w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="px-5 py-3 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
+              <h2 className="text-xs font-semibold text-[#1D1D1F] tracking-tight">
+                Edit Claim: {editingClaim.id}
+              </h2>
+              <button
+                onClick={() => setIsEditOpen(false)}
+                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <form id="edit-claim-form" onSubmit={handleSubmitEdit} className="px-5 py-3 space-y-2.5 text-xs overflow-y-auto flex-1 min-h-0">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">Channel</label>
+                  <select
+                    value={editFields.marketplace}
+                    onChange={(e) => setEditFields((f) => ({ ...f, marketplace: e.target.value as Marketplace }))}
+                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs focus:outline-none"
+                  >
+                    {marketplaceOptions.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">Filed Date</label>
+                  <input
+                    type="date"
+                    value={editFields.claimDate}
+                    onChange={(e) => setEditFields((f) => ({ ...f, claimDate: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs focus:outline-none text-[#1D1D1F]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-medium text-[#6E6E73] block mb-1">Dispute Nature</label>
+                <select
+                  value={editFields.claimType}
+                  onChange={(e) => setEditFields((f) => ({ ...f, claimType: e.target.value as Claim["claimType"] }))}
+                  className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs focus:outline-none"
+                >
+                  {claimTypeOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">Claimed Amount (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editFields.amountClaimed}
+                    onChange={(e) => setEditFields((f) => ({ ...f, amountClaimed: Number(e.target.value) }))}
+                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">Recovered Amount (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editFields.amountRecovered}
+                    onChange={(e) => setEditFields((f) => ({ ...f, amountRecovered: Number(e.target.value) }))}
+                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-medium text-[#6E6E73] block mb-1">Status</label>
+                <select
+                  value={editFields.status}
+                  onChange={(e) => setEditFields((f) => ({ ...f, status: e.target.value as ClaimStatus }))}
+                  className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs focus:outline-none"
+                >
+                  {statusOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-medium text-[#6E6E73] block mb-1">Notes</label>
+                <textarea
+                  value={editFields.notes}
+                  onChange={(e) => setEditFields((f) => ({ ...f, notes: e.target.value }))}
+                  rows={2}
+                  className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs text-[#1D1D1F] focus:outline-none resize-none"
+                  placeholder="Optional notes..."
+                />
+              </div>
+            </form>
+
+            <div className="px-5 py-3 border-t border-black/[0.05] bg-slate-50/50 flex justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(false)}
+                className="px-4 py-1.5 rounded-lg text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="edit-claim-form"
+                className="px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white rounded-lg text-xs font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Card Breakdown Modal */}
+      {activeBreakdownCard && (
+        <ClaimBreakdownModal
+          cardType={activeBreakdownCard}
+          onClose={() => setActiveBreakdownCard(null)}
+          claims={filteredClaims}
+          onSelectFilter={(status) => {
+            setClaimStatusFilter(status);
+            setActiveBreakdownCard(null);
+          }}
+        />
       )}
     </div>
   );

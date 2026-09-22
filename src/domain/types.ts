@@ -18,6 +18,10 @@ export type OrderStatus =
   | "CANCELLED"
   | "RTO"
   | "RETURNED"
+  | "CUSTOMER_RETURN"
+  | "DAMAGED_RETURN"
+  | "CLAIM_PENDING"
+  | "CLAIM_APPROVED"
   | "PARTIALLY_RETURNED";
 
 export type ReturnType =
@@ -123,6 +127,11 @@ export interface Order {
   items: OrderItem[];
   shippingFeeCharged: number;
   marketplaceChargesEstimate: number;
+  settlementAmount?: number;
+  settlementPercent?: number;
+  commissionPercent?: number;
+  supplierName?: string;
+  supplierId?: string;
   notes?: string;
   documentIds?: string[];
   settlementIds?: string[];

@@ -280,195 +280,198 @@ export function calculateBusinessProfitability(
   claims: Claim[],
   expenses: Expense[]
 ): ProfitabilityMetrics {
-  let grossSales = 0;
-  let discounts = 0;
-  let refundedSales = 0;
-  let deliveredCogs = 0;
-  let totalUnitsSold = 0;
-
   const maps = buildFinancialMaps(returns, settlements, claims);
 
-  // Process valid orders (exclude outright cancelled orders from revenue)
-  orders.forEach((order) => {
-    if (order.status === "CANCELLED") return;
-
-    order.items.forEach((item) => {
-      const itemGross = item.sellingPrice * item.quantity;
-      grossSales += itemGross;
-      discounts += item.discount;
-      totalUnitsSold += item.quantity;
-
-      const returnedQty = getReturnedUnitsForItem(order, item.sku, returns, maps.returnUnitsMap) || item.returnedQuantity || 0;
-      const deliveredQty = Math.max(0, item.quantity - returnedQty);
-      deliveredCogs += item.snapshotUnitCost * deliveredQty;
-      refundedSales += getRefundedAmountForItem(item, returnedQty);
-    });
-  });
-
-  const netSales = Math.max(0, Math.round((grossSales - discounts - refundedSales) * 100) / 100);
-  const grossProfit = Math.round((netSales - deliveredCogs) * 100) / 100;
-  const grossMargin = netSales > 0 ? grossProfit / netSales : 0;
-
-  // Process Returns & Losses (Net write-offs and reverse logistics)
-  let returnLosses = 0;
-  let rtoLosses = 0;
-  let damageLosses = 0;
-  let totalReturnedUnits = 0;
+  let grossSales = 0;
+  let totalOrders = 0;
+  let totalUnitsSold = 0;
+  let settlementReceived = 0;
+  let activeCogs = 0;
   let rtoCount = 0;
   let customerReturnCount = 0;
   let damagedUnitsCount = 0;
 
-  let customerReturnFees = 0;
-
-  returns.forEach((ret) => {
-    totalReturnedUnits += ret.quantity;
-    const loss = ret.lossAmount; // Exact net loss, no double counting of shipping
-
-    if (ret.returnType === "RTO") {
-      rtoLosses += loss;
-      rtoCount += ret.quantity;
-    } else {
-      returnLosses += loss;
-      customerReturnCount += ret.quantity;
-    }
-
-    if (ret.customerReturnFee) {
-      customerReturnFees += ret.customerReturnFee;
-    }
-
-    if (ret.condition === "DAMAGED" || ret.condition === "UNUSABLE") {
-      damageLosses += Math.max(0, ret.lossAmount - ret.returnShippingCost - ret.otherReturnCosts);
-      damagedUnitsCount += ret.quantity;
-    }
-  });
-
-  // Process Claims Recoveries
-  let claimRecoveries = 0;
-  let pendingClaimsAmount = 0;
-  let pendingClaimsCount = 0;
-  claims.forEach((claim) => {
-    if (claim.status === "RECOVERED" || claim.status === "PARTIALLY_RECOVERED") {
-      claimRecoveries += claim.amountRecovered;
-    } else if (claim.status === "FILED" || claim.status === "UNDER_REVIEW") {
-      pendingClaimsAmount += claim.amountClaimed;
-      pendingClaimsCount += 1;
-    }
-  });
-
-  // Process Settlements (Order-by-order hybrid reconciliation)
-  const settlementsByOrderId = new Map<string, Settlement[]>();
-  settlements.forEach((s) => {
-    if (s.orderId) {
-      const list = settlementsByOrderId.get(s.orderId) || [];
-      list.push(s);
-      settlementsByOrderId.set(s.orderId, list);
-    }
-  });
-
-  let marketplaceCharges = 0;
-  let shippingLogisticsCosts = 0;
-  let actualSettlementsReceived = 0;
-
+  // Process all valid non-cancelled orders
   orders.forEach((order) => {
     if (order.status === "CANCELLED") return;
 
-    const linkedSettlements = [
-      ...(settlementsByOrderId.get(order.id) || []),
-      ...(order.channelOrderId ? settlementsByOrderId.get(order.channelOrderId) || [] : []),
-    ];
+    totalOrders += 1;
+    let orderGross = 0;
+    let orderCogs = 0;
+    let orderUnits = 0;
 
-    if (linkedSettlements.length > 0) {
-      // Settled order: use actual settlement fee deductions
-      linkedSettlements.forEach((s) => {
-        s.deductions.forEach((d) => {
-          if (d.category === "LOGISTICS") {
-            shippingLogisticsCosts += d.amount;
-          } else if (d.category !== "RETURN_SHIPPING") {
-            marketplaceCharges += d.amount;
-          }
-        });
-      });
+    order.items.forEach((item) => {
+      const itemGross = item.sellingPrice * item.quantity;
+      orderGross += itemGross;
+      orderCogs += item.snapshotUnitCost * item.quantity;
+      orderUnits += item.quantity;
+    });
+
+    grossSales += orderGross;
+    totalUnitsSold += orderUnits;
+
+    // Check linked returns and claims
+    const orderReturns = [
+      ...(maps.returnsByOrderMap.get(order.id) || []),
+      ...(order.channelOrderId ? maps.returnsByOrderMap.get(order.channelOrderId) || [] : []),
+    ];
+    const orderClaims = maps.claimsByOrderMap.get(order.id) || [];
+
+    const isRto =
+      order.status === "RTO" ||
+      orderReturns.some((r) => r.returnType === "RTO");
+
+    const isDamaged =
+      order.status === "DAMAGED_RETURN" ||
+      order.status === "CLAIM_PENDING" ||
+      order.status === "CLAIM_APPROVED" ||
+      orderReturns.some(
+        (r) => r.returnType === "DAMAGED_RETURN" || r.condition === "DAMAGED" || r.condition === "UNUSABLE"
+      ) ||
+      orderClaims.length > 0;
+
+    const isCustomerReturn =
+      order.status === "CUSTOMER_RETURN" ||
+      order.status === "RETURNED" ||
+      orderReturns.some((r) => r.returnType === "CUSTOMER_RETURN");
+
+    if (isRto) {
+      rtoCount += orderUnits;
+      // COGS is inactive (0), Settlement is 0 (Points 6 & 15)
+    } else if (isDamaged || order.status === "CLAIM_PENDING" || order.status === "CLAIM_APPROVED") {
+      customerReturnCount += orderUnits;
+      damagedUnitsCount += orderUnits;
+      // COGS is active (Points 5, 10 & 12)
+      activeCogs += orderCogs;
+      // Settlement is 0 (Point 15)
+    } else if (isCustomerReturn) {
+      customerReturnCount += orderUnits;
+      // COGS is inactive (0), Settlement is 0 (Points 4 & 15)
     } else {
-      // Unsettled order: retain estimates
-      marketplaceCharges += order.marketplaceChargesEstimate || 0;
-      shippingLogisticsCosts += order.shippingFeeCharged || 0;
+      // DELIVERED Order (Point 3 & 15):
+      // COGS is active!
+      activeCogs += orderCogs;
+
+      // Settlement is counted ONLY for DELIVERED orders (Point 15)
+      const linkedSettlements = [
+        ...(maps.settlementsByOrderMap.get(order.id) || []),
+        ...(order.channelOrderId ? maps.settlementsByOrderMap.get(order.channelOrderId) || [] : []),
+      ];
+
+      if (linkedSettlements.length > 0) {
+        settlementReceived += linkedSettlements.reduce((sum, s) => sum + s.netSettlement, 0);
+      } else if (order.settlementAmount !== undefined && order.settlementAmount !== null) {
+        settlementReceived += order.settlementAmount;
+      } else if (order.settlementPercent !== undefined && order.settlementPercent !== null) {
+        settlementReceived += Math.round(orderGross * (order.settlementPercent / 100) * 100) / 100;
+      } else if (order.marketplaceChargesEstimate) {
+        settlementReceived += Math.max(0, orderGross - order.marketplaceChargesEstimate);
+      } else {
+        settlementReceived += Math.round(orderGross * 0.75 * 100) / 100;
+      }
     }
   });
 
-  settlements.forEach((s) => {
-    actualSettlementsReceived += s.netSettlement;
+  // Build lookup of active order IDs to prevent orphaned return fees or disconnected claim recoveries
+  const activeOrderIds = new Set<string>();
+  orders.forEach((o) => {
+    if (o.status !== "CANCELLED") {
+      activeOrderIds.add(o.id);
+      if (o.channelOrderId) activeOrderIds.add(o.channelOrderId);
+    }
   });
 
-  // Contribution Profit
-  const contributionProfit = Math.round(
-    (grossProfit -
-      marketplaceCharges -
-      shippingLogisticsCosts -
-      (returnLosses + rtoLosses) +
-      claimRecoveries) * 100
-  ) / 100;
-  const contributionMargin = netSales > 0 ? contributionProfit / netSales : 0;
+  // Return fees (Customer returns only; RTO fee is 0 per Points 6 & 9)
+  // Scoped strictly to active orders in the current dataset
+  let customerReturnFees = 0;
+  if (totalOrders > 0) {
+    returns.forEach((ret) => {
+      if (ret.returnType !== "RTO") {
+        const isLinkedToActiveOrder =
+          (ret.orderId && activeOrderIds.has(ret.orderId)) ||
+          (ret.channelOrderId && activeOrderIds.has(ret.channelOrderId));
+        if (isLinkedToActiveOrder) {
+          customerReturnFees += ret.customerReturnFee || 0;
+        }
+      }
+    });
+  }
 
-  // Operating Expenses & Advertising Attribution
+  // Claims recoveries (Approved claims only per Points 10 & 11)
+  // Scoped strictly to active orders in the current dataset
+  let claimRecoveries = 0;
+  let pendingClaimsAmount = 0;
+  let pendingClaimsCount = 0;
+  if (totalOrders > 0) {
+    claims.forEach((claim) => {
+      const isLinkedToActiveOrder = claim.orderId && activeOrderIds.has(claim.orderId);
+      if (isLinkedToActiveOrder) {
+        if (claim.status === "APPROVED" || claim.status === "RECOVERED" || claim.status === "PARTIALLY_RECOVERED") {
+          claimRecoveries += claim.amountRecovered;
+        } else if (claim.status === "FILED" || claim.status === "UNDER_REVIEW" || claim.status === "NOT_FILED") {
+          pendingClaimsAmount += claim.amountClaimed;
+          pendingClaimsCount += 1;
+        }
+      }
+    });
+  }
+
+  // Point 17: Platform Profit & Net Profit
+  // All Platform Profit = Settlement Received − Return Fees + Claim Recovery
+  const allPlatformProfit = Math.round((settlementReceived - customerReturnFees + claimRecoveries) * 100) / 100;
+
+  // Net Profit = All Platform Profit − Active COGS
+  const netProfit = Math.round((allPlatformProfit - activeCogs) * 100) / 100;
+
   const operatingExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
   const totalAdSpend = expenses
     .filter((e) => e.category === "Advertising")
     .reduce((sum, e) => sum + e.amount, 0);
 
-  // Net Operating Profit
-  const netOperatingProfit = Math.round((contributionProfit - operatingExpenses) * 100) / 100;
-  const netOperatingMargin = netSales > 0 ? netOperatingProfit / netSales : 0;
+  const netOperatingProfit = Math.round((netProfit - operatingExpenses) * 100) / 100;
+  const netOperatingMargin = grossSales > 0 ? netOperatingProfit / grossSales : 0;
+  const contributionMargin = grossSales > 0 ? netProfit / grossSales : 0;
+  const returnRate = totalUnitsSold > 0 ? (customerReturnCount + rtoCount) / totalUnitsSold : 0;
 
-  // ROAS & POAS
-  const roas = totalAdSpend > 0 ? Math.round((netSales / totalAdSpend) * 100) / 100 : 0;
-  const poas = totalAdSpend > 0 ? Math.round((contributionProfit / totalAdSpend) * 100) / 100 : 0;
+  const roas = totalAdSpend > 0 ? Math.round((grossSales / totalAdSpend) * 100) / 100 : 0;
+  const poas = totalAdSpend > 0 ? Math.round((netProfit / totalAdSpend) * 100) / 100 : 0;
 
-  const totalOrders = orders.filter((o) => o.status !== "CANCELLED").length;
-  const returnRate = totalUnitsSold > 0 ? totalReturnedUnits / totalUnitsSold : 0;
-
-  const outstandingSettlementEstimated = Math.max(
-    0,
-    Math.round((netSales - marketplaceCharges - shippingLogisticsCosts - actualSettlementsReceived) * 100) / 100
-  );
-
-  const totalFees = Math.round(
-    (marketplaceCharges + shippingLogisticsCosts + customerReturnFees) * 100
-  ) / 100;
+  const totalFees = Math.round(customerReturnFees * 100) / 100;
 
   return {
-    grossSales,
-    discounts,
-    refundedSales,
-    netSales,
-    cogs: deliveredCogs,
-    grossProfit,
-    grossMargin,
-    marketplaceCharges,
-    shippingLogisticsCosts,
-    customerReturnFees,
-    returnLosses,
-    rtoLosses,
-    damageLosses,
-    claimRecoveries,
-    contributionProfit,
-    contributionMargin,
+    grossSales: Math.round(grossSales * 100) / 100,
+    discounts: 0,
+    refundedSales: 0,
+    netSales: Math.round(grossSales * 100) / 100,
+    cogs: Math.round(activeCogs * 100) / 100,
+    grossProfit: Math.round((grossSales - activeCogs) * 100) / 100,
+    grossMargin: grossSales > 0 ? (grossSales - activeCogs) / grossSales : 0,
+    marketplaceCharges: Math.max(0, Math.round((grossSales - settlementReceived) * 100) / 100),
+    shippingLogisticsCosts: 0,
+    customerReturnFees: Math.round(customerReturnFees * 100) / 100,
+    returnLosses: customerReturnFees,
+    rtoLosses: 0,
+    damageLosses: 0,
+    claimRecoveries: Math.round(claimRecoveries * 100) / 100,
+    contributionProfit: netProfit,
+    contributionMargin: Math.round(contributionMargin * 1000) / 1000,
     operatingExpenses,
     netOperatingProfit,
-    netOperatingMargin,
-    actualSettlementsReceived,
-    outstandingSettlementEstimated,
+    netOperatingMargin: Math.round(netOperatingMargin * 1000) / 1000,
+    actualSettlementsReceived: Math.round(settlementReceived * 100) / 100,
+    outstandingSettlementEstimated: 0,
     totalOrders,
     totalUnitsSold,
     totalReturns: returns.length,
-    returnRate,
+    returnRate: Math.round(returnRate * 1000) / 1000,
     totalAdSpend,
     roas,
     poas,
-    netPlatformPayout: contributionProfit + deliveredCogs,
-    trueProfit: contributionProfit,
+    netPlatformPayout: allPlatformProfit,
+    trueProfit: netProfit,
     rtoCount,
     customerReturnCount,
-    pendingClaimsAmount,
+    pendingClaimsAmount: Math.round(pendingClaimsAmount * 100) / 100,
     pendingClaimsCount,
     damagedUnitsCount,
     totalFees,
@@ -476,7 +479,7 @@ export function calculateBusinessProfitability(
 }
 
 /**
- * Calculates Order-Level Profitability
+ * Calculates Order-Level Profitability adhering strictly to the 20-point specification
  */
 export function calculateOrderProfitability(
   order: Order,
@@ -486,23 +489,12 @@ export function calculateOrderProfitability(
   indexedMaps?: IndexedFinancialMaps
 ): OrderProfitability {
   let grossSales = 0;
-  let discounts = 0;
-  let refundedSales = 0;
-  let deliveredCogs = 0;
+  let totalOrderCogs = 0;
 
   order.items.forEach((i) => {
-    const itemGross = i.sellingPrice * i.quantity;
-    grossSales += itemGross;
-    discounts += i.discount;
-
-    const returnedQty = getReturnedUnitsForItem(order, i.sku, returns, indexedMaps?.returnUnitsMap) || i.returnedQuantity || 0;
-    const deliveredQty = Math.max(0, i.quantity - returnedQty);
-    deliveredCogs += i.snapshotUnitCost * deliveredQty;
-    refundedSales += getRefundedAmountForItem(i, returnedQty);
+    grossSales += i.sellingPrice * i.quantity;
+    totalOrderCogs += i.snapshotUnitCost * i.quantity;
   });
-
-  const netSales = Math.max(0, Math.round((grossSales - discounts - refundedSales) * 100) / 100);
-  const grossProfit = Math.round((netSales - deliveredCogs) * 100) / 100;
 
   // Check linked settlements with O(1) indexed map lookup if available
   const linkedSettlements = indexedMaps
@@ -514,18 +506,18 @@ export function calculateOrderProfitability(
         (s) => s.orderId === order.id || (order.channelOrderId && s.orderId === order.channelOrderId)
       );
 
-  let chargesDeducted = 0;
+  // Settlement amount
   let settledAmount = 0;
-
   if (linkedSettlements.length > 0) {
-    linkedSettlements.forEach((s) => {
-      settledAmount += s.netSettlement;
-      chargesDeducted += s.deductions
-        .filter((d) => d.category !== "RETURN_SHIPPING")
-        .reduce((sum, d) => sum + d.amount, 0);
-    });
+    settledAmount = linkedSettlements.reduce((sum, s) => sum + s.netSettlement, 0);
+  } else if (order.settlementAmount !== undefined && order.settlementAmount !== null) {
+    settledAmount = order.settlementAmount;
+  } else if (order.settlementPercent !== undefined && order.settlementPercent !== null) {
+    settledAmount = Math.round(grossSales * (order.settlementPercent / 100) * 100) / 100;
+  } else if (order.marketplaceChargesEstimate) {
+    settledAmount = Math.max(0, grossSales - order.marketplaceChargesEstimate);
   } else {
-    chargesDeducted = (order.marketplaceChargesEstimate || 0) + (order.shippingFeeCharged || 0);
+    settledAmount = Math.round(grossSales * 0.75 * 100) / 100;
   }
 
   // Linked returns with O(1) indexed lookup if available
@@ -536,16 +528,85 @@ export function calculateOrderProfitability(
     : returns.filter(
         (r) => r.orderId === order.id || (order.channelOrderId && r.channelOrderId === order.channelOrderId)
       );
-  const returnLoss = linkedReturns.reduce((sum, r) => sum + r.lossAmount, 0);
 
   // Linked claims with O(1) indexed lookup if available
   const linkedClaims = indexedMaps
     ? indexedMaps.claimsByOrderMap.get(order.id) || []
     : claims.filter((c) => c.orderId === order.id);
-  const claimRecovery = linkedClaims.reduce((sum, c) => sum + c.amountRecovered, 0);
 
-  const contributionProfit = Math.round((grossProfit - chargesDeducted - returnLoss + claimRecovery) * 100) / 100;
-  const contributionMargin = netSales > 0 ? contributionProfit / netSales : 0;
+  // Claim recovery (Approved amount only per Points 10 & 11)
+  const approvedClaims = linkedClaims.filter(
+    (c) => c.status === "APPROVED" || c.status === "RECOVERED" || c.status === "PARTIALLY_RECOVERED"
+  );
+  const claimRecovery = approvedClaims.reduce((sum, c) => sum + c.amountRecovered, 0);
+
+  // Determine return characteristics
+  const isRto =
+    order.status === "RTO" ||
+    linkedReturns.some((r) => r.returnType === "RTO");
+
+  const isDamaged =
+    order.status === "DAMAGED_RETURN" ||
+    order.status === "CLAIM_PENDING" ||
+    order.status === "CLAIM_APPROVED" ||
+    linkedReturns.some(
+      (r) => r.returnType === "DAMAGED_RETURN" || r.condition === "DAMAGED" || r.condition === "UNUSABLE"
+    ) ||
+    linkedClaims.length > 0;
+
+  const isCustomerReturn =
+    order.status === "CUSTOMER_RETURN" ||
+    order.status === "RETURNED" ||
+    linkedReturns.some((r) => r.returnType === "CUSTOMER_RETURN");
+
+  // Return fee (for RTO, fee is always 0 per Points 6 & 9)
+  let returnFee = 0;
+  if (!isRto && (isCustomerReturn || isDamaged)) {
+    returnFee = linkedReturns.reduce((sum, r) => sum + (r.returnType === "RTO" ? 0 : (r.customerReturnFee || 0)), 0);
+  }
+
+  // Calculate profit and effective metrics per Point 7 matrix:
+  let effectiveSettlement = 0;
+  let activeCogs = 0;
+  let contributionProfit = 0;
+  let chargesDeducted = 0;
+
+  if (isRto) {
+    // Point 6: RTO -> Settlement = 0, COGS = 0, Return Fee = 0, Profit = 0
+    effectiveSettlement = 0;
+    activeCogs = 0;
+    returnFee = 0;
+    contributionProfit = 0;
+    chargesDeducted = grossSales;
+  } else if (isDamaged || order.status === "CLAIM_PENDING" || order.status === "CLAIM_APPROVED") {
+    // Point 5 & 10: Customer Return + Damaged / Damaged Return / Claim:
+    // Settlement = 0, COGS = Active, Return Fee = Yes, Claim = approved amount
+    // Profit = Claim Recovery − COGS − Return Fee
+    effectiveSettlement = 0;
+    activeCogs = totalOrderCogs;
+    contributionProfit = Math.round((claimRecovery - activeCogs - returnFee) * 100) / 100;
+    chargesDeducted = grossSales;
+  } else if (isCustomerReturn) {
+    // Point 4: Customer Return + Good:
+    // Settlement = 0, COGS = 0, Return Fee = Yes
+    // Profit = − Return Fee
+    effectiveSettlement = 0;
+    activeCogs = 0;
+    contributionProfit = Math.round(-returnFee * 100) / 100;
+    chargesDeducted = grossSales;
+  } else {
+    // Point 3: Delivered Order:
+    // Effective Settlement = Settlement Amount, Effective COGS = Active COGS, Return Fee = 0
+    // Profit = Settlement − COGS
+    effectiveSettlement = settledAmount;
+    activeCogs = totalOrderCogs;
+    returnFee = 0;
+    contributionProfit = Math.round((effectiveSettlement - activeCogs) * 100) / 100;
+    chargesDeducted = Math.max(0, grossSales - effectiveSettlement);
+  }
+
+  const netSales = (isRto || isCustomerReturn || isDamaged) ? 0 : grossSales;
+  const contributionMargin = grossSales > 0 ? contributionProfit / grossSales : 0;
 
   return {
     orderId: order.id,
@@ -554,15 +615,15 @@ export function calculateOrderProfitability(
     status: order.status,
     grossSales,
     netSales,
-    cogs: deliveredCogs,
-    grossProfit,
+    cogs: activeCogs,
+    grossProfit: effectiveSettlement - activeCogs,
     chargesDeducted,
-    returnLoss,
+    returnLoss: returnFee,
     claimRecovery,
     contributionProfit,
-    contributionMargin,
-    settledAmount,
-    isSettled: linkedSettlements.length > 0,
+    contributionMargin: Math.round(contributionMargin * 1000) / 1000,
+    settledAmount: effectiveSettlement,
+    isSettled: linkedSettlements.length > 0 || (effectiveSettlement > 0 && !!order.settlementAmount),
   };
 }
 
@@ -585,82 +646,51 @@ export function calculateMarketplaceProfitability(
   ];
 
   const maps = buildFinancialMaps(returns, settlements, claims);
-  const settlementsByOrderId = maps.settlementsByOrderMap;
 
   return marketplaces.map((mp) => {
     const mpOrders = orders.filter((o) => o.marketplace === mp && o.status !== "CANCELLED");
     const mpReturns = returns.filter((r) => r.marketplace === mp);
-    const mpClaims = claims.filter((c) => c.marketplace === mp);
     const mpAdSpend = expenses
       .filter((e) => e.category === "Advertising" && e.marketplace === mp)
       .reduce((sum, e) => sum + e.amount, 0);
 
     let unitsSold = 0;
     let grossRevenue = 0;
-    let discounts = 0;
-    let refundedSales = 0;
-    let deliveredCogs = 0;
-    let fees = 0;
-    let logistics = 0;
+    let totalCogs = 0;
+    let totalProfit = 0;
+    let totalClaimRecoveries = 0;
+    let totalReturnFees = 0;
 
     mpOrders.forEach((o) => {
+      const pnl = calculateOrderProfitability(o, returns, settlements, claims, maps);
+      grossRevenue += pnl.grossSales;
+      totalCogs += pnl.cogs;
+      totalProfit += pnl.contributionProfit;
+      totalClaimRecoveries += pnl.claimRecovery;
+      totalReturnFees += pnl.returnLoss;
       o.items.forEach((i) => {
         unitsSold += i.quantity;
-        grossRevenue += i.sellingPrice * i.quantity;
-        discounts += i.discount;
-
-        const returnedQty = getReturnedUnitsForItem(o, i.sku, mpReturns, maps.returnUnitsMap) || i.returnedQuantity || 0;
-        const deliveredQty = Math.max(0, i.quantity - returnedQty);
-        deliveredCogs += i.snapshotUnitCost * deliveredQty;
-        refundedSales += getRefundedAmountForItem(i, returnedQty);
       });
-
-      const linked = [
-        ...(settlementsByOrderId.get(o.id) || []),
-        ...(o.channelOrderId ? settlementsByOrderId.get(o.channelOrderId) || [] : []),
-      ];
-
-      if (linked.length > 0) {
-        linked.forEach((s) => {
-          s.deductions.forEach((d) => {
-            if (d.category === "LOGISTICS") {
-              logistics += d.amount;
-            } else if (d.category !== "RETURN_SHIPPING") {
-              fees += d.amount;
-            }
-          });
-        });
-      } else {
-        fees += o.marketplaceChargesEstimate || 0;
-        logistics += o.shippingFeeCharged || 0;
-      }
     });
 
-    const netRevenue = Math.max(0, Math.round((grossRevenue - discounts - refundedSales) * 100) / 100);
-    const returnLosses = mpReturns.reduce((sum, r) => sum + r.lossAmount, 0);
-    const claimRecoveries = mpClaims.reduce((sum, c) => sum + c.amountRecovered, 0);
-
-    const contributionProfit = Math.round(
-      (netRevenue - deliveredCogs - fees - logistics - returnLosses + claimRecoveries) * 100
-    ) / 100;
-    const margin = netRevenue > 0 ? contributionProfit / netRevenue : 0;
+    const margin = grossRevenue > 0 ? totalProfit / grossRevenue : 0;
     const returnedUnits = mpReturns.reduce((sum, r) => sum + r.quantity, 0);
     const returnRate = unitsSold > 0 ? returnedUnits / unitsSold : 0;
-    const poas = mpAdSpend > 0 ? Math.round((contributionProfit / mpAdSpend) * 100) / 100 : 0;
+    const poas = mpAdSpend > 0 ? Math.round((totalProfit / mpAdSpend) * 100) / 100 : 0;
 
     return {
       marketplace: mp,
       orderCount: mpOrders.length,
       unitsSold,
-      revenue: netRevenue,
-      cogs: deliveredCogs,
-      fees,
-      logistics,
-      returnLosses,
-      claimRecoveries,
-      contributionProfit,
-      margin,
-      returnRate,
+      revenue: Math.round(grossRevenue * 100) / 100,
+      cogs: Math.round(totalCogs * 100) / 100,
+      fees: Math.round(totalReturnFees * 100) / 100,
+      logistics: 0,
+      returnLosses: Math.round(totalReturnFees * 100) / 100,
+      claimRecoveries: Math.round(totalClaimRecoveries * 100) / 100,
+      contributionProfit: Math.round(totalProfit * 100) / 100,
+      margin: Math.round(margin * 1000) / 1000,
+      returnRate: Math.round(returnRate * 1000) / 1000,
       adSpend: mpAdSpend,
       poas,
     };
@@ -760,7 +790,7 @@ export function calculateSkuProfitability(
     const existing = skuMap.get(ret.sku);
     if (existing) {
       existing.returnedUnits += ret.quantity;
-      existing.returnLosses += ret.lossAmount; // Exact net loss, no double counting
+      existing.returnLosses += ret.returnType === "RTO" ? 0 : (ret.customerReturnFee || 0);
     }
   });
 

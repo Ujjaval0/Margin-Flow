@@ -424,9 +424,9 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
 
       {/* Settlement Breakdown Drawer */}
       {selectedSettlement && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-black/[0.06] w-full max-w-lg overflow-hidden">
-            <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+            <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
               <div>
                 <span className="text-[11px] text-[#86868B] tabular-nums block">
                   {selectedSettlement.marketplace} • Batch: {selectedSettlement.settlementBatchId}
@@ -437,13 +437,13 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
               </div>
               <button
                 onClick={() => setSelectedSettlement(null)}
-                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition"
+                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs">
+            <div className="p-6 space-y-4 text-xs overflow-y-auto flex-1 min-h-0">
               <div className="p-4 bg-[#FAFAFC] rounded-2xl border border-black/[0.04] flex items-center justify-between">
                 <div>
                   <span className="text-[#86868B] block">Net Bank Deposit</span>
@@ -452,47 +452,44 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[#86868B] block">Bank Reference</span>
-                  <span className="text-[#1D1D1F] font-semibold tracking-tight tabular-nums">
-                    {selectedSettlement.bankTxRef || "Direct Deposit"}
+                  <span className="text-[#86868B] block">Gross Invoiced</span>
+                  <span className="text-sm font-medium text-[#1D1D1F] tabular-nums mt-0.5 block">
+                    {formatINR(selectedSettlement.grossAmount)}
                   </span>
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-xs font-semibold text-[#86868B] uppercase tracking-wider mb-2">
-                  Deduction Taxonomy
-                </h3>
-                <div className="border border-black/[0.05] rounded-2xl divide-y divide-black/[0.04] overflow-hidden">
-                  <div className="p-3.5 bg-white flex justify-between items-center font-medium">
-                    <span className="text-[#1D1D1F]">Gross Transaction Amount</span>
-                    <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">{formatINR(selectedSettlement.grossAmount)}</span>
-                  </div>
-
-                  {selectedSettlement.deductions.map((d, idx) => (
-                    <div key={idx} className="p-3.5 bg-white flex justify-between items-center text-[#6E6E73]">
+              <div className="space-y-2">
+                <span className="text-[11px] font-semibold text-[#86868B] uppercase tracking-wider block px-1">
+                  Itemized Marketplace Deductions
+                </span>
+                <div className="border border-black/[0.05] rounded-2xl overflow-hidden divide-y divide-black/[0.04]">
+                  {selectedSettlement.deductions.map((d, i) => (
+                    <div key={i} className="px-4 py-3 flex items-center justify-between">
                       <div>
-                        <span>{d.name}</span>
+                        <span className="font-medium text-[#1D1D1F]">{d.name}</span>
                         <span className="text-[10px] text-[#86868B] ml-2 font-medium">({d.category})</span>
                       </div>
-                      <span className="text-sm font-semibold text-[#D70015] tracking-tight tabular-nums">-{formatINR(d.amount)}</span>
+                      <div className="text-right">
+                        <span className="font-semibold text-[#D70015] tabular-nums">
+                          −{formatINR(d.amount)}
+                        </span>
+                      </div>
                     </div>
                   ))}
-
-                  <div className="p-3.5 bg-white flex justify-between items-center text-[#6E6E73]">
-                    <span>Taxes Withheld (TCS 1% + TDS 0.1%)</span>
-                    <span className="text-sm font-semibold text-slate-600 tracking-tight tabular-nums">
-                      -{formatINR(selectedSettlement.tcsTdsTax)}
-                    </span>
-                  </div>
                 </div>
+              </div>
+
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-900 text-[11px]">
+                <span className="font-medium block">P6 Tax Guardrail Verification</span>
+                Statutory TCS (1%) &amp; TDS (1%) withheld at source have been mapped to balance sheet withholding assets.
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-black/[0.05] bg-[#FAFAFC] flex justify-end">
+            <div className="px-6 py-4 border-t border-black/[0.05] bg-[#FAFAFC] flex justify-end shrink-0">
               <button
                 onClick={() => setSelectedSettlement(null)}
-                className="px-5 py-1.5 bg-[#1D1D1F] text-white rounded-full text-xs font-medium"
+                className="px-6 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium transition-colors"
               >
                 Done
               </button>
@@ -503,18 +500,22 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
 
       {/* Record Settlement Modal */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-black/[0.06] w-full max-w-md overflow-hidden">
-            <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">Record Marketplace Deposit</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+            <div className="px-6 py-4 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
+              <div>
+                <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">Record Marketplace Deposit</h2>
+                <p className="text-[11px] text-slate-500">Record incoming payout remittance and fee deductions.</p>
+              </div>
               <button
                 onClick={() => setIsCreateOpen(false)}
-                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition"
+                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <form onSubmit={handleCreateSettlement} className="p-6 space-y-4 text-xs">
+
+            <form id="record-settlement-form" onSubmit={handleCreateSettlement} className="p-6 space-y-4 text-xs overflow-y-auto flex-1 min-h-0">
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Batch ID</label>
@@ -614,23 +615,24 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                   required
                 />
               </div>
-
-              <div className="pt-3 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="px-4 py-1.5 rounded-full text-[#6E6E73] hover:bg-black/[0.03] text-xs font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-1.5 bg-[#1D1D1F] hover:bg-black text-white rounded-full text-xs font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)]"
-                >
-                  Record Settlement
-                </button>
-              </div>
             </form>
+
+            <div className="px-6 py-4 border-t border-black/[0.05] bg-slate-50/50 flex justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsCreateOpen(false)}
+                className="px-4 py-2 rounded-xl text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="record-settlement-form"
+                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-colors"
+              >
+                Record Settlement
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -15,6 +15,10 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { PlatformFilterDropdown } from "@/components/ui/marketplace-dropdown";
 import {
+  ReturnBreakdownModal,
+  ReturnCardType,
+} from "@/components/modals/return-breakdown-modal";
+import {
   Plus,
   X,
   ShieldAlert,
@@ -78,6 +82,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createMode, setCreateMode] = useState<"SCAN_ORDER" | "DIRECT_SKU">("SCAN_ORDER");
   const [editingReturn, setEditingReturn] = useState<ReturnRecord | null>(null);
+  const [activeBreakdownCard, setActiveBreakdownCard] = useState<ReturnCardType | null>(null);
 
   // Form State for Log Return - Order Mode
   const [selectedOrderId, setSelectedOrderId] = useState(orders[0]?.id || "");
@@ -338,15 +343,17 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     const product = products.find((p) => p.sku === ret.sku);
     const unitCost = product ? product.currentCostPrice : 350;
     const isLoss = newCondition === "DAMAGED" || newCondition === "UNUSABLE";
-
-    let calculatedLoss = ret.returnShippingCost + (ret.customerReturnFee ?? 0);
-    if (isLoss) {
+    const isRto = ret.returnType === "RTO";
+    let calculatedLoss = isRto ? 0 : (ret.returnShippingCost + (ret.customerReturnFee ?? 0));
+    if (!isRto && isLoss) {
       calculatedLoss += unitCost * ret.quantity - ret.inventoryRecoveryValue;
     }
 
     const updated: ReturnRecord = {
       ...ret,
       condition: newCondition,
+      customerReturnFee: isRto ? 0 : (ret.customerReturnFee ?? 0),
+      returnShippingCost: isRto ? 0 : ret.returnShippingCost,
       restockStatus:
         newCondition === "SELLABLE"
           ? "RESTOCKED"
@@ -412,8 +419,8 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     }
 
     const calculatedCustomerFee = returnType === "RTO" ? 0 : returnShipping;
-    let calculatedLoss = returnShipping + calculatedCustomerFee;
-    if (condition === "DAMAGED" || condition === "UNUSABLE") {
+    let calculatedLoss = returnType === "RTO" ? 0 : (returnShipping + calculatedCustomerFee);
+    if (returnType !== "RTO" && (condition === "DAMAGED" || condition === "UNUSABLE")) {
       calculatedLoss += unitCostBasis * quantity - recoveryValue;
     }
 
@@ -432,9 +439,9 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       quantity,
       condition,
       restockStatus: condition === "SELLABLE" ? "RESTOCKED" : "PENDING_RESTOCK",
-      returnShippingCost: returnShipping,
+      returnShippingCost: returnType === "RTO" ? 0 : returnShipping,
       customerReturnFee: calculatedCustomerFee,
-      otherReturnCosts: 10,
+      otherReturnCosts: returnType === "RTO" ? 0 : 10,
       inventoryRecoveryValue: recoveryValue,
       lossAmount: calculatedLoss,
     };
@@ -470,10 +477,12 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     const product = products.find((p) => p.sku === editingReturn.sku);
     const unitCost = product ? product.currentCostPrice : 350;
 
-    let calculatedLoss = editingReturn.returnShippingCost + (editingReturn.customerReturnFee ?? 0);
+    const isRto = editingReturn.returnType === "RTO";
+    let calculatedLoss = isRto ? 0 : (editingReturn.returnShippingCost + (editingReturn.customerReturnFee ?? 0));
     if (
-      editingReturn.condition === "DAMAGED" ||
-      editingReturn.condition === "UNUSABLE"
+      !isRto &&
+      (editingReturn.condition === "DAMAGED" ||
+      editingReturn.condition === "UNUSABLE")
     ) {
       calculatedLoss +=
         unitCost * editingReturn.quantity - editingReturn.inventoryRecoveryValue;
@@ -481,7 +490,8 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
     updateReturn({
       ...editingReturn,
-      customerReturnFee: editingReturn.customerReturnFee ?? 0,
+      returnShippingCost: isRto ? 0 : editingReturn.returnShippingCost,
+      customerReturnFee: isRto ? 0 : (editingReturn.customerReturnFee ?? 0),
       lossAmount: calculatedLoss,
     });
     setEditingReturn(null);
@@ -801,23 +811,58 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-          <span className="text-xs text-[#86868B] font-medium">Total Returns Loss</span>
+        <div
+          onClick={() => setActiveBreakdownCard("totalReturnsLoss")}
+          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#86868B] font-medium">Total Returns Loss</span>
+            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              Breakdown &rarr;
+            </span>
+          </div>
           <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{formatINR(totalReturnLoss)}</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">{totalReturnUnits} units returned</span>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-          <span className="text-xs text-[#86868B] font-medium">RTO Failure Rate</span>
+
+        <div
+          onClick={() => setActiveBreakdownCard("rtoFailureRate")}
+          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#86868B] font-medium">RTO Failure Rate</span>
+            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              Breakdown &rarr;
+            </span>
+          </div>
           <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{rtoStats.rate}%</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">{rtoStats.rtoUnits} undelivered of {rtoStats.totalOrderedUnits} dispatched</span>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-          <span className="text-xs text-[#86868B] font-medium">Old & Aging Backlog</span>
+
+        <div
+          onClick={() => setActiveBreakdownCard("oldAgingBacklog")}
+          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#86868B] font-medium">Old & Aging Backlog</span>
+            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              Breakdown &rarr;
+            </span>
+          </div>
           <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{oldReturnsCount}</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">{oldReturnsCount === 1 ? "1 package" : `${oldReturnsCount} packages`} &gt; 14 days</span>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-          <span className="text-xs text-[#86868B] font-medium">Dispute Claim Potential</span>
+
+        <div
+          onClick={() => setActiveBreakdownCard("disputeClaimPotential")}
+          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#86868B] font-medium">Dispute Claim Potential</span>
+            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              Breakdown &rarr;
+            </span>
+          </div>
           <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{formatINR(claimStats.totalDamagedCost)}</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">{claimStats.claimedCount} of {claimStats.totalDamagedCount} filed</span>
         </div>
@@ -926,9 +971,9 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
       {/* Modal: Dual-Mode Log Return */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
               <div>
                 <h2 className="text-sm font-bold text-[#1D1D1F] tracking-tight">
                   Log Reverse Logistics Event
@@ -939,14 +984,14 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               </div>
               <button
                 onClick={() => setIsCreateOpen(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Mode Switcher Tabs */}
-            <div className="px-6 pt-3 pb-2 bg-slate-50/30 border-b border-slate-100 flex gap-2">
+            <div className="px-6 pt-3 pb-2 bg-slate-50/30 border-b border-slate-100 flex gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setCreateMode("SCAN_ORDER")}
@@ -971,7 +1016,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               </button>
             </div>
 
-            <form onSubmit={handleCreateReturn} className="p-6 space-y-4 text-xs overflow-y-auto">
+            <form id="create-return-form" onSubmit={handleCreateReturn} className="p-6 space-y-4 text-xs overflow-y-auto flex-1 min-h-0">
               {validationError && (
                 <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs font-medium flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
@@ -980,91 +1025,111 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               )}
 
               {/* Mode 1: Order Lookup */}
-              {createMode === "SCAN_ORDER" ? (
-                <div className="space-y-3 p-3.5 bg-blue-50/40 rounded-2xl border border-blue-100">
-                  <div>
-                    <label className="font-semibold text-slate-700 block mb-1">
-                      Target Order (AWB or Order ID)
-                    </label>
-                    <select
-                      value={selectedOrderId}
-                      onChange={(e) => {
-                        setSelectedOrderId(e.target.value);
-                        setSelectedItemIndex(0);
-                      }}
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none font-mono"
-                    >
-                      {orders.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          {o.id} ({o.marketplace}) - {o.customerName} - {o.items[0]?.sku}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              {(() => {
+                const targetOrder = orders.find((o) => o.id === selectedOrderId);
+                const targetItem = targetOrder?.items[selectedItemIndex];
+                return createMode === "SCAN_ORDER" ? (
+                  <div className="space-y-3 p-3.5 bg-blue-50/40 rounded-2xl border border-blue-100">
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">
+                        Target Order (AWB or Order ID)
+                      </label>
+                      <select
+                        value={selectedOrderId}
+                        onChange={(e) => {
+                          setSelectedOrderId(e.target.value);
+                          setSelectedItemIndex(0);
+                        }}
+                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none font-mono"
+                      >
+                        {orders.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.id} ({o.marketplace}) - {o.customerName} - {o.items[0]?.sku}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                  {/* Multi-item selector for order */}
-                  {(() => {
-                    const matchedOrder = orders.find((o) => o.id === selectedOrderId);
-                    if (!matchedOrder) return null;
-                    return (
+                    {targetOrder && targetOrder.items.length > 1 && (
                       <div>
                         <label className="font-semibold text-slate-700 block mb-1">
-                          Returned Line Item
+                          Select Returned Item in Multi-Item Order
                         </label>
                         <select
                           value={selectedItemIndex}
                           onChange={(e) => setSelectedItemIndex(Number(e.target.value))}
-                          className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none"
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none"
                         >
-                          {matchedOrder.items.map((it, idx) => (
+                          {targetOrder.items.map((it, idx) => (
                             <option key={idx} value={idx}>
-                              {it.sku} - {it.productName} (Ordered: {it.quantity} units)
+                              {it.sku} - {it.productName} (Ordered: {it.quantity})
                             </option>
                           ))}
                         </select>
                       </div>
-                    );
-                  })()}
-                </div>
-              ) : (
-                /* Mode 2: Direct SKU / Wholesale Manual Entry */
-                <div className="space-y-3 p-3.5 bg-purple-50/40 rounded-2xl border border-purple-100">
-                  <div>
-                    <label className="font-semibold text-slate-700 block mb-1">
-                      Direct SKU / Product
-                    </label>
-                    <select
-                      value={directSku}
-                      onChange={(e) => setDirectSku(e.target.value)}
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none font-mono"
-                    >
-                      {products.map((p) => (
-                        <option key={p.sku} value={p.sku}>
-                          {p.sku} - {p.name} (₹{p.currentCostPrice} cost)
-                        </option>
-                      ))}
-                    </select>
+                    )}
+
+                    {targetItem && (
+                      <div className="p-2.5 bg-white rounded-xl border border-blue-100 text-[11px] space-y-1">
+                        <div className="flex justify-between font-medium">
+                          <span className="text-slate-500">Item Name:</span>
+                          <span className="text-slate-900 font-semibold">{targetItem.productName}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Unit Selling Price:</span>
+                          <span className="font-bold text-slate-900">
+                            {formatINR(targetItem.sellingPrice || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Cost Basis (COGS):</span>
+                          <span className="font-bold text-amber-700">
+                            {formatINR(targetItem.snapshotUnitCost || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label className="font-semibold text-slate-700 block mb-1">
-                      Return Channel / Source
-                    </label>
-                    <select
-                      value={directChannel}
-                      onChange={(e) => setDirectChannel(e.target.value as Marketplace)}
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none font-semibold"
-                    >
-                      <option value="B2B Wholesale">B2B Wholesale / Consignment</option>
-                      <option value="Amazon India">Amazon India</option>
-                      <option value="Flipkart">Flipkart</option>
-                      <option value="Meesho">Meesho</option>
-                      <option value="Personal Website">Personal Website</option>
-                      <option value="Myntra">Myntra</option>
-                      <option value="Other">Other</option>
-                    </select>
+                ) : (
+                  /* Mode 2: Direct SKU / Wholesale */
+                  <div className="space-y-3 p-3.5 bg-purple-50/40 rounded-2xl border border-purple-100">
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">
+                        Select Catalog Product / SKU
+                      </label>
+                      <select
+                        value={directSku}
+                        onChange={(e) => setDirectSku(e.target.value)}
+                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none font-mono font-semibold"
+                      >
+                        {products.map((p) => (
+                          <option key={p.sku} value={p.sku}>
+                            {p.sku} - {p.name} (₹{p.currentCostPrice} cost)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">
+                        Return Channel / Source
+                      </label>
+                      <select
+                        value={directChannel}
+                        onChange={(e) => setDirectChannel(e.target.value as Marketplace)}
+                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none font-semibold"
+                      >
+                        <option value="B2B Wholesale">B2B Wholesale / Consignment</option>
+                        <option value="Amazon India">Amazon India</option>
+                        <option value="Flipkart">Flipkart</option>
+                        <option value="Meesho">Meesho</option>
+                        <option value="Personal Website">Personal Website</option>
+                        <option value="Myntra">Myntra</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Common Details */}
               <div className="grid grid-cols-2 gap-2.5">
@@ -1160,41 +1225,42 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   rows={2}
                 />
               </div>
-
-              <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                <div className="text-[11px] text-slate-500">
-                  {condition === "DAMAGED" && (
-                    <span className="text-purple-700 font-medium">
-                      ⚡ Will auto-generate draft claim ticket
-                    </span>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateOpen(false)}
-                    className="px-4 py-1.5 rounded-full text-slate-600 hover:bg-slate-100 text-xs font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-semibold shadow-xs transition"
-                  >
-                    Commit Return
-                  </button>
-                </div>
-              </div>
             </form>
+
+            <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between shrink-0">
+              <div className="text-[11px] text-slate-500">
+                {condition === "DAMAGED" && (
+                  <span className="text-purple-700 font-medium">
+                    ⚡ Will auto-generate draft claim ticket
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOpen(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200/60 text-xs font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  form="create-return-form"
+                  className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-xs transition-colors"
+                >
+                  Commit Return
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Modal: In-Place Edit Return Record */}
       {editingReturn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
               <div>
                 <h2 className="text-sm font-bold text-[#1D1D1F] tracking-tight">
                   Edit Return Record ({editingReturn.id})
@@ -1205,13 +1271,13 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               </div>
               <button
                 onClick={() => setEditingReturn(null)}
-                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="p-6 space-y-3.5 text-xs">
+            <form id="edit-return-form" onSubmit={handleSaveEdit} className="p-6 space-y-3.5 text-xs overflow-y-auto flex-1 min-h-0">
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">
@@ -1342,26 +1408,40 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   rows={2}
                 />
               </div>
-
-              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setEditingReturn(null)}
-                  className="px-4 py-1.5 rounded-full text-slate-600 hover:bg-slate-100 text-xs font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-semibold shadow-xs"
-                >
-                  Save Changes
-                </button>
-              </div>
             </form>
+
+            <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 flex justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setEditingReturn(null)}
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200/60 text-xs font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="edit-return-form"
+                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-xs transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* ─── RETURN CARD BREAKDOWN INSPECTION MODAL ─── */}
+      <ReturnBreakdownModal
+        cardType={activeBreakdownCard}
+        onClose={() => setActiveBreakdownCard(null)}
+        returns={returns}
+        orders={orders}
+        effectiveChannel={effectiveChannel}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          setActiveBreakdownCard(null);
+        }}
+      />
     </div>
   );
 }

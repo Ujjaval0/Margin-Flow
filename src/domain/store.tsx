@@ -106,9 +106,17 @@ interface PlatformContextType {
   deleteReturn: (returnId: string) => void;
   addClaim: (claim: Claim) => void;
   updateClaim: (claimId: string, recoveredAmount: number, status: Claim["status"]) => void;
+  editClaim: (claimId: string, updates: Partial<Pick<Claim, "claimType" | "claimDate" | "amountClaimed" | "amountRecovered" | "status" | "notes" | "marketplace">>) => void;
+  deleteClaim: (claimId: string) => void;
+  deleteClaims: (claimIds: string[]) => void;
+  addProduct: (product: Product) => void;
+  deleteProduct: (sku: string) => void;
   updateProductCost: (sku: string, newCost: number, reason: string) => void;
   addSettlement: (settlement: Settlement) => void;
   addExpense: (expense: Expense) => void;
+  updateExpense: (expense: Expense) => void;
+  deleteExpense: (expenseId: string) => void;
+  deleteExpenses: (expenseIds: string[]) => void;
   addPurchase: (purchase: PurchaseBill) => void;
   addSupplier: (supplier: Supplier) => void;
   updateSupplier: (supplier: Supplier) => void;
@@ -475,7 +483,11 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   // Actions
   const addOrder = useCallback((order: Order) => {
-    setOrders((prev) => [order, ...prev]);
+    const normalizedOrder: Order = {
+      ...order,
+      status: order.status || "DELIVERED",
+    };
+    setOrders((prev) => [normalizedOrder, ...prev]);
 
     // Inventory Engine: Sale = inventory - quantity
     setProducts((prev) =>
@@ -569,9 +581,11 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteOrder = useCallback((orderId: string) => {
+    let targetChannelOrderId: string | undefined;
     setOrders((prev) => {
       const orderToDelete = prev.find((o) => o.id === orderId);
       if (orderToDelete) {
+        targetChannelOrderId = orderToDelete.channelOrderId;
         // Restore inventory for items sold in this order that were not returned
         setProducts((pList) =>
           pList.map((p) => {
@@ -589,9 +603,21 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       }
       return prev.filter((o) => o.id !== orderId);
     });
-    setReturns((prev) => prev.filter((r) => r.orderId !== orderId));
-    setSettlements((prev) => prev.filter((s) => s.orderId !== orderId));
-    setClaims((prev) => prev.filter((c) => c.orderId !== orderId));
+    setReturns((prev) =>
+      prev.filter(
+        (r) => r.orderId !== orderId && (!targetChannelOrderId || r.channelOrderId !== targetChannelOrderId)
+      )
+    );
+    setSettlements((prev) =>
+      prev.filter(
+        (s) => s.orderId !== orderId && (!targetChannelOrderId || s.orderId !== targetChannelOrderId)
+      )
+    );
+    setClaims((prev) =>
+      prev.filter(
+        (c) => c.orderId !== orderId && (!targetChannelOrderId || c.orderId !== targetChannelOrderId)
+      )
+    );
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -601,15 +627,35 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       oldValue: "Active",
       newValue: "DELETED",
       modifiedBy: "Operator",
-      reason: "Order deleted and associated inventory restored",
+      reason: "Order and associated returns, settlements, and claims deleted",
     };
     setAuditLogs((prev) => [log, ...prev]);
   }, []);
 
   const deleteOrders = useCallback((orderIds: string[]) => {
     const idSet = new Set(orderIds);
-    setOrders((prev) => prev.filter((o) => !idSet.has(o.id)));
-    setReturns((prev) => prev.filter((r) => !idSet.has(r.orderId)));
+    setOrders((prev) => {
+      const ordersToDelete = prev.filter((o) => idSet.has(o.id));
+      if (ordersToDelete.length > 0) {
+        setProducts((pList) =>
+          pList.map((p) => {
+            let restored = 0;
+            ordersToDelete.forEach((o) => {
+              const item = o.items.find((i) => i.sku === p.sku);
+              if (item) {
+                restored += Math.max(0, item.quantity - (item.returnedQuantity || 0));
+              }
+            });
+            return restored > 0 ? { ...p, stockQuantity: (p.stockQuantity ?? 0) + restored } : p;
+          })
+        );
+        ordersToDelete.forEach((o) => {
+          if (o.channelOrderId) idSet.add(o.channelOrderId);
+        });
+      }
+      return prev.filter((o) => !idSet.has(o.id));
+    });
+    setReturns((prev) => prev.filter((r) => !idSet.has(r.orderId) && (!r.channelOrderId || !idSet.has(r.channelOrderId))));
     setSettlements((prev) => prev.filter((s) => !idSet.has(s.orderId)));
     setClaims((prev) => prev.filter((c) => !idSet.has(c.orderId)));
     const log: FinancialAuditLog = {
@@ -621,7 +667,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       oldValue: `${orderIds.length} orders`,
       newValue: "DELETED",
       modifiedBy: "Operator",
-      reason: `Bulk deleted ${orderIds.length} orders from ledger`,
+      reason: `Bulk deleted ${orderIds.length} orders and linked records from ledger`,
     };
     setAuditLogs((prev) => [log, ...prev]);
   }, []);
@@ -662,6 +708,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
     const effectiveReturnFee =
       returnRecord.returnType === "RTO" ? 0 : (returnRecord.customerReturnFee ?? 0);
+    const effectiveLossAmount =
+      returnRecord.returnType === "RTO" ? 0 : returnRecord.lossAmount;
 
     const enrichedRecord: ReturnRecord = {
       ...returnRecord,
@@ -673,6 +721,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         returnRecord.restockStatus ||
         (!isDamaged ? "RESTOCKED" : "WRITTEN_OFF"),
       customerReturnFee: effectiveReturnFee,
+      lossAmount: effectiveLossAmount,
     };
 
     setReturns((prev) => [enrichedRecord, ...prev]);
@@ -733,14 +782,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             return item;
           });
 
-          const totalOrdered = updatedItems.reduce((acc, it) => acc + it.quantity, 0);
-          const totalReturned = updatedItems.reduce((acc, it) => acc + (it.returnedQuantity || 0), 0);
-          const newStatus =
+          // Point 8: Automatic order status transition
+          const newStatus: Order["status"] =
             enrichedRecord.returnType === "RTO"
               ? "RTO"
-              : totalReturned >= totalOrdered
-              ? "RETURNED"
-              : "PARTIALLY_RETURNED";
+              : isDamaged
+              ? "CLAIM_PENDING"
+              : "CUSTOMER_RETURN";
 
           return {
             ...o,
@@ -902,9 +950,15 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteReturn = useCallback((returnId: string) => {
+    let linkedClaimId: string | undefined;
+    let targetOrderId: string | undefined;
+
     setReturns((prevReturns) => {
       const returnToDelete = prevReturns.find((r) => r.id === returnId);
       if (returnToDelete) {
+        linkedClaimId = returnToDelete.claimId;
+        targetOrderId = returnToDelete.orderId;
+
         setOrders((prevOrders) =>
           prevOrders.map((o) => {
             if (
@@ -912,6 +966,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
               (returnToDelete.channelOrderId && o.channelOrderId === returnToDelete.channelOrderId)
             ) {
               const updatedReturnIds = o.returnIds?.filter((id) => id !== returnId) || [];
+              const updatedClaimIds = linkedClaimId
+                ? o.claimIds?.filter((id) => id !== linkedClaimId) || []
+                : o.claimIds;
               const updatedItems = o.items.map((item) => {
                 if (item.sku === returnToDelete.sku) {
                   return {
@@ -936,6 +993,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
                 status: newStatus,
                 items: updatedItems,
                 returnIds: updatedReturnIds,
+                claimIds: updatedClaimIds,
               };
             }
             return o;
@@ -944,6 +1002,16 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       }
       return prevReturns.filter((r) => r.id !== returnId);
     });
+
+    // Cascade delete any claims linked to this return
+    setClaims((prevClaims) =>
+      prevClaims.filter(
+        (c) =>
+          c.returnId !== returnId &&
+          (!linkedClaimId || c.id !== linkedClaimId) &&
+          (!targetOrderId || c.orderId !== targetOrderId)
+      )
+    );
 
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
@@ -954,7 +1022,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       oldValue: "Active",
       newValue: "DELETED",
       modifiedBy: "Operator",
-      reason: "Return record deleted",
+      reason: "Return record and associated claims deleted",
     };
     setAuditLogs((prev) => [log, ...prev]);
   }, []);
@@ -979,6 +1047,24 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             reason: `Claim resolution status: ${status}`,
           };
           setAuditLogs((p) => [log, ...p]);
+          // Point 10: Damaged Return -> Claim Order Status synchronization
+          const newOrderStatus: Order["status"] =
+            status === "APPROVED" || status === "RECOVERED" || status === "PARTIALLY_RECOVERED"
+              ? "CLAIM_APPROVED"
+              : status === "REJECTED"
+              ? "DAMAGED_RETURN"
+              : "CLAIM_PENDING";
+
+          if (c.orderId) {
+            setOrders((oList) =>
+              oList.map((o) =>
+                o.id === c.orderId || (o.channelOrderId && o.channelOrderId === c.orderId)
+                  ? { ...o, status: newOrderStatus }
+                  : o
+              )
+            );
+          }
+
           return {
             ...c,
             amountRecovered: recoveredAmount,
@@ -990,6 +1076,101 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       })
     );
   }, []);
+
+  const deleteClaim = useCallback((claimId: string) => {
+    let targetOrderId: string | undefined;
+    let targetReturnId: string | undefined;
+
+    setClaims((prevClaims) => {
+      const claimToDelete = prevClaims.find((c) => c.id === claimId);
+      if (claimToDelete) {
+        targetOrderId = claimToDelete.orderId;
+        targetReturnId = claimToDelete.returnId;
+      }
+      return prevClaims.filter((c) => c.id !== claimId);
+    });
+
+    // Unlink from returns and clear claimId
+    setReturns((prevReturns) =>
+      prevReturns.map((r) => {
+        if (r.claimId === claimId || (targetReturnId && r.id === targetReturnId)) {
+          const updated = { ...r };
+          delete updated.claimId;
+          return updated;
+        }
+        return r;
+      })
+    );
+
+    // Revert linked order's status if needed
+    setOrders((prevOrders) =>
+      prevOrders.map((o) => {
+        if (
+          (targetOrderId && (o.id === targetOrderId || o.channelOrderId === targetOrderId)) ||
+          o.claimIds?.includes(claimId)
+        ) {
+          const updatedClaimIds = o.claimIds?.filter((id) => id !== claimId) || [];
+          let newStatus: Order["status"] = o.status;
+          if (o.status === "CLAIM_APPROVED" || o.status === "CLAIM_PENDING") {
+            // If order still has returns, transition to DAMAGED_RETURN
+            if (o.returnIds && o.returnIds.length > 0) {
+              newStatus = "DAMAGED_RETURN";
+            } else {
+              newStatus = "DELIVERED";
+            }
+          }
+
+          return {
+            ...o,
+            status: newStatus,
+            claimIds: updatedClaimIds,
+          };
+        }
+        return o;
+      })
+    );
+
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "CLAIM",
+      entityId: claimId,
+      fieldName: "status",
+      oldValue: "Active",
+      newValue: "DELETED",
+      modifiedBy: "Operator",
+      reason: "Claim deleted from claims ledger",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  }, []);
+
+  const editClaim = useCallback((
+    claimId: string,
+    updates: Partial<Pick<Claim, "claimType" | "claimDate" | "amountClaimed" | "amountRecovered" | "status" | "notes" | "marketplace">>
+  ) => {
+    setClaims((prev) =>
+      prev.map((c) => {
+        if (c.id !== claimId) return c;
+        return { ...c, ...updates };
+      })
+    );
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "CLAIM",
+      entityId: claimId,
+      fieldName: "details",
+      oldValue: "Previous values",
+      newValue: JSON.stringify(updates),
+      modifiedBy: "Operator",
+      reason: "Claim details edited",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  }, []);
+
+  const deleteClaims = useCallback((claimIds: string[]) => {
+    claimIds.forEach((id) => deleteClaim(id));
+  }, [deleteClaim]);
 
   const updateProductCost = useCallback((sku: string, newCost: number, reason: string) => {
     setProducts((prev) =>
@@ -1033,6 +1214,38 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const addProduct = useCallback((product: Product) => {
+    setProducts((prev) => [product, ...prev]);
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "ORDER",
+      entityId: product.sku,
+      fieldName: "all",
+      oldValue: "None",
+      newValue: `Created Product: ${product.sku} - ${product.name}`,
+      modifiedBy: "Operator",
+      reason: "New catalog product created",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  }, []);
+
+  const deleteProduct = useCallback((sku: string) => {
+    setProducts((prev) => prev.filter((p) => p.sku !== sku));
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "ORDER",
+      entityId: sku,
+      fieldName: "status",
+      oldValue: "Active",
+      newValue: "DELETED",
+      modifiedBy: "Operator",
+      reason: "Product removed from catalog",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  }, []);
+
   const addSettlement = useCallback((settlement: Settlement) => {
     setSettlements((prev) => [settlement, ...prev]);
   }, []);
@@ -1041,8 +1254,75 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setExpenses((prev) => [expense, ...prev]);
   }, []);
 
+  const updateExpense = useCallback((updatedExpense: Expense) => {
+    setExpenses((prev) =>
+      prev.map((e) => (e.id === updatedExpense.id ? updatedExpense : e))
+    );
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "EXPENSE" as any,
+      entityId: updatedExpense.id,
+      fieldName: "all",
+      oldValue: "Previous state",
+      newValue: `Updated: ${updatedExpense.description} (₹${updatedExpense.amount})`,
+      modifiedBy: "Operator",
+      reason: "Operating expense details modified",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  }, []);
+
+  const deleteExpense = useCallback((expenseId: string) => {
+    setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "EXPENSE" as any,
+      entityId: expenseId,
+      fieldName: "status",
+      oldValue: "Active",
+      newValue: "DELETED",
+      modifiedBy: "Operator",
+      reason: "Operating expense deleted",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  }, []);
+
+  const deleteExpenses = useCallback((expenseIds: string[]) => {
+    const idSet = new Set(expenseIds);
+    setExpenses((prev) => prev.filter((e) => !idSet.has(e.id)));
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "EXPENSE" as any,
+      entityId: expenseIds.join(", "),
+      fieldName: "status",
+      oldValue: "Active",
+      newValue: "DELETED",
+      modifiedBy: "Operator",
+      reason: `Bulk deleted ${expenseIds.length} operating expenses`,
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  }, []);
+
   const addPurchase = useCallback((purchase: PurchaseBill) => {
     setPurchases((prev) => [purchase, ...prev]);
+    if (purchase.paymentStatus === "PAID") {
+      setSuppliers((prev) =>
+        prev.map((s) => {
+          if (
+            s.id === purchase.supplierId ||
+            s.name.toLowerCase() === purchase.supplierName.toLowerCase()
+          ) {
+            return {
+              ...s,
+              totalPaid: (s.totalPaid || 0) + purchase.totalAmount,
+            };
+          }
+          return s;
+        })
+      );
+    }
   }, []);
 
   const addSupplier = useCallback((supplier: Supplier) => {
@@ -1447,9 +1727,17 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       deleteReturn,
       addClaim,
       updateClaim,
+      editClaim,
+      deleteClaim,
+      deleteClaims,
+      addProduct,
+      deleteProduct,
       updateProductCost,
       addSettlement,
       addExpense,
+      updateExpense,
+      deleteExpense,
+      deleteExpenses,
       addPurchase,
       addSupplier,
       updateSupplier,
@@ -1504,9 +1792,17 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       deleteReturn,
       addClaim,
       updateClaim,
+      editClaim,
+      deleteClaim,
+      deleteClaims,
+      addProduct,
+      deleteProduct,
       updateProductCost,
       addSettlement,
       addExpense,
+      updateExpense,
+      deleteExpense,
+      deleteExpenses,
       addPurchase,
       addSupplier,
       updateSupplier,

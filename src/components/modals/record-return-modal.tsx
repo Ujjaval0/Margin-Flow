@@ -54,12 +54,8 @@ export function RecordReturnModal({
     }
 
     const retId = `RET-${Date.now().toString().slice(-5)}`;
-    const cost = item.snapshotUnitCost * returnQty;
     const fee = returnType === "RTO" ? 0 : Number(customerReturnFee);
-    let calculatedLoss = returnShipping + fee;
-    if (returnCondition === "DAMAGED" || returnCondition === "UNUSABLE") {
-      calculatedLoss += cost - returnRecovery;
-    }
+    const calculatedLoss = returnType === "RTO" ? 0 : fee;
 
     const newRet: ReturnRecord = {
       id: retId,

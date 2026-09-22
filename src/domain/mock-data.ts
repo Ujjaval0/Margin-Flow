@@ -170,6 +170,63 @@ export const INITIAL_PRODUCTS: Product[] = [
 
 export const INITIAL_ORDERS: Order[] = [
   {
+    id: "ORD-0994",
+    channelOrderId: "OD8839201928410294",
+    marketplace: "Flipkart",
+    orderDate: "2026-08-26",
+    status: "CLAIM_APPROVED",
+    customerName: "Rakesh Verma",
+    customerCity: "Kanpur",
+    customerState: "Uttar Pradesh",
+    shippingFeeCharged: 40,
+    marketplaceChargesEstimate: 160,
+    settlementAmount: 0,
+    settlementPercent: 0,
+    items: [
+      {
+        id: "ITEM-094",
+        sku: "ELEC-USBC-65W",
+        productName: "65W GaN Fast Charger (Dual USB-C)",
+        quantity: 1,
+        sellingPrice: 1299,
+        discount: 0,
+        taxAmount: 198.15,
+        snapshotUnitCost: 420,
+        returnedQuantity: 1,
+      },
+    ],
+    returnIds: ["RET-203"],
+    claimIds: ["CLM-302"],
+  },
+  {
+    id: "ORD-WHL-501",
+    channelOrderId: "CHALLAN-BLR-882",
+    marketplace: "B2B Wholesale",
+    orderDate: "2026-09-10",
+    status: "CUSTOMER_RETURN",
+    customerName: "Metro Retail Distribution",
+    customerCity: "Bengaluru",
+    customerState: "Karnataka",
+    shippingFeeCharged: 0,
+    marketplaceChargesEstimate: 0,
+    settlementAmount: 0,
+    settlementPercent: 0,
+    items: [
+      {
+        id: "ITEM-WHL-01",
+        sku: "ELEC-WEM-01",
+        productName: "Wireless Ergonomic Mouse (Silent Click)",
+        quantity: 10,
+        sellingPrice: 899,
+        discount: 0,
+        taxAmount: 1370,
+        snapshotUnitCost: 380,
+        returnedQuantity: 10,
+      },
+    ],
+    returnIds: ["RET-204"],
+  },
+  {
     id: "ORD-0998",
     channelOrderId: "402-1829301-4492019",
     marketplace: "Amazon India",
@@ -640,11 +697,11 @@ export const INITIAL_RETURNS: ReturnRecord[] = [
     condition: "SELLABLE",
     restockStatus: "PENDING_RESTOCK",
     claimDeadline: "2026-09-12",
-    returnShippingCost: 55,
-    customerReturnFee: 0, // RTO: no customer return fee
-    otherReturnCosts: 10,
+    returnShippingCost: 0,
+    customerReturnFee: 0, // RTO: return fee = 0
+    otherReturnCosts: 0,
     inventoryRecoveryValue: 220, // 2 units @ 110 recovered back to stock
-    lossAmount: 65, // Return shipping and handling loss
+    lossAmount: 0, // RTO has 0 return fee and 0 loss
     notes: "Package returned unopened in original shipper carton.",
   },
   {
@@ -733,11 +790,11 @@ export const INITIAL_RETURNS: ReturnRecord[] = [
     condition: "SELLABLE",
     restockStatus: "RESTOCKED",
     claimDeadline: "2026-10-10",
-    returnShippingCost: 60,
-    customerReturnFee: 0, // RTO: no customer return fee
-    otherReturnCosts: 10,
+    returnShippingCost: 0,
+    customerReturnFee: 0, // RTO: return fee = 0
+    otherReturnCosts: 0,
     inventoryRecoveryValue: 330,
-    lossAmount: 70,
+    lossAmount: 0, // RTO has 0 return fee and 0 loss
     notes: "Put away back to Bin A-14. Available stock updated.",
   },
 ];

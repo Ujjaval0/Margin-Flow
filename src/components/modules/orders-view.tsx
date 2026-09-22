@@ -87,7 +87,7 @@ function getSynthesizedStatus(
   const approvedClaim = orderClaims.find(
     (c) => c.status === "APPROVED" || c.status === "RECOVERED" || c.status === "PARTIALLY_RECOVERED"
   );
-  if (approvedClaim) {
+  if (order.status === "CLAIM_APPROVED" || approvedClaim) {
     return {
       key: "CLAIM APPROVED",
       label: "CLAIM APPROVED",
@@ -97,9 +97,9 @@ function getSynthesizedStatus(
   }
 
   const pendingClaim = orderClaims.find(
-    (c) => c.status === "FILED" || c.status === "UNDER_REVIEW"
+    (c) => c.status === "FILED" || c.status === "UNDER_REVIEW" || c.status === "NOT_FILED"
   );
-  if (pendingClaim) {
+  if (order.status === "CLAIM_PENDING" || pendingClaim) {
     return {
       key: "CLAIM PENDING",
       label: "CLAIM PENDING",
@@ -115,7 +115,7 @@ function getSynthesizedStatus(
       r.condition === "DAMAGED" ||
       r.condition === "UNUSABLE"
   );
-  if (damagedReturn) {
+  if (order.status === "DAMAGED_RETURN" || damagedReturn) {
     return {
       key: "DAMAGED RETURN",
       label: "DAMAGED RETURN",
@@ -125,7 +125,7 @@ function getSynthesizedStatus(
   }
 
   const rtoReturn = orderReturns.find((r) => r.returnType === "RTO");
-  if (rtoReturn || order.status === "RTO") {
+  if (order.status === "RTO" || rtoReturn) {
     return {
       key: "RTO",
       label: "RTO",
@@ -138,9 +138,10 @@ function getSynthesizedStatus(
     (r) => r.returnType === "CUSTOMER_RETURN"
   );
   if (
-    customerReturn ||
+    order.status === "CUSTOMER_RETURN" ||
     order.status === "RETURNED" ||
-    order.status === "PARTIALLY_RETURNED"
+    order.status === "PARTIALLY_RETURNED" ||
+    customerReturn
   ) {
     return {
       key: "CUSTOMER RETURN",
@@ -150,21 +151,12 @@ function getSynthesizedStatus(
     };
   }
 
-  // 3. Fallback to order status
-  if (order.status === "DELIVERED") {
-    return {
-      key: "DELIVERED",
-      label: "DELIVERED",
-      pillClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-      dotColor: "bg-emerald-500",
-    };
-  }
-
+  // 3. Delivered or default active sale
   return {
-    key: "OTHER",
-    label: order.status.replace(/_/g, " "),
-    pillClass: "bg-blue-50 text-blue-700 border border-blue-200",
-    dotColor: "bg-blue-500",
+    key: "DELIVERED",
+    label: "DELIVERED",
+    pillClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    dotColor: "bg-emerald-500",
   };
 }
 
@@ -939,9 +931,17 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                       {/* 2. ORDER ID & SKU */}
                       <td className="py-3.5 px-4 align-middle">
                         <div>
-                          <span className="font-semibold text-slate-900 block text-xs tracking-tight group-hover:text-slate-950 transition-colors tabular-nums">
-                            {order.id}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-slate-900 block text-xs tracking-tight group-hover:text-slate-950 transition-colors tabular-nums">
+                              {order.id}
+                            </span>
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${synthStatus.pillClass}`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${synthStatus.dotColor}`}></span>
+                              <span>{synthStatus.label}</span>
+                            </span>
+                          </div>
                           <span className="text-[11px] text-slate-500 block truncate max-w-[150px] tabular-nums font-medium">
                             {primaryItem ? primaryItem.sku : "NO-SKU"}
                             {extraItemsCount > 0 && ` (+${extraItemsCount})`}

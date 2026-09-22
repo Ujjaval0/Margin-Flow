@@ -65,9 +65,9 @@ export function OrderModal({
   const [quantity, setQuantity] = useState("1");
   const [supplierName, setSupplierName] = useState("");
   const [unitCost, setUnitCost] = useState("350");
-  const [sellingPrice, setSellingPrice] = useState("999");
-  const [estCommissionPercent, setEstCommissionPercent] = useState("15");
-  const [actualReceived, setActualReceived] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("1000");
+  const [commissionPercent, setCommissionPercent] = useState("20");
+  const [settlementAmount, setSettlementAmount] = useState("800");
   const [notes, setNotes] = useState("");
 
   // Return / RTO Sub-Form (mainly for create mode)
@@ -94,19 +94,27 @@ export function OrderModal({
       setProductName(firstItem?.productName || "");
       setQuantity(String(firstItem?.quantity || 1));
       setUnitCost(String(firstItem?.snapshotUnitCost || 0));
-      setSellingPrice(String(firstItem?.sellingPrice || 0));
-      const estComm =
-        firstItem && firstItem.sellingPrice > 0 && initialOrder.marketplaceChargesEstimate
-          ? Math.round(
-              (initialOrder.marketplaceChargesEstimate /
-                (firstItem.sellingPrice * firstItem.quantity)) *
-                100
-            )
-          : 15;
-      setEstCommissionPercent(String(estComm || 15));
-      setActualReceived("");
+      const sPrice = firstItem?.sellingPrice || 0;
+      const sQty = firstItem?.quantity || 1;
+      setSellingPrice(String(sPrice));
+      const gSales = sPrice * sQty;
+
+      let initSettlement = initialOrder.settlementAmount || 0;
+      let initCommPercent = initialOrder.commissionPercent ?? (initialOrder.settlementPercent ? Math.max(0, 100 - initialOrder.settlementPercent) : 20);
+      if (!initSettlement && initialOrder.marketplaceChargesEstimate) {
+        initSettlement = Math.max(0, gSales - initialOrder.marketplaceChargesEstimate);
+      }
+      if (!initSettlement && gSales > 0) {
+        initSettlement = Math.round(gSales * 0.8);
+      }
+      if (gSales > 0 && !initialOrder.commissionPercent && !initialOrder.settlementPercent) {
+        initCommPercent = Math.max(0, Math.round(((gSales - initSettlement) / gSales) * 100 * 10) / 10);
+      }
+      setSettlementAmount(String(initSettlement));
+      setCommissionPercent(String(initCommPercent));
+      setSupplierName(initialOrder.supplierName || "");
       setNotes(initialOrder.notes || "");
-      setIsReturned(initialOrder.status === "RETURNED" || initialOrder.status === "RTO");
+      setIsReturned(initialOrder.status === "RETURNED" || initialOrder.status === "RTO" || initialOrder.status === "CUSTOMER_RETURN" || initialOrder.status === "DAMAGED_RETURN");
     } else {
       // Create mode defaults
       const randomId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -117,11 +125,13 @@ export function OrderModal({
       setSku(initialProd?.sku || "");
       setProductName(initialProd?.name || "");
       setQuantity("1");
-      setUnitCost(String(initialProd?.currentCostPrice || 350));
-      setSellingPrice(String(initialProd ? Math.round(initialProd.currentCostPrice * 2.5) : 999));
-      setEstCommissionPercent("15");
-      setActualReceived("");
-      setSupplierName("");
+      setUnitCost(String(initialProd?.currentCostPrice || 400));
+      const defSellingPrice = initialProd ? Math.round(initialProd.currentCostPrice * 2.5) : 1000;
+      setSellingPrice(String(defSellingPrice));
+      setCommissionPercent("20");
+      setSettlementAmount(String(Math.round(defSellingPrice * 0.8)));
+      const initialSup = suppliers.find((s) => s.id === initialProd?.supplierId || s.name === initialProd?.supplierId);
+      setSupplierName(initialSup ? initialSup.name : (suppliers[0]?.name || ""));
       setNotes("");
       setIsReturned(false);
       setReturnType("CUSTOMER_RETURN");
@@ -136,17 +146,59 @@ export function OrderModal({
 
   if (!isOpen) return null;
 
+  // Synchronization Handlers (Commission % <-> Settlement Amount)
+  const handleSellingPriceChange = (val: string) => {
+    setSellingPrice(val);
+    const pPrice = Math.max(0, parseFloat(val) || 0);
+    const pQty = Math.max(1, parseFloat(quantity) || 1);
+    const gSales = pPrice * pQty;
+    const cPct = parseFloat(commissionPercent) || 0;
+    setSettlementAmount(String(Math.round(gSales * (1 - cPct / 100))));
+  };
+
+  const handleQuantityChange = (val: string) => {
+    setQuantity(val);
+    const pPrice = Math.max(0, parseFloat(sellingPrice) || 0);
+    const pQty = Math.max(1, parseFloat(val) || 1);
+    const gSales = pPrice * pQty;
+    const cPct = parseFloat(commissionPercent) || 0;
+    setSettlementAmount(String(Math.round(gSales * (1 - cPct / 100))));
+  };
+
+  const handleCommissionPercentChange = (val: string) => {
+    setCommissionPercent(val);
+    const pPrice = Math.max(0, parseFloat(sellingPrice) || 0);
+    const pQty = Math.max(1, parseFloat(quantity) || 1);
+    const gSales = pPrice * pQty;
+    const cPct = parseFloat(val) || 0;
+    if (gSales > 0) {
+      setSettlementAmount(String(Math.round(gSales * (1 - cPct / 100))));
+    }
+  };
+
+  const handleSettlementAmountChange = (val: string) => {
+    setSettlementAmount(val);
+    const pPrice = Math.max(0, parseFloat(sellingPrice) || 0);
+    const pQty = Math.max(1, parseFloat(quantity) || 1);
+    const gSales = pPrice * pQty;
+    const sAmt = parseFloat(val) || 0;
+    if (gSales > 0) {
+      const cPct = Math.max(0, Math.round(((gSales - sAmt) / gSales) * 100 * 10) / 10);
+      setCommissionPercent(String(cPct));
+    }
+  };
+
   // Live Calculations
   const parsedQty = Math.max(1, parseFloat(quantity) || 1);
   const parsedUnitCost = Math.max(0, parseFloat(unitCost) || 0);
   const parsedSellingPrice = Math.max(0, parseFloat(sellingPrice) || 0);
-  const parsedCommPercent = Math.max(0, parseFloat(estCommissionPercent) || 0);
-  const parsedActualReceived = parseFloat(actualReceived) || 0;
-
-  const totalWholesaleCost = parsedQty * parsedUnitCost;
   const grossSales = parsedQty * parsedSellingPrice;
-  const commissionDeduction = Math.round(grossSales * (parsedCommPercent / 100));
-  const expectedSettlement = Math.max(0, grossSales - commissionDeduction);
+  const parsedCommissionPercent = parseFloat(commissionPercent) || 0;
+  const parsedSettlementPercent = Math.max(0, 100 - parsedCommissionPercent);
+  const parsedSettlementAmount = parseFloat(settlementAmount) || Math.round(grossSales * (1 - parsedCommissionPercent / 100));
+  const totalWholesaleCost = parsedQty * parsedUnitCost;
+  const commissionDeduction = Math.max(0, grossSales - parsedSettlementAmount);
+  const expectedSettlement = parsedSettlementAmount;
   const estimatedTrueProfit = expectedSettlement - totalWholesaleCost;
 
   const handleSelectSku = (skuValue: string) => {
@@ -155,7 +207,18 @@ export function OrderModal({
     if (prod) {
       setProductName(prod.name);
       setUnitCost(String(prod.currentCostPrice));
-      setSellingPrice(String(Math.round(prod.currentCostPrice * 2.5)));
+      const sPrice = Math.round(prod.currentCostPrice * 2.5);
+      setSellingPrice(String(sPrice));
+      const pQty = Math.max(1, parseFloat(quantity) || 1);
+      const gSales = sPrice * pQty;
+      const cPct = parseFloat(commissionPercent) || 20;
+      setSettlementAmount(String(Math.round(gSales * (1 - cPct / 100))));
+      if (prod.supplierId) {
+        const sup = suppliers.find((s) => s.id === prod.supplierId || s.name === prod.supplierId);
+        if (sup) {
+          setSupplierName(sup.name);
+        }
+      }
     }
   };
 
@@ -164,12 +227,14 @@ export function OrderModal({
 
     if (mode === "edit" && initialOrder) {
       const isNowReturned = isReturned;
-      const updatedStatus = isNowReturned
+      const updatedStatus: Order["status"] = isNowReturned
         ? returnType === "RTO"
           ? "RTO"
-          : "RETURNED"
-        : initialOrder.status === "RETURNED" || initialOrder.status === "RTO"
-        ? "CONFIRMED"
+          : isDamagedClaim
+          ? "CLAIM_PENDING"
+          : "CUSTOMER_RETURN"
+        : initialOrder.status === "RETURNED" || initialOrder.status === "RTO" || initialOrder.status === "CUSTOMER_RETURN" || initialOrder.status === "DAMAGED_RETURN"
+        ? "DELIVERED"
         : initialOrder.status;
 
       const updatedOrder: Order = {
@@ -180,6 +245,11 @@ export function OrderModal({
         status: updatedStatus,
         customerName: initialOrder.customerName || "Customer",
         marketplaceChargesEstimate: commissionDeduction,
+        settlementAmount: parsedSettlementAmount,
+        settlementPercent: parsedSettlementPercent,
+        commissionPercent: parsedCommissionPercent,
+        supplierName: supplierName || undefined,
+        supplierId: suppliers.find((s) => s.name === supplierName)?.id || initialOrder.supplierId,
         notes,
         items: [
           {
@@ -239,20 +309,18 @@ export function OrderModal({
           sku: sku || "CUSTOM-SKU",
           quantity: parsedQty,
           condition: isDamagedClaim ? ("DAMAGED" as const) : ("SELLABLE" as const),
-          returnShippingCost: returnType === "RTO" ? parsedFee : Math.round(parsedFee * 0.6),
+          returnShippingCost: returnType === "RTO" ? 0 : Math.round(parsedFee * 0.6),
           customerReturnFee: returnType === "RTO" ? 0 : parsedFee,
           otherReturnCosts: 0,
           inventoryRecoveryValue: parsedReimbursement,
-          lossAmount: isDamagedClaim
-            ? parsedUnitCost * parsedQty + parsedFee - parsedReimbursement
-            : parsedFee,
+          lossAmount: returnType === "RTO" ? 0 : isDamagedClaim ? parsedFee : parsedFee,
         };
 
         onAddReturn(newReturnRecord);
       }
 
       // Optional settlement payout in edit mode
-      if (parsedActualReceived > 0 && onAddSettlement) {
+      if (parsedSettlementAmount > 0 && onAddSettlement && (!isNowReturned || returnType !== "RTO")) {
         const createdSettlement: Settlement = {
           id: `SETTLE-${Date.now().toString().slice(-4)}`,
           settlementBatchId: `BATCH-${Date.now().toString().slice(-4)}`,
@@ -266,14 +334,9 @@ export function OrderModal({
               name: "Marketplace Commission",
               amount: commissionDeduction,
             },
-            {
-              category: "LOGISTICS",
-              name: "Logistics & Forwarding",
-              amount: Math.max(0, grossSales - parsedActualReceived - commissionDeduction),
-            },
           ],
-          tcsTdsTax: Math.round(grossSales * 0.01),
-          netSettlement: parsedActualReceived,
+          tcsTdsTax: 0,
+          netSettlement: parsedSettlementAmount,
           reconciliationStatus: "RECONCILED",
           bankTxRef: `BANK-DEP-${updatedOrder.id.slice(-4)}`,
         };
@@ -294,12 +357,19 @@ export function OrderModal({
       channelOrderId: finalChannelRef,
       marketplace,
       orderDate,
-      status: isReturned ? (returnType === "RTO" ? "RTO" : "RETURNED") : "CONFIRMED",
+      status: isReturned
+        ? (returnType === "RTO" ? "RTO" : isDamagedClaim ? "CLAIM_PENDING" : "CUSTOMER_RETURN")
+        : "DELIVERED",
       customerName: "Direct Buyer",
       customerCity: "Mumbai",
       customerState: "Maharashtra",
       shippingFeeCharged: 0,
       marketplaceChargesEstimate: commissionDeduction,
+      settlementAmount: parsedSettlementAmount,
+      settlementPercent: parsedSettlementPercent,
+      commissionPercent: parsedCommissionPercent,
+      supplierName: supplierName || undefined,
+      supplierId: suppliers.find((s) => s.name === supplierName)?.id,
       notes,
       items: [
         {
@@ -319,7 +389,7 @@ export function OrderModal({
     onAddOrder?.(newOrder);
 
     // Optional settlement remittance
-    if (parsedActualReceived > 0 && onAddSettlement) {
+    if (parsedSettlementAmount > 0 && onAddSettlement && (!isReturned || returnType !== "RTO")) {
       const createdSettlement: Settlement = {
         id: `SETTLE-${Date.now().toString().slice(-4)}`,
         settlementBatchId: `BATCH-${Date.now().toString().slice(-4)}`,
@@ -333,14 +403,9 @@ export function OrderModal({
             name: "Marketplace Commission",
             amount: commissionDeduction,
           },
-          {
-            category: "LOGISTICS",
-            name: "Logistics & Forwarding",
-            amount: Math.max(0, grossSales - parsedActualReceived - commissionDeduction),
-          },
         ],
-        tcsTdsTax: Math.round(grossSales * 0.01),
-        netSettlement: parsedActualReceived,
+        tcsTdsTax: 0,
+        netSettlement: parsedSettlementAmount,
         reconciliationStatus: "RECONCILED",
         bankTxRef: `BANK-DEP-${finalOrderId.slice(-4)}`,
       };
@@ -449,7 +514,11 @@ export function OrderModal({
                 selected={marketplace}
                 onChange={(mp, estComm) => {
                   setMarketplace(mp);
-                  setEstCommissionPercent(String(estComm));
+                  const comm = estComm > 0 ? estComm : 20;
+                  setCommissionPercent(String(comm));
+                  const pPrice = Math.max(0, parseFloat(sellingPrice) || 0);
+                  const pQty = Math.max(1, parseFloat(quantity) || 1);
+                  setSettlementAmount(String(Math.round(pPrice * pQty * (1 - comm / 100))));
                 }}
               />
             </div>
@@ -536,7 +605,7 @@ export function OrderModal({
                   min="1"
                   value={quantity}
                   onFocus={(e) => e.target.select()}
-                  onChange={(e) => setQuantity(e.target.value)}
+                  onChange={(e) => handleQuantityChange(e.target.value)}
                   placeholder="1"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-semibold tabular-nums text-center transition-all"
                   required
@@ -614,7 +683,7 @@ export function OrderModal({
                   min="0"
                   value={sellingPrice}
                   onFocus={(e) => e.target.select()}
-                  onChange={(e) => setSellingPrice(e.target.value)}
+                  onChange={(e) => handleSellingPriceChange(e.target.value)}
                   placeholder="0"
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-semibold tabular-nums transition-all"
                   required
@@ -623,33 +692,33 @@ export function OrderModal({
 
               <div>
                 <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                  Platform Commission (%)
+                  Commission (%)
                 </label>
                 <input
                   type="number"
                   step="any"
                   min="0"
                   max="100"
-                  value={estCommissionPercent}
+                  value={commissionPercent}
                   onFocus={(e) => e.target.select()}
-                  onChange={(e) => setEstCommissionPercent(e.target.value)}
-                  placeholder="0"
+                  onChange={(e) => handleCommissionPercentChange(e.target.value)}
+                  placeholder="20"
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-semibold tabular-nums transition-all"
                 />
               </div>
 
               <div>
                 <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                  Actual Received Payout (₹)
+                  Settlement Amount (₹)
                 </label>
                 <input
                   type="number"
                   step="any"
                   min="0"
-                  value={actualReceived}
+                  value={settlementAmount}
                   onFocus={(e) => e.target.select()}
-                  onChange={(e) => setActualReceived(e.target.value)}
-                  placeholder="Optional (settled)"
+                  onChange={(e) => handleSettlementAmountChange(e.target.value)}
+                  placeholder="750"
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-semibold tabular-nums transition-all"
                 />
               </div>

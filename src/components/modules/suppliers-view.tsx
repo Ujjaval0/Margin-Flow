@@ -32,6 +32,9 @@ export function SuppliersView() {
     suppliers,
     purchases,
     orders,
+    products,
+    returns,
+    claims,
     addSupplier,
     updateSupplier,
     deleteSupplier,
@@ -55,35 +58,122 @@ export function SuppliersView() {
   const [payoutNotes, setPayoutNotes] = useState("");
 
   // ----------------------------------------------------
-  // Financial Calculations per Supplier
+  // Dynamic Financial Calculations per Supplier
   // ----------------------------------------------------
   const supplierFinancials = useMemo(() => {
+    // Dynamic SKU -> Product mapping including channel aliases
+    const skuToProductMap = new Map<string, (typeof products)[0]>();
+    products.forEach((p) => {
+      skuToProductMap.set(p.sku.toLowerCase(), p);
+      if (p.channelAliases) {
+        Object.values(p.channelAliases).forEach((alias) => {
+          if (alias) skuToProductMap.set(alias.toLowerCase(), p);
+        });
+      }
+    });
+
+    // Dynamic O(1) returns lookup
+    const returnsByOrderMap = new Map<string, (typeof returns)[0][]>();
+    returns.forEach((r) => {
+      if (r.orderId) {
+        const list = returnsByOrderMap.get(r.orderId) || [];
+        list.push(r);
+        returnsByOrderMap.set(r.orderId, list);
+      }
+      if (r.channelOrderId) {
+        const list = returnsByOrderMap.get(r.channelOrderId) || [];
+        list.push(r);
+        returnsByOrderMap.set(r.channelOrderId, list);
+      }
+    });
+
+    // Dynamic O(1) claims lookup
+    const claimsByOrderMap = new Map<string, (typeof claims)[0][]>();
+    claims.forEach((c) => {
+      if (c.orderId) {
+        const list = claimsByOrderMap.get(c.orderId) || [];
+        list.push(c);
+        claimsByOrderMap.set(c.orderId, list);
+      }
+    });
+
     const map = new Map<
       string,
       { sourcedCogs: number; totalPaid: number; outstanding: number }
     >();
 
     suppliers.forEach((sup) => {
-      // 1. Sourced from purchases
+      const supNameLower = sup.name.toLowerCase();
+
+      // 1. Sourced from purchase bills
       const supPurchases = purchases.filter(
-        (p) => p.supplierId === sup.id || p.supplierName.toLowerCase() === sup.name.toLowerCase()
+        (p) => p.supplierId === sup.id || p.supplierName.toLowerCase() === supNameLower
       );
       const purchaseTotal = supPurchases.reduce((sum, p) => sum + p.totalAmount, 0);
 
-      // 2. Sourced from orders where COGS was tagged with this supplier
+      // 2. Sourced from orders with active COGS attributed to this supplier
       const orderCogs = orders.reduce((sum, o) => {
-        // Match either by supplier name in note or product supplierId
-        return (
-          sum +
-          o.items.reduce((iSum, item) => {
-            // Check if item's SKU belongs to this supplier or notes mention supplier
-            const isMatch =
-              o.notes?.includes(sup.name) ||
-              (sup.id === "SUP-001" && item.sku.startsWith("ELEC-WEM")) ||
-              (sup.id === "SUP-002" && item.sku.startsWith("ELEC-USBC"));
-            return isMatch ? iSum + item.snapshotUnitCost * item.quantity : iSum;
-          }, 0)
-        );
+        // Exclude cancelled orders
+        if (o.status === "CANCELLED") return sum;
+
+        const linkedReturns = [
+          ...(returnsByOrderMap.get(o.id) || []),
+          ...(o.channelOrderId ? returnsByOrderMap.get(o.channelOrderId) || [] : []),
+        ];
+        const linkedClaims = [
+          ...(claimsByOrderMap.get(o.id) || []),
+          ...(o.channelOrderId ? claimsByOrderMap.get(o.channelOrderId) || [] : []),
+        ];
+
+        const isRto =
+          o.status === "RTO" ||
+          linkedReturns.some((r) => r.returnType === "RTO");
+
+        const isDamaged =
+          o.status === "DAMAGED_RETURN" ||
+          o.status === "CLAIM_PENDING" ||
+          o.status === "CLAIM_APPROVED" ||
+          linkedReturns.some(
+            (r) =>
+              r.returnType === "DAMAGED_RETURN" ||
+              r.condition === "UNUSABLE" ||
+              r.condition === "MISSING" ||
+              (r.condition as string) === "DAMAGED"
+          ) ||
+          linkedClaims.length > 0;
+
+        const isCustomerReturn =
+          o.status === "CUSTOMER_RETURN" ||
+          o.status === "RETURNED" ||
+          linkedReturns.some((r) => r.returnType === "CUSTOMER_RETURN");
+
+        // COGS Invariants (aligned with profitability engine):
+        // Active: Delivered, Damaged return, Claim pending/approved.
+        // Inactive: Cancelled, RTO, Intact/Good Customer Return.
+        if (isRto) return sum;
+        if (isCustomerReturn && !isDamaged && o.status !== "CLAIM_PENDING" && o.status !== "CLAIM_APPROVED") {
+          return sum;
+        }
+
+        // Sum COGS of items belonging to this supplier
+        const itemsCogs = o.items.reduce((iSum, item) => {
+          const prod =
+            skuToProductMap.get(item.sku.toLowerCase()) ||
+            products.find((p) => p.name.toLowerCase() === item.productName.toLowerCase());
+
+          const isMatch =
+            o.supplierId === sup.id ||
+            (o.supplierName && o.supplierName.toLowerCase() === supNameLower) ||
+            (prod && (prod.supplierId === sup.id || prod.supplierId.toLowerCase() === supNameLower)) ||
+            (o.notes && o.notes.toLowerCase().includes(supNameLower)) ||
+            // Fallback for initial mock SKUs if unmapped
+            (!prod && sup.id === "SUP-001" && (item.sku.startsWith("ELEC-WEM") || item.sku.startsWith("ELEC-ANC"))) ||
+            (!prod && sup.id === "SUP-002" && (item.sku.startsWith("ELEC-USBC") || item.sku.startsWith("ELEC-BRAID")));
+
+          return isMatch ? iSum + item.snapshotUnitCost * item.quantity : iSum;
+        }, 0);
+
+        return sum + itemsCogs;
       }, 0);
 
       const totalSourced = purchaseTotal + orderCogs + (sup.openingBalance || 0);
@@ -105,7 +195,7 @@ export function SuppliersView() {
     });
 
     return map;
-  }, [suppliers, purchases, orders]);
+  }, [suppliers, purchases, orders, products, returns, claims]);
 
   // Aggregate Totals for Top KPI Cards
   const aggregateMetrics = useMemo(() => {

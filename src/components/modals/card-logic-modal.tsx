@@ -146,16 +146,16 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
 
     trueProfit: {
       title: "True Profit",
-      meaning: "Realized in-pocket cash remaining after all marketplace deductions and wholesale supplier COGS.",
-      formula: "True Profit = Net Platform Payout − Wholesale COGS",
+      meaning: "Realized in-pocket cash remaining after all marketplace deductions and active supplier COGS.",
+      formula: "True Profit = All Platform Profit − Active Supplier COGS",
       equationComponents: [
         {
-          label: "Net Platform Payout (Gross − Fees − Returns + Claims)",
+          label: "All Platform Profit (Settlement − Return Fees + Claims)",
           value: formatINR(profitability.netPlatformPayout),
           color: "text-blue-600",
         },
         {
-          label: "Wholesale Inventory Cost (COGS)",
+          label: "Active Supplier Inventory Cost (COGS)",
           value: `−${formatINR(profitability.cogs)}`,
           color: "text-[#D70015]",
         },
@@ -167,47 +167,33 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
       ],
       resultLabel: "True In-Pocket Profit",
       resultValue: formatINR(profitability.trueProfit),
-      impactNote: "Actual net cash earned after fulfilling platform deductions and paying wholesale suppliers.",
+      impactNote: "Actual net cash earned after fulfilling platform deductions, absorbing return fees, realizing claims, and paying supplier COGS.",
     },
 
     netProfit: {
       title: "Net Profit / Platform Payout",
       meaning: "Net cash disbursed by marketplaces before paying wholesale suppliers.",
-      formula: "Net Payout = Net Sales − Platform Fees − Shipping Logistics − Return Deductions + Claims",
+      formula: "Platform Profit = Settlement Received (Delivered) − Return Fees + Claim Recovery",
       equationComponents: [
         {
-          label: "Net Sales (Gross − Discounts − Refunds)",
-          value: formatINR(profitability.netSales),
+          label: "Settlement Received (Delivered Orders Only)",
+          value: formatINR(profitability.actualSettlementsReceived),
           color: "text-[#1D1D1F]",
         },
         {
-          label: "Marketplace Commissions & Fees",
-          value: `−${formatINR(profitability.marketplaceCharges)}`,
+          label: "Customer Return Fees (Reverse Logistics)",
+          value: `−${formatINR(profitability.customerReturnFees)}`,
           color: "text-[#D70015]",
         },
-        ...(profitability.shippingLogisticsCosts > 0
-          ? [
-              {
-                label: "Shipping & Forward Logistics Fees",
-                value: `−${formatINR(profitability.shippingLogisticsCosts)}`,
-                color: "text-[#D70015]",
-              },
-            ]
-          : []),
         {
-          label: "Return & RTO Deductions",
-          value: `−${formatINR(profitability.returnLosses + profitability.rtoLosses)}`,
-          color: "text-amber-600",
-        },
-        {
-          label: "Dispute Reimbursements Credited",
+          label: "Claim Recoveries (Approved Dispute Payouts)",
           value: `+${formatINR(profitability.claimRecoveries)}`,
           color: "text-[#288548]",
         },
       ],
-      resultLabel: "Net Platform Remittance Payout",
+      resultLabel: "All Platform Profit",
       resultValue: formatINR(profitability.netPlatformPayout),
-      impactNote: "Expected bank payout deposited into your account from platforms before inventory payments.",
+      impactNote: "Expected bank payout from platforms after return deductions and dispute credits, before supplier COGS.",
     },
 
     returnsRto: {
