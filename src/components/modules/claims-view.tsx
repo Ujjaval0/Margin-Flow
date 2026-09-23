@@ -288,14 +288,15 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => handleOpenRecovery(claim)}
-              className="px-3 py-1 rounded-full bg-black/[0.04] hover:bg-black/[0.08] text-[#1D1D1F] font-medium text-[11px] transition cursor-pointer"
+              className="px-3 py-1 rounded-full bg-black/[0.04] hover:bg-black/[0.08] text-[#1D1D1F] font-medium text-[11px] transition cursor-pointer btn-press"
             >
               Record Credit
             </button>
             <button
               onClick={() => handleOpenEdit(claim)}
-              className="p-1 rounded-full text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+              className="p-1.5 rounded-full text-[#86868B] hover:text-[#0071E3] hover:bg-black/[0.04] transition cursor-pointer"
               title="Edit Claim"
+              aria-label={`Edit claim ${claim.id}`}
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
@@ -305,8 +306,9 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                   deleteClaim(claim.id);
                 }
               }}
-              className="p-1 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+              className="p-1.5 rounded-full text-[#86868B] hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
               title="Delete Claim"
+              aria-label={`Delete claim ${claim.id}`}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -341,10 +343,10 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
               );
             }
           }}
-          className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-mono text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition active:scale-95 cursor-pointer"
+          className="px-4 py-2 rounded-full bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium flex items-center gap-1.5 shadow-apple-sm transition btn-press cursor-pointer"
         >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Draft AI Dispute Claim</span>
+          <Sparkles className="w-3.5 h-3.5 text-[#0071E3]" />
+          <span>Draft Dispute Claim</span>
         </button>
       </div>
 
@@ -352,69 +354,69 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div
           onClick={() => setActiveBreakdownCard("disputedAmount")}
-          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+          className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md cursor-pointer group active:scale-[0.99] relative"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs text-[#86868B] font-medium">Disputed Amount</span>
-            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+            <span className="text-[10px] text-[#0071E3] font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
               Breakdown &rarr;
             </span>
           </div>
-          <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{formatINR(totalClaimed)}</div>
+          <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight tabular-nums">{formatINR(totalClaimed)}</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">{filteredClaims.length} disputes filed</span>
         </div>
         <div
           onClick={() => setActiveBreakdownCard("recoveredReimbursements")}
-          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+          className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md cursor-pointer group active:scale-[0.99] relative"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs text-[#86868B] font-medium">Recovered Reimbursements</span>
-            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+            <span className="text-[10px] text-[#0071E3] font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
               Breakdown &rarr;
             </span>
           </div>
-          <div className="text-2xl font-semibold text-[#288548] mt-1 tracking-tight">{formatINR(totalRecovered)}</div>
+          <div className="text-2xl font-semibold text-[#288548] mt-1 tracking-tight tabular-nums">{formatINR(totalRecovered)}</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">Credited to bank</span>
         </div>
         <div
           onClick={() => setActiveBreakdownCard("outstandingBalance")}
-          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+          className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md cursor-pointer group active:scale-[0.99] relative"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs text-[#86868B] font-medium">Outstanding Balance</span>
-            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+            <span className="text-[10px] text-[#0071E3] font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
               Breakdown &rarr;
             </span>
           </div>
-          <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{formatINR(outstandingAmount)}</div>
+          <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight tabular-nums">{formatINR(outstandingAmount)}</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">Pending approval</span>
         </div>
         <div
           onClick={() => setActiveBreakdownCard("recoveryRate")}
-          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+          className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md cursor-pointer group active:scale-[0.99] relative"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs text-[#86868B] font-medium">Recovery Rate</span>
-            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+            <span className="text-[10px] text-[#0071E3] font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
               Breakdown &rarr;
             </span>
           </div>
-          <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{formatPercent(recoveryRate)}</div>
+          <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight tabular-nums">{formatPercent(recoveryRate)}</div>
           <span className="text-[11px] text-[#86868B] mt-1 block">Resolution efficiency</span>
         </div>
       </div>
 
-      {/* Claims Status Filter Capsule (Image 2 Pill Control) */}
+      {/* Claims Status Filter Capsule */}
       <div className="flex items-center justify-between gap-3 overflow-x-auto pb-0.5">
-        <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/50 inline-flex items-center gap-0.5 text-xs">
+        <div className="bg-black/[0.04] p-1 rounded-full border border-black/[0.06] inline-flex items-center gap-1 text-xs">
           {claimStatusOptions.map((opt) => (
             <button
               key={opt.id}
               onClick={() => setClaimStatusFilter(opt.id)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 cursor-pointer ${
                 claimStatusFilter === opt.id
-                  ? "bg-white text-[#1D1D1F] shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                  : "text-slate-600 hover:text-slate-900 font-medium"
+                  ? "bg-white text-[#1D1D1F] font-semibold shadow-apple-sm"
+                  : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
               }`}
             >
               {opt.label}
@@ -430,20 +432,20 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
 
       {/* Bulk delete toolbar */}
       {someSelected && (
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-rose-50 border border-rose-200/70 rounded-xl">
-          <span className="text-xs font-medium text-rose-700">
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl shadow-apple-sm">
+          <span className="text-xs font-medium text-rose-900">
             {selectedIds.size} claim{selectedIds.size > 1 ? "s" : ""} selected
           </span>
           <button
             onClick={handleBulkDelete}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-semibold transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-semibold transition cursor-pointer shadow-apple-sm btn-press"
           >
             <Trash2 className="w-3 h-3" />
             Delete Selected
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="ml-auto text-[11px] text-rose-500 hover:text-rose-700 font-medium transition cursor-pointer"
+            className="ml-auto text-[11px] text-rose-700 hover:text-rose-900 font-medium transition cursor-pointer"
           >
             Clear selection
           </button>
@@ -459,21 +461,22 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
 
       {/* Record Recovery Modal */}
       {isRecordRecoveryOpen && selectedClaim && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
-            <div className="px-6 py-4 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+            <div className="px-6 py-4.5 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-[#FAFAFC]">
               <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">
                 Record Recovery Credit: {selectedClaim.id}
               </h2>
               <button
                 onClick={() => setIsRecordRecoveryOpen(false)}
-                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors"
+                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors cursor-pointer"
+                aria-label="Close modal"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <form id="record-recovery-form" onSubmit={handleSubmitRecovery} className="p-6 space-y-4 text-xs overflow-y-auto flex-1 min-h-0">
-              <div className="p-3.5 bg-[#FAFAFC] rounded-2xl border border-black/[0.04] space-y-1.5">
+              <div className="p-4 bg-[#FAFAFC] rounded-2xl border border-black/[0.04] space-y-2">
                 <div className="flex justify-between text-[#6E6E73] items-center">
                   <span>Claimed:</span>
                   <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">{formatINR(selectedClaim.amountClaimed)}</span>
@@ -494,7 +497,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                   max={selectedClaim.amountClaimed}
                   value={recoveryAmount}
                   onChange={(e) => setRecoveryAmount(Number(e.target.value))}
-                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none"
+                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   required
                 />
               </div>
@@ -504,7 +507,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                 <select
                   value={resolutionStatus}
                   onChange={(e) => setResolutionStatus(e.target.value as ClaimStatus)}
-                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                 >
                   <option value="RECOVERED">Recovered (100% Resolved)</option>
                   <option value="PARTIALLY_RECOVERED">Partially Recovered</option>
@@ -514,18 +517,18 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
               </div>
             </form>
 
-            <div className="px-6 py-4 border-t border-black/[0.05] bg-slate-50/50 flex justify-end gap-2 shrink-0">
+            <div className="px-6 py-4 border-t border-black/[0.05] bg-[#FAFAFC] flex justify-end gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setIsRecordRecoveryOpen(false)}
-                className="px-4 py-2 rounded-xl text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition-colors"
+                className="px-4 py-2 rounded-xl text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 form="record-recovery-form"
-                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-colors"
+                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-apple-sm transition-colors btn-press cursor-pointer"
               >
                 Commit Credit
               </button>
@@ -536,27 +539,28 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
 
       {/* Edit Claim Modal */}
       {isEditOpen && editingClaim && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl border border-black/[0.08] w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="px-5 py-3 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="px-6 py-4.5 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-[#FAFAFC]">
               <h2 className="text-xs font-semibold text-[#1D1D1F] tracking-tight">
                 Edit Claim: {editingClaim.id}
               </h2>
               <button
                 onClick={() => setIsEditOpen(false)}
-                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors"
+                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors cursor-pointer"
+                aria-label="Close modal"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
-            <form id="edit-claim-form" onSubmit={handleSubmitEdit} className="px-5 py-3 space-y-2.5 text-xs overflow-y-auto flex-1 min-h-0">
+            <form id="edit-claim-form" onSubmit={handleSubmitEdit} className="p-6 space-y-3 text-xs overflow-y-auto flex-1 min-h-0">
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Channel</label>
                   <select
                     value={editFields.marketplace}
                     onChange={(e) => setEditFields((f) => ({ ...f, marketplace: e.target.value as Marketplace }))}
-                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs focus:outline-none"
+                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   >
                     {marketplaceOptions.map((m) => (
                       <option key={m} value={m}>{m}</option>
@@ -569,7 +573,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                     type="date"
                     value={editFields.claimDate}
                     onChange={(e) => setEditFields((f) => ({ ...f, claimDate: e.target.value }))}
-                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs focus:outline-none text-[#1D1D1F]"
+                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 text-[#1D1D1F]"
                     required
                   />
                 </div>
@@ -580,7 +584,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                 <select
                   value={editFields.claimType}
                   onChange={(e) => setEditFields((f) => ({ ...f, claimType: e.target.value as Claim["claimType"] }))}
-                  className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs focus:outline-none"
+                  className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                 >
                   {claimTypeOptions.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -596,7 +600,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                     min="0"
                     value={editFields.amountClaimed}
                     onChange={(e) => setEditFields((f) => ({ ...f, amountClaimed: Number(e.target.value) }))}
-                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none"
+                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                     required
                   />
                 </div>
@@ -607,7 +611,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                     min="0"
                     value={editFields.amountRecovered}
                     onChange={(e) => setEditFields((f) => ({ ...f, amountRecovered: Number(e.target.value) }))}
-                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none"
+                    className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   />
                 </div>
               </div>
@@ -617,7 +621,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                 <select
                   value={editFields.status}
                   onChange={(e) => setEditFields((f) => ({ ...f, status: e.target.value as ClaimStatus }))}
-                  className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs focus:outline-none"
+                  className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                 >
                   {statusOptions.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -631,24 +635,24 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                   value={editFields.notes}
                   onChange={(e) => setEditFields((f) => ({ ...f, notes: e.target.value }))}
                   rows={2}
-                  className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-lg text-xs text-[#1D1D1F] focus:outline-none resize-none"
+                  className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 resize-none"
                   placeholder="Optional notes..."
                 />
               </div>
             </form>
 
-            <div className="px-5 py-3 border-t border-black/[0.05] bg-slate-50/50 flex justify-end gap-2 shrink-0">
+            <div className="px-6 py-4 border-t border-black/[0.05] bg-[#FAFAFC] flex justify-end gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setIsEditOpen(false)}
-                className="px-4 py-1.5 rounded-lg text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition-colors"
+                className="px-4 py-1.5 rounded-xl text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 form="edit-claim-form"
-                className="px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white rounded-lg text-xs font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-colors"
+                className="px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-apple-sm transition-colors btn-press cursor-pointer"
               >
                 Save Changes
               </button>

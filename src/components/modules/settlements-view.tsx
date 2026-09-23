@@ -201,7 +201,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
         </div>
         <button
           onClick={() => setIsCreateOpen(true)}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition"
+          className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-apple-sm transition btn-press cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" strokeWidth={2} />
           <span>Record Settlement</span>
@@ -210,52 +210,52 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
 
       {/* ─── Cash Flow Forensics: Settlement Aging Brackets ─── */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <h2 className="text-xs font-semibold text-[#1D1D1F] tracking-tight">
               Settlement Aging &amp; Cash Flow Pipeline
             </h2>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-[#86868B] mt-0.5">
               {settlementAging.totalUnsettledOrders} orders pending payout • Total Outstanding: {formatINR(settlementAging.totalOutstandingAmount)}
             </p>
           </div>
-          <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/50 inline-flex items-center gap-0.5 text-xs overflow-x-auto max-w-full">
+          <div className="bg-black/[0.04] p-1 rounded-full border border-black/[0.06] inline-flex items-center gap-1 text-xs overflow-x-auto max-w-full">
             <button
               onClick={() => setSelectedAgingTab("ALL")}
-              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 cursor-pointer ${
                 selectedAgingTab === "ALL"
-                  ? "bg-white text-[#1D1D1F] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                  : "text-slate-600 hover:text-slate-900 font-medium"
+                  ? "bg-white text-[#1D1D1F] font-semibold shadow-apple-sm"
+                  : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
               }`}
             >
               Overview
             </button>
             <button
               onClick={() => setSelectedAgingTab("0-7")}
-              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 cursor-pointer ${
                 selectedAgingTab === "0-7"
-                  ? "bg-white text-emerald-700 font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                  : "text-slate-600 hover:text-slate-900 font-medium"
+                  ? "bg-white text-emerald-800 font-semibold shadow-apple-sm"
+                  : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
               }`}
             >
               0–7 Days ({settlementAging.onSchedule.orderCount})
             </button>
             <button
               onClick={() => setSelectedAgingTab("8-14")}
-              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 cursor-pointer ${
                 selectedAgingTab === "8-14"
-                  ? "bg-white text-amber-700 font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                  : "text-slate-600 hover:text-slate-900 font-medium"
+                  ? "bg-white text-amber-800 font-semibold shadow-apple-sm"
+                  : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
               }`}
             >
               8–14 Days ({settlementAging.pending.orderCount})
             </button>
             <button
               onClick={() => setSelectedAgingTab("14+")}
-              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 cursor-pointer ${
                 selectedAgingTab === "14+"
-                  ? "bg-white text-rose-700 font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                  : "text-slate-600 hover:text-slate-900 font-medium"
+                  ? "bg-white text-rose-800 font-semibold shadow-apple-sm"
+                  : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
               }`}
             >
               &gt;14 Days Overdue ({settlementAging.overdue.orderCount})
@@ -268,107 +268,107 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
           {/* 0-7 Days: On Schedule */}
           <div
             onClick={() => setSelectedAgingTab(selectedAgingTab === "0-7" ? "ALL" : "0-7")}
-            className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all shadow-xs flex flex-col justify-between ${
+            className={`apple-card p-5 rounded-2xl border transition-colors cursor-pointer flex flex-col justify-between ${
               selectedAgingTab === "0-7"
-                ? "border-emerald-500 ring-2 ring-emerald-500/20"
-                : "border-slate-200 hover:border-slate-300"
+                ? "border-emerald-600/30 shadow-apple-md ring-1 ring-emerald-500/20"
+                : "border-black/[0.06] shadow-apple-md hover:border-black/[0.12]"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              <span className="text-[11px] font-medium text-[#86868B]">
                 0–7 Days • Cycle Safe
               </span>
-              <div className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-800 flex items-center justify-center">
                 <CheckCircle2 className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="my-2">
-              <span className="text-xl font-bold text-slate-900 block">
+              <span className="text-xl font-semibold text-[#1D1D1F] tracking-tight tabular-nums block">
                 {formatINR(settlementAging.onSchedule.totalEstimatedAmount)}
               </span>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-[#86868B] mt-0.5 block">
                 {settlementAging.onSchedule.orderCount} orders on standard payout cycle
               </span>
             </div>
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-              <span className="text-emerald-700 font-semibold">Normal Processing</span>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
+            <div className="pt-2 border-t border-black/[0.04] flex items-center justify-between text-[10px]">
+              <span className="text-emerald-800 font-medium">Normal Processing</span>
+              <ChevronRight className="w-3 h-3 text-[#86868B]" />
             </div>
           </div>
 
           {/* 8-14 Days: Pending */}
           <div
             onClick={() => setSelectedAgingTab(selectedAgingTab === "8-14" ? "ALL" : "8-14")}
-            className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all shadow-xs flex flex-col justify-between ${
+            className={`apple-card p-5 rounded-2xl border transition-colors cursor-pointer flex flex-col justify-between ${
               selectedAgingTab === "8-14"
-                ? "border-amber-500 ring-2 ring-amber-500/20"
-                : "border-slate-200 hover:border-slate-300"
+                ? "border-amber-600/30 shadow-apple-md ring-1 ring-amber-500/20"
+                : "border-black/[0.06] shadow-apple-md hover:border-black/[0.12]"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              <span className="text-[11px] font-medium text-[#86868B]">
                 8–14 Days • Approaching Threshold
               </span>
-              <div className="w-6 h-6 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full bg-amber-500/10 text-amber-800 flex items-center justify-center">
                 <Clock className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="my-2">
-              <span className="text-xl font-bold text-slate-900 block">
+              <span className="text-xl font-semibold text-[#1D1D1F] tracking-tight tabular-nums block">
                 {formatINR(settlementAging.pending.totalEstimatedAmount)}
               </span>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-[#86868B] mt-0.5 block">
                 {settlementAging.pending.orderCount} orders due in upcoming disbursement
               </span>
             </div>
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-              <span className="text-amber-700 font-semibold">Pending Next Settlement</span>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
+            <div className="pt-2 border-t border-black/[0.04] flex items-center justify-between text-[10px]">
+              <span className="text-amber-800 font-medium">Pending Next Settlement</span>
+              <ChevronRight className="w-3 h-3 text-[#86868B]" />
             </div>
           </div>
 
           {/* >14 Days: Overdue */}
           <div
             onClick={() => setSelectedAgingTab(selectedAgingTab === "14+" ? "ALL" : "14+")}
-            className={`p-4 rounded-2xl bg-white border cursor-pointer transition-all shadow-xs flex flex-col justify-between ${
+            className={`apple-card p-5 rounded-2xl border transition-colors cursor-pointer flex flex-col justify-between ${
               selectedAgingTab === "14+"
-                ? "border-rose-500 ring-2 ring-rose-500/20"
-                : "border-slate-200 hover:border-slate-300"
+                ? "border-rose-600/30 shadow-apple-md ring-1 ring-rose-500/20"
+                : "border-black/[0.06] shadow-apple-md hover:border-black/[0.12]"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              <span className="text-[11px] font-medium text-[#86868B]">
                 &gt; 14 Days • Delayed / Overdue
               </span>
-              <div className="w-6 h-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full bg-rose-500/10 text-rose-800 flex items-center justify-center">
                 <AlertCircle className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="my-2">
-              <span className="text-xl font-bold text-rose-600 block">
+              <span className="text-xl font-semibold text-[#D70015] tracking-tight tabular-nums block">
                 {formatINR(settlementAging.overdue.totalEstimatedAmount)}
               </span>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-[#86868B] mt-0.5 block">
                 {settlementAging.overdue.orderCount} orders past normal payment window
               </span>
             </div>
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-              <span className="text-rose-700 font-semibold">Audit Required</span>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
+            <div className="pt-2 border-t border-black/[0.04] flex items-center justify-between text-[10px]">
+              <span className="text-rose-800 font-medium">Audit Required</span>
+              <ChevronRight className="w-3 h-3 text-[#86868B]" />
             </div>
           </div>
         </div>
 
         {/* Selected Aging Tab Expanded Drawer */}
         {selectedAgingTab !== "ALL" && (
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-200">
-              <span className="font-bold text-slate-800">
+          <div className="apple-card p-4 rounded-2xl border border-black/[0.06] shadow-apple-md space-y-2 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between text-xs pb-1 border-b border-black/[0.04]">
+              <span className="font-semibold text-[#1D1D1F]">
                 Orders in {selectedAgingTab === "0-7" ? "0–7 Days Bracket" : selectedAgingTab === "8-14" ? "8–14 Days Bracket" : "Overdue (>14 Days) Bracket"}
               </span>
               <button
                 onClick={() => setSelectedAgingTab("ALL")}
-                className="text-slate-400 hover:text-slate-600 text-[11px]"
+                className="text-[#86868B] hover:text-[#1D1D1F] text-[11px] cursor-pointer"
               >
                 Close breakdown ✕
               </button>
@@ -382,13 +382,13 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
               ).map((ord) => (
                 <div
                   key={ord.orderId}
-                  className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between"
+                  className="p-2.5 rounded-xl bg-white border border-black/[0.04] flex items-center justify-between"
                 >
                   <div>
                     <span className="font-semibold text-[#1D1D1F] tracking-tight tabular-nums block text-[11px]">
                       {ord.orderId} • {ord.channelOrderId}
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-[10px] text-[#86868B]">
                       {ord.marketplace} • Dispatched {ord.orderDate} ({ord.daysOutstanding} days ago)
                     </span>
                   </div>
@@ -424,9 +424,9 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
 
       {/* Settlement Breakdown Drawer */}
       {selectedSettlement && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
-            <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+            <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-[#FAFAFC]">
               <div>
                 <span className="text-[11px] text-[#86868B] tabular-nums block">
                   {selectedSettlement.marketplace} • Batch: {selectedSettlement.settlementBatchId}
@@ -437,7 +437,8 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
               </div>
               <button
                 onClick={() => setSelectedSettlement(null)}
-                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors"
+                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors cursor-pointer"
+                aria-label="Close drawer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -460,7 +461,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
               </div>
 
               <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-[#86868B] uppercase tracking-wider block px-1">
+                <span className="text-xs font-semibold text-[#1D1D1F] tracking-tight block px-1">
                   Itemized Marketplace Deductions
                 </span>
                 <div className="border border-black/[0.05] rounded-2xl overflow-hidden divide-y divide-black/[0.04]">
@@ -480,8 +481,8 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                 </div>
               </div>
 
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-900 text-[11px]">
-                <span className="font-medium block">P6 Tax Guardrail Verification</span>
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-950 text-[11px] leading-relaxed">
+                <span className="font-semibold block mb-0.5">P6 Tax Guardrail Verification</span>
                 Statutory TCS (1%) &amp; TDS (1%) withheld at source have been mapped to balance sheet withholding assets.
               </div>
             </div>
@@ -489,7 +490,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
             <div className="px-6 py-4 border-t border-black/[0.05] bg-[#FAFAFC] flex justify-end shrink-0">
               <button
                 onClick={() => setSelectedSettlement(null)}
-                className="px-6 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium transition-colors"
+                className="px-6 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium transition-colors shadow-apple-sm btn-press cursor-pointer"
               >
                 Done
               </button>
@@ -500,16 +501,17 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
 
       {/* Record Settlement Modal */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
-            <div className="px-6 py-4 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+            <div className="px-6 py-4.5 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-[#FAFAFC]">
               <div>
                 <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">Record Marketplace Deposit</h2>
-                <p className="text-[11px] text-slate-500">Record incoming payout remittance and fee deductions.</p>
+                <p className="text-[11px] text-[#86868B]">Record incoming payout remittance and fee deductions.</p>
               </div>
               <button
                 onClick={() => setIsCreateOpen(false)}
-                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors"
+                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors cursor-pointer"
+                aria-label="Close modal"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -523,7 +525,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                     type="text"
                     value={settlementBatchId}
                     onChange={(e) => setSettlementBatchId(e.target.value)}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                     required
                   />
                 </div>
@@ -541,7 +543,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                 <select
                   value={orderId}
                   onChange={(e) => setOrderId(e.target.value)}
-                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                 >
                   {orders.map((o) => (
                     <option key={o.id} value={o.id}>
@@ -558,7 +560,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                     type="number"
                     value={grossAmount}
                     onChange={(e) => setGrossAmount(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                     required
                   />
                 </div>
@@ -568,7 +570,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                     type="number"
                     value={commission}
                     onChange={(e) => setCommission(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   />
                 </div>
               </div>
@@ -580,7 +582,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                     type="number"
                     value={logistics}
                     onChange={(e) => setLogistics(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   />
                 </div>
                 <div>
@@ -589,7 +591,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                     type="number"
                     value={fixedFee}
                     onChange={(e) => setFixedFee(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   />
                 </div>
                 <div>
@@ -598,7 +600,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                     type="number"
                     value={tcsTds}
                     onChange={(e) => setTcsTds(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   />
                 </div>
               </div>
@@ -611,24 +613,24 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                   type="number"
                   value={declaredNetPayout}
                   onChange={(e) => setDeclaredNetPayout(Number(e.target.value))}
-                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none"
+                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   required
                 />
               </div>
             </form>
 
-            <div className="px-6 py-4 border-t border-black/[0.05] bg-slate-50/50 flex justify-end gap-2 shrink-0">
+            <div className="px-6 py-4 border-t border-black/[0.05] bg-[#FAFAFC] flex justify-end gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setIsCreateOpen(false)}
-                className="px-4 py-2 rounded-xl text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition-colors"
+                className="px-4 py-2 rounded-xl text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 form="record-settlement-form"
-                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-colors"
+                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-apple-sm transition-colors btn-press cursor-pointer"
               >
                 Record Settlement
               </button>

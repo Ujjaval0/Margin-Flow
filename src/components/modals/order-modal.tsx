@@ -473,20 +473,20 @@ export function OrderModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
-        className="bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
+        className="apple-card bg-white text-[#1D1D1F] rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-black/[0.06] flex items-center justify-between bg-[#FBFBFD]">
           <div>
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">
-              {mode === "edit" ? "Edit Order" : "Add New Order"}
+            <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
+              {mode === "edit" ? "Edit order" : "Add new order"}
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-[#86868B] mt-0.5">
               {mode === "edit"
                 ? `Order ID: ${initialOrder?.id} · Ref: ${channelOrderId || initialOrder?.channelOrderId || "N/A"}`
                 : "Enter order details to sync inventory, COGS liabilities, and expected settlements."}
@@ -495,7 +495,8 @@ export function OrderModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition cursor-pointer shrink-0"
+            aria-label="Close order dialog"
+            className="w-8 h-8 rounded-full bg-[#F5F5F7] hover:bg-[#E8E8ED] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer shrink-0"
             title="Close"
           >
             <X className="w-4 h-4" />
@@ -507,8 +508,8 @@ export function OrderModal({
           {/* 1. Channel & Order Reference */}
           <div className="space-y-3">
             <div>
-              <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                Marketplace Channel
+              <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                Marketplace channel
               </label>
               <FormMarketplaceDropdown
                 selected={marketplace}
@@ -525,8 +526,8 @@ export function OrderModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                  {mode === "edit" ? "Channel Reference #" : "Order / Reference #"}
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                  {mode === "edit" ? "Channel reference #" : "Order / reference #"}
                 </label>
                 <input
                   type="text"
@@ -537,20 +538,20 @@ export function OrderModal({
                       : setOrderId(e.target.value)
                   }
                   placeholder="e.g. 402-1829301-4492019"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-medium tabular-nums transition-all"
+                  className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-medium tabular-nums transition-all"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                  Transaction Date
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                  Transaction date
                 </label>
                 <input
                   type="date"
                   value={orderDate}
                   onChange={(e) => setOrderDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-medium tabular-nums transition-all"
+                  className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-medium tabular-nums transition-all"
                   required
                 />
               </div>
@@ -558,11 +559,11 @@ export function OrderModal({
           </div>
 
           {/* 2. Product & Item Details */}
-          <div className="space-y-3 pt-2 border-t border-slate-100">
+          <div className="space-y-3 pt-2 border-t border-black/[0.06]">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div className="sm:col-span-1">
-                <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                  SKU / Item Code
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                  SKU / item code
                 </label>
                 <input
                   type="text"
@@ -570,7 +571,7 @@ export function OrderModal({
                   value={sku}
                   onChange={(e) => handleSelectSku(e.target.value)}
                   placeholder="e.g. ELEC-WEM-01"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-medium tabular-nums transition-all"
+                  className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-medium tabular-nums transition-all"
                   required
                 />
                 <datalist id="order-modal-catalog-skus">
@@ -583,21 +584,21 @@ export function OrderModal({
               </div>
 
               <div className="sm:col-span-2">
-                <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                  Product Title / Name
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                  Product title / name
                 </label>
                 <input
                   type="text"
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
                   placeholder="e.g. Wireless Ergonomic Mouse"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-medium transition-all"
+                  className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-medium transition-all"
                   required
                 />
               </div>
 
               <div className="sm:col-span-1">
-                <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
                   Quantity
                 </label>
                 <input
@@ -607,7 +608,7 @@ export function OrderModal({
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => handleQuantityChange(e.target.value)}
                   placeholder="1"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-semibold tabular-nums text-center transition-all"
+                  className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-semibold tabular-nums text-center transition-all"
                   required
                 />
               </div>
@@ -615,25 +616,25 @@ export function OrderModal({
           </div>
 
           {/* 3. Wholesale Cost (COGS) Card */}
-          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-3">
+          <div className="apple-card p-4 rounded-2xl shadow-apple-sm space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 tracking-tight">
-                Wholesale Cost (COGS)
+              <span className="text-xs font-semibold text-[#1D1D1F] tracking-tight">
+                Wholesale cost (COGS)
               </span>
-              <span className="text-xs font-semibold text-slate-600">
-                Total COGS: <span className="text-[#1D1D1F] font-bold tabular-nums">{formatINR(totalWholesaleCost)}</span>
+              <span className="text-xs font-medium text-[#86868B]">
+                Total COGS: <span className="text-[#1D1D1F] font-semibold tabular-nums">{formatINR(totalWholesaleCost)}</span>
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                  Wholesale Supplier
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                  Wholesale supplier
                 </label>
                 <select
                   value={supplierName}
                   onChange={(e) => setSupplierName(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-medium cursor-pointer transition-all"
+                  className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-medium cursor-pointer transition-all"
                 >
                   <option value="">Select Supplier</option>
                   {suppliers.map((s) => (
@@ -646,8 +647,8 @@ export function OrderModal({
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                  Unit Purchase Cost (₹)
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                  Unit purchase cost (₹)
                 </label>
                 <input
                   type="number"
@@ -657,7 +658,7 @@ export function OrderModal({
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => setUnitCost(e.target.value)}
                   placeholder="0"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-semibold tabular-nums transition-all"
+                  className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-semibold tabular-nums transition-all"
                   required
                 />
               </div>
@@ -665,17 +666,17 @@ export function OrderModal({
           </div>
 
           {/* 4. Platform Pricing & Settlement Card */}
-          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-3">
+          <div className="apple-card p-4 rounded-2xl shadow-apple-sm space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 tracking-tight">
-                Platform Financials & Settlement
+              <span className="text-xs font-semibold text-[#1D1D1F] tracking-tight">
+                Platform financials &amp; settlement
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                  Unit Selling Price (₹)
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                  Unit selling price (₹)
                 </label>
                 <input
                   type="number"
@@ -685,13 +686,13 @@ export function OrderModal({
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => handleSellingPriceChange(e.target.value)}
                   placeholder="0"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-semibold tabular-nums transition-all"
+                  className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-semibold tabular-nums transition-all"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
                   Commission (%)
                 </label>
                 <input
@@ -703,13 +704,13 @@ export function OrderModal({
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => handleCommissionPercentChange(e.target.value)}
                   placeholder="20"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-semibold tabular-nums transition-all"
+                  className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-semibold tabular-nums transition-all"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                  Settlement Amount (₹)
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                  Settlement amount (₹)
                 </label>
                 <input
                   type="number"
@@ -719,35 +720,35 @@ export function OrderModal({
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => handleSettlementAmountChange(e.target.value)}
                   placeholder="750"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-semibold tabular-nums transition-all"
+                  className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-semibold tabular-nums transition-all"
                 />
               </div>
             </div>
 
             {/* Live Financial Breakdown Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/60 text-xs">
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/60">
-                <span className="text-[10px] font-semibold text-slate-400 block">Gross Sales</span>
-                <span className="font-bold text-[#1D1D1F] tabular-nums tracking-tight">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-black/[0.06] text-xs">
+              <div className="bg-[#F5F5F7] p-2.5 rounded-xl border border-black/[0.04]">
+                <span className="text-[10px] font-medium text-[#86868B] block">Gross sales</span>
+                <span className="font-semibold text-[#1D1D1F] tabular-nums tracking-tight">
                   {formatINR(grossSales)}
                 </span>
               </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/60">
-                <span className="text-[10px] font-semibold text-slate-400 block">Est. Platform Fee</span>
-                <span className="font-bold text-[#D70015] tabular-nums tracking-tight">
+              <div className="bg-[#F5F5F7] p-2.5 rounded-xl border border-black/[0.04]">
+                <span className="text-[10px] font-medium text-[#86868B] block">Est. platform fee</span>
+                <span className="font-semibold text-[#D70015] tabular-nums tracking-tight">
                   −{formatINR(commissionDeduction)}
                 </span>
               </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/60">
-                <span className="text-[10px] font-semibold text-slate-400 block">Expected Payout</span>
-                <span className="font-bold text-blue-700 tabular-nums tracking-tight">
+              <div className="bg-[#F5F5F7] p-2.5 rounded-xl border border-black/[0.04]">
+                <span className="text-[10px] font-medium text-[#86868B] block">Expected payout</span>
+                <span className="font-semibold text-[#0071E3] tabular-nums tracking-tight">
                   {formatINR(expectedSettlement)}
                 </span>
               </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/60">
-                <span className="text-[10px] font-semibold text-slate-400 block">Est. True Profit</span>
+              <div className="bg-[#F5F5F7] p-2.5 rounded-xl border border-black/[0.04]">
+                <span className="text-[10px] font-medium text-[#86868B] block">Est. true profit</span>
                 <span
-                  className={`font-bold tabular-nums tracking-tight ${
+                  className={`font-semibold tabular-nums tracking-tight ${
                     estimatedTrueProfit >= 0 ? "text-[#288548]" : "text-[#D70015]"
                   }`}
                 >
@@ -758,16 +759,16 @@ export function OrderModal({
           </div>
 
           {/* 5. Mark as Returned / RTO Order */}
-          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 text-slate-800 space-y-3.5 shadow-2xs">
+          <div className="apple-card p-4 rounded-2xl shadow-apple-sm border border-black/[0.06] space-y-3.5">
             <label className="flex items-center gap-2.5 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={isReturned}
                 onChange={(e) => setIsReturned(e.target.checked)}
-                className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 accent-purple-600 cursor-pointer"
+                className="w-4 h-4 rounded text-[#1D1D1F] focus:ring-black border-black/20 accent-[#1D1D1F] cursor-pointer"
               />
-              <span className="font-bold text-xs uppercase tracking-wider text-slate-800">
-                Mark as Returned / RTO Order
+              <span className="font-semibold text-xs text-[#1D1D1F]">
+                Mark as returned / RTO order
               </span>
             </label>
 
@@ -775,13 +776,13 @@ export function OrderModal({
               <div className="space-y-3.5 pt-1 animate-in fade-in duration-150">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                      Return Type
+                    <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                      Return type
                     </label>
                     <select
                       value={returnType}
                       onChange={(e) => setReturnType(e.target.value as ReturnType)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-purple-500 cursor-pointer font-medium shadow-2xs"
+                      className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black cursor-pointer font-medium"
                     >
                       <option value="CUSTOMER_RETURN">Customer Return (Delivered &amp; Returned)</option>
                       <option value="RTO">RTO (Undelivered / Doorstep Rejection)</option>
@@ -791,8 +792,8 @@ export function OrderModal({
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                      Return Fee / Logistics Deduction (₹)
+                    <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                      Return fee / logistics deduction (₹)
                     </label>
                     <input
                       type="number"
@@ -802,26 +803,26 @@ export function OrderModal({
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => setReturnFee(e.target.value)}
                       placeholder="0"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl tabular-nums text-xs text-slate-900 focus:outline-none focus:border-purple-500 font-semibold shadow-2xs"
+                      className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl tabular-nums text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-semibold"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-                    Return Reason / Notes
+                  <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                    Return reason / notes
                   </label>
                   <input
                     type="text"
                     value={returnReason}
                     onChange={(e) => setReturnReason(e.target.value)}
                     placeholder="e.g. wrong size, damaged packaging"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-purple-500 shadow-2xs"
+                    className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:ring-1 focus:ring-black"
                   />
                 </div>
 
                 {/* Damaged Claim Sub-Card */}
-                <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 space-y-3 shadow-2xs">
+                <div className="p-3.5 rounded-xl border border-[#B25E00]/20 bg-[#B25E00]/5 space-y-3">
                   <label className="flex items-center gap-2.5 cursor-pointer select-none">
                     <input
                       type="checkbox"
@@ -833,18 +834,18 @@ export function OrderModal({
                           setClaimAmount(String(parsedUnitCost || parsedSellingPrice || 0));
                         }
                       }}
-                      className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300 accent-amber-600 cursor-pointer"
+                      className="w-4 h-4 rounded text-[#B25E00] focus:ring-[#B25E00] border-[#B25E00]/40 accent-[#B25E00] cursor-pointer"
                     />
-                    <span className="font-bold text-xs uppercase tracking-wider text-amber-900">
-                      Returned Product is Damaged / Defective (File SAFE-T Claim)
+                    <span className="font-semibold text-xs text-[#B25E00]">
+                      Returned product is damaged / defective (file SAFE-T claim)
                     </span>
                   </label>
 
                   {isDamagedClaim && (
                     <div className="grid grid-cols-3 gap-2.5 pt-1 animate-in fade-in duration-150">
                       <div>
-                        <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                          Claim Amount Filed
+                        <label className="text-[10px] font-semibold text-[#B25E00] block mb-1">
+                          Claim amount filed
                         </label>
                         <input
                           type="number"
@@ -854,13 +855,13 @@ export function OrderModal({
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => setClaimAmount(e.target.value)}
                           placeholder="0"
-                          className="w-full px-2.5 py-2 bg-white border border-amber-200 rounded-lg tabular-nums text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-semibold shadow-2xs"
+                          className="w-full px-2.5 py-2 bg-white border border-[#B25E00]/30 rounded-lg tabular-nums text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-[#B25E00] font-semibold shadow-2xs"
                         />
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                          Claim Status
+                        <label className="text-[10px] font-semibold text-[#B25E00] block mb-1">
+                          Claim status
                         </label>
                         <select
                           value={claimStatus}
@@ -869,7 +870,7 @@ export function OrderModal({
                               e.target.value as "Draft" | "Filed" | "Approved" | "Rejected"
                             )
                           }
-                          className="w-full px-2.5 py-2 bg-white border border-purple-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-purple-500 font-semibold cursor-pointer shadow-2xs"
+                          className="w-full px-2.5 py-2 bg-white border border-[#B25E00]/30 rounded-lg text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-[#B25E00] font-semibold cursor-pointer shadow-2xs"
                         >
                           <option value="Draft">Draft</option>
                           <option value="Filed">Filed</option>
@@ -879,8 +880,8 @@ export function OrderModal({
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
-                          Approved Reimbursement
+                        <label className="text-[10px] font-semibold text-[#B25E00] block mb-1">
+                          Approved reimbursement
                         </label>
                         <input
                           type="number"
@@ -890,7 +891,7 @@ export function OrderModal({
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => setApprovedReimbursement(e.target.value)}
                           placeholder="0"
-                          className="w-full px-2.5 py-2 bg-white border border-amber-200 rounded-lg tabular-nums text-xs text-slate-900 focus:outline-none focus:border-amber-500 font-semibold shadow-2xs"
+                          className="w-full px-2.5 py-2 bg-white border border-[#B25E00]/30 rounded-lg tabular-nums text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-[#B25E00] font-semibold shadow-2xs"
                         />
                       </div>
                     </div>
@@ -902,39 +903,39 @@ export function OrderModal({
 
           {/* 6. General Order Notes */}
           <div>
-            <label className="text-[11px] font-semibold text-slate-600 block mb-1">
-              General Order Notes
+            <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+              General order notes
             </label>
             <textarea
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Record packaging conditions, tracking numbers, or transaction notes..."
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all"
+              className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:ring-1 focus:ring-black transition-all"
             />
           </div>
 
           {/* Sticky Actions Footer */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-            <div className="text-xs text-slate-500">
-              <span className="font-semibold text-slate-700">{parsedQty} unit{parsedQty === 1 ? "" : "s"}</span>
-              <span className="mx-1.5 text-slate-300">·</span>
-              <span>Gross: <strong className="text-slate-800 tabular-nums">{formatINR(grossSales)}</strong></span>
+          <div className="pt-3 border-t border-black/[0.06] flex items-center justify-between gap-3">
+            <div className="text-xs text-[#86868B]">
+              <span className="font-semibold text-[#1D1D1F]">{parsedQty} unit{parsedQty === 1 ? "" : "s"}</span>
+              <span className="mx-1.5 text-black/20">·</span>
+              <span>Gross: <strong className="text-[#1D1D1F] tabular-nums font-semibold">{formatINR(grossSales)}</strong></span>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold transition cursor-pointer"
+                className="px-4 py-2 rounded-xl text-[#1D1D1F] bg-[#F5F5F7] hover:bg-[#E8E8ED] border border-black/[0.06] text-xs font-medium shadow-apple-sm btn-press transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
+                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-apple-sm btn-press transition cursor-pointer"
               >
-                {mode === "edit" ? "Update Order" : "Submit Order"}
+                {mode === "edit" ? "Update order" : "Submit order"}
               </button>
             </div>
           </div>

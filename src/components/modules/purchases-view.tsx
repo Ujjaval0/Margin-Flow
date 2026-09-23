@@ -51,7 +51,7 @@ export function PurchasesView() {
       accessorKey: "taxes",
       header: "GST (ITC)",
       cell: ({ row }) => (
-        <span className="text-sm font-semibold text-slate-600 tracking-tight tabular-nums">
+        <span className="text-sm font-semibold text-[#86868B] tracking-tight tabular-nums">
           {formatINR(row.original.taxes)}
         </span>
       ),
@@ -70,8 +70,8 @@ export function PurchasesView() {
       header: "Status",
       cell: ({ row }) => (
         <div className="flex items-center gap-1.5 text-xs">
-          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span className="text-emerald-800 font-semibold px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#288548]" />
+          <span className="text-[#288548] font-medium px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/60 text-[10px]">
             {row.original.paymentStatus}
           </span>
         </div>
@@ -83,18 +83,19 @@ export function PurchasesView() {
     <div className="space-y-6 w-full max-w-[1536px] min-w-0 mx-auto animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#1D1D1F]">
+          <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
             Purchases & Inbound Bills
           </h1>
-          <p className="text-xs text-[#6E6E73] mt-0.5">
+          <p className="text-xs text-[#86868B] mt-0.5">
             Procurement records, inbound supplier purchase bills, and input tax credit (ITC) tracking.
           </p>
         </div>
         <button
+          type="button"
           onClick={() => setIsAddPurchaseOpen(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-full shadow-sm shadow-purple-600/20 transition"
+          className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-apple-sm btn-press transition cursor-pointer shrink-0"
         >
-          <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+          <Plus className="w-3.5 h-3.5" strokeWidth={2} />
           <span>Record Purchase Bill</span>
         </button>
       </div>

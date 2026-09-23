@@ -80,7 +80,7 @@ export function LedgerView() {
             <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
               Double-Entry General Ledger
             </h1>
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               {trialBalance.isBalanced ? "Balanced (Debits = Credits)" : "Imbalance Flagged"}
             </span>
@@ -91,13 +91,13 @@ export function LedgerView() {
         </div>
 
         {/* View Switcher */}
-        <div className="flex items-center bg-black/[0.04] p-1 rounded-xl border border-black/[0.04]">
+        <div className="flex items-center bg-black/[0.04] p-1 rounded-full border border-black/[0.06] text-xs">
           <button
             onClick={() => setActiveTab("JOURNAL")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs rounded-full transition-all cursor-pointer ${
               activeTab === "JOURNAL"
-                ? "bg-white text-[#1D1D1F] shadow-xs"
-                : "text-[#86868B] hover:text-[#1D1D1F]"
+                ? "bg-white text-[#1D1D1F] font-semibold shadow-apple-sm"
+                : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
@@ -105,10 +105,10 @@ export function LedgerView() {
           </button>
           <button
             onClick={() => setActiveTab("TRIAL_BALANCE")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs rounded-full transition-all cursor-pointer ${
               activeTab === "TRIAL_BALANCE"
-                ? "bg-white text-[#1D1D1F] shadow-xs"
-                : "text-[#86868B] hover:text-[#1D1D1F]"
+                ? "bg-white text-[#1D1D1F] font-semibold shadow-apple-sm"
+                : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
             }`}
           >
             <Scale className="w-3.5 h-3.5" />
@@ -119,55 +119,55 @@ export function LedgerView() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-black/[0.06] shadow-xs">
+        <div className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[#86868B]">Total Ledger Debits</span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+            <div className="w-7 h-7 rounded-xl bg-black/[0.04] flex items-center justify-center text-[#0071E3]">
               <BookOpen className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-xl font-semibold text-[#1D1D1F] mt-2 font-mono">
+          <div className="text-2xl font-semibold text-[#1D1D1F] mt-2 tracking-tight tabular-nums">
             {formatINR(trialBalance.totalDebits)}
           </div>
           <p className="text-[11px] text-[#86868B] mt-1">Across all posted assets and expenses</p>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-black/[0.06] shadow-xs">
+        <div className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[#86868B]">Total Ledger Credits</span>
-            <div className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
+            <div className="w-7 h-7 rounded-xl bg-black/[0.04] flex items-center justify-center text-[#1D1D1F]">
               <BookOpen className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-xl font-semibold text-[#1D1D1F] mt-2 font-mono">
+          <div className="text-2xl font-semibold text-[#1D1D1F] mt-2 tracking-tight tabular-nums">
             {formatINR(trialBalance.totalCredits)}
           </div>
           <p className="text-[11px] text-[#86868B] mt-1">Across all revenues, liabilities & equity</p>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-black/[0.06] shadow-xs">
+        <div className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[#86868B]">Audit Invariant Check</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <div className="w-7 h-7 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-800">
               <ShieldCheck className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-xl font-semibold text-emerald-700 mt-2 font-mono">
+          <div className="text-2xl font-semibold text-[#288548] mt-2 tracking-tight tabular-nums">
             {trialBalance.isBalanced ? "₹0.00 Variance" : formatINR(trialBalance.discrepancy)}
           </div>
-          <p className="text-[11px] text-emerald-600 mt-1">
+          <p className="text-[11px] text-[#288548] mt-1">
             {trialBalance.isBalanced ? "100% Mathematically Balanced" : "Discrepancy detected"}
           </p>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-black/[0.06] shadow-xs">
+        <div className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[#86868B]">Active Ledger Accounts</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+            <div className="w-7 h-7 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-800">
               <Scale className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="text-xl font-semibold text-[#1D1D1F] mt-2 font-mono">
+          <div className="text-2xl font-semibold text-[#1D1D1F] mt-2 tracking-tight tabular-nums">
             {trialBalance.rows.length} Accounts
           </div>
           <p className="text-[11px] text-[#86868B] mt-1">Assets, Liabilities, COGS, Opex & Rev</p>
@@ -175,7 +175,7 @@ export function LedgerView() {
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-black/[0.06]">
+      <div className="apple-card p-3 rounded-2xl border border-black/[0.06] shadow-apple-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]" />
           <input
@@ -187,7 +187,7 @@ export function LedgerView() {
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-1.5 text-xs rounded-xl bg-black/[0.02] border border-black/[0.06] focus:outline-none focus:ring-1 focus:ring-black/[0.15]"
+            className="w-full pl-9 pr-4 py-1.5 text-xs rounded-xl bg-[#FAFAFC] border border-black/[0.06] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
           />
         </div>
 
@@ -196,7 +196,7 @@ export function LedgerView() {
           <select
             value={selectedTypeFilter}
             onChange={(e) => setSelectedTypeFilter(e.target.value)}
-            className="text-xs py-1.5 px-3 rounded-xl bg-black/[0.02] border border-black/[0.06] text-[#1D1D1F] focus:outline-none"
+            className="text-xs py-1.5 px-3 rounded-xl bg-[#FAFAFC] border border-black/[0.06] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
           >
             {activeTab === "JOURNAL" ? (
               <>
@@ -222,7 +222,7 @@ export function LedgerView() {
 
       {/* Tab 1: General Journal */}
       {activeTab === "JOURNAL" && (
-        <div className="bg-white rounded-2xl border border-black/[0.06] overflow-hidden shadow-xs">
+        <div className="apple-card rounded-2xl border border-black/[0.06] overflow-hidden shadow-apple-md">
           <div className="divide-y divide-black/[0.06]">
             {filteredEntries.map((entry) => {
               const isExpanded = expandedEntryId === entry.id;
@@ -234,7 +234,11 @@ export function LedgerView() {
                     className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer select-none"
                   >
                     <div className="flex items-center gap-3">
-                      <button className="text-[#86868B] p-0.5 rounded hover:bg-black/[0.04]">
+                      <button
+                        type="button"
+                        aria-label={isExpanded ? "Collapse transaction details" : "Expand transaction details"}
+                        className="text-[#86868B] p-0.5 rounded hover:bg-black/[0.04] transition-colors"
+                      >
                         {isExpanded ? (
                           <ChevronDown className="w-4 h-4" />
                         ) : (
@@ -264,11 +268,11 @@ export function LedgerView() {
                     <div className="flex items-center gap-4 text-right shrink-0">
                       <div>
                         <span className="text-[11px] text-[#86868B] block">Total Amount</span>
-                        <span className="text-xs font-semibold font-mono text-[#1D1D1F]">
+                        <span className="text-xs font-semibold text-[#1D1D1F] tabular-nums">
                           {formatINR(entry.totalDebit)}
                         </span>
                       </div>
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-[#288548] border border-emerald-200/60">
                         Balanced
                       </span>
                     </div>
@@ -286,10 +290,10 @@ export function LedgerView() {
                             <th className="py-2 text-right font-medium">Credit</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-black/[0.04] font-mono">
+                        <tbody className="divide-y divide-black/[0.04]">
                           {entry.lines.map((line, idx) => (
                             <tr key={idx} className="hover:bg-black/[0.01]">
-                              <td className="py-2 text-[#86868B]">{line.accountCode}</td>
+                              <td className="py-2 text-[#86868B] font-mono">{line.accountCode}</td>
                               <td className="py-2 text-[#1D1D1F]">
                                 <span className="font-sans font-medium">{line.accountName}</span>
                                 {line.memo && (
@@ -298,22 +302,22 @@ export function LedgerView() {
                                   </span>
                                 )}
                               </td>
-                              <td className="py-2 text-right font-semibold text-[#1D1D1F]">
+                              <td className="py-2 text-right font-semibold text-[#1D1D1F] tabular-nums">
                                 {line.debit > 0 ? formatINR(line.debit) : "—"}
                               </td>
-                              <td className="py-2 text-right font-semibold text-[#1D1D1F]">
+                              <td className="py-2 text-right font-semibold text-[#1D1D1F] tabular-nums">
                                 {line.credit > 0 ? formatINR(line.credit) : "—"}
                               </td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
-                          <tr className="border-t border-black/[0.08] font-mono font-bold text-[#1D1D1F]">
+                          <tr className="border-t border-black/[0.08] font-bold text-[#1D1D1F]">
                             <td colSpan={2} className="py-2 text-right font-sans font-semibold">
                               Posting Totals:
                             </td>
-                            <td className="py-2 text-right">{formatINR(entry.totalDebit)}</td>
-                            <td className="py-2 text-right">{formatINR(entry.totalCredit)}</td>
+                            <td className="py-2 text-right tabular-nums">{formatINR(entry.totalDebit)}</td>
+                            <td className="py-2 text-right tabular-nums">{formatINR(entry.totalCredit)}</td>
                           </tr>
                         </tfoot>
                       </table>
@@ -328,7 +332,7 @@ export function LedgerView() {
 
       {/* Tab 2: Trial Balance */}
       {activeTab === "TRIAL_BALANCE" && (
-        <div className="bg-white rounded-2xl border border-black/[0.06] overflow-hidden shadow-xs">
+        <div className="apple-card rounded-2xl border border-black/[0.06] overflow-hidden shadow-apple-md">
           <div className="p-4 border-b border-black/[0.06] flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-[#1D1D1F]">Trial Balance Summary</h3>
@@ -365,27 +369,31 @@ export function LedgerView() {
                         {row.type}
                       </span>
                     </td>
-                    <td className="py-2.5 px-4 text-right font-mono">
+                    <td className="py-2.5 px-4 text-right tabular-nums">
                       {row.totalDebit > 0 ? formatINR(row.totalDebit) : "—"}
                     </td>
-                    <td className="py-2.5 px-4 text-right font-mono">
+                    <td className="py-2.5 px-4 text-right tabular-nums">
                       {row.totalCredit > 0 ? formatINR(row.totalCredit) : "—"}
                     </td>
-                    <td className="py-2.5 px-4 text-right font-mono font-semibold text-[#1D1D1F]">
+                    <td className="py-2.5 px-4 text-right tabular-nums font-semibold text-[#1D1D1F]">
                       {formatINR(row.netBalance)}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-black/[0.12] bg-[#FAFAFC] font-mono font-bold text-[#1D1D1F]">
+                <tr className="border-t-2 border-black/[0.12] bg-[#FAFAFC] font-bold text-[#1D1D1F]">
                   <td colSpan={3} className="py-3 px-4 font-sans font-semibold text-right">
                     Trial Balance Totals:
                   </td>
-                  <td className="py-3 px-4 text-right">{formatINR(trialBalance.totalDebits)}</td>
-                  <td className="py-3 px-4 text-right">{formatINR(trialBalance.totalCredits)}</td>
-                  <td className="py-3 px-4 text-right text-emerald-700">
-                    {trialBalance.isBalanced ? "BALANCED" : "IMBALANCE"}
+                  <td className="py-3 px-4 text-right tabular-nums">{formatINR(trialBalance.totalDebits)}</td>
+                  <td className="py-3 px-4 text-right tabular-nums">{formatINR(trialBalance.totalCredits)}</td>
+                  <td className="py-3 px-4 text-right">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
+                      trialBalance.isBalanced ? "bg-emerald-50 text-[#288548] border border-emerald-200/60" : "bg-rose-50 text-[#D70015] border border-rose-200/60"
+                    }`}>
+                      {trialBalance.isBalanced ? "BALANCED" : "IMBALANCE"}
+                    </span>
                   </td>
                 </tr>
               </tfoot>

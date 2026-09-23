@@ -135,12 +135,12 @@ export function DisputePacketModal({
   const isFlipkart = returnRecord.marketplace.toLowerCase().includes("flipkart");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.2)] border border-black/[0.08] w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-200">
+      <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-6 py-4.5 border-b border-black/[0.06] flex items-center justify-between shrink-0 bg-[#FBFBFD]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-700">
+            <div className="w-8 h-8 rounded-xl bg-[#0071E3]/10 flex items-center justify-center text-[#0071E3]">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
@@ -157,8 +157,10 @@ export function DisputePacketModal({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition cursor-pointer"
+            aria-label="Close dialog"
+            className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -167,22 +169,22 @@ export function DisputePacketModal({
         {/* Content Body */}
         <div className="p-6 overflow-y-auto space-y-5 text-xs flex-1">
           {isLoading ? (
-            <div className="py-12 flex flex-col items-center justify-center text-slate-500 space-y-2">
-              <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+            <div className="py-12 flex flex-col items-center justify-center text-[#86868B] space-y-2">
+              <div className="w-6 h-6 border-2 border-[#0071E3] border-t-transparent rounded-full animate-spin" />
               <p className="text-xs font-mono">Compiling legal evidence & loss formulas...</p>
             </div>
           ) : claimData ? (
             <>
               {/* Filing Window Alert Pill */}
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-500/10 border border-amber-600/20 text-amber-950">
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-500/10 border border-amber-600/20 text-[#B25E00]">
                 <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+                  <Clock className="w-4 h-4 text-[#B25E00] shrink-0" />
                   <span className="font-semibold text-xs">
                     Statutory Filing Window: {claimData.slaDays} Days
                   </span>
                 </div>
                 {returnRecord.claimDeadline && (
-                  <span className="text-[11px] font-mono text-amber-800">
+                  <span className="text-[11px] font-mono text-[#B25E00]">
                     Deadline: {formatDate(returnRecord.claimDeadline)}
                   </span>
                 )}
@@ -191,10 +193,10 @@ export function DisputePacketModal({
               {/* Itemized Financial Loss Calculation */}
               <div className="border border-black/[0.06] rounded-2xl p-4 bg-[#FBFBFD] space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-black/[0.05]">
-                  <span className="text-[11px] font-semibold text-[#1D1D1F] uppercase tracking-wider font-mono">
-                    Deterministic Financial Loss Itemization
+                  <span className="text-[11px] font-semibold text-[#1D1D1F]">
+                    Deterministic financial loss itemization
                   </span>
-                  <span className="text-[11px] text-[#288548] font-bold">P7 Guardrail Verified</span>
+                  <span className="text-[11px] text-[#288548] font-medium">P7 Guardrail Verified</span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
@@ -212,13 +214,13 @@ export function DisputePacketModal({
                   </div>
                   <div className="p-2.5 rounded-xl bg-white border border-black/[0.04]">
                     <span className="text-[10px] text-[#86868B] block">Salvage Credit</span>
-                    <span className="font-semibold text-rose-600 text-sm tabular-nums">
+                    <span className="font-semibold text-[#D70015] text-sm tabular-nums">
                       -{formatINR(claimData.itemization.salvageCredit)}
                     </span>
                   </div>
-                  <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
-                    <span className="text-[10px] text-emerald-800 font-semibold block">Total Claim Amount</span>
-                    <span className="font-bold text-[#288548] text-base tabular-nums">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                    <span className="text-[10px] text-[#288548] font-semibold block">Total Claim Amount</span>
+                    <span className="font-semibold text-[#288548] text-base tabular-nums">
                       {formatINR(claimData.itemization.totalClaimAmount)}
                     </span>
                   </div>
@@ -274,9 +276,9 @@ export function DisputePacketModal({
 
               {/* Success Notification if submitted */}
               {submittedClaimId && (
-                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-600/20 text-emerald-950 flex items-center justify-between">
+                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-600/20 text-[#288548] flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-700" />
+                    <Check className="w-4 h-4 text-[#288548]" />
                     <span className="font-semibold text-xs">
                       Claim recorded successfully into ledger as: {submittedClaimId}
                     </span>
@@ -285,7 +287,7 @@ export function DisputePacketModal({
               )}
             </>
           ) : (
-            <p className="text-xs text-rose-600">Failed to compile claim packet.</p>
+            <p className="text-xs text-[#D70015]">Failed to compile claim packet.</p>
           )}
         </div>
 
@@ -294,7 +296,7 @@ export function DisputePacketModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-[#6E6E73] hover:text-[#1D1D1F] font-semibold text-xs transition cursor-pointer"
+            className="px-4 py-2 rounded-xl text-[#6E6E73] hover:text-[#1D1D1F] font-medium text-xs transition cursor-pointer"
           >
             Close
           </button>
@@ -304,7 +306,7 @@ export function DisputePacketModal({
               type="button"
               onClick={handleCopyText}
               disabled={!claimData}
-              className="px-4 py-2 rounded-xl bg-white border border-black/[0.1] hover:bg-[#F5F5F7] text-[#1D1D1F] font-semibold text-xs transition cursor-pointer flex items-center gap-1.5"
+              className="px-4 py-2 rounded-xl bg-white border border-black/[0.08] hover:bg-[#F5F5F7] text-[#1D1D1F] font-medium text-xs shadow-apple-sm btn-press transition cursor-pointer flex items-center gap-1.5"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-[#288548]" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? "Copied" : "Copy Claim Text"}</span>
@@ -314,7 +316,7 @@ export function DisputePacketModal({
               type="button"
               onClick={handleCommitToClaimsLedger}
               disabled={!claimData || Boolean(submittedClaimId) || isSubmitting}
-              className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold text-xs tracking-tight shadow-xs transition cursor-pointer flex items-center gap-1.5"
+              className="px-5 py-2 rounded-xl bg-[#1D1D1F] hover:bg-black disabled:opacity-50 text-white font-medium text-xs tracking-tight shadow-apple-sm btn-press transition cursor-pointer flex items-center gap-1.5"
             >
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>

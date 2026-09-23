@@ -61,13 +61,13 @@ export function Navbar({
   };
 
   return (
-    <header className="shrink-0 h-16 w-full bg-white/80 backdrop-blur-md border-b border-black/[0.05] px-4 sm:px-6 md:px-8 flex items-center justify-between z-20 sticky top-0 transition-all">
+    <header className="shrink-0 h-16 w-full bg-white/85 backdrop-blur-xl border-b border-black/[0.06] px-4 sm:px-6 md:px-8 flex items-center justify-between z-20 sticky top-0 transition-all select-none">
       {/* Left: Clean Breadcrumb & Current View Title */}
       <div className="flex items-center gap-2 select-none shrink-0 mr-3">
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            className="md:hidden p-1.5 -ml-1 mr-0.5 rounded-lg hover:bg-black/[0.05] text-slate-600 transition"
+            className="md:hidden p-1.5 -ml-1 mr-0.5 rounded-lg hover:bg-black/[0.05] active:scale-95 text-[#6E6E73] hover:text-[#1D1D1F] transition focus-visible:ring-2 focus-visible:ring-[#0071E3]/40"
             title="Toggle sidebar"
             aria-label="Toggle navigation sidebar"
           >
@@ -79,29 +79,29 @@ export function Navbar({
           alt="Margin Flow"
           width={18}
           height={18}
-          className="w-4 h-4 object-contain opacity-80 shrink-0"
+          className="w-4 h-4 object-contain opacity-90 shrink-0"
         />
-        <span className="text-xs font-semibold text-slate-500 hidden sm:inline">MarginFlow</span>
-        <span className="text-xs text-slate-300 hidden sm:inline">/</span>
-        <span className="text-xs font-semibold text-slate-800 tracking-tight whitespace-nowrap">
+        <span className="text-xs font-semibold text-[#86868B] hidden sm:inline">MarginFlow</span>
+        <span className="text-xs text-black/20 hidden sm:inline">/</span>
+        <span className="text-xs font-semibold text-[#1D1D1F] tracking-tight whitespace-nowrap">
           {moduleTitles[activeModule] || activeModule}
         </span>
       </div>
 
       {/* Center/Right Controls */}
       <div className="flex items-center gap-3 min-w-0 overflow-x-auto no-scrollbar py-1">
-        {/* Pill Segmented Control (Image 2 style) */}
-        <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/50 inline-flex items-center gap-0.5 text-xs shrink-0">
+        {/* Pill Segmented Control (Apple style) */}
+        <div className="bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] inline-flex items-center gap-0.5 text-xs shrink-0">
           {marketplaces.map((mp) => {
             const isSelected = selectedMarketplace === mp.id;
             return (
               <button
                 key={mp.id}
                 onClick={() => onSelectMarketplace(mp.id)}
-                className={`px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                className={`px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 active:scale-[0.98] ${
                   isSelected
-                    ? "bg-white text-[#1D1D1F] shadow-[0_1px_3px_rgba(0,0,0,0.06)] font-semibold"
-                    : "text-slate-600 hover:text-slate-900 font-medium"
+                    ? "bg-white text-[#1D1D1F] shadow-apple-sm font-semibold"
+                    : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
                 }`}
               >
                 {mp.label}
@@ -113,10 +113,11 @@ export function Navbar({
         {/* Flow Assistant Quick Trigger */}
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("marginflow_open_copilot"))}
-          className="h-[34px] px-3.5 rounded-full bg-white hover:bg-[#F5F5F7] active:scale-[0.98] border border-black/[0.08] text-xs font-medium text-[#1D1D1F] flex items-center gap-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all cursor-pointer shrink-0"
+          className="h-[34px] px-3.5 rounded-full bg-white hover:bg-[#F5F5F7] active:scale-[0.98] border border-black/[0.08] text-xs font-medium text-[#1D1D1F] flex items-center gap-1.5 shadow-apple-sm transition-all cursor-pointer shrink-0"
           title="Open Flow Assistant (Ctrl+J)"
+          aria-label="Open Flow Assistant"
         >
-          <span className="w-4 h-4 rounded-full bg-[#D97757] text-white flex items-center justify-center shrink-0 shadow-2xs">
+          <span className="w-4 h-4 rounded-full bg-[#1D1D1F] text-white flex items-center justify-center shrink-0">
             <AssistantEmblem className="w-2.5 h-2.5 text-white" />
           </span>
           <span className="font-semibold tracking-tight">Flow</span>

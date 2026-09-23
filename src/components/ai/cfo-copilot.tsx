@@ -432,22 +432,22 @@ export function CfoCopilot() {
           {/* Backdrop Blur */}
           <div
             onClick={() => setIsOpen(false)}
-            className="absolute inset-0 bg-black/20 backdrop-blur-xs transition-opacity animate-in fade-in duration-150"
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity animate-in fade-in duration-150"
           />
 
           <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-md bg-[#FAFAF8] shadow-2xl border-l border-[#EAE7DD] flex flex-col animate-in slide-in-from-right duration-250">
-              {/* Claude-Inspired Minimalist Header */}
-              <div className="px-5 py-3.5 border-b border-[#EAE7DD] flex items-center justify-between shrink-0 bg-[#FAFAF8]">
+            <div className="w-screen max-w-md bg-white/95 backdrop-blur-xl shadow-apple-lg border-l border-black/[0.08] flex flex-col animate-in slide-in-from-right duration-250">
+              {/* Apple-Inspired Minimalist Header */}
+              <div className="px-5 py-3.5 border-b border-black/[0.06] flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-md">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-6 h-6 rounded-full bg-[#D97757] text-white flex items-center justify-center shadow-xs shrink-0">
+                  <div className="w-6 h-6 rounded-full bg-[#1D1D1F] text-white flex items-center justify-center shadow-apple-sm shrink-0">
                     <AssistantEmblem className="w-3.5 h-3.5 text-white" />
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold text-[#1F1E1D] tracking-tight">
+                    <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight">
                       Flow
                     </span>
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-[#ECE9DF] text-[#6B685F]">
+                    <span className="text-[10px] uppercase font-semibold tracking-wider px-2 py-0.5 rounded-full bg-black/[0.04] text-[#6E6E73]">
                       Store Assistant
                     </span>
                   </div>
@@ -456,20 +456,24 @@ export function CfoCopilot() {
                 <div className="flex items-center gap-1">
                   {/* Minimal Provider Badge */}
                   <button
+                    type="button"
                     onClick={() => setIsSettingsOpen(true)}
-                    className="px-2.5 py-1 rounded-lg hover:bg-[#EFECE4] text-[11px] font-medium text-[#59564F] flex items-center gap-1.5 transition cursor-pointer"
+                    className="px-2.5 py-1 rounded-full hover:bg-black/[0.04] text-[11px] font-medium text-[#6E6E73] flex items-center gap-1.5 transition cursor-pointer"
                     title="AI Settings"
+                    aria-label="AI Settings"
                   >
                     <span
-                      className={`w-1.5 h-1.5 rounded-full ${hasKey ? "bg-emerald-500" : "bg-stone-300"}`}
+                      className={`w-1.5 h-1.5 rounded-full ${hasKey ? "bg-[#288548]" : "bg-black/20"}`}
                     />
                     <span>{hasKey ? activeProviderMeta.name.split(" ")[0] : "Local"}</span>
-                    <Settings2 className="w-3 h-3 text-[#8A867D]" />
+                    <Settings2 className="w-3 h-3 text-[#86868B]" />
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => setIsOpen(false)}
-                    className="w-7 h-7 rounded-lg hover:bg-[#EFECE4] flex items-center justify-center text-[#8A867D] hover:text-[#1F1E1D] transition cursor-pointer"
+                    aria-label="Close assistant"
+                    className="w-7 h-7 rounded-full hover:bg-black/[0.04] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -478,23 +482,25 @@ export function CfoCopilot() {
 
               {/* Optional On-Demand Anomaly Radar Prompt (Zero Clutter) */}
               {showAnomalyPrompt && anomalyBriefing.totalAnomaliesCount > 0 && (
-                <div className="mx-4 mt-3 p-3 bg-[#F4F3ED] border border-[#E3DFD4] rounded-2xl flex items-center justify-between text-xs animate-in fade-in duration-150 shrink-0">
+                <div className="mx-4 mt-3 p-3 bg-amber-500/[0.06] border border-amber-500/20 rounded-2xl flex items-center justify-between text-xs animate-in fade-in duration-150 shrink-0">
                   <div className="flex items-center gap-2 pr-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse shrink-0" />
-                    <span className="text-[#3A3834] text-[11px] leading-tight">
+                    <span className="w-2 h-2 rounded-full bg-[#B25E00] animate-pulse shrink-0" />
+                    <span className="text-[#1D1D1F] text-[11px] leading-tight">
                       <strong>{anomalyBriefing.totalAnomaliesCount} operational anomalies</strong> detected ({formatINR(anomalyBriefing.totalExposureAmount)}). View details?
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
+                      type="button"
                       onClick={handleGenerateAnomalyRadar}
-                      className="px-2.5 py-1 bg-[#1F1E1D] hover:bg-black text-[#FAF9F5] rounded-lg font-semibold text-[11px] transition shadow-2xs cursor-pointer"
+                      className="px-2.5 py-1 bg-[#1D1D1F] hover:bg-black text-white rounded-lg font-medium text-[11px] transition shadow-apple-sm btn-press cursor-pointer"
                     >
                       View
                     </button>
                     <button
+                      type="button"
                       onClick={() => setShowAnomalyPrompt(false)}
-                      className="px-2 py-1 text-[#6B685F] hover:text-[#1F1E1D] rounded-lg hover:bg-[#EAE7DC] text-[11px] transition cursor-pointer"
+                      className="px-2 py-1 text-[#6E6E73] hover:text-[#1D1D1F] rounded-lg hover:bg-black/[0.04] text-[11px] transition cursor-pointer"
                     >
                       Dismiss
                     </button>
@@ -503,7 +509,7 @@ export function CfoCopilot() {
               )}
 
               {/* Chat Message Stream */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs bg-[#FAFAF8]">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs bg-[#F5F5F7]/40">
                 {messages.map((msg) => {
                   const isUser = msg.sender === "user";
                   return (
@@ -514,8 +520,8 @@ export function CfoCopilot() {
                       <div
                         className={`rounded-2xl px-4 py-3 max-w-[88%] leading-relaxed ${
                           isUser
-                            ? "bg-[#1F1E1D] text-[#FAF9F5] rounded-tr-xs"
-                            : "bg-[#FFFFFF] border border-[#E7E4DA] text-[#242320] shadow-[0_1px_2px_rgba(0,0,0,0.02)] rounded-tl-xs"
+                            ? "bg-[#1D1D1F] text-white rounded-tr-xs shadow-apple-sm"
+                            : "bg-white border border-black/[0.06] text-[#1D1D1F] rounded-tl-xs shadow-apple-sm"
                         }`}
                       >
                         {msg.text ? (
@@ -524,17 +530,17 @@ export function CfoCopilot() {
                           </p>
                         ) : (
                           <div className="flex items-center gap-1.5 py-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce [animation-delay:-0.32s]" />
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce [animation-delay:-0.16s]" />
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce [animation-delay:-0.32s]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce [animation-delay:-0.16s]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce" />
                           </div>
                         )}
 
                         {/* Diagnostic Banner — shown when API failed and local engine answered */}
                         {!isUser && msg.diagnosticMessage && (
-                          <div className="mt-2.5 pt-2 border-t border-[#ECEAE2] flex items-start gap-1.5">
-                            <AlertCircle className="w-3 h-3 text-amber-600 shrink-0 mt-0.5" />
-                            <p className="text-[10px] text-amber-800 leading-relaxed">
+                          <div className="mt-2.5 pt-2 border-t border-black/[0.06] flex items-start gap-1.5">
+                            <AlertCircle className="w-3 h-3 text-[#B25E00] shrink-0 mt-0.5" />
+                            <p className="text-[10px] text-[#B25E00] leading-relaxed">
                               {msg.diagnosticMessage}
                             </p>
                           </div>
@@ -542,15 +548,16 @@ export function CfoCopilot() {
 
                         {/* Interactive Action Chips */}
                         {msg.chips && msg.chips.length > 0 && (
-                          <div className="mt-2.5 pt-2 border-t border-[#ECEAE2] flex flex-wrap gap-1.5">
+                          <div className="mt-2.5 pt-2 border-t border-black/[0.06] flex flex-wrap gap-1.5">
                             {msg.chips.map((chip) => (
                               <button
                                 key={chip.id}
+                                type="button"
                                 onClick={() => handleChipClick(chip)}
-                                className="px-2.5 py-1 rounded-lg bg-[#FFFFFF] hover:bg-[#F7F6F0] active:scale-98 border border-[#D9D6CB] text-[11px] font-medium text-[#2E2C29] flex items-center gap-1 shadow-2xs transition cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg bg-white hover:bg-black/[0.03] active:scale-98 border border-black/[0.08] text-[11px] font-medium text-[#1D1D1F] flex items-center gap-1 shadow-apple-sm btn-press transition cursor-pointer"
                               >
                                 <span>{chip.label}</span>
-                                <ArrowRight className="w-2.5 h-2.5 text-[#8A867D]" />
+                                <ArrowRight className="w-2.5 h-2.5 text-[#86868B]" />
                               </button>
                             ))}
                           </div>
@@ -562,10 +569,10 @@ export function CfoCopilot() {
 
                 {isLoading && (
                   <div className="flex flex-col items-start animate-in fade-in duration-200">
-                    <div className="bg-[#FFFFFF] border border-[#E7E4DA] rounded-2xl rounded-tl-xs px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce [animation-delay:-0.32s]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce [animation-delay:-0.16s]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#D97757] animate-bounce" />
+                    <div className="bg-white border border-black/[0.06] rounded-2xl rounded-tl-xs px-4 py-3 shadow-apple-sm flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce [animation-delay:-0.32s]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce [animation-delay:-0.16s]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce" />
                     </div>
                   </div>
                 )}
@@ -574,25 +581,26 @@ export function CfoCopilot() {
               </div>
 
               {/* Chat Input Bar */}
-              <div className="p-3 border-t border-[#EAE7DD] bg-[#FAFAF8] shrink-0">
+              <div className="p-3 border-t border-black/[0.06] bg-white/80 backdrop-blur-md shrink-0">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     handleSendMessage();
                   }}
-                  className="flex items-center gap-2 bg-[#FFFFFF] border border-[#DDD9CE] rounded-xl px-2.5 py-1.5 focus-within:border-[#B8B3A4] transition shadow-2xs"
+                  className="flex items-center gap-2 bg-[#FAFAFC] border border-black/[0.06] rounded-xl px-2.5 py-1.5 focus-within:border-[#0071E3] focus-within:ring-2 focus-within:ring-[#0071E3]/20 transition shadow-apple-sm"
                 >
                   <input
                     type="text"
                     value={inputQuery}
                     onChange={(e) => setInputQuery(e.target.value)}
                     placeholder="Ask about sales, profit margins, orders, returns..."
-                    className="flex-1 h-8 px-1 text-xs bg-transparent text-[#1F1E1D] placeholder:text-[#8E8B83] focus:outline-none"
+                    className="flex-1 h-8 px-1 text-xs bg-transparent text-[#1D1D1F] placeholder:text-[#86868B] focus:outline-none"
                   />
                   <button
                     type="submit"
+                    aria-label="Send message"
                     disabled={!inputQuery.trim() || isLoading}
-                    className="w-7 h-7 rounded-lg bg-[#D97757] hover:bg-[#C86D51] disabled:opacity-30 text-white flex items-center justify-center transition cursor-pointer shrink-0 shadow-2xs"
+                    className="w-7 h-7 rounded-lg bg-[#1D1D1F] hover:bg-black disabled:opacity-30 text-white flex items-center justify-center transition cursor-pointer shrink-0 shadow-apple-sm btn-press"
                   >
                     <Send className="w-3 h-3" />
                   </button>

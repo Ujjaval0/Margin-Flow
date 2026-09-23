@@ -39,22 +39,23 @@ export function CardLogicModal({ data, onClose }: CardLogicModalProps) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 flex flex-col gap-4 animate-in zoom-in-95 duration-200"
+        className="apple-card w-full max-w-lg rounded-3xl shadow-apple-lg border border-black/[0.08] p-6 flex flex-col gap-4 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+        <div className="flex items-start justify-between pb-3 border-b border-black/[0.06]">
           <div className="pr-4">
-            <h3 className="text-lg font-bold text-slate-900 tracking-tight">{data.title}</h3>
-            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{data.meaning}</p>
+            <h3 className="text-lg font-bold text-[#1D1D1F] tracking-tight">{data.title}</h3>
+            <p className="text-xs text-[#86868B] mt-0.5 leading-relaxed font-medium">{data.meaning}</p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer shrink-0"
+            aria-label="Close formula inspection"
+            className="w-8 h-8 rounded-full bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#86868B] hover:text-[#1D1D1F] flex items-center justify-center transition cursor-pointer shrink-0"
             title="Close"
           >
             <X className="w-4 h-4" />
@@ -62,27 +63,27 @@ export function CardLogicModal({ data, onClose }: CardLogicModalProps) {
         </div>
 
         {/* Calculation Formula Section */}
-        <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-100">
-          <span className="text-[10px] font-bold text-purple-900 uppercase tracking-wider block mb-1">
-            Calculation Formula
+        <div className="p-4 rounded-2xl bg-[#0071E3]/5 border border-[#0071E3]/15">
+          <span className="text-[11px] font-semibold text-[#0071E3] block mb-1">
+            Calculation formula
           </span>
-          <div className="text-sm font-semibold text-purple-950 tracking-tight leading-relaxed">
+          <div className="text-sm font-semibold text-[#1D1D1F] tracking-tight leading-relaxed">
             {data.formula}
           </div>
         </div>
 
         {/* Dataset Breakdown with Chart Numerical Style */}
         <div className="space-y-1.5">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block px-1">
-            Arithmetic Breakdown
+          <span className="text-[11px] font-medium text-[#86868B] block px-1">
+            Arithmetic breakdown
           </span>
-          <div className="rounded-2xl border border-slate-200/90 divide-y divide-slate-100 bg-white overflow-hidden shadow-2xs">
+          <div className="rounded-2xl border border-black/[0.06] divide-y divide-black/[0.04] bg-white overflow-hidden shadow-apple-sm">
             {data.equationComponents.map((item, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between px-4 py-2.5 text-xs hover:bg-slate-50/50 transition-colors"
+                className="flex items-center justify-between px-4 py-2.5 text-xs hover:bg-[#F5F5F7]/50 transition-colors"
               >
-                <span className="text-slate-600 font-medium">{item.label}</span>
+                <span className="text-[#6E6E73] font-medium">{item.label}</span>
                 <span className={`text-right font-semibold tabular-nums tracking-tight ${item.color || "text-[#1D1D1F]"}`}>
                   {item.value}
                 </span>
@@ -90,8 +91,8 @@ export function CardLogicModal({ data, onClose }: CardLogicModalProps) {
             ))}
 
             {/* Total Row matching chart & card numerical style */}
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-50/90 border-t border-slate-200">
-              <span className="text-xs font-bold text-slate-900">{data.resultLabel}</span>
+            <div className="flex items-center justify-between px-4 py-3 bg-[#F5F5F7]/90 border-t border-black/[0.06]">
+              <span className="text-xs font-bold text-[#1D1D1F]">{data.resultLabel}</span>
               <span className="text-base font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
                 {data.resultValue}
               </span>
@@ -100,17 +101,17 @@ export function CardLogicModal({ data, onClose }: CardLogicModalProps) {
         </div>
 
         {/* Business Insight Takeaway */}
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl text-xs text-emerald-900">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span className="leading-snug">{data.impactNote}</span>
+        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-[#288548]/10 border border-[#288548]/20 rounded-xl text-xs text-[#288548] font-medium">
+          <CheckCircle2 className="w-4 h-4 text-[#288548] shrink-0" />
+          <span className="leading-snug text-[#1D1D1F]">{data.impactNote}</span>
         </div>
 
         {/* Close Action */}
         <button
           onClick={onClose}
-          className="w-full py-2.5 bg-slate-900 hover:bg-black active:scale-[0.99] text-white text-xs font-semibold rounded-xl transition shadow-xs cursor-pointer"
+          className="w-full py-2.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-xl transition shadow-apple-sm btn-press cursor-pointer"
         >
-          Close Inspection
+          Close inspection
         </button>
       </div>
     </div>,
@@ -152,7 +153,7 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
         {
           label: "All Platform Profit (Settlement − Return Fees + Claims)",
           value: formatINR(profitability.netPlatformPayout),
-          color: "text-blue-600",
+          color: "text-[#0071E3]",
         },
         {
           label: "Active Supplier Inventory Cost (COGS)",
@@ -204,7 +205,7 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
         {
           label: "Courier RTO (Undelivered)",
           value: `${profitability.rtoCount} items`,
-          color: "text-amber-600",
+          color: "text-[#B25E00]",
         },
         {
           label: "Customer Returns (Delivered & Returned)",
@@ -258,7 +259,7 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
         {
           label: "Pending Claims Under Review",
           value: formatINR(profitability.pendingClaimsAmount),
-          color: "text-amber-600",
+          color: "text-[#B25E00]",
         },
         {
           label: "Open Dispute Tickets",
@@ -283,7 +284,7 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
         {
           label: "Promotional Discounts",
           value: `−${formatINR(profitability.discounts)}`,
-          color: "text-amber-600",
+          color: "text-[#B25E00]",
         },
       ],
       resultLabel: "Net Realized Revenue",

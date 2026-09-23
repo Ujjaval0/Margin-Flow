@@ -507,21 +507,21 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         return (
           <div className="space-y-0.5">
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-amber-700 text-xs tracking-tight tabular-nums">
+              <span className="font-semibold text-[#1D1D1F] text-xs tracking-tight tabular-nums">
                 {r.id}
               </span>
               {r.awbNumber && (
-                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded border border-slate-200 tabular-nums font-medium">
+                <span className="text-[10px] bg-black/[0.04] text-[#6E6E73] px-1.5 py-0.2 rounded border border-black/[0.06] tabular-nums font-mono">
                   {r.awbNumber}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-1.5 text-[11px]">
-              <span className="text-blue-600 font-semibold tracking-tight tabular-nums">
+              <span className="text-[#0071E3] font-semibold tracking-tight tabular-nums">
                 {r.orderId}
               </span>
               {r.channelOrderId && r.channelOrderId !== r.orderId && (
-                <span className="text-slate-400 text-[10px] tabular-nums font-normal">
+                <span className="text-[#86868B] text-[10px] tabular-nums font-normal">
                   ({r.channelOrderId})
                 </span>
               )}
@@ -540,14 +540,14 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
         return (
           <div>
-            <span className="text-xs text-slate-800 font-semibold block">
+            <span className="text-xs text-[#1D1D1F] font-semibold block">
               {r.marketplace}
             </span>
-            <div className="flex items-center gap-1 text-[11px] text-slate-500">
-              <Clock className="w-3 h-3 text-slate-400" />
-              <span>{formatDate(r.receivedDate || r.returnDate)}</span>
+            <div className="flex items-center gap-1 text-[11px] text-[#86868B]">
+              <Clock className="w-3 h-3 text-[#86868B]" />
+              <span className="tabular-nums">{formatDate(r.receivedDate || r.returnDate)}</span>
               {isOld && (
-                <span className="ml-1 px-1.5 py-0.2 text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300 rounded">
+                <span className="ml-1 px-1.5 py-0.2 text-[9px] font-semibold bg-amber-500/10 text-amber-800 border border-amber-500/20 rounded-full tabular-nums">
                   {aging}d aging
                 </span>
               )}
@@ -564,14 +564,14 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         return (
           <div className="max-w-[240px]">
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-900 font-semibold text-xs tracking-tight tabular-nums">
+              <span className="text-[#1D1D1F] font-semibold font-mono text-xs tracking-tight tabular-nums">
                 {r.sku}
               </span>
-              <span className="bg-slate-100 text-slate-700 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-slate-200/60 tabular-nums">
+              <span className="bg-black/[0.04] text-[#6E6E73] text-[10px] font-semibold px-2 py-0.5 rounded-md border border-black/[0.06] tabular-nums">
                 Qty: {r.quantity}
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 truncate mt-0.5">
+            <p className="text-[11px] text-[#86868B] truncate mt-0.5" title={r.productName}>
               {r.productName || "Standard Catalog SKU"}
             </p>
           </div>
@@ -587,28 +587,28 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
         const typeBadge =
           t === "RTO"
-            ? "bg-amber-50 text-amber-900 border-amber-200"
+            ? "bg-amber-500/10 text-amber-800 border-amber-500/20"
             : t === "DAMAGED_RETURN"
-            ? "bg-rose-50 text-rose-900 border-rose-200"
-            : "bg-blue-50 text-blue-900 border-blue-200";
+            ? "bg-rose-500/10 text-rose-800 border-rose-500/20"
+            : "bg-[#0071E3]/10 text-[#0071E3] border-[#0071E3]/20";
 
         const restockBadge =
           restock === "RESTOCKED"
-            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+            ? "bg-emerald-500/10 text-emerald-800 border-emerald-500/20"
             : restock === "WRITTEN_OFF"
-            ? "bg-slate-100 text-slate-700 border-slate-200"
-            : "bg-amber-50 text-amber-800 border-amber-200";
+            ? "bg-black/[0.04] text-[#86868B] border-black/[0.06]"
+            : "bg-amber-500/10 text-amber-800 border-amber-500/20";
 
         return (
           <div className="space-y-1">
             <span
-              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${typeBadge}`}
+              className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${typeBadge}`}
             >
               {t.replace(/_/g, " ")}
             </span>
             <div>
               <span
-                className={`inline-block px-2 py-0.2 rounded text-[9px] font-bold border ${restockBadge}`}
+                className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-semibold border ${restockBadge}`}
               >
                 {restock.replace(/_/g, " ")}
               </span>
@@ -632,12 +632,12 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               onChange={(e) =>
                 handleQuickConditionChange(r, e.target.value as ProductCondition)
               }
-              className={`text-[11px] font-bold py-1 px-2 rounded-full border cursor-pointer focus:outline-none transition-all ${
+              className={`text-[11px] font-semibold py-1 px-2.5 rounded-full border cursor-pointer focus:outline-none transition-all shadow-apple-sm ${
                 isSellable
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                  ? "bg-emerald-500/10 text-emerald-800 border-emerald-500/20"
                   : isDamaged
-                  ? "bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100"
-                  : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+                  ? "bg-rose-500/10 text-rose-800 border-rose-500/20"
+                  : "bg-amber-500/10 text-amber-800 border-amber-500/20"
               }`}
             >
               <option value="SELLABLE">✓ Sellable (Restock)</option>
@@ -662,12 +662,12 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                 {formatINR(r.lossAmount)}
               </span>
               {r.inventoryRecoveryValue > 0 && (
-                <span className="text-[10px] text-[#288548] font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200/60 tabular-nums">
+                <span className="text-[10px] text-[#288548] font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 tabular-nums">
                   +{formatINR(r.inventoryRecoveryValue)}
                 </span>
               )}
             </div>
-            <div className="text-[11px] text-slate-500 font-medium tabular-nums flex items-center gap-1.5 flex-wrap">
+            <div className="text-[11px] text-[#86868B] font-medium tabular-nums flex items-center gap-1.5 flex-wrap">
               <span>Freight: {formatINR(r.returnShippingCost)}</span>
               {(r.customerReturnFee ?? 0) > 0 && (
                 <span>• Fee: {formatINR(r.customerReturnFee)}</span>
@@ -693,25 +693,25 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         return (
           <div className="space-y-0.5">
             {claimId ? (
-              <span className="text-[11px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200 font-semibold tabular-nums inline-flex items-center gap-1">
+              <span className="text-[11px] text-[#0071E3] bg-[#0071E3]/10 px-2 py-0.5 rounded-full border border-[#0071E3]/20 font-semibold tabular-nums inline-flex items-center gap-1">
                 <ShieldAlert className="w-3 h-3" />
                 {claimId}
               </span>
             ) : r.condition === "DAMAGED" ? (
-              <span className="text-[10px] text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 font-semibold inline-flex items-center gap-1">
+              <span className="text-[10px] text-[#D70015] bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20 font-semibold inline-flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" />
                 Unclaimed Damage
               </span>
             ) : (
-              <span className="text-[11px] text-slate-400 font-medium">No Claim Needed</span>
+              <span className="text-[11px] text-[#86868B] font-medium">No Claim Needed</span>
             )}
 
             {r.claimDeadline && (
-              <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                <span>SLA: {formatDate(r.claimDeadline)}</span>
+              <div className="text-[10px] text-[#86868B] flex items-center gap-1">
+                <span className="tabular-nums">SLA: {formatDate(r.claimDeadline)}</span>
                 {isExpiring && (
-                  <span className="text-amber-700 font-bold bg-amber-50 px-1 rounded border border-amber-200">
-                    ⚡ Urgent
+                  <span className="text-amber-800 font-semibold bg-amber-500/10 px-1.5 py-0.2 rounded-full border border-amber-500/20">
+                    Urgent
                   </span>
                 )}
               </div>
@@ -733,7 +733,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               <button
                 onClick={() => handleFastRestock(r.id)}
                 title="Mark restocked & put away into warehouse inventory"
-                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs transition active:scale-95"
+                className="px-2.5 py-1 bg-[#288548] hover:bg-[#206A3A] text-white rounded-full text-[10px] font-semibold flex items-center gap-1 shadow-apple-sm transition active:scale-95 cursor-pointer"
               >
                 <RotateCcw className="w-3 h-3" />
                 <span>Restock</span>
@@ -751,9 +751,9 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   )
                 }
                 title="1-Click SAFE-T Dispute Packet Generator"
-                className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200/60 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-2xs transition active:scale-95 cursor-pointer shrink-0"
+                className="px-2.5 py-1 bg-[#0071E3]/10 hover:bg-[#0071E3]/20 text-[#0071E3] border border-[#0071E3]/20 rounded-full text-[10px] font-semibold flex items-center gap-1 shadow-apple-sm transition active:scale-95 cursor-pointer shrink-0"
               >
-                <ShieldAlert className="w-3 h-3 text-purple-700" />
+                <ShieldAlert className="w-3 h-3 text-[#0071E3]" />
                 <span>Draft Claim</span>
               </button>
             )}
@@ -761,7 +761,8 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
             <button
               onClick={() => setEditingReturn({ ...r, customerReturnFee: r.customerReturnFee ?? 0 })}
               title="Edit return record details"
-              className="p-1 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
+              aria-label={`Edit return record ${r.id}`}
+              className="p-1.5 rounded-lg text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.04] transition active:scale-95 cursor-pointer"
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
@@ -769,7 +770,8 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
             <button
               onClick={() => deleteReturn(r.id)}
               title="Delete return entry"
-              className="p-1 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+              aria-label={`Delete return entry ${r.id}`}
+              className="p-1.5 rounded-lg text-[#6E6E73] hover:text-[#D70015] hover:bg-rose-500/10 transition active:scale-95 cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -784,24 +786,24 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       {/* Header Banner & New Transaction Control */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-1">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#1D1D1F]">
-            Returns & Reverse Logistics (RTO)
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-[#1D1D1F]">
+            Returns &amp; Reverse Logistics (RTO)
           </h1>
-          <p className="text-xs text-[#6E6E73] mt-0.5">
+          <p className="text-xs text-[#86868B] mt-1">
             High-speed intake, multi-channel quarantine, physical QC grading, restock putaway, and automated dispute claims.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold rounded-full shadow-xs transition"
+            className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-black/[0.02] text-[#1D1D1F] border border-black/[0.08] text-xs font-semibold rounded-full shadow-apple-sm transition active:scale-[0.98] cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <Download className="w-3.5 h-3.5 text-[#86868B]" />
             <span>Export CSV</span>
           </button>
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-full shadow-xs transition active:scale-95"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-semibold rounded-full shadow-apple-sm transition active:scale-[0.98] cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" strokeWidth={2.2} />
             <span>Log Return</span>
@@ -810,108 +812,128 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div
           onClick={() => setActiveBreakdownCard("totalReturnsLoss")}
-          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+          className="bg-white p-6 rounded-2xl border border-black/[0.06] shadow-apple-md cursor-pointer group active:scale-[0.99] relative flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[#86868B] font-medium">Total Returns Loss</span>
-            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+            <span className="text-[13px] text-[#86868B] font-medium">Total Returns Loss</span>
+            <span className="text-[10px] text-[#0071E3] font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
               Breakdown &rarr;
             </span>
           </div>
-          <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{formatINR(totalReturnLoss)}</div>
-          <span className="text-[11px] text-[#86868B] mt-1 block">{totalReturnUnits} units returned</span>
+          <div className="my-2">
+            <div className="text-3xl font-semibold text-[#D70015] tracking-[-0.02em] tabular-nums">{formatINR(totalReturnLoss)}</div>
+            <span className="text-xs text-[#86868B] mt-1 font-medium block tabular-nums">{totalReturnUnits} units returned</span>
+          </div>
+          <div className="text-xs text-[#86868B] pt-3 border-t border-black/[0.04]">
+            Accumulated logistics freight &amp; scrap damage
+          </div>
         </div>
 
         <div
           onClick={() => setActiveBreakdownCard("rtoFailureRate")}
-          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+          className="bg-white p-6 rounded-2xl border border-black/[0.06] shadow-apple-md cursor-pointer group active:scale-[0.99] relative flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[#86868B] font-medium">RTO Failure Rate</span>
-            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+            <span className="text-[13px] text-[#86868B] font-medium">RTO Failure Rate</span>
+            <span className="text-[10px] text-[#0071E3] font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
               Breakdown &rarr;
             </span>
           </div>
-          <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{rtoStats.rate}%</div>
-          <span className="text-[11px] text-[#86868B] mt-1 block">{rtoStats.rtoUnits} undelivered of {rtoStats.totalOrderedUnits} dispatched</span>
+          <div className="my-2">
+            <div className="text-3xl font-semibold text-[#1D1D1F] tracking-[-0.02em] tabular-nums">{rtoStats.rate}%</div>
+            <span className="text-xs text-[#86868B] mt-1 font-medium block tabular-nums">{rtoStats.rtoUnits} undelivered of {rtoStats.totalOrderedUnits} dispatched</span>
+          </div>
+          <div className="text-xs text-[#86868B] pt-3 border-t border-black/[0.04]">
+            Failed delivery attempts before customer receipt
+          </div>
         </div>
 
         <div
           onClick={() => setActiveBreakdownCard("oldAgingBacklog")}
-          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+          className="bg-white p-6 rounded-2xl border border-black/[0.06] shadow-apple-md cursor-pointer group active:scale-[0.99] relative flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[#86868B] font-medium">Old & Aging Backlog</span>
-            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+            <span className="text-[13px] text-[#86868B] font-medium">Old &amp; Aging Backlog</span>
+            <span className="text-[10px] text-[#0071E3] font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
               Breakdown &rarr;
             </span>
           </div>
-          <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{oldReturnsCount}</div>
-          <span className="text-[11px] text-[#86868B] mt-1 block">{oldReturnsCount === 1 ? "1 package" : `${oldReturnsCount} packages`} &gt; 14 days</span>
+          <div className="my-2">
+            <div className="text-3xl font-semibold text-[#B25E00] tracking-[-0.02em] tabular-nums">{oldReturnsCount}</div>
+            <span className="text-xs text-[#86868B] mt-1 font-medium block tabular-nums">{oldReturnsCount === 1 ? "1 package" : `${oldReturnsCount} packages`} &gt; 14 days</span>
+          </div>
+          <div className="text-xs text-[#86868B] pt-3 border-t border-black/[0.04]">
+            Uninspected packages at risk of dispute forfeiture
+          </div>
         </div>
 
         <div
           onClick={() => setActiveBreakdownCard("disputeClaimPotential")}
-          className="bg-white p-5 rounded-2xl border border-black/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group active:scale-[0.99] relative"
+          className="bg-white p-6 rounded-2xl border border-black/[0.06] shadow-apple-md cursor-pointer group active:scale-[0.99] relative flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[#86868B] font-medium">Dispute Claim Potential</span>
-            <span className="text-[10px] text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+            <span className="text-[13px] text-[#86868B] font-medium">Dispute Claim Potential</span>
+            <span className="text-[10px] text-[#0071E3] font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
               Breakdown &rarr;
             </span>
           </div>
-          <div className="text-2xl font-semibold text-[#1D1D1F] mt-1 tracking-tight">{formatINR(claimStats.totalDamagedCost)}</div>
-          <span className="text-[11px] text-[#86868B] mt-1 block">{claimStats.claimedCount} of {claimStats.totalDamagedCount} filed</span>
+          <div className="my-2">
+            <div className="text-3xl font-semibold text-[#288548] tracking-[-0.02em] tabular-nums">{formatINR(claimStats.totalDamagedCost)}</div>
+            <span className="text-xs text-[#86868B] mt-1 font-medium block tabular-nums">{claimStats.claimedCount} of {claimStats.totalDamagedCount} filed</span>
+          </div>
+          <div className="text-xs text-[#86868B] pt-3 border-t border-black/[0.04]">
+            Damage loss recoverable via marketplace SAFE-T claims
+          </div>
         </div>
       </div>
 
-      {/* Category Navigation Pills (Image 2 Pill Control style) */}
+      {/* Category Navigation Pills */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-0.5">
-        <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/60 inline-flex items-center gap-0.5 text-xs">
+        <div className="bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] inline-flex items-center gap-0.5 text-xs">
           <button
             onClick={() => setActiveTab("ALL")}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-[0.98] ${
               activeTab === "ALL"
-                ? "bg-white text-[#1D1D1F] shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                : "text-slate-600 hover:text-slate-900 font-medium"
+                ? "bg-white text-[#1D1D1F] shadow-apple-sm"
+                : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
             }`}
           >
             All Returns ({allCount})
           </button>
           <button
             onClick={() => setActiveTab("CUSTOMER_RETURN")}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-[0.98] ${
               activeTab === "CUSTOMER_RETURN"
-                ? "bg-white text-blue-700 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                : "text-slate-600 hover:text-slate-900 font-medium"
+                ? "bg-white text-[#0071E3] shadow-apple-sm"
+                : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
             }`}
           >
             Customer Returns ({customerCount})
           </button>
           <button
             onClick={() => setActiveTab("RTO")}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-[0.98] ${
               activeTab === "RTO"
-                ? "bg-white text-amber-700 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                : "text-slate-600 hover:text-slate-900 font-medium"
+                ? "bg-white text-[#B25E00] shadow-apple-sm"
+                : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
             }`}
           >
             RTO Undelivered ({rtoCount})
           </button>
           <button
             onClick={() => setActiveTab("OLD_RETURNS")}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-[0.98] ${
               activeTab === "OLD_RETURNS"
-                ? "bg-white text-rose-700 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                : "text-slate-600 hover:text-slate-900 font-medium"
+                ? "bg-white text-[#D70015] shadow-apple-sm"
+                : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
             }`}
           >
-            <span>Old & Aging Returns ({oldReturnsCount})</span>
+            <span>Old &amp; Aging Returns ({oldReturnsCount})</span>
             {oldReturnsCount > 0 && (
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[#D70015] animate-pulse" />
             )}
           </button>
         </div>
@@ -920,18 +942,19 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         <div className="flex flex-wrap items-center gap-2">
           {/* Omni Search */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-[#86868B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="Search ID, AWB, SKU, Order..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-52 sm:w-64"
+              className="pl-8 pr-7 py-1.5 bg-white border border-black/[0.08] rounded-full text-xs text-[#1D1D1F] placeholder:text-[#86868B] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] shadow-apple-sm w-52 sm:w-64"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#86868B] hover:text-[#1D1D1F]"
+                aria-label="Clear search"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -949,7 +972,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
           <select
             value={localCondition}
             onChange={(e) => setLocalCondition(e.target.value as ProductCondition | "ALL")}
-            className="px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer shadow-2xs hover:bg-slate-50"
+            className="px-3 py-1.5 bg-white border border-black/[0.08] rounded-full text-xs font-semibold text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] cursor-pointer shadow-apple-sm hover:bg-black/[0.02]"
           >
             <option value="ALL">All QC States</option>
             <option value="SELLABLE">Sellable</option>
@@ -971,54 +994,57 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
       {/* Modal: Dual-Mode Log Return */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+            <div className="px-6 py-4 border-b border-black/[0.04] flex items-center justify-between bg-[#FBFBFD] shrink-0">
               <div>
-                <h2 className="text-sm font-bold text-[#1D1D1F] tracking-tight">
+                <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
                   Log Reverse Logistics Event
                 </h2>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs text-[#86868B] mt-0.5">
                   Scan package, verify items, and record inspection disposition.
                 </p>
               </div>
               <button
                 onClick={() => setIsCreateOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"
+                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer active:scale-95"
+                aria-label="Close log return modal"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Mode Switcher Tabs */}
-            <div className="px-6 pt-3 pb-2 bg-slate-50/30 border-b border-slate-100 flex gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setCreateMode("SCAN_ORDER")}
-                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all ${
-                  createMode === "SCAN_ORDER"
-                    ? "bg-white text-blue-700 shadow-xs border border-blue-200"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                1. Scan / Order Lookup
-              </button>
-              <button
-                type="button"
-                onClick={() => setCreateMode("DIRECT_SKU")}
-                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all ${
-                  createMode === "DIRECT_SKU"
-                    ? "bg-white text-purple-700 shadow-xs border border-purple-200"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                2. Direct SKU / Wholesale
-              </button>
+            <div className="px-6 pt-3 pb-2 bg-[#FBFBFD] border-b border-black/[0.04] shrink-0">
+              <div className="bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCreateMode("SCAN_ORDER")}
+                  className={`flex-1 py-1.5 px-3 rounded-full text-xs font-semibold transition-all active:scale-[0.98] ${
+                    createMode === "SCAN_ORDER"
+                      ? "bg-white text-[#1D1D1F] shadow-apple-sm"
+                      : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
+                  }`}
+                >
+                  1. Scan / Order Lookup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreateMode("DIRECT_SKU")}
+                  className={`flex-1 py-1.5 px-3 rounded-full text-xs font-semibold transition-all active:scale-[0.98] ${
+                    createMode === "DIRECT_SKU"
+                      ? "bg-white text-[#1D1D1F] shadow-apple-sm"
+                      : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
+                  }`}
+                >
+                  2. Direct SKU / Wholesale
+                </button>
+              </div>
             </div>
 
             <form id="create-return-form" onSubmit={handleCreateReturn} className="p-6 space-y-4 text-xs overflow-y-auto flex-1 min-h-0">
               {validationError && (
-                <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs font-medium flex items-center gap-2">
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-900 rounded-xl text-xs font-medium flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>{validationError}</span>
                 </div>
@@ -1029,9 +1055,9 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                 const targetOrder = orders.find((o) => o.id === selectedOrderId);
                 const targetItem = targetOrder?.items[selectedItemIndex];
                 return createMode === "SCAN_ORDER" ? (
-                  <div className="space-y-3 p-3.5 bg-blue-50/40 rounded-2xl border border-blue-100">
+                  <div className="space-y-3 p-3.5 bg-[#F5F5F7] rounded-2xl border border-black/[0.06]">
                     <div>
-                      <label className="font-semibold text-slate-700 block mb-1">
+                      <label className="font-semibold text-[#1D1D1F] block mb-1">
                         Target Order (AWB or Order ID)
                       </label>
                       <select
@@ -1040,7 +1066,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                           setSelectedOrderId(e.target.value);
                           setSelectedItemIndex(0);
                         }}
-                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none font-mono"
+                        className="w-full p-2.5 bg-white border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] font-mono shadow-apple-sm"
                       >
                         {orders.map((o) => (
                           <option key={o.id} value={o.id}>
@@ -1052,13 +1078,13 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
                     {targetOrder && targetOrder.items.length > 1 && (
                       <div>
-                        <label className="font-semibold text-slate-700 block mb-1">
+                        <label className="font-semibold text-[#1D1D1F] block mb-1">
                           Select Returned Item in Multi-Item Order
                         </label>
                         <select
                           value={selectedItemIndex}
                           onChange={(e) => setSelectedItemIndex(Number(e.target.value))}
-                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none"
+                          className="w-full p-2.5 bg-white border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] shadow-apple-sm"
                         >
                           {targetOrder.items.map((it, idx) => (
                             <option key={idx} value={idx}>
@@ -1070,20 +1096,20 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                     )}
 
                     {targetItem && (
-                      <div className="p-2.5 bg-white rounded-xl border border-blue-100 text-[11px] space-y-1">
+                      <div className="p-3 bg-white rounded-xl border border-black/[0.06] text-[11px] space-y-1.5 shadow-apple-sm">
                         <div className="flex justify-between font-medium">
-                          <span className="text-slate-500">Item Name:</span>
-                          <span className="text-slate-900 font-semibold">{targetItem.productName}</span>
+                          <span className="text-[#86868B]">Item Name:</span>
+                          <span className="text-[#1D1D1F] font-semibold">{targetItem.productName}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Unit Selling Price:</span>
-                          <span className="font-bold text-slate-900">
+                        <div className="flex justify-between font-medium">
+                          <span className="text-[#86868B]">Unit Selling Price:</span>
+                          <span className="font-semibold text-[#1D1D1F] tabular-nums">
                             {formatINR(targetItem.sellingPrice || 0)}
                           </span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Cost Basis (COGS):</span>
-                          <span className="font-bold text-amber-700">
+                        <div className="flex justify-between font-medium">
+                          <span className="text-[#86868B]">Cost Basis (COGS):</span>
+                          <span className="font-semibold text-[#B25E00] tabular-nums">
                             {formatINR(targetItem.snapshotUnitCost || 0)}
                           </span>
                         </div>
@@ -1092,15 +1118,15 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   </div>
                 ) : (
                   /* Mode 2: Direct SKU / Wholesale */
-                  <div className="space-y-3 p-3.5 bg-purple-50/40 rounded-2xl border border-purple-100">
+                  <div className="space-y-3 p-3.5 bg-[#F5F5F7] rounded-2xl border border-black/[0.06]">
                     <div>
-                      <label className="font-semibold text-slate-700 block mb-1">
+                      <label className="font-semibold text-[#1D1D1F] block mb-1">
                         Select Catalog Product / SKU
                       </label>
                       <select
                         value={directSku}
                         onChange={(e) => setDirectSku(e.target.value)}
-                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none font-mono font-semibold"
+                        className="w-full p-2.5 bg-white border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] font-mono font-semibold shadow-apple-sm"
                       >
                         {products.map((p) => (
                           <option key={p.sku} value={p.sku}>
@@ -1110,13 +1136,13 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                       </select>
                     </div>
                     <div>
-                      <label className="font-semibold text-slate-700 block mb-1">
+                      <label className="font-semibold text-[#1D1D1F] block mb-1">
                         Return Channel / Source
                       </label>
                       <select
                         value={directChannel}
                         onChange={(e) => setDirectChannel(e.target.value as Marketplace)}
-                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none font-semibold"
+                        className="w-full p-2.5 bg-white border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] font-semibold shadow-apple-sm"
                       >
                         <option value="B2B Wholesale">B2B Wholesale / Consignment</option>
                         <option value="Amazon India">Amazon India</option>
@@ -1134,13 +1160,13 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               {/* Common Details */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">
+                  <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Return Type
                   </label>
                   <select
                     value={returnType}
                     onChange={(e) => setReturnType(e.target.value as ReturnType)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none font-semibold"
+                    className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] font-medium text-[#1D1D1F]"
                   >
                     <option value="CUSTOMER_RETURN">Customer Return (Opened)</option>
                     <option value="RTO">RTO (Undelivered / Bounced)</option>
@@ -1149,13 +1175,13 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   </select>
                 </div>
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">
+                  <label className="font-semibold text-[#1D1D1F] block mb-1">
                     QC Inspection State
                   </label>
                   <select
                     value={condition}
                     onChange={(e) => setCondition(e.target.value as ProductCondition)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none font-semibold"
+                    className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] font-medium text-[#1D1D1F]"
                   >
                     <option value="SELLABLE">Sellable (Restock)</option>
                     <option value="DAMAGED">Damaged (Scrap Write-Off)</option>
@@ -1168,41 +1194,41 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Units</label>
+                  <label className="font-semibold text-[#1D1D1F] block mb-1">Units</label>
                   <input
                     type="number"
                     min="1"
                     value={quantity}
                     onChange={(e) => setQuantity(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none font-bold"
+                    className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] font-semibold text-[#1D1D1F] tabular-nums"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">
+                  <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Freight (₹)
                   </label>
                   <input
                     type="number"
                     value={returnShipping}
                     onChange={(e) => setReturnShipping(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none font-bold text-rose-600"
+                    className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] font-semibold text-[#D70015] tabular-nums"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">
+                  <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Scrap/Salvage (₹)
                   </label>
                   <input
                     type="number"
                     value={recoveryValue}
                     onChange={(e) => setRecoveryValue(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none font-bold text-emerald-600"
+                    className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] font-semibold text-[#288548] tabular-nums"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">
+                <label className="font-semibold text-[#1D1D1F] block mb-1">
                   Courier AWB Tracking # (Optional)
                 </label>
                 <input
@@ -1210,27 +1236,27 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   placeholder="e.g. FMPP0049281920 or EKART-99218201"
                   value={awbNumber}
                   onChange={(e) => setAwbNumber(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none"
+                  className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl text-xs font-mono text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">
+                <label className="font-semibold text-[#1D1D1F] block mb-1">
                   Inspection Remarks / Defect Note
                 </label>
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none"
+                  className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3]"
                   rows={2}
                 />
               </div>
             </form>
 
-            <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between shrink-0">
-              <div className="text-[11px] text-slate-500">
+            <div className="px-6 py-3.5 border-t border-black/[0.04] bg-[#FBFBFD] flex items-center justify-between shrink-0">
+              <div className="text-[11px] text-[#86868B]">
                 {condition === "DAMAGED" && (
-                  <span className="text-purple-700 font-medium">
+                  <span className="text-[#0071E3] font-medium">
                     ⚡ Will auto-generate draft claim ticket
                   </span>
                 )}
@@ -1239,14 +1265,14 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                 <button
                   type="button"
                   onClick={() => setIsCreateOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200/60 text-xs font-medium transition-colors"
+                  className="px-4 py-2 rounded-full text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition cursor-pointer active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   form="create-return-form"
-                  className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-xs transition-colors"
+                  className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-full text-xs font-semibold shadow-apple-sm transition cursor-pointer active:scale-95"
                 >
                   Commit Return
                 </button>
@@ -1258,20 +1284,21 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
       {/* Modal: In-Place Edit Return Record */}
       {editingReturn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+            <div className="px-6 py-4 border-b border-black/[0.04] flex items-center justify-between bg-[#FBFBFD] shrink-0">
               <div>
-                <h2 className="text-sm font-bold text-[#1D1D1F] tracking-tight">
+                <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
                   Edit Return Record ({editingReturn.id})
                 </h2>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs text-[#86868B] mt-0.5">
                   Update quantities, condition grading, or salvage values.
                 </p>
               </div>
               <button
                 onClick={() => setEditingReturn(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"
+                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer active:scale-95"
+                aria-label="Close edit return modal"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1280,7 +1307,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
             <form id="edit-return-form" onSubmit={handleSaveEdit} className="p-6 space-y-3.5 text-xs overflow-y-auto flex-1 min-h-0">
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">
+                  <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Returned Units
                   </label>
                   <input
@@ -1293,11 +1320,11 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                         quantity: Number(e.target.value),
                       })
                     }
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                    className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl font-semibold text-[#1D1D1F] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3]"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">
+                  <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Restock Disposition
                   </label>
                   <select
@@ -1308,7 +1335,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                         restockStatus: e.target.value as RestockStatus,
                       })
                     }
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold"
+                    className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl font-semibold text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3]"
                   >
                     <option value="PENDING_RESTOCK">Pending Restock</option>
                     <option value="RESTOCKED">Restocked into Bin</option>
@@ -1318,7 +1345,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">
+                <label className="font-semibold text-[#1D1D1F] block mb-1">
                   Inspection Condition
                 </label>
                 <select
@@ -1329,7 +1356,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                       condition: e.target.value as ProductCondition,
                     })
                   }
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-semibold"
+                  className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl font-semibold text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3]"
                 >
                   <option value="SELLABLE">Sellable</option>
                   <option value="DAMAGED">Damaged</option>
@@ -1341,7 +1368,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">
+                  <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Freight Fee (₹)
                   </label>
                   <input
@@ -1353,11 +1380,11 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                         returnShippingCost: Number(e.target.value),
                       })
                     }
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-rose-600"
+                    className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl font-semibold text-[#D70015] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3]"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">
+                  <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Salvage Value (₹)
                   </label>
                   <input
@@ -1369,13 +1396,13 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                         inventoryRecoveryValue: Number(e.target.value),
                       })
                     }
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-emerald-600"
+                    className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl font-semibold text-[#288548] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">
+                <label className="font-semibold text-[#1D1D1F] block mb-1">
                   Courier AWB Tracking Number
                 </label>
                 <input
@@ -1387,13 +1414,13 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                       awbNumber: e.target.value,
                     })
                   }
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                  className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl font-mono text-[#1D1D1F] text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">
-                  Reason & Internal Journal Notes
+                <label className="font-semibold text-[#1D1D1F] block mb-1">
+                  Reason &amp; Internal Journal Notes
                 </label>
                 <textarea
                   value={editingReturn.notes || editingReturn.returnReason}
@@ -1404,24 +1431,24 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                       returnReason: e.target.value,
                     })
                   }
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
+                  className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl text-[#1D1D1F] text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3]"
                   rows={2}
                 />
               </div>
             </form>
 
-            <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 flex justify-end gap-2 shrink-0">
+            <div className="px-6 py-3.5 border-t border-black/[0.04] bg-[#FBFBFD] flex justify-end gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setEditingReturn(null)}
-                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200/60 text-xs font-medium transition-colors"
+                className="px-4 py-2 rounded-full text-[#6E6E73] hover:bg-black/[0.04] text-xs font-semibold transition cursor-pointer active:scale-95"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 form="edit-return-form"
-                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-xs transition-colors"
+                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-full text-xs font-semibold shadow-apple-sm transition cursor-pointer active:scale-95"
               >
                 Save Changes
               </button>
@@ -1430,11 +1457,11 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         </div>
       )}
 
-      {/* ─── RETURN CARD BREAKDOWN INSPECTION MODAL ─── */}
+      {/* Interactive Modal: Operational Return Category Deep-Dive Breakdown */}
       <ReturnBreakdownModal
         cardType={activeBreakdownCard}
         onClose={() => setActiveBreakdownCard(null)}
-        returns={returns}
+        returns={channelFilteredReturns}
         orders={orders}
         effectiveChannel={effectiveChannel}
         onSelectTab={(tab) => {

@@ -345,24 +345,24 @@ export function ReportsView() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Main Tab Switcher - Styled identically to the segmented pill capsule in Image 2 */}
-          <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/50 inline-flex items-center">
+          {/* Main Tab Switcher */}
+          <div className="bg-black/[0.04] p-1 rounded-full border border-black/[0.06] inline-flex items-center gap-1 text-xs">
             <button
               onClick={() => setActiveTab("analytics")}
-              className={`px-4 py-1.5 rounded-full text-xs transition-all ${
+              className={`px-4 py-1.5 rounded-full text-xs transition-all cursor-pointer ${
                 activeTab === "analytics"
-                  ? "bg-white text-[#1D1D1F] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                  : "text-slate-600 hover:text-slate-900 font-medium"
+                  ? "bg-white text-[#1D1D1F] font-semibold shadow-apple-sm"
+                  : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
               }`}
             >
               Analytics &amp; Insights
             </button>
             <button
               onClick={() => setActiveTab("pnl")}
-              className={`px-4 py-1.5 rounded-full text-xs transition-all ${
+              className={`px-4 py-1.5 rounded-full text-xs transition-all cursor-pointer ${
                 activeTab === "pnl"
-                  ? "bg-white text-[#1D1D1F] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                  : "text-slate-600 hover:text-slate-900 font-medium"
+                  ? "bg-white text-[#1D1D1F] font-semibold shadow-apple-sm"
+                  : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
               }`}
             >
               P&amp;L Ledger
@@ -372,9 +372,9 @@ export function ReportsView() {
           {/* Export CSV Button */}
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-800 text-xs font-semibold shadow-xs transition"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white border border-black/[0.08] hover:bg-black/[0.04] text-[#1D1D1F] text-xs font-semibold shadow-apple-sm transition btn-press cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <Download className="w-3.5 h-3.5 text-[#86868B]" />
             <span>Export CSV</span>
           </button>
         </div>
@@ -385,17 +385,17 @@ export function ReportsView() {
          ───────────────────────────────────────────────────────────── */}
       {activeTab === "analytics" && (
         <div className="space-y-6">
-          {/* Channel Filter Pill Capsule (Matches Image 2) */}
+          {/* Channel Filter Pill Capsule */}
           <div className="flex items-center justify-between gap-3 overflow-x-auto pb-0.5">
-            <div className="bg-[#F1F3F5] p-1 rounded-full border border-slate-200/50 inline-flex items-center gap-0.5">
+            <div className="bg-black/[0.04] p-1 rounded-full border border-black/[0.06] inline-flex items-center gap-1 text-xs">
               {channels.map((ch) => (
                 <button
                   key={ch}
                   onClick={() => setSelectedChannel(ch)}
-                  className={`px-4 py-1.5 rounded-full text-xs transition-all shrink-0 ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 cursor-pointer ${
                     selectedChannel === ch
-                      ? "bg-white text-[#1D1D1F] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-                      : "text-slate-600 hover:text-slate-900 font-medium"
+                      ? "bg-white text-[#1D1D1F] font-semibold shadow-apple-sm"
+                      : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
                   }`}
                 >
                   {ch}
@@ -403,92 +403,93 @@ export function ReportsView() {
               ))}
             </div>
             {selectedChannel !== "All Channels" && (
-              <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-                Filtering metrics for <strong className="text-slate-900">{selectedChannel}</strong>
+              <span className="text-xs text-[#86868B] font-medium hidden sm:inline">
+                Filtering metrics for <strong className="text-[#1D1D1F]">{selectedChannel}</strong>
               </span>
             )}
           </div>
+
           {/* 1. Top 3 Executive KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Card 1: Unique Products */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md flex items-center justify-between">
               <div className="space-y-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                  UNIQUE PRODUCTS
+                <span className="text-xs text-[#86868B] font-medium block">
+                  Unique Products
                 </span>
                 <div className="text-2xl font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
                   {uniqueProductsCount}
                 </div>
-                <span className="text-[11px] text-slate-400 block">
+                <span className="text-[11px] text-[#86868B] block">
                   Active catalog SKUs transacted
                 </span>
               </div>
-              <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-200/80 text-purple-600 flex items-center justify-center shrink-0">
-                <Boxes className="w-5 h-5" />
+              <div className="w-11 h-11 rounded-2xl bg-black/[0.04] border border-black/[0.04] text-[#1D1D1F] flex items-center justify-center shrink-0">
+                <Boxes className="w-5 h-5 text-[#0071E3]" />
               </div>
             </div>
 
             {/* Card 2: Overall Return Rate */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md flex items-center justify-between">
               <div className="space-y-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                  OVERALL RETURN RATE
+                <span className="text-xs text-[#86868B] font-medium block">
+                  Overall Return Rate
                 </span>
                 <div className="text-2xl font-semibold text-amber-600 tracking-tight tabular-nums">
                   {overallReturnMetrics.returnRate.toFixed(1)}%
                 </div>
-                <span className="text-[11px] text-slate-400 block">
+                <span className="text-[11px] text-[#86868B] block">
                   {overallReturnMetrics.customerReturns} customer returns logged
                 </span>
               </div>
-              <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
               </div>
             </div>
 
             {/* Card 3: Overall RTO Rate */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md flex items-center justify-between">
               <div className="space-y-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                  OVERALL RTO RATE
+                <span className="text-xs text-[#86868B] font-medium block">
+                  Overall RTO Delivery Failure
                 </span>
                 <div className="text-2xl font-semibold text-rose-600 tracking-tight tabular-nums">
                   {overallReturnMetrics.rtoRate.toFixed(1)}%
                 </div>
-                <span className="text-[11px] text-slate-400 block">
+                <span className="text-[11px] text-[#86868B] block">
                   {overallReturnMetrics.rtos} courier rejections in transit
                 </span>
               </div>
-              <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-600 flex items-center justify-center shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 flex items-center justify-center shrink-0">
                 <RotateCcw className="w-5 h-5" />
               </div>
             </div>
           </div>
 
           {/* 2. Top Products (Ranked by Profit) Table */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5">
+          <div className="apple-card rounded-2xl border border-black/[0.06] shadow-apple-md p-5">
             <div className="mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-xl bg-black/[0.04] text-[#0071E3] flex items-center justify-center">
                   <BarChart3 className="w-4 h-4" />
                 </div>
                 <h3 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
                   Top Products (Ranked by Profit)
                 </h3>
               </div>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-[#86868B] mt-1">
                 SKU-level profit analysis across all platforms
               </p>
             </div>
 
             {topProducts.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-xs">
+              <div className="py-12 text-center text-[#86868B] text-xs">
                 No products data available. Add orders to see analytics.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50/80 text-slate-500 uppercase text-[11px] font-semibold tracking-wider border-y border-slate-200/60">
+                  <thead className="bg-[#FAFAFC] text-[#86868B] uppercase text-[10px] font-semibold tracking-wider border-y border-black/[0.04]">
                     <tr>
                       <th className="py-3 px-3 w-10 text-center">#</th>
                       <th className="py-3 px-4">SKU</th>
@@ -501,19 +502,19 @@ export function ReportsView() {
                       <th className="py-3 px-4 text-right">RETURNS</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-800">
+                  <tbody className="divide-y divide-black/[0.04] text-[#1D1D1F]">
                     {topProducts.map((p) => {
                       const isProfitPositive = p.profit >= 0;
                       return (
-                        <tr key={p.sku} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="py-3 px-3 text-center font-semibold text-slate-400">
+                        <tr key={p.sku} className="hover:bg-black/[0.02] transition-colors">
+                          <td className="py-3 px-3 text-center font-medium text-[#86868B]">
                             {p.rank}
                           </td>
-                          <td className="py-3 px-4 font-semibold text-slate-900 whitespace-nowrap">
+                          <td className="py-3 px-4 font-semibold text-[#1D1D1F] whitespace-nowrap">
                             {p.sku}
                           </td>
                           <td className="py-3 px-4 max-w-[240px]">
-                            <div className="truncate font-medium text-slate-700" title={p.productName}>
+                            <div className="truncate font-medium text-[#1D1D1F]" title={p.productName}>
                               {p.productName}
                             </div>
                           </td>
@@ -533,8 +534,8 @@ export function ReportsView() {
                               })}
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-right text-xs font-semibold text-slate-700 tracking-tight tabular-nums">
-                            {p.orders} <span className="text-slate-400 text-[10px] font-normal">({p.unitsSold} units)</span>
+                          <td className="py-3 px-4 text-right text-xs font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
+                            {p.orders} <span className="text-[#86868B] text-[10px] font-normal">({p.unitsSold} units)</span>
                           </td>
                           <td className="py-3 px-4 text-right text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
                             {formatINR(p.revenue)}
@@ -549,23 +550,23 @@ export function ReportsView() {
                           </td>
                           <td className="py-3 px-4 text-right">
                             <span
-                              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold tabular-nums ${
+                              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium tabular-nums ${
                                 isProfitPositive
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/70"
-                                  : "bg-rose-50 text-rose-700 border border-rose-200/70"
+                                  ? "bg-emerald-500/10 text-emerald-800 border border-emerald-500/20"
+                                  : "bg-rose-500/10 text-rose-800 border border-rose-500/20"
                               }`}
                             >
                               {p.margin.toFixed(1)}%
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right text-xs font-semibold tabular-nums text-slate-600">
+                          <td className="py-3 px-4 text-right text-xs font-medium tabular-nums text-[#6E6E73]">
                             {p.returnsCount > 0 ? (
                               <span className="text-[#D70015] font-semibold">
                                 {p.returnsCount}{" "}
-                                <span className="text-[10px] text-slate-400 font-normal">({p.returnRate.toFixed(1)}%)</span>
+                                <span className="text-[10px] text-[#86868B] font-normal">({p.returnRate.toFixed(1)}%)</span>
                               </span>
                             ) : (
-                              <span className="text-slate-400 font-normal">0</span>
+                              <span className="text-[#86868B] font-normal">0</span>
                             )}
                           </td>
                         </tr>
@@ -580,47 +581,48 @@ export function ReportsView() {
           {/* 3. Two Side-by-Side Visual Analytics Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left Chart: Platform Profit Comparison */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 flex flex-col">
+            <div className="apple-card rounded-2xl border border-black/[0.06] shadow-apple-md p-5 flex flex-col">
               <div className="mb-4">
                 <h3 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
                   Platform Profit Comparison
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-[#86868B] mt-0.5">
                   Net profit by marketplace
                 </p>
               </div>
 
               {platformProfitData.length === 0 ? (
-                <div className="py-20 text-center text-slate-400 text-xs my-auto">
+                <div className="py-20 text-center text-[#86868B] text-xs my-auto">
                   No platform data
                 </div>
               ) : (
                 <div className="h-64 w-full mt-2">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={platformProfitData} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.04)" />
                       <XAxis
                         dataKey="platform"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: "#64748B" }}
+                        tick={{ fontSize: 11, fill: "#86868B" }}
                       />
                       <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: "#64748B" }}
+                        tick={{ fontSize: 11, fill: "#86868B" }}
                         tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`}
                       />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "#FFFFFF",
-                          borderRadius: "12px",
-                          border: "1px solid #E2E8F0",
-                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+                          backgroundColor: "rgba(255, 255, 255, 0.95)",
+                          backdropFilter: "blur(12px)",
+                          borderRadius: "16px",
+                          border: "1px solid rgba(0, 0, 0, 0.08)",
+                          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.08)",
                           fontSize: "12px",
                         }}
                         formatter={(value: any) => [formatINR(Number(value)), "Net Profit"]}
-                        labelStyle={{ fontWeight: 600, color: "#1E293B" }}
+                        labelStyle={{ fontWeight: 600, color: "#1D1D1F" }}
                       />
                       <Bar dataKey="profit" radius={[6, 6, 0, 0]}>
                         {platformProfitData.map((entry, index) => (
@@ -634,50 +636,51 @@ export function ReportsView() {
             </div>
 
             {/* Right Chart: Return & RTO Rate by Platform */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 flex flex-col">
+            <div className="apple-card rounded-2xl border border-black/[0.06] shadow-apple-md p-5 flex flex-col">
               <div className="mb-4">
                 <h3 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
                   Return &amp; RTO Rate by Platform
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-[#86868B] mt-0.5">
                   Percentage of orders returned or RTO&apos;d per platform
                 </p>
               </div>
 
               {platformReturnRates.length === 0 ? (
-                <div className="py-20 text-center text-slate-400 text-xs my-auto">
+                <div className="py-20 text-center text-[#86868B] text-xs my-auto">
                   No return data
                 </div>
               ) : (
                 <div className="h-64 w-full mt-2">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={platformReturnRates} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.04)" />
                       <XAxis
                         dataKey="platform"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: "#64748B" }}
+                        tick={{ fontSize: 11, fill: "#86868B" }}
                       />
                       <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 11, fill: "#64748B" }}
+                        tick={{ fontSize: 11, fill: "#86868B" }}
                         tickFormatter={(v) => `${v}%`}
                       />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "#FFFFFF",
-                          borderRadius: "12px",
-                          border: "1px solid #E2E8F0",
-                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+                          backgroundColor: "rgba(255, 255, 255, 0.95)",
+                          backdropFilter: "blur(12px)",
+                          borderRadius: "16px",
+                          border: "1px solid rgba(0, 0, 0, 0.08)",
+                          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.08)",
                           fontSize: "12px",
                         }}
                         formatter={(value: any, name: any) => [
                           `${Number(value).toFixed(1)}%`,
                           name === "returnRate" ? "Customer Returns" : "Courier RTO",
                         ]}
-                        labelStyle={{ fontWeight: 600, color: "#1E293B" }}
+                        labelStyle={{ fontWeight: 600, color: "#1D1D1F" }}
                       />
                       <Legend
                         verticalAlign="top"
@@ -685,8 +688,8 @@ export function ReportsView() {
                         wrapperStyle={{ paddingBottom: "10px", fontSize: "11px" }}
                         formatter={(value) => (value === "returnRate" ? "Customer Returns %" : "Courier RTO %")}
                       />
-                      <Bar dataKey="returnRate" fill="#F43F5E" name="returnRate" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="rtoRate" fill="#F59E0B" name="rtoRate" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="returnRate" fill="#E05263" name="returnRate" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="rtoRate" fill="#B25E00" name="rtoRate" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -695,18 +698,18 @@ export function ReportsView() {
           </div>
 
           {/* 4. Monthly Profit & Revenue Trend (Full-Width Chart) */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5">
+          <div className="apple-card rounded-2xl border border-black/[0.06] shadow-apple-md p-5">
             <div className="mb-4">
               <h3 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
                 Monthly Profit &amp; Revenue Trend
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[#86868B] mt-0.5">
                 Month-over-month breakdown of financial performance
               </p>
             </div>
 
             {monthlyData.length === 0 ? (
-              <div className="py-20 text-center text-slate-400 text-xs">
+              <div className="py-20 text-center text-[#86868B] text-xs">
                 No monthly data available
               </div>
             ) : (
@@ -715,40 +718,41 @@ export function ReportsView() {
                   <AreaChart data={monthlyData} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
                     <defs>
                       <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366F1" stopOpacity={0.18} />
-                        <stop offset="95%" stopColor="#6366F1" stopOpacity={0.0} />
+                        <stop offset="5%" stopColor="#0071E3" stopOpacity={0.16} />
+                        <stop offset="95%" stopColor="#0071E3" stopOpacity={0.0} />
                       </linearGradient>
                       <linearGradient id="colorProf" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.22} />
-                        <stop offset="95%" stopColor="#10B981" stopOpacity={0.0} />
+                        <stop offset="5%" stopColor="#288548" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#288548" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.04)" />
                     <XAxis
                       dataKey="month"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 11, fill: "#64748B" }}
+                      tick={{ fontSize: 11, fill: "#86868B" }}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 11, fill: "#64748B" }}
+                      tick={{ fontSize: 11, fill: "#86868B" }}
                       tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`}
                     />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#FFFFFF",
-                        borderRadius: "12px",
-                        border: "1px solid #E2E8F0",
-                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+                        backgroundColor: "rgba(255, 255, 255, 0.95)",
+                        backdropFilter: "blur(12px)",
+                        borderRadius: "16px",
+                        border: "1px solid rgba(0, 0, 0, 0.08)",
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.08)",
                         fontSize: "12px",
                       }}
                       formatter={(value: any, name: any) => [
                         formatINR(Number(value)),
                         name === "revenue" ? "Gross Revenue" : "Net Profit",
                       ]}
-                      labelStyle={{ fontWeight: 600, color: "#1E293B" }}
+                      labelStyle={{ fontWeight: 600, color: "#1D1D1F" }}
                     />
                     <Legend
                       verticalAlign="top"
@@ -759,7 +763,7 @@ export function ReportsView() {
                     <Area
                       type="monotone"
                       dataKey="revenue"
-                      stroke="#6366F1"
+                      stroke="#0071E3"
                       strokeWidth={2.5}
                       fillOpacity={1}
                       fill="url(#colorRev)"
@@ -768,7 +772,7 @@ export function ReportsView() {
                     <Area
                       type="monotone"
                       dataKey="profit"
-                      stroke="#10B981"
+                      stroke="#288548"
                       strokeWidth={2.5}
                       fillOpacity={1}
                       fill="url(#colorProf)"
@@ -781,24 +785,24 @@ export function ReportsView() {
           </div>
 
           {/* 5. Platform Summary Table (Full-Width) */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5">
+          <div className="apple-card rounded-2xl border border-black/[0.06] shadow-apple-md p-5">
             <div className="mb-4">
               <h3 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
                 Platform Summary
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[#86868B] mt-0.5">
                 Consolidated performance metrics per marketplace
               </p>
             </div>
 
             {platformSummary.summary.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-xs">
+              <div className="py-12 text-center text-[#86868B] text-xs">
                 No platform summary data available.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50/80 text-slate-500 uppercase text-[11px] font-semibold tracking-wider border-y border-slate-200/60">
+                  <thead className="bg-[#FAFAFC] text-[#86868B] uppercase text-[10px] font-semibold tracking-wider border-y border-black/[0.04]">
                     <tr>
                       <th className="py-3 px-4">PLATFORM</th>
                       <th className="py-3 px-4 text-right">ORDERS</th>
@@ -810,12 +814,12 @@ export function ReportsView() {
                       <th className="py-3 px-4 text-right">RETURNS</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-800">
+                  <tbody className="divide-y divide-black/[0.04] text-[#1D1D1F]">
                     {platformSummary.summary.map((row) => {
                       const badge = getPlatformBadge(row.platform);
                       const isProfitable = row.profit >= 0;
                       return (
-                        <tr key={row.platform} className="hover:bg-slate-50/70 transition-colors">
+                        <tr key={row.platform} className="hover:bg-black/[0.02] transition-colors">
                           <td className="py-3 px-4">
                             <span
                               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold ${badge.bg}`}
@@ -824,7 +828,7 @@ export function ReportsView() {
                               <span>{row.platform}</span>
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right text-xs font-semibold text-slate-700 tracking-tight tabular-nums">
+                          <td className="py-3 px-4 text-right text-xs font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
                             {row.ordersCount}
                           </td>
                           <td className="py-3 px-4 text-right text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
@@ -833,7 +837,7 @@ export function ReportsView() {
                           <td className="py-3 px-4 text-right text-sm font-semibold text-[#288548] tracking-tight tabular-nums">
                             {formatINR(row.settlement)}
                           </td>
-                          <td className="py-3 px-4 text-right text-sm font-semibold text-slate-600 tracking-tight tabular-nums">
+                          <td className="py-3 px-4 text-right text-sm font-semibold text-[#6E6E73] tracking-tight tabular-nums">
                             {formatINR(row.cogs)}
                           </td>
                           <td
@@ -846,23 +850,23 @@ export function ReportsView() {
                           </td>
                           <td className="py-3 px-4 text-right">
                             <span
-                              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold tabular-nums ${
+                              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium tabular-nums ${
                                 isProfitable
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/70"
-                                  : "bg-rose-50 text-rose-700 border border-rose-200/70"
+                                  ? "bg-emerald-500/10 text-emerald-800 border border-emerald-500/20"
+                                  : "bg-rose-500/10 text-rose-800 border border-rose-500/20"
                               }`}
                             >
                               {row.margin.toFixed(1)}%
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right text-xs font-semibold tabular-nums text-slate-600">
+                          <td className="py-3 px-4 text-right text-xs font-medium tabular-nums text-[#6E6E73]">
                             {row.returnsCount > 0 ? (
                               <span className="text-[#D70015] font-semibold">
                                 {row.returnsCount}{" "}
-                                <span className="text-[10px] text-slate-400 font-normal">({row.returnRate.toFixed(1)}%)</span>
+                                <span className="text-[10px] text-[#86868B] font-normal">({row.returnRate.toFixed(1)}%)</span>
                               </span>
                             ) : (
-                              <span className="text-slate-400 font-normal">0 (0.0%)</span>
+                              <span className="text-[#86868B] font-normal">0 (0.0%)</span>
                             )}
                           </td>
                         </tr>
@@ -870,28 +874,28 @@ export function ReportsView() {
                     })}
                   </tbody>
                   {/* Summary Totals Footer Row */}
-                  <tfoot className="bg-slate-50 font-semibold text-slate-900 border-t-2 border-slate-200 text-xs">
+                  <tfoot className="bg-[#FAFAFC] font-semibold text-[#1D1D1F] border-t border-black/[0.06] text-xs">
                     <tr>
-                      <td className="py-3 px-4 font-bold text-slate-900">Consolidated Total</td>
+                      <td className="py-3 px-4 font-semibold text-[#1D1D1F]">Consolidated Total</td>
                       <td className="py-3 px-4 text-right text-xs font-semibold tracking-tight tabular-nums">{platformSummary.totals.ordersCount}</td>
                       <td className="py-3 px-4 text-right text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">{formatINR(platformSummary.totals.grossSales)}</td>
                       <td className="py-3 px-4 text-right text-sm font-semibold text-[#288548] tracking-tight tabular-nums">
                         {formatINR(platformSummary.totals.settlement)}
                       </td>
-                      <td className="py-3 px-4 text-right text-sm font-semibold text-slate-600 tracking-tight tabular-nums">
+                      <td className="py-3 px-4 text-right text-sm font-semibold text-[#6E6E73] tracking-tight tabular-nums">
                         {formatINR(platformSummary.totals.cogs)}
                       </td>
                       <td className="py-3 px-4 text-right text-sm font-semibold text-[#288548] tracking-tight tabular-nums">
                         +{formatINR(platformSummary.totals.profit)}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 tabular-nums">
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-950 tabular-nums">
                           {platformSummary.totals.margin.toFixed(1)}%
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right text-xs font-semibold tabular-nums text-slate-600">
+                      <td className="py-3 px-4 text-right text-xs font-medium tabular-nums text-[#6E6E73]">
                         {platformSummary.totals.returnsCount}{" "}
-                        <span className="text-[10px] text-slate-400 font-normal">
+                        <span className="text-[10px] text-[#86868B] font-normal">
                           ({platformSummary.totals.returnRate.toFixed(1)}%)
                         </span>
                       </td>
@@ -909,24 +913,24 @@ export function ReportsView() {
          ───────────────────────────────────────────────────────────── */}
       {activeTab === "pnl" && (
         <div className="space-y-4">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+          <div className="apple-card p-6 rounded-3xl border border-black/[0.06] shadow-apple-md space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-black/[0.05] pb-4">
               <div>
                 <h3 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
                   Statement of Profit &amp; Loss (GAAP Ledger)
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-[#86868B] mt-0.5">
                   Audit-ready financial waterfall statement with standardized accounting treatment.
                 </p>
               </div>
-              <span className="text-xs text-[#288548] bg-emerald-50 border border-emerald-200/70 px-3 py-1 rounded-full font-semibold">
+              <span className="text-xs text-[#288548] bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full font-semibold tabular-nums">
                 Net Margin: {formatPercent(profitability.netOperatingMargin)}
               </span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-[#FAFAFC] text-[#86868B] font-semibold uppercase text-[11px] tracking-wider">
+                <thead className="bg-[#FAFAFC] text-[#86868B] font-semibold uppercase text-[10px] tracking-wider border-y border-black/[0.04]">
                   <tr>
                     <th className="py-3 px-4">Metric</th>
                     <th className="py-3 px-4">Accounting Treatment</th>

@@ -87,18 +87,19 @@ export function DataTable<TData, TValue>({
       {searchKey && (
         <div className="flex items-center justify-between px-1">
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-[#86868B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               placeholder={searchPlaceholder}
               value={globalFilter ?? ""}
               onChange={(event) => setGlobalFilter(event.target.value)}
-              className="w-72 text-xs pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-800 placeholder-slate-400 shadow-2xs transition"
+              className="w-72 text-xs pl-8 pr-7 py-1.5 bg-white border border-black/[0.08] rounded-full focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] text-[#1D1D1F] placeholder-[#86868B] shadow-apple-sm transition"
             />
             {globalFilter && (
               <button
                 type="button"
                 onClick={() => setGlobalFilter("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer"
+                aria-label="Clear search query"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -110,10 +111,10 @@ export function DataTable<TData, TValue>({
         </div>
       )}
 
-      <div className="rounded-2xl border border-black/[0.05] bg-white overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      <div className="rounded-2xl border border-black/[0.06] bg-white overflow-hidden shadow-apple-md">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-[#1D1D1F]">
-            <thead className="bg-[#FAFAFC] border-b border-black/[0.04] text-[#86868B] font-medium text-[11px] tracking-wider uppercase">
+            <thead className="bg-[#FAFAFC] border-b border-black/[0.04] text-[#6E6E73] font-semibold text-xs tracking-tight">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
@@ -154,7 +155,7 @@ export function DataTable<TData, TValue>({
                     className="hover:bg-black/[0.015] transition-colors"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-5 py-3.5 whitespace-nowrap">
+                      <td key={cell.id} className="px-5 py-3.5 whitespace-nowrap tabular-nums">
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
@@ -179,7 +180,7 @@ export function DataTable<TData, TValue>({
 
         {/* Minimalist Apple Pagination */}
         <div className="flex items-center justify-between px-5 py-3 bg-[#FAFAFC] border-t border-black/[0.04] text-xs text-[#86868B]">
-          <div>
+          <div className="tabular-nums font-medium">
             Page {table.getState().pagination.pageIndex + 1} of{" "}
             {Math.max(1, table.getPageCount())}
           </div>
@@ -187,14 +188,16 @@ export function DataTable<TData, TValue>({
             <button
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
-              className="p-1.5 rounded-lg border border-black/[0.06] bg-white hover:bg-black/[0.03] disabled:opacity-30 disabled:cursor-not-allowed transition"
+              aria-label="Previous page"
+              className="p-1.5 rounded-lg border border-black/[0.06] bg-white hover:bg-black/[0.03] disabled:opacity-30 disabled:cursor-not-allowed transition shadow-apple-sm active:scale-95 cursor-pointer"
             >
               <ChevronLeft className="w-3.5 h-3.5 text-[#1D1D1F]" />
             </button>
             <button
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
-              className="p-1.5 rounded-lg border border-black/[0.06] bg-white hover:bg-black/[0.03] disabled:opacity-30 disabled:cursor-not-allowed transition"
+              aria-label="Next page"
+              className="p-1.5 rounded-lg border border-black/[0.06] bg-white hover:bg-black/[0.03] disabled:opacity-30 disabled:cursor-not-allowed transition shadow-apple-sm active:scale-95 cursor-pointer"
             >
               <ChevronRight className="w-3.5 h-3.5 text-[#1D1D1F]" />
             </button>

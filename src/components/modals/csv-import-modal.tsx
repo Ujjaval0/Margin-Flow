@@ -298,22 +298,22 @@ export function CsvImportModal({
   const warnings = mappingResult?.warnings || [];
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+      <div className="apple-card bg-white text-[#1D1D1F] rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+        <div className="px-6 py-4 border-b border-black/[0.06] flex items-center justify-between bg-[#FBFBFD]">
           <div className="flex items-center gap-3">
-            <span className="w-8 h-8 rounded-xl bg-purple-50 border border-purple-200/80 text-purple-700 flex items-center justify-center font-bold">
+            <span className="w-8 h-8 rounded-xl bg-[#0071E3]/10 border border-[#0071E3]/20 text-[#0071E3] flex items-center justify-center font-bold">
               <Sparkles className="w-4 h-4" />
             </span>
             <div>
-              <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <span>Smart CSV Auto-Mapper</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                  AI Heuristics
+              <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight flex items-center gap-2">
+                <span>Smart CSV auto-mapper</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20">
+                  AI heuristics
                 </span>
               </h2>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-[#86868B]">
                 Auto-detects Amazon MTR, Flipkart, Meesho &amp; custom sheets with catalog COGS locking
               </p>
             </div>
@@ -321,7 +321,8 @@ export function CsvImportModal({
           <button
             type="button"
             onClick={handleClose}
-            className="w-7 h-7 rounded-full hover:bg-slate-200/60 flex items-center justify-center text-slate-400 hover:text-slate-700 transition"
+            aria-label="Close CSV import dialog"
+            className="w-8 h-8 rounded-full bg-[#F5F5F7] hover:bg-[#E8E8ED] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -338,8 +339,8 @@ export function CsvImportModal({
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
                 isDragging
-                  ? "border-purple-500 bg-purple-50/40 scale-[0.99]"
-                  : "border-slate-200 hover:border-purple-300 hover:bg-slate-50/60"
+                  ? "border-[#0071E3] bg-[#0071E3]/5 scale-[0.99]"
+                  : "border-black/[0.1] hover:border-[#0071E3]/40 hover:bg-[#F5F5F7]/50"
               }`}
             >
               <input
@@ -349,19 +350,19 @@ export function CsvImportModal({
                 onChange={handleFileSelect}
                 className="hidden"
               />
-              <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-200/80 text-purple-600 flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#0071E3]/10 border border-[#0071E3]/20 text-[#0071E3] flex items-center justify-center mx-auto mb-3">
                 <FileText className="w-6 h-6" />
               </div>
-              <p className="text-sm font-bold text-slate-800">
+              <p className="text-sm font-semibold text-[#1D1D1F]">
                 Drag &amp; drop your marketplace export sheet (.csv)
               </p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-[#86868B] mt-1 font-medium">
                 Auto-recognizes Amazon MTR, Flipkart Orders, Meesho, Shopify &amp; ERP reports
               </p>
 
               <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                <span className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-xs transition">
-                  Browse File
+                <span className="px-4 py-2 rounded-xl bg-[#1D1D1F] hover:bg-black text-white font-medium text-xs shadow-apple-sm btn-press transition">
+                  Browse file
                 </span>
                 <button
                   type="button"
@@ -369,10 +370,10 @@ export function CsvImportModal({
                     e.stopPropagation();
                     handleDownloadSample("AMAZON");
                   }}
-                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs border border-slate-200 transition flex items-center gap-1.5"
+                  className="px-3 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] font-medium text-xs border border-black/[0.06] shadow-apple-sm btn-press transition flex items-center gap-1.5"
                 >
-                  <Download className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Amazon MTR Template</span>
+                  <Download className="w-3.5 h-3.5 text-[#86868B]" />
+                  <span>Amazon MTR template</span>
                 </button>
                 <button
                   type="button"
@@ -380,10 +381,10 @@ export function CsvImportModal({
                     e.stopPropagation();
                     handleDownloadSample("FLIPKART");
                   }}
-                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs border border-slate-200 transition flex items-center gap-1.5"
+                  className="px-3 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] font-medium text-xs border border-black/[0.06] shadow-apple-sm btn-press transition flex items-center gap-1.5"
                 >
-                  <Download className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Flipkart Template</span>
+                  <Download className="w-3.5 h-3.5 text-[#86868B]" />
+                  <span>Flipkart template</span>
                 </button>
                 <button
                   type="button"
@@ -391,10 +392,10 @@ export function CsvImportModal({
                     e.stopPropagation();
                     handleDownloadSample("MEESHO");
                   }}
-                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs border border-slate-200 transition flex items-center gap-1.5"
+                  className="px-3 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] font-medium text-xs border border-black/[0.06] shadow-apple-sm btn-press transition flex items-center gap-1.5"
                 >
-                  <Download className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Meesho Template</span>
+                  <Download className="w-3.5 h-3.5 text-[#86868B]" />
+                  <span>Meesho template</span>
                 </button>
               </div>
             </div>
@@ -402,9 +403,9 @@ export function CsvImportModal({
 
           {/* Processing */}
           {isProcessing && (
-            <div className="py-12 text-center text-slate-500 space-y-2">
-              <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="font-semibold text-xs text-slate-700">
+            <div className="py-12 text-center text-[#86868B] space-y-2">
+              <div className="w-8 h-8 border-2 border-[#1D1D1F] border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="font-medium text-xs text-[#1D1D1F]">
                 Scanning headers, identifying marketplace format &amp; linking SKUs...
               </p>
             </div>
@@ -414,22 +415,22 @@ export function CsvImportModal({
           {file && !isProcessing && mappingResult && (
             <div className="space-y-4">
               {/* Top Detection Pill */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="p-4 bg-[#F5F5F7] rounded-2xl border border-black/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#288548]/10 border border-[#288548]/20 text-[#288548] flex items-center justify-center shrink-0">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 text-xs">
+                      <span className="font-semibold text-[#1D1D1F] text-xs">
                         {detection?.formatLabel}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                        {Math.round((detection?.confidence || 0) * 100)}% Match
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#288548]/10 text-[#288548] border border-[#288548]/20 tabular-nums">
+                        {Math.round((detection?.confidence || 0) * 100)}% match
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      {file.name} • {orders.length} orders parsed • {detection?.columnMappings.length} columns auto-mapped
+                    <p className="text-[11px] text-[#86868B] mt-0.5 tabular-nums">
+                      {file.name} · {orders.length} orders parsed · {detection?.columnMappings.length} columns auto-mapped
                     </p>
                   </div>
                 </div>
@@ -438,40 +439,40 @@ export function CsvImportModal({
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="text-xs text-slate-600 hover:text-slate-900 font-semibold px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition"
+                    className="text-xs text-[#1D1D1F] font-medium px-3.5 py-1.5 rounded-xl border border-black/[0.06] bg-white hover:bg-[#F5F5F7] shadow-apple-sm btn-press transition"
                   >
-                    Change File
+                    Change file
                   </button>
                 </div>
               </div>
 
               {/* Ingestion KPI Badges */}
               <div className="grid grid-cols-3 gap-2.5">
-                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Valid Orders
+                <div className="apple-card p-3 rounded-2xl shadow-apple-sm">
+                  <span className="text-[10px] font-semibold text-[#86868B] block">
+                    Valid orders
                   </span>
-                  <span className="text-base font-bold text-slate-900 font-mono mt-0.5 block">
+                  <span className="text-base font-semibold text-[#1D1D1F] tabular-nums tracking-tight mt-0.5 block">
                     {orders.length}
                   </span>
-                  <span className="text-[10px] text-slate-500">Header on row #{Number(detection?.headerRowIndex || 0) + 1}</span>
+                  <span className="text-[10px] text-[#86868B] tabular-nums">Header on row #{Number(detection?.headerRowIndex || 0) + 1}</span>
                 </div>
 
-                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Catalog SKUs Linked
+                <div className="apple-card p-3 rounded-2xl shadow-apple-sm">
+                  <span className="text-[10px] font-semibold text-[#86868B] block">
+                    Catalog SKUs linked
                   </span>
-                  <span className="text-base font-bold text-emerald-600 font-mono mt-0.5 block">
+                  <span className="text-base font-semibold text-[#288548] tabular-nums tracking-tight mt-0.5 block">
                     {detection?.matchedSkuCount} / {orders.length}
                   </span>
-                  <span className="text-[10px] text-slate-500">Historical COGS locked</span>
+                  <span className="text-[10px] text-[#86868B]">Historical COGS locked</span>
                 </div>
 
-                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Total Ingest Gross
+                <div className="apple-card p-3 rounded-2xl shadow-apple-sm">
+                  <span className="text-[10px] font-semibold text-[#86868B] block">
+                    Total ingest gross
                   </span>
-                  <span className="text-base font-bold text-slate-900 font-mono mt-0.5 block">
+                  <span className="text-base font-semibold text-[#1D1D1F] tabular-nums tracking-tight mt-0.5 block">
                     {formatINR(
                       orders.reduce(
                         (acc, o) =>
@@ -484,18 +485,18 @@ export function CsvImportModal({
                       )
                     )}
                   </span>
-                  <span className="text-[10px] text-slate-500">Ready to sync into store</span>
+                  <span className="text-[10px] text-[#86868B]">Ready to sync into store</span>
                 </div>
               </div>
 
               {/* Errors & Warnings */}
               {errors.length > 0 && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
-                  <div className="flex items-center gap-1.5 text-rose-800 font-bold text-xs">
+                <div className="p-3 bg-[#D70015]/10 border border-[#D70015]/20 rounded-xl space-y-1">
+                  <div className="flex items-center gap-1.5 text-[#D70015] font-semibold text-xs">
                     <AlertCircle className="w-3.5 h-3.5" />
-                    <span>Import Warnings:</span>
+                    <span>Import warnings:</span>
                   </div>
-                  <ul className="list-disc pl-5 text-[11px] text-rose-700 space-y-0.5">
+                  <ul className="list-disc pl-5 text-[11px] text-[#D70015] space-y-0.5">
                     {errors.map((err, i) => (
                       <li key={i}>{err}</li>
                     ))}
@@ -504,60 +505,60 @@ export function CsvImportModal({
               )}
 
               {/* View Mode Toggle: Preview vs Column Mappings */}
-              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2 pt-1">
-                <div className="inline-flex items-center bg-slate-100 p-1 rounded-full text-xs">
+              <div className="flex items-center justify-between border-b border-black/[0.06] pb-2 pt-1">
+                <div className="inline-flex items-center bg-[#F5F5F7] p-1 rounded-full text-xs border border-black/[0.06]">
                   <button
                     type="button"
                     onClick={() => setActiveTab("PREVIEW")}
-                    className={`px-3 py-1 rounded-full font-semibold transition flex items-center gap-1.5 ${
+                    className={`px-3 py-1 rounded-full font-medium transition flex items-center gap-1.5 ${
                       activeTab === "PREVIEW"
-                        ? "bg-white text-slate-900 shadow-2xs"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-white text-[#1D1D1F] shadow-apple-sm"
+                        : "text-[#6E6E73] hover:text-[#1D1D1F]"
                     }`}
                   >
                     <Table className="w-3.5 h-3.5" />
-                    <span>Normalized Orders Preview</span>
+                    <span>Normalized orders preview</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab("COLUMNS")}
-                    className={`px-3 py-1 rounded-full font-semibold transition flex items-center gap-1.5 ${
+                    className={`px-3 py-1 rounded-full font-medium transition flex items-center gap-1.5 ${
                       activeTab === "COLUMNS"
-                        ? "bg-white text-slate-900 shadow-2xs"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-white text-[#1D1D1F] shadow-apple-sm"
+                        : "text-[#6E6E73] hover:text-[#1D1D1F]"
                     }`}
                   >
                     <SlidersHorizontal className="w-3.5 h-3.5" />
-                    <span>Auto-Mapped Columns ({detection?.columnMappings.length})</span>
+                    <span>Auto-mapped columns ({detection?.columnMappings.length})</span>
                   </button>
                 </div>
-                <span className="text-[11px] text-slate-400">
-                  {activeTab === "PREVIEW" ? "Showing first 5 rows" : "Source ➔ MarginFlow Schema"}
+                <span className="text-[11px] text-[#86868B]">
+                  {activeTab === "PREVIEW" ? "Showing first 5 rows" : "Source ➔ MarginFlow schema"}
                 </span>
               </div>
 
               {/* Tab 1: Orders Preview */}
               {activeTab === "PREVIEW" && orders.length > 0 && (
-                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                <div className="border border-black/[0.06] rounded-2xl overflow-hidden shadow-apple-sm bg-white">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider">
+                    <thead className="bg-[#F5F5F7] text-[#6E6E73] border-b border-black/[0.06] text-[11px] font-medium">
                       <tr>
                         <th className="px-3 py-2.5">Platform</th>
                         <th className="px-3 py-2.5">Order ID</th>
-                        <th className="px-3 py-2.5">SKU &amp; Title</th>
+                        <th className="px-3 py-2.5">SKU &amp; title</th>
                         <th className="px-3 py-2.5 text-right">Qty</th>
-                        <th className="px-3 py-2.5 text-right">Selling Price</th>
-                        <th className="px-3 py-2.5 text-right">COGS (Unit)</th>
-                        <th className="px-3 py-2.5 text-right">Gross Total</th>
+                        <th className="px-3 py-2.5 text-right">Selling price</th>
+                        <th className="px-3 py-2.5 text-right">COGS (unit)</th>
+                        <th className="px-3 py-2.5 text-right">Gross total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-black/[0.04]">
                       {orders.slice(0, 5).map((ord, idx) => {
                         const badge = getMarketplaceBadge(ord.marketplace);
                         const it = ord.items[0];
                         const total = (it?.sellingPrice || 0) * (it?.quantity || 1);
                         return (
-                          <tr key={idx} className="hover:bg-slate-50/60">
+                          <tr key={idx} className="hover:bg-[#F5F5F7]/50">
                             <td className="px-3 py-2">
                               <span
                                 className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badge.pillClass}`}
@@ -565,27 +566,27 @@ export function CsvImportModal({
                                 {badge.label}
                               </span>
                             </td>
-                            <td className="px-3 py-2 font-mono font-semibold text-slate-900 text-[11px]">
+                            <td className="px-3 py-2 font-mono font-semibold text-[#1D1D1F] text-[11px]">
                               {ord.id}
                             </td>
                             <td className="px-3 py-2">
-                              <div className="font-mono font-medium text-slate-800 text-[11px]">
+                              <div className="font-mono font-medium text-[#1D1D1F] text-[11px]">
                                 {it?.sku}
                               </div>
-                              <div className="text-[10px] text-slate-400 truncate max-w-[150px]">
+                              <div className="text-[10px] text-[#86868B] truncate max-w-[150px]">
                                 {it?.productName}
                               </div>
                             </td>
-                            <td className="px-3 py-2 text-right font-mono text-slate-700">
+                            <td className="px-3 py-2 text-right font-medium text-[#1D1D1F] tabular-nums">
                               {it?.quantity}
                             </td>
-                            <td className="px-3 py-2 text-right font-mono text-slate-700">
+                            <td className="px-3 py-2 text-right font-medium text-[#1D1D1F] tabular-nums">
                               {formatINR(it?.sellingPrice || 0)}
                             </td>
-                            <td className="px-3 py-2 text-right font-mono text-slate-500">
+                            <td className="px-3 py-2 text-right font-medium text-[#86868B] tabular-nums">
                               {formatINR(it?.snapshotUnitCost || 0)}
                             </td>
-                            <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">
+                            <td className="px-3 py-2 text-right font-semibold text-[#1D1D1F] tabular-nums">
                               {formatINR(total)}
                             </td>
                           </tr>
@@ -598,33 +599,33 @@ export function CsvImportModal({
 
               {/* Tab 2: Column Mappings Breakdown */}
               {activeTab === "COLUMNS" && detection && (
-                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                <div className="border border-black/[0.06] rounded-2xl overflow-hidden shadow-apple-sm bg-white">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider">
+                    <thead className="bg-[#F5F5F7] text-[#6E6E73] border-b border-black/[0.06] text-[11px] font-medium">
                       <tr>
-                        <th className="px-3 py-2.5">Source Header</th>
-                        <th className="px-3 py-2.5">Target Field</th>
-                        <th className="px-3 py-2.5">Sample Value</th>
+                        <th className="px-3 py-2.5">Source header</th>
+                        <th className="px-3 py-2.5">Target field</th>
+                        <th className="px-3 py-2.5">Sample value</th>
                         <th className="px-3 py-2.5 text-right">Match</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-black/[0.04]">
                       {detection.columnMappings.map((col, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/60">
-                          <td className="px-3 py-2 font-mono text-slate-800 font-semibold">
+                        <tr key={idx} className="hover:bg-[#F5F5F7]/50">
+                          <td className="px-3 py-2 font-mono text-[#1D1D1F] font-semibold">
                             {col.sourceHeader}
                           </td>
                           <td className="px-3 py-2">
-                            <div className="flex items-center gap-1.5 text-purple-700 font-semibold">
-                              <ArrowRight className="w-3 h-3 text-slate-400" />
+                            <div className="flex items-center gap-1.5 text-[#0071E3] font-semibold">
+                              <ArrowRight className="w-3 h-3 text-[#86868B]" />
                               <span>{col.targetLabel}</span>
                             </div>
                           </td>
-                          <td className="px-3 py-2 text-slate-500 font-mono text-[11px] truncate max-w-xs">
+                          <td className="px-3 py-2 text-[#86868B] font-mono text-[11px] truncate max-w-xs">
                             {col.sampleValues[0] || "—"}
                           </td>
                           <td className="px-3 py-2 text-right">
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#288548] bg-[#288548]/10 px-2 py-0.5 rounded-full border border-[#288548]/20 tabular-nums">
                               <Check className="w-3 h-3" />
                               <span>{Math.round(col.confidence * 100)}%</span>
                             </span>
@@ -640,29 +641,29 @@ export function CsvImportModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between">
+        <div className="px-6 py-4 bg-[#FBFBFD] border-t border-black/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-500 font-medium">Download templates:</span>
+            <span className="text-[11px] text-[#86868B] font-medium">Download templates:</span>
             <button
               type="button"
               onClick={() => handleDownloadSample("AMAZON")}
-              className="text-xs text-purple-700 hover:text-purple-900 font-semibold hover:underline"
+              className="text-xs text-[#0071E3] hover:underline font-medium cursor-pointer"
             >
               Amazon
             </button>
-            <span className="text-slate-300">•</span>
+            <span className="text-black/20">•</span>
             <button
               type="button"
               onClick={() => handleDownloadSample("FLIPKART")}
-              className="text-xs text-purple-700 hover:text-purple-900 font-semibold hover:underline"
+              className="text-xs text-[#0071E3] hover:underline font-medium cursor-pointer"
             >
               Flipkart
             </button>
-            <span className="text-slate-300">•</span>
+            <span className="text-black/20">•</span>
             <button
               type="button"
               onClick={() => handleDownloadSample("MEESHO")}
-              className="text-xs text-purple-700 hover:text-purple-900 font-semibold hover:underline"
+              className="text-xs text-[#0071E3] hover:underline font-medium cursor-pointer"
             >
               Meesho
             </button>
@@ -672,7 +673,7 @@ export function CsvImportModal({
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+              className="px-4 py-2 bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] rounded-xl text-xs font-medium shadow-apple-sm btn-press transition cursor-pointer"
             >
               Cancel
             </button>
@@ -680,10 +681,10 @@ export function CsvImportModal({
               type="button"
               disabled={orders.length === 0}
               onClick={handleConfirmImport}
-              className="px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold shadow-md shadow-purple-600/20 transition flex items-center gap-1.5"
+              className="px-5 py-2 bg-[#1D1D1F] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-medium shadow-apple-sm btn-press transition flex items-center gap-1.5 cursor-pointer"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Import {orders.length} Verified Orders</span>
+              <span>Import {orders.length} verified orders</span>
             </button>
           </div>
         </div>

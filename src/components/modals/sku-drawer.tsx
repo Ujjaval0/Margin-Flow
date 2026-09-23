@@ -95,37 +95,38 @@ export function SkuDrawer({ skuData, onClose }: SkuDrawerProps) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 drawer-backdrop flex justify-end animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xs flex justify-end animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white h-full shadow-2xl flex flex-col p-6 overflow-y-auto animate-in slide-in-from-right duration-300"
+        className="w-full max-w-lg bg-white/95 backdrop-blur-xl h-full shadow-apple-lg border-l border-black/[0.08] flex flex-col p-6 overflow-y-auto animate-in slide-in-from-right duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drawer Header */}
-        <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+        <div className="flex items-start justify-between pb-4 border-b border-black/[0.06]">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                Unit Economics Inspection
+              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20">
+                Unit economics inspection
               </span>
               <span
-                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
                   skuData.profit >= 0
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    : "bg-rose-50 text-rose-700 border-rose-200"
+                    ? "bg-[#288548]/10 text-[#288548] border-[#288548]/20"
+                    : "bg-[#D70015]/10 text-[#D70015] border-[#D70015]/20"
                 }`}
               >
-                {skuData.profit >= 0 ? "Profitable" : "Loss-Making"}
+                {skuData.profit >= 0 ? "Profitable" : "Loss-making"}
               </span>
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mt-2 font-mono tracking-tight">{skuData.sku}</h3>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium leading-relaxed">{skuData.productName}</p>
+            <h3 className="text-xl font-bold text-[#1D1D1F] mt-2 font-mono tracking-tight">{skuData.sku}</h3>
+            <p className="text-xs text-[#86868B] mt-0.5 font-medium leading-relaxed">{skuData.productName}</p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition cursor-pointer shrink-0"
-            title="Close Drawer"
+            aria-label="Close drawer"
+            className="w-8 h-8 rounded-full bg-[#F5F5F7] hover:bg-[#E8E8ED] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer shrink-0"
+            title="Close drawer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -133,15 +134,15 @@ export function SkuDrawer({ skuData, onClose }: SkuDrawerProps) {
 
         {/* Quick Metrics Grid */}
         <div className="grid grid-cols-2 gap-3 my-5">
-          <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/70">
-            <span className="text-[11px] text-slate-400 font-medium">Net Revenue</span>
+          <div className="apple-card p-4 rounded-2xl shadow-apple-sm">
+            <span className="text-[11px] text-[#86868B] font-medium">Net revenue</span>
             <div className="text-lg font-bold text-[#1D1D1F] mt-0.5 tracking-tight tabular-nums">
               {formatINR(skuData.revenue)}
             </div>
-            <span className="text-[11px] text-slate-500 font-medium">{skuData.unitsSold} units sold</span>
+            <span className="text-[11px] text-[#86868B] font-medium tabular-nums">{skuData.unitsSold} units sold</span>
           </div>
-          <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/70">
-            <span className="text-[11px] text-slate-400 font-medium">Contribution Margin</span>
+          <div className="apple-card p-4 rounded-2xl shadow-apple-sm">
+            <span className="text-[11px] text-[#86868B] font-medium">Contribution margin</span>
             <div
               className={`text-lg font-bold mt-0.5 tracking-tight tabular-nums ${
                 skuData.profit >= 0 ? "text-[#288548]" : "text-[#D70015]"
@@ -149,41 +150,41 @@ export function SkuDrawer({ skuData, onClose }: SkuDrawerProps) {
             >
               {formatPercent(skuData.margin)}
             </div>
-            <span className="text-[11px] text-slate-500 font-medium">{formatINR(skuData.profit)} net</span>
+            <span className="text-[11px] text-[#86868B] font-medium tabular-nums">{formatINR(skuData.profit)} net</span>
           </div>
         </div>
 
         {/* Per-Unit Economics Step-Down Waterfall */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4.5 mb-5 shadow-xs">
-          <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3.5">
-            Unit Economics Breakdown (Per 1 Item)
+        <div className="apple-card rounded-2xl p-4.5 mb-5 shadow-apple-sm">
+          <h4 className="text-xs font-bold text-[#1D1D1F] tracking-tight mb-3.5">
+            Unit economics breakdown (per 1 item)
           </h4>
           <div className="space-y-3 text-xs">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <span className="text-slate-600 font-medium">Average Realized Unit Price</span>
-              <span className="font-semibold text-slate-900 font-mono tabular-nums">
+            <div className="flex items-center justify-between pb-2 border-b border-black/[0.06]">
+              <span className="text-[#6E6E73] font-medium">Average realized unit price</span>
+              <span className="font-semibold text-[#1D1D1F] tabular-nums">
                 {formatINR(realizedUnitPrice)}
               </span>
             </div>
-            <div className="flex items-center justify-between text-slate-600">
-              <span>− Unit Product Cost (COGS)</span>
-              <span className="font-mono text-slate-800 font-semibold tabular-nums">-{formatINR(unitCogs)}</span>
+            <div className="flex items-center justify-between text-[#6E6E73]">
+              <span>− Unit product cost (COGS)</span>
+              <span className="text-[#1D1D1F] font-semibold tabular-nums">-{formatINR(unitCogs)}</span>
             </div>
-            <div className="flex items-center justify-between text-slate-600">
-              <span>− Marketplace Fees &amp; Logistics</span>
-              <span className="font-mono text-rose-600 font-semibold tabular-nums">-{formatINR(unitMarketplace)}</span>
+            <div className="flex items-center justify-between text-[#6E6E73]">
+              <span>− Marketplace fees &amp; logistics</span>
+              <span className="text-[#D70015] font-semibold tabular-nums">-{formatINR(unitMarketplace)}</span>
             </div>
-            <div className="flex items-center justify-between text-slate-600">
-              <span>− Reverse Logistics &amp; Return Drag</span>
-              <span className="font-mono text-amber-600 font-semibold tabular-nums">
+            <div className="flex items-center justify-between text-[#6E6E73]">
+              <span>− Reverse logistics &amp; return drag</span>
+              <span className="text-[#B25E00] font-semibold tabular-nums">
                 {skuData.returnLosses > 0 ? `-${formatINR(unitReturnLoss)}` : "₹0"}
               </span>
             </div>
-            <div className="flex items-center justify-between pt-2.5 border-t border-slate-200">
-              <span className="text-slate-900 font-bold">Net Unit Contribution Profit</span>
+            <div className="flex items-center justify-between pt-2.5 border-t border-black/[0.06]">
+              <span className="text-[#1D1D1F] font-bold">Net unit contribution profit</span>
               <span
-                className={`font-mono text-sm font-bold tabular-nums ${
-                  skuData.profit >= 0 ? "text-emerald-700" : "text-rose-600"
+                className={`text-sm font-bold tabular-nums ${
+                  skuData.profit >= 0 ? "text-[#288548]" : "text-[#D70015]"
                 }`}
               >
                 {formatINR(unitProfit)}
@@ -194,41 +195,41 @@ export function SkuDrawer({ skuData, onClose }: SkuDrawerProps) {
 
         {/* Performance Indicators */}
         <div className="space-y-3 mb-6">
-          <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/60 flex items-center justify-between">
+          <div className="apple-card p-3.5 rounded-2xl shadow-apple-sm flex items-center justify-between">
             <div>
-              <div className="text-xs font-bold text-slate-800">POAS / Advertising Drag</div>
-              <div className="text-[11px] text-slate-500 mt-0.5 font-medium">
-                Ad Spend: {skuData.adSpend ? formatINR(skuData.adSpend) : "₹0"}
+              <div className="text-xs font-bold text-[#1D1D1F]">POAS / advertising drag</div>
+              <div className="text-[11px] text-[#86868B] mt-0.5 font-medium tabular-nums">
+                Ad spend: {skuData.adSpend ? formatINR(skuData.adSpend) : "₹0"}
               </div>
             </div>
             <div>
               {skuData.poas !== undefined ? (
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    skuData.poas >= 1.0 ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-amber-100 text-amber-800 border border-amber-200"
+                  className={`px-3 py-1 rounded-full text-xs font-semibold tabular-nums ${
+                    skuData.poas >= 1.0 ? "bg-[#288548]/10 text-[#288548] border border-[#288548]/20" : "bg-[#B25E00]/10 text-[#B25E00] border border-[#B25E00]/20"
                   }`}
                 >
                   {skuData.poas}x POAS
                 </span>
               ) : (
-                <span className="text-xs text-slate-400 font-medium">No Direct Ads</span>
+                <span className="text-xs text-[#86868B] font-medium">No direct ads</span>
               )}
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/60 flex items-center justify-between">
+          <div className="apple-card p-3.5 rounded-2xl shadow-apple-sm flex items-center justify-between">
             <div>
-              <div className="text-xs font-bold text-slate-800">Return &amp; RTO Rate</div>
-              <div className="text-[11px] text-slate-500 mt-0.5 font-medium">
-                Total Return Losses: {formatINR(skuData.returnLosses)}
+              <div className="text-xs font-bold text-[#1D1D1F]">Return &amp; RTO rate</div>
+              <div className="text-[11px] text-[#86868B] mt-0.5 font-medium tabular-nums">
+                Total return losses: {formatINR(skuData.returnLosses)}
               </div>
             </div>
             <div>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                className={`px-3 py-1 rounded-full text-xs font-semibold tabular-nums border ${
                   skuData.returnRate > 0.2
-                    ? "bg-rose-50 text-rose-700 border-rose-200"
-                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    ? "bg-[#D70015]/10 text-[#D70015] border-[#D70015]/20"
+                    : "bg-[#288548]/10 text-[#288548] border-[#288548]/20"
                 }`}
               >
                 {formatPercent(skuData.returnRate)}
@@ -238,32 +239,32 @@ export function SkuDrawer({ skuData, onClose }: SkuDrawerProps) {
         </div>
 
         {/* Action Footer */}
-        <div className="mt-auto pt-4 border-t border-slate-100 flex gap-2.5">
+        <div className="mt-auto pt-4 border-t border-black/[0.06] flex gap-2.5">
           <button
             type="button"
             onClick={handleCopySummary}
-            className={`flex-1 py-2.5 px-4 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99] ${
+            className={`flex-1 py-2.5 px-4 text-xs font-medium rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-apple-sm btn-press ${
               copied
-                ? "bg-emerald-50 border border-emerald-300 text-emerald-800 shadow-xs"
-                : "bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-200/70"
+                ? "bg-[#288548]/10 border border-[#288548]/20 text-[#288548]"
+                : "bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06]"
             }`}
           >
             {copied ? (
               <>
-                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Copied to Clipboard!</span>
+                <Check className="w-4 h-4 text-[#288548] shrink-0" />
+                <span>Copied to clipboard</span>
               </>
             ) : (
               <>
-                <Copy className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                <span>Copy SKU Summary</span>
+                <Copy className="w-3.5 h-3.5 text-[#6E6E73] shrink-0" />
+                <span>Copy SKU summary</span>
               </>
             )}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="py-2.5 px-6 bg-slate-900 hover:bg-black active:scale-[0.99] text-white text-xs font-semibold rounded-xl transition shadow-xs cursor-pointer"
+            className="py-2.5 px-6 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-xl transition shadow-apple-sm btn-press cursor-pointer"
           >
             Close
           </button>

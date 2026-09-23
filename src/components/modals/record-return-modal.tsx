@@ -99,46 +99,47 @@ export function RecordReturnModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 flex flex-col gap-4 animate-in zoom-in-95 duration-200"
+        className="apple-card w-full max-w-lg rounded-3xl shadow-apple-lg border border-black/[0.08] p-6 flex flex-col gap-4 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+        <div className="flex items-start justify-between pb-3 border-b border-black/[0.06]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20 flex items-center justify-center">
               <RotateCcw className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Record Return / RTO</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="text-base font-semibold text-[#1D1D1F]">Record return / RTO</h3>
+              <p className="text-xs text-[#86868B]">
                 Log reverse logistics shipping, parcel rejection, or damaged items.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"
+            aria-label="Close record return dialog"
+            className="w-8 h-8 rounded-full bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#86868B] hover:text-[#1D1D1F] flex items-center justify-center transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {returnError && (
-          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+          <div className="p-3 rounded-xl bg-[#D70015]/10 border border-[#D70015]/20 text-[#D70015] text-xs font-medium">
             {returnError}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">Target Order</label>
+            <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Target order</label>
             <select
               value={returnOrderId}
               onChange={(e) => setReturnOrderId(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+              className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black"
             >
               {orders.map((o) => (
                 <option key={o.id} value={o.id}>
@@ -150,11 +151,11 @@ export function RecordReturnModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Return Nature</label>
+              <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Return nature</label>
               <select
                 value={returnType}
                 onChange={(e) => setReturnType(e.target.value as ReturnType)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+                className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black"
               >
                 <option value="CUSTOMER_RETURN">Customer Return (Delivered &amp; Returned)</option>
                 <option value="RTO">RTO (Courier Reject / Undelivered)</option>
@@ -162,11 +163,11 @@ export function RecordReturnModal({
               </select>
             </div>
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Physical Condition</label>
+              <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Physical condition</label>
               <select
                 value={returnCondition}
                 onChange={(e) => setReturnCondition(e.target.value as ProductCondition)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+                className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black"
               >
                 <option value="SELLABLE">Sellable (Undamaged / Restockable)</option>
                 <option value="DAMAGED">Damaged (Requires SAFE-T Dispute)</option>
@@ -177,80 +178,80 @@ export function RecordReturnModal({
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Return Qty</label>
+              <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Return qty</label>
               <input
                 type="number"
                 min="1"
                 value={returnQty}
                 onChange={(e) => setReturnQty(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
+                className="w-full p-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs font-mono text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black tabular-nums"
               />
             </div>
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Freight (₹)</label>
+              <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Freight (₹)</label>
               <input
                 type="number"
                 min="0"
                 value={returnShipping}
                 onChange={(e) => setReturnShipping(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
+                className="w-full p-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs font-mono text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black tabular-nums"
               />
             </div>
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Return Fee (₹)</label>
+              <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Return fee (₹)</label>
               <input
                 type="number"
                 min="0"
                 disabled={returnType === "RTO"}
                 value={returnType === "RTO" ? 0 : customerReturnFee}
                 onChange={(e) => setCustomerReturnFee(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full p-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs font-mono text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-40 disabled:cursor-not-allowed tabular-nums"
                 title={returnType === "RTO" ? "No customer return fee for RTO orders" : undefined}
               />
             </div>
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Scrap (₹)</label>
+              <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Scrap (₹)</label>
               <input
                 type="number"
                 min="0"
                 value={returnRecovery}
                 onChange={(e) => setReturnRecovery(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500"
+                className="w-full p-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs font-mono text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black tabular-nums"
               />
             </div>
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">Reason / Notes</label>
+            <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Reason / notes</label>
             <input
               type="text"
               placeholder="e.g. Customer rejected at doorstep / wrong item sent"
               value={returnReason}
               onChange={(e) => setReturnReason(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+              className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black"
             />
           </div>
 
           {returnCondition === "DAMAGED" && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
-              <span className="font-bold block">Automatic Claim Guard:</span>
+            <div className="p-3 bg-[#B25E00]/10 border border-[#B25E00]/20 rounded-xl text-[#B25E00] text-xs font-medium">
+              <span className="font-semibold block">Automatic claim guard:</span>
               Marking as damaged will automatically file a dispute claim entry in the Claims Ledger to recover loss.
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/[0.06]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition"
+              className="px-4 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] font-medium text-xs shadow-apple-sm btn-press transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold transition shadow-xs"
+              className="px-5 py-2 rounded-xl bg-[#1D1D1F] hover:bg-black text-white font-medium text-xs shadow-apple-sm btn-press transition cursor-pointer"
             >
-              Log Return
+              Log return
             </button>
           </div>
         </form>

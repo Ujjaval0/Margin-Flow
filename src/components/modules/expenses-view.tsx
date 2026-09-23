@@ -132,7 +132,7 @@ export function ExpensesView() {
                 }
               }}
               aria-label="Select all"
-              className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600"
+              className="w-4 h-4 rounded border-black/[0.15] text-[#1D1D1F] focus:ring-[#0071E3]/20 cursor-pointer accent-[#1D1D1F]"
             />
           </div>
         ),
@@ -150,8 +150,8 @@ export function ExpensesView() {
                     prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
                   );
                 }}
-                aria-label="Select row"
-                className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600"
+                aria-label={`Select expense ${row.original.description}`}
+                className="w-4 h-4 rounded border-black/[0.15] text-[#1D1D1F] focus:ring-[#0071E3]/20 cursor-pointer accent-[#1D1D1F]"
               />
             </div>
           );
@@ -222,6 +222,7 @@ export function ExpensesView() {
             <button
               type="button"
               onClick={() => handleOpenEdit(row.original)}
+              aria-label={`Edit expense ${row.original.description}`}
               title="Edit Expense"
               className="w-7 h-7 rounded-full hover:bg-black/[0.05] text-[#6E6E73] hover:text-[#1D1D1F] flex items-center justify-center transition cursor-pointer"
             >
@@ -230,8 +231,9 @@ export function ExpensesView() {
             <button
               type="button"
               onClick={() => setExpenseToDelete(row.original)}
+              aria-label={`Delete expense ${row.original.description}`}
               title="Delete Expense"
-              className="w-7 h-7 rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer"
+              className="w-7 h-7 rounded-full hover:bg-rose-50 text-[#86868B] hover:text-[#D70015] flex items-center justify-center transition cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -258,11 +260,12 @@ export function ExpensesView() {
         <div className="flex items-center gap-3">
           <div className="text-right">
             <span className="text-[11px] text-[#86868B] block">Total OPEX</span>
-            <span className="text-base font-semibold text-[#1D1D1F]">{formatINR(totalOpex)}</span>
+            <span className="text-base font-semibold text-[#1D1D1F] tabular-nums tracking-tight">{formatINR(totalOpex)}</span>
           </div>
           <button
+            type="button"
             onClick={() => setIsAddExpenseOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-apple-sm btn-press transition cursor-pointer shrink-0"
           >
             <Plus className="w-3.5 h-3.5" strokeWidth={2} />
             <span>Record Expense</span>
@@ -272,18 +275,18 @@ export function ExpensesView() {
 
       {/* Floating / Sticky Bulk Actions Bar */}
       {selectedExpenseIds.length > 0 && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-3 sm:px-4 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200 shadow-sm">
+        <div className="apple-card border border-rose-500/20 bg-rose-500/[0.04] rounded-2xl p-3 sm:px-4 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200 shadow-apple-md">
           <div className="flex items-center gap-3">
-            <span className="w-6 h-6 rounded-lg bg-slate-900 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+            <span className="w-6 h-6 rounded-lg bg-[#1D1D1F] text-white font-bold text-xs flex items-center justify-center shadow-apple-sm">
               {selectedExpenseIds.length}
             </span>
-            <span className="text-xs font-bold text-slate-900">
+            <span className="text-xs font-semibold text-[#1D1D1F]">
               {selectedExpenseIds.length} expense{selectedExpenseIds.length > 1 ? "s" : ""} selected
             </span>
             <button
               type="button"
               onClick={() => setSelectedExpenseIds([])}
-              className="text-[11px] text-slate-500 hover:text-slate-900 underline font-medium ml-1 transition-colors cursor-pointer"
+              className="text-[11px] text-[#86868B] hover:text-[#1D1D1F] underline font-medium ml-1 transition-colors cursor-pointer"
             >
               Clear selection
             </button>
@@ -292,7 +295,7 @@ export function ExpensesView() {
             <button
               type="button"
               onClick={() => setIsBulkDeleteConfirmOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 transition shadow-xs cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#D70015] hover:bg-[#c00013] text-white text-xs font-semibold shadow-apple-sm btn-press transition cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Delete Selected ({selectedExpenseIds.length})</span>
@@ -310,13 +313,15 @@ export function ExpensesView() {
 
       {/* Add Expense Modal */}
       {isAddExpenseOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
             <div className="px-6 py-4 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
               <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">Record Operating Overhead</h2>
               <button
+                type="button"
                 onClick={() => setIsAddExpenseOpen(false)}
-                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors"
+                aria-label="Close dialog"
+                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -328,7 +333,7 @@ export function ExpensesView() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   >
                     {categories.map((c) => (
                       <option key={c} value={c}>
@@ -344,7 +349,7 @@ export function ExpensesView() {
                     min="1"
                     value={amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl font-mono text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] tabular-nums focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                     required
                   />
                 </div>
@@ -357,7 +362,7 @@ export function ExpensesView() {
                   placeholder="e.g. Meta Ads & Retargeting"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   required
                 />
               </div>
@@ -370,7 +375,7 @@ export function ExpensesView() {
                     placeholder="Vendor Name"
                     value={vendor}
                     onChange={(e) => setVendor(e.target.value)}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                     required
                   />
                 </div>
@@ -379,7 +384,7 @@ export function ExpensesView() {
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value as any)}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   >
                     <option value="BANK_TRANSFER">Bank Transfer</option>
                     <option value="CREDIT_CARD">Credit Card</option>
@@ -395,9 +400,9 @@ export function ExpensesView() {
                   id="recurring"
                   checked={isRecurring}
                   onChange={(e) => setIsRecurring(e.target.checked)}
-                  className="rounded border-black/[0.1]"
+                  className="w-4 h-4 rounded border-black/[0.15] text-[#1D1D1F] focus:ring-[#0071E3]/20 cursor-pointer accent-[#1D1D1F]"
                 />
-                <label htmlFor="recurring" className="text-[#6E6E73]">
+                <label htmlFor="recurring" className="text-xs text-[#6E6E73] cursor-pointer">
                   Recurring Monthly Expense
                 </label>
               </div>
@@ -407,14 +412,14 @@ export function ExpensesView() {
               <button
                 type="button"
                 onClick={() => setIsAddExpenseOpen(false)}
-                className="px-4 py-2 rounded-xl text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition-colors"
+                className="px-4 py-2 rounded-xl text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 form="add-expense-form"
-                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-colors"
+                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-apple-sm btn-press transition-colors cursor-pointer"
               >
                 Save Expense
               </button>
@@ -425,8 +430,8 @@ export function ExpensesView() {
 
       {/* Edit Expense Modal */}
       {editingExpense && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
             <div className="px-6 py-4 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
               <div className="flex items-center gap-2">
                 <span className="w-7 h-7 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center">
@@ -440,7 +445,9 @@ export function ExpensesView() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setEditingExpense(null)}
+                aria-label="Close dialog"
                 className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -458,7 +465,7 @@ export function ExpensesView() {
                     type="date"
                     value={editDate}
                     onChange={(e) => setEditDate(e.target.value)}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                     required
                   />
                 </div>
@@ -467,7 +474,7 @@ export function ExpensesView() {
                   <select
                     value={editCategory}
                     onChange={(e) => setEditCategory(e.target.value as ExpenseCategory)}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none cursor-pointer"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 cursor-pointer"
                   >
                     {categories.map((c) => (
                       <option key={c} value={c}>
@@ -486,7 +493,7 @@ export function ExpensesView() {
                   step="any"
                   value={editAmount}
                   onChange={(e) => setEditAmount(Number(e.target.value))}
-                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl font-mono text-xs focus:outline-none"
+                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] tabular-nums focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   required
                 />
               </div>
@@ -498,7 +505,7 @@ export function ExpensesView() {
                   placeholder="e.g. Meta Ads & Retargeting"
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
-                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                  className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   required
                 />
               </div>
@@ -511,7 +518,7 @@ export function ExpensesView() {
                     placeholder="Vendor Name"
                     value={editVendor}
                     onChange={(e) => setEditVendor(e.target.value)}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                     required
                   />
                 </div>
@@ -520,7 +527,7 @@ export function ExpensesView() {
                   <select
                     value={editPaymentMethod}
                     onChange={(e) => setEditPaymentMethod(e.target.value as any)}
-                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none cursor-pointer"
+                    className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 cursor-pointer"
                   >
                     <option value="BANK_TRANSFER">Bank Transfer</option>
                     <option value="CREDIT_CARD">Credit Card</option>
@@ -536,9 +543,9 @@ export function ExpensesView() {
                   id="edit-recurring"
                   checked={editIsRecurring}
                   onChange={(e) => setEditIsRecurring(e.target.checked)}
-                  className="rounded border-black/[0.1] cursor-pointer"
+                  className="w-4 h-4 rounded border-black/[0.15] text-[#1D1D1F] focus:ring-[#0071E3]/20 cursor-pointer accent-[#1D1D1F]"
                 />
-                <label htmlFor="edit-recurring" className="text-[#6E6E73] cursor-pointer">
+                <label htmlFor="edit-recurring" className="text-xs text-[#6E6E73] cursor-pointer">
                   Recurring Monthly Expense
                 </label>
               </div>
@@ -555,7 +562,7 @@ export function ExpensesView() {
               <button
                 type="submit"
                 form="edit-expense-form"
-                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-colors cursor-pointer"
+                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-apple-sm btn-press transition-colors cursor-pointer"
               >
                 Update Expense
               </button>
@@ -566,32 +573,32 @@ export function ExpensesView() {
 
       {/* Single Delete Confirmation Modal */}
       {expenseToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-5 space-y-4 animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-150">
+          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 text-[#D70015] flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Delete Operating Expense</h3>
-                <p className="text-[11px] text-slate-500">This action cannot be undone.</p>
+                <h3 className="text-sm font-semibold text-[#1D1D1F]">Delete Operating Expense</h3>
+                <p className="text-[11px] text-[#86868B]">This action cannot be undone.</p>
               </div>
             </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Are you sure you want to delete <strong className="text-slate-900">{expenseToDelete.description}</strong> ({formatINR(expenseToDelete.amount)})?
+            <p className="text-xs text-[#6E6E73] leading-relaxed">
+              Are you sure you want to delete <strong className="text-[#1D1D1F]">{expenseToDelete.description}</strong> ({formatINR(expenseToDelete.amount)})?
             </p>
-            <div className="flex justify-end gap-2 pt-1">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setExpenseToDelete(null)}
-                className="px-3.5 py-1.5 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-medium transition cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmSingleDelete}
-                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+                className="px-4 py-1.5 rounded-xl bg-[#D70015] hover:bg-[#c00013] text-white text-xs font-semibold shadow-apple-sm btn-press transition cursor-pointer"
               >
                 Delete Expense
               </button>
@@ -602,32 +609,32 @@ export function ExpensesView() {
 
       {/* Bulk Delete Confirmation Modal */}
       {isBulkDeleteConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-5 space-y-4 animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-150">
+          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 text-[#D70015] flex items-center justify-center shrink-0">
                 <Trash2 className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Delete {selectedExpenseIds.length} Expenses</h3>
-                <p className="text-[11px] text-slate-500">Batch deletion confirmation.</p>
+                <h3 className="text-sm font-semibold text-[#1D1D1F]">Delete {selectedExpenseIds.length} Expenses</h3>
+                <p className="text-[11px] text-[#86868B]">Batch deletion confirmation.</p>
               </div>
             </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Are you sure you want to delete all <strong className="text-slate-900">{selectedExpenseIds.length} selected expenses</strong>? This will permanently remove them from the ledger and adjust the Total OPEX.
+            <p className="text-xs text-[#6E6E73] leading-relaxed">
+              Are you sure you want to delete all <strong className="text-[#1D1D1F]">{selectedExpenseIds.length} selected expenses</strong>? This will permanently remove them from the ledger and adjust the Total OPEX.
             </p>
-            <div className="flex justify-end gap-2 pt-1">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setIsBulkDeleteConfirmOpen(false)}
-                className="px-3.5 py-1.5 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-medium transition cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl text-[#6E6E73] hover:bg-black/[0.04] text-xs font-medium transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmBulkDelete}
-                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+                className="px-4 py-1.5 rounded-xl bg-[#D70015] hover:bg-[#c00013] text-white text-xs font-semibold shadow-apple-sm btn-press transition cursor-pointer"
               >
                 Delete All Selected
               </button>

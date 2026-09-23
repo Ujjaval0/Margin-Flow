@@ -283,10 +283,11 @@ export function SuppliersView() {
         </div>
 
         <button
+          type="button"
           onClick={() => setIsAddOpen(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full text-xs font-semibold shadow-sm shadow-purple-600/20 transition shrink-0 cursor-pointer"
+          className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white rounded-full text-xs font-medium shadow-apple-sm btn-press transition shrink-0 cursor-pointer"
         >
-          <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+          <Plus className="w-3.5 h-3.5" strokeWidth={2} />
           <span>Add New Supplier</span>
         </button>
       </div>
@@ -296,55 +297,55 @@ export function SuppliersView() {
       {/* --------------------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card 1: Total Sourced Order COGS */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 flex items-center justify-between">
+        <div className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-              TOTAL SOURCED ORDER COGS
+            <span className="text-xs font-medium text-[#86868B] block">
+              Total sourced order COGS
             </span>
             <div className="text-2xl font-semibold text-[#1D1D1F] tracking-tight tabular-nums">
               {formatINR(aggregateMetrics.totalCogs)}
             </div>
-            <span className="text-[11px] text-slate-400 block">
+            <span className="text-[11px] text-[#86868B] block">
               Goods sourced across all catalog orders
             </span>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-200 text-purple-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-black/[0.04] text-[#1D1D1F] flex items-center justify-center shrink-0">
             <Coins className="w-5 h-5" />
           </div>
         </div>
 
         {/* Card 2: Total Balance Paid To Suppliers */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 flex items-center justify-between">
+        <div className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-              TOTAL BALANCE PAID TO SUPPLIERS
+            <span className="text-xs font-medium text-[#86868B] block">
+              Total balance paid to suppliers
             </span>
             <div className="text-2xl font-semibold text-[#288548] tracking-tight tabular-nums">
               {formatINR(aggregateMetrics.totalPaid)}
             </div>
-            <span className="text-[11px] text-slate-400 block">
+            <span className="text-[11px] text-[#86868B] block">
               Reconciled bank & vendor payout settlements
             </span>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-800 flex items-center justify-center shrink-0">
             <CheckCircle2 className="w-5 h-5" />
           </div>
         </div>
 
         {/* Card 3: Outstanding Payable Owed */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 flex items-center justify-between">
+        <div className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-              OUTSTANDING PAYABLE OWED
+            <span className="text-xs font-medium text-[#86868B] block">
+              Outstanding payable owed
             </span>
-            <div className="text-2xl font-semibold text-amber-600 tracking-tight tabular-nums">
+            <div className="text-2xl font-semibold text-[#B25E00] tracking-tight tabular-nums">
               {formatINR(aggregateMetrics.totalOutstanding)}
             </div>
-            <span className="text-[11px] text-slate-400 block">
+            <span className="text-[11px] text-[#86868B] block">
               Unsettled supplier invoices and credit terms
             </span>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-800 flex items-center justify-center shrink-0">
             <Clock className="w-5 h-5" />
           </div>
         </div>
@@ -355,18 +356,19 @@ export function SuppliersView() {
       {/* --------------------------------------------------------------------------------- */}
       {suppliers.length === 0 ? (
         /* Empty State matching image features */
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-14 text-center">
+        <div className="apple-card rounded-2xl border border-black/[0.06] shadow-apple-md p-14 text-center">
           <div className="flex flex-col items-center justify-center gap-3 max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-3xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
-              <Coins className="w-8 h-8 text-purple-600" />
+            <div className="w-16 h-16 rounded-3xl bg-black/[0.04] flex items-center justify-center text-[#1D1D1F]">
+              <Coins className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">No wholesale suppliers added</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <h3 className="text-lg font-semibold text-[#1D1D1F]">No wholesale suppliers added</h3>
+            <p className="text-xs text-[#86868B] leading-relaxed">
               Configure your product suppliers to connect wholesale purchasing COGS details, track payable terms, and record bank payouts.
             </p>
             <button
+              type="button"
               onClick={() => setIsAddOpen(true)}
-              className="mt-2 flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-full shadow-sm shadow-purple-600/20 transition"
+              className="mt-2 flex items-center gap-2 px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-apple-sm btn-press transition"
             >
               <Plus className="w-4 h-4" />
               <span>Add Your First Supplier</span>
@@ -375,31 +377,33 @@ export function SuppliersView() {
         </div>
       ) : (
         /* Suppliers Ledger Container */
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden space-y-4 p-5">
+        <div className="apple-card rounded-2xl border border-black/[0.06] shadow-apple-md overflow-hidden space-y-4 p-5">
           {/* Controls & Search Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-[#86868B] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by supplier name, contact, phone, or GSTIN..."
-                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-purple-500 transition shadow-xs"
+                className="w-full pl-9 pr-8 py-2 bg-[#FAFAFC] border border-black/[0.06] rounded-full text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:bg-white focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition shadow-apple-sm"
               />
               {searchQuery && (
                 <button
+                  type="button"
+                  aria-label="Clear search query"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs w-4 h-4 rounded-full flex items-center justify-center"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#86868B] hover:text-[#1D1D1F] text-xs w-4 h-4 rounded-full flex items-center justify-center cursor-pointer"
                 >
                   ✕
                 </button>
               )}
             </div>
 
-            <div className="text-xs text-slate-500 font-medium">
-              Showing <strong className="text-slate-800">{filteredSuppliers.length}</strong> of{" "}
-              <strong className="text-slate-800">{suppliers.length}</strong> active vendors
+            <div className="text-xs text-[#86868B] font-medium">
+              Showing <strong className="text-[#1D1D1F]">{filteredSuppliers.length}</strong> of{" "}
+              <strong className="text-[#1D1D1F]">{suppliers.length}</strong> active vendors
             </div>
           </div>
 
@@ -407,21 +411,21 @@ export function SuppliersView() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3.5 px-4 font-semibold">SUPPLIER & ID</th>
-                  <th className="py-3.5 px-4 font-semibold">CONTACT & LOCATION</th>
-                  <th className="py-3.5 px-4 font-semibold">PAYMENT TERMS</th>
-                  <th className="py-3.5 px-4 font-semibold">SOURCED GOODS (COGS)</th>
-                  <th className="py-3.5 px-4 font-semibold">PAID TILL DATE</th>
-                  <th className="py-3.5 px-4 font-semibold">OUTSTANDING PAYABLE</th>
-                  <th className="py-3.5 px-4 font-semibold text-center">ACTIONS</th>
+                <tr className="bg-[#FAFAFC] border-b border-black/[0.06] text-[11px] font-medium text-[#86868B]">
+                  <th className="py-3 px-4">Supplier & ID</th>
+                  <th className="py-3 px-4">Contact & location</th>
+                  <th className="py-3 px-4">Payment terms</th>
+                  <th className="py-3 px-4">Sourced goods (COGS)</th>
+                  <th className="py-3 px-4">Paid till date</th>
+                  <th className="py-3 px-4">Outstanding payable</th>
+                  <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100 text-xs">
+              <tbody className="divide-y divide-black/[0.04] text-xs">
                 {filteredSuppliers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-500">
+                    <td colSpan={7} className="py-12 text-center text-[#86868B]">
                       No suppliers matching &quot;{searchQuery}&quot; found.
                     </td>
                   </tr>
@@ -436,21 +440,21 @@ export function SuppliersView() {
                     return (
                       <tr
                         key={sup.id}
-                        className="hover:bg-slate-50/70 transition-colors duration-150 text-slate-800 group"
+                        className="hover:bg-black/[0.01] transition-colors duration-150 text-[#1D1D1F] group"
                       >
                         {/* 1. SUPPLIER & ID */}
                         <td className="py-3.5 px-4 align-middle">
                           <div>
-                            <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                              <Building2 className="w-3.5 h-3.5 text-purple-600" />
+                            <div className="font-semibold text-[#1D1D1F] text-xs flex items-center gap-1.5">
+                              <Building2 className="w-3.5 h-3.5 text-[#1D1D1F]" />
                               <span>{sup.name}</span>
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded">
+                              <span className="font-mono text-[10px] text-[#86868B] bg-black/[0.04] px-1.5 py-0.2 rounded">
                                 {sup.id}
                               </span>
                               {sup.gstin && (
-                                <span className="font-mono text-[10px] text-slate-500 truncate max-w-[140px]" title={sup.gstin}>
+                                <span className="font-mono text-[10px] text-[#86868B] truncate max-w-[140px]" title={sup.gstin}>
                                   GST: {sup.gstin}
                                 </span>
                               )}
@@ -461,15 +465,15 @@ export function SuppliersView() {
                         {/* 2. CONTACT & LOCATION */}
                         <td className="py-3.5 px-4 align-middle">
                           <div className="space-y-0.5 text-[11px]">
-                            <div className="font-semibold text-slate-800">
+                            <div className="font-medium text-[#1D1D1F]">
                               {sup.contactPerson || "Primary Contact"}
                             </div>
-                            <div className="text-slate-500 flex items-center gap-2">
+                            <div className="text-[#86868B] flex items-center gap-2">
                               {sup.phone && <span>{sup.phone}</span>}
                               {sup.email && <span>• {sup.email}</span>}
                             </div>
                             {sup.address && (
-                              <div className="text-slate-400 text-[10px] truncate max-w-[200px]" title={sup.address}>
+                              <div className="text-[#86868B] text-[10px] truncate max-w-[200px]" title={sup.address}>
                                 {sup.address}
                               </div>
                             )}
@@ -478,11 +482,11 @@ export function SuppliersView() {
 
                         {/* 3. PAYMENT TERMS */}
                         <td className="py-3.5 px-4 align-middle">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20">
                             {sup.paymentTerms || "Net 30"}
                           </span>
                           {sup.bankAccount && (
-                            <div className="text-[10px] text-slate-400 font-mono mt-1 truncate max-w-[150px]" title={sup.bankAccount}>
+                            <div className="text-[10px] text-[#86868B] font-mono mt-1 truncate max-w-[150px]" title={sup.bankAccount}>
                               {sup.bankAccount}
                             </div>
                           )}
@@ -503,14 +507,14 @@ export function SuppliersView() {
                           <div className="space-y-0.5">
                             <span
                               className={`text-sm font-semibold tracking-tight tabular-nums block ${
-                                fin.outstanding > 0 ? "text-amber-600" : "text-[#288548]"
+                                fin.outstanding > 0 ? "text-[#B25E00]" : "text-[#288548]"
                               }`}
                             >
                               {formatINR(fin.outstanding)}
                             </span>
                             <span
                               className={`block text-[10px] font-medium ${
-                                fin.outstanding > 0 ? "text-amber-600" : "text-[#288548]"
+                                fin.outstanding > 0 ? "text-[#B25E00]" : "text-[#288548]"
                               }`}
                             >
                               {fin.outstanding > 0 ? "Pending Payout" : "Settled in Full"}
@@ -525,8 +529,9 @@ export function SuppliersView() {
                             <button
                               type="button"
                               onClick={() => handleOpenPayout(sup)}
+                              aria-label={`Record payout to ${sup.name}`}
                               title="Record Payout / Payment"
-                              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold text-xs transition flex items-center gap-1 shadow-xs"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#288548] border border-emerald-200/60 font-medium text-xs transition flex items-center gap-1 shadow-apple-sm btn-press cursor-pointer"
                             >
                               <CreditCard className="w-3 h-3" />
                               <span>Pay</span>
@@ -536,8 +541,9 @@ export function SuppliersView() {
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(sup)}
+                              aria-label={`Edit ${sup.name}`}
                               title="Edit Supplier Details"
-                              className="p-1.5 rounded-lg bg-slate-50 hover:bg-purple-50 text-slate-600 hover:text-purple-700 border border-slate-200 hover:border-purple-300 transition shadow-xs"
+                              className="p-1.5 rounded-lg text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.05] transition cursor-pointer"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
@@ -546,8 +552,9 @@ export function SuppliersView() {
                             <button
                               type="button"
                               onClick={() => setSupplierToDelete(sup)}
+                              aria-label={`Delete ${sup.name}`}
                               title="Delete Supplier"
-                              className="p-1.5 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 hover:border-rose-300 transition shadow-xs"
+                              className="p-1.5 rounded-lg text-[#86868B] hover:text-[#D70015] hover:bg-rose-50 transition cursor-pointer"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -588,22 +595,23 @@ export function SuppliersView() {
       {/* RECORD PAYOUT / PAYMENT MODAL                                                     */}
       {/* --------------------------------------------------------------------------------- */}
       {payoutSupplier && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-150">
+          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-black/[0.05]">
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-800 flex items-center justify-center">
                   <CreditCard className="w-4 h-4" />
                 </span>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Record Vendor Payout</h3>
-                  <span className="text-[11px] text-slate-500">{payoutSupplier.name}</span>
+                  <h3 className="text-base font-semibold text-[#1D1D1F] tracking-tight">Record Vendor Payout</h3>
+                  <span className="text-xs text-[#86868B]">{payoutSupplier.name}</span>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setPayoutSupplier(null)}
-                className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition"
+                aria-label="Close dialog"
+                className="w-8 h-8 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -611,8 +619,8 @@ export function SuppliersView() {
 
             <form onSubmit={handlePayoutSubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  PAYOUT AMOUNT (₹) *
+                <label className="font-medium text-[#6E6E73] block mb-1">
+                  Payout Amount (₹) *
                 </label>
                 <input
                   type="number"
@@ -621,32 +629,32 @@ export function SuppliersView() {
                   value={payoutAmount}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => setPayoutAmount(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-base font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-3 py-2 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-sm font-semibold text-[#1D1D1F] tabular-nums focus:bg-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    PAYMENT DATE
+                  <label className="font-medium text-[#6E6E73] block mb-1">
+                    Payment Date
                   </label>
                   <input
                     type="date"
                     value={payoutDate}
                     onChange={(e) => setPayoutDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500 font-mono"
+                    className="w-full px-3 py-2 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    METHOD
+                  <label className="font-medium text-[#6E6E73] block mb-1">
+                    Method
                   </label>
                   <select
                     value={payoutMethod}
                     onChange={(e) => setPayoutMethod(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-purple-500"
+                    className="w-full px-3 py-2 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 cursor-pointer"
                   >
                     <option value="Bank Transfer (NEFT/RTGS)">Bank Transfer (NEFT)</option>
                     <option value="UPI / QR">UPI</option>
@@ -657,43 +665,43 @@ export function SuppliersView() {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  BANK TRANSACTION / UTR REFERENCE #
+                <label className="font-medium text-[#6E6E73] block mb-1">
+                  Bank Transaction / UTR Reference #
                 </label>
                 <input
                   type="text"
                   value={payoutRef}
                   onChange={(e) => setPayoutRef(e.target.value)}
                   placeholder="e.g. UTR-982173921"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-3 py-2 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  REMARKS / NOTES
+                <label className="font-medium text-[#6E6E73] block mb-1">
+                  Remarks / Notes
                 </label>
                 <input
                   type="text"
                   value={payoutNotes}
                   onChange={(e) => setPayoutNotes(e.target.value)}
                   placeholder="Invoice settlement batch reference..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-3 py-2 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-black/[0.05]">
                 <button
                   type="button"
                   onClick={() => setPayoutSupplier(null)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+                  className="px-4 py-2 text-[#6E6E73] hover:bg-black/[0.04] rounded-xl text-xs font-medium transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-emerald-600/20 transition flex items-center gap-1.5"
+                  className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-apple-sm btn-press transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>Confirm Payout</span>
@@ -708,34 +716,34 @@ export function SuppliersView() {
       {/* DELETE CONFIRMATION MODAL                                                         */}
       {/* --------------------------------------------------------------------------------- */}
       {supplierToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-150">
+          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-[#D70015] flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900">Delete Supplier?</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Supplier: <strong className="font-semibold text-slate-800">{supplierToDelete.name}</strong></p>
+                <h3 className="text-base font-semibold text-[#1D1D1F]">Delete Supplier?</h3>
+                <p className="text-xs text-[#86868B] mt-0.5">Supplier: <strong className="font-semibold text-[#1D1D1F]">{supplierToDelete.name}</strong></p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Are you sure you want to permanently remove <strong className="text-slate-900">{supplierToDelete.name}</strong> from your supplier directory? This action cannot be undone.
+            <p className="text-xs text-[#6E6E73] leading-relaxed">
+              Are you sure you want to permanently remove <strong className="text-[#1D1D1F]">{supplierToDelete.name}</strong> from your supplier directory? This action cannot be undone.
             </p>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-black/[0.05]">
               <button
                 type="button"
                 onClick={() => setSupplierToDelete(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+                className="px-4 py-2 text-[#6E6E73] hover:bg-black/[0.04] rounded-xl text-xs font-medium transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-rose-600/20"
+                className="px-4 py-2 bg-[#D70015] hover:bg-[#c00013] text-white rounded-xl text-xs font-semibold shadow-apple-sm btn-press transition cursor-pointer"
               >
                 Delete Supplier
               </button>

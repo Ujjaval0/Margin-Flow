@@ -184,9 +184,9 @@ export function ClaimBreakdownModal({ cardType, onClose, claims, onSelectFilter 
   );
 
   const SectionLabel = ({ label, sub }: { label: string; sub?: string }) => (
-    <p className="text-[10px] font-semibold text-[#86868B] uppercase tracking-wider mb-2">
+    <p className="text-xs font-semibold text-[#1D1D1F] tracking-tight mb-2">
       {label}
-      {sub && <span className="ml-1.5 normal-case font-normal">{sub}</span>}
+      {sub && <span className="ml-1.5 text-xs text-[#86868B] font-normal">{sub}</span>}
     </p>
   );
 
@@ -196,11 +196,11 @@ export function ClaimBreakdownModal({ cardType, onClose, claims, onSelectFilter 
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-black/[0.06] flex flex-col animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden"
+        className="w-full max-w-xl bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] flex flex-col animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -209,7 +209,11 @@ export function ClaimBreakdownModal({ cardType, onClose, claims, onSelectFilter 
             <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight">{cfg.title}</h2>
             <p className="text-xs text-[#86868B] mt-0.5 leading-relaxed">{cfg.subtitle}</p>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-full bg-black/[0.05] hover:bg-black/[0.09] flex items-center justify-center text-[#6E6E73] transition shrink-0 ml-4 cursor-pointer">
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#6E6E73] transition shrink-0 ml-4 cursor-pointer"
+            aria-label="Close dialog"
+          >
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -217,7 +221,7 @@ export function ClaimBreakdownModal({ cardType, onClose, claims, onSelectFilter 
         {/* Hero strip */}
         <div className="px-6 py-4 flex items-center gap-5 border-b border-black/[0.05] bg-[#FAFAFC]">
           <div>
-            <div className={`text-3xl font-semibold tracking-tight ${cfg.accent}`}>{cfg.hero}</div>
+            <div className={`text-3xl font-semibold tracking-tight tabular-nums ${cfg.accent}`}>{cfg.hero}</div>
             <div className="text-xs text-[#86868B] mt-0.5">{cfg.heroLabel}</div>
           </div>
           {/* only card 4 gets progress bar in hero */}
@@ -458,7 +462,7 @@ export function ClaimBreakdownModal({ cardType, onClose, claims, onSelectFilter 
         <div className="px-6 py-4 border-t border-black/[0.05] flex justify-end bg-[#FAFAFC] shrink-0">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white text-xs font-semibold rounded-full transition shadow-xs cursor-pointer active:scale-[0.99]"
+            className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full transition shadow-apple-sm cursor-pointer btn-press"
           >
             Done
           </button>

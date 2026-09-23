@@ -42,9 +42,9 @@ export default function LoginPage() {
           className="inline-flex items-center gap-2 text-sm font-medium text-[#86868B] hover:text-[#1D1D1F] transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-          <span>Back to Home</span>
+          <span>Back to home</span>
         </Link>
-        <div className="flex items-center gap-1.5 text-xs text-[#86868B] bg-white px-3 py-1.5 rounded-full border border-black/[0.06] shadow-2xs">
+        <div className="flex items-center gap-1.5 text-xs text-[#86868B] bg-white px-3 py-1.5 rounded-full border border-black/[0.06] shadow-apple-sm">
           <ShieldCheck className="w-3.5 h-3.5 text-[#288548]" />
           <span>Secure Google OAuth 2.0</span>
         </div>
@@ -52,7 +52,7 @@ export default function LoginPage() {
 
       {/* Main Login Card */}
       <div className="max-w-md w-full mx-auto my-auto py-12">
-        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-8 sm:p-10 relative overflow-hidden">
+        <div className="apple-card bg-white rounded-3xl border border-black/[0.08] shadow-apple-lg p-8 sm:p-10 relative overflow-hidden">
           {/* Top subtle highlight line */}
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#0071E3] to-transparent opacity-60" />
 
@@ -77,7 +77,7 @@ export default function LoginPage() {
             <button
               onClick={handleGoogleAuth}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl bg-white hover:bg-[#FBFBFD] active:bg-[#F5F5F7] text-[#1D1D1F] font-medium text-sm border border-black/[0.12] shadow-xs hover:border-black/[0.2] transition-all disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden cursor-pointer"
+              className="w-full flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl bg-white hover:bg-[#FBFBFD] active:bg-[#F5F5F7] text-[#1D1D1F] font-medium text-sm border border-black/[0.1] shadow-apple-sm btn-press transition-all disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden cursor-pointer"
             >
               {isLoading ? (
                 <div className="flex items-center gap-2.5">
