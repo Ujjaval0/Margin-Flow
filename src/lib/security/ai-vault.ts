@@ -18,6 +18,7 @@ export type AIProvider =
   | "nvidia"
   | "mistral"
   | "glm"
+  | "typesafe"
   | "custom";
 
 export interface ProviderMeta {
@@ -106,6 +107,7 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
       "anthropic/claude-opus-4-5",
       "anthropic/claude-3.5-haiku",
       "anthropic/claude-3.5-sonnet",
+      "typesafe/jev-latest",
       "openai/gpt-4o",
       "openai/gpt-4o-mini",
       "openai/o3-mini",
@@ -206,6 +208,18 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
     defaultBaseUrl: "http://localhost:11434/v1",
     supportsCustomBaseUrl: true,
   },
+  typesafe: {
+    id: "typesafe",
+    name: "TypeSafe AI (Jev System One)",
+    defaultModel: "jev-latest",
+    recommendedModels: [
+      "jev-latest",
+      "jev-v1",
+    ],
+    placeholderKey: "ts_live_...",
+    keyDocsUrl: "https://typesafe.ai",
+    defaultBaseUrl: "https://api.typesafe.ai/v1",
+  },
 };
 
 export interface AISettings {
@@ -214,6 +228,8 @@ export interface AISettings {
   keys: Partial<Record<AIProvider, string>>;
   customBaseUrl?: string;
   useLocalFallbackIfEmpty: boolean;
+  jevApiKey?: string;
+  enableJevAcceleration?: boolean;
 }
 
 const VAULT_STORAGE_KEY = "marginflow_ai_vault_v1";
@@ -223,6 +239,8 @@ const DEFAULT_SETTINGS: AISettings = {
   model: "gemini-2.0-flash",
   keys: {},
   useLocalFallbackIfEmpty: true,
+  jevApiKey: "",
+  enableJevAcceleration: true,
 };
 
 /**
@@ -240,6 +258,8 @@ export function loadAISettings(): AISettings {
       keys: parsed.keys || {},
       customBaseUrl: parsed.customBaseUrl,
       useLocalFallbackIfEmpty: parsed.useLocalFallbackIfEmpty ?? true,
+      jevApiKey: parsed.jevApiKey || "",
+      enableJevAcceleration: parsed.enableJevAcceleration ?? true,
     };
   } catch (e) {
     console.error("Failed to parse AI settings from storage", e);

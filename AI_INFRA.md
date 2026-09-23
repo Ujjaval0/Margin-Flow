@@ -33,13 +33,18 @@ flowchart TD
         DisputeAPI["/api/ai-dispute\n(Policy Generator • Transient)"]
     end
 
-    subgraph ModelProviders["Configurable Model Providers (User Selected)"]
+    subgraph SystemOne["System 1: Jev Decision Engine (3-Tier Cascade)"]
+        JevClient["jev-client.ts\n(Direct TypeSafe • OpenRouter Bridge • Local Fallback)"]
+    end
+
+    subgraph ModelProviders["Configurable Generative Model Providers (System 2)"]
         Moonshot["Moonshot AI (Kimi)"]
         Gemini["Google Gemini 2.0 / 1.5"]
         OpenAI["OpenAI (GPT-4o, o3-mini)"]
-        OpenRouter["OpenRouter (Claude, Llama, DeepSeek)"]
+        OpenRouter["OpenRouter (Claude, Llama, DeepSeek, Jev)"]
         Mistral["Mistral AI"]
         Nvidia["NVIDIA NIM"]
+        TypeSafe["TypeSafe AI (Jev System One)"]
         LocalFallback["Local Engine (Zero Cost / Offline)"]
     end
 
@@ -48,14 +53,17 @@ flowchart TD
     UI --> DisputeModal
     UI --> CsvModal
 
+    CsvModal --> JevClient
     CsvModal --> MapperEngine
     FlowUI --> AnomalyEngine
     DisputeModal --> DisputeAPI
 
     FlowUI --> CopilotAPI
+    CopilotAPI --> JevClient
+    JevClient -.->|Fast-Path / Guardrail| FlowUI
     FlowUI -.->|Fallback if No Key| LocalAnalyst
 
-    Vault -.->|Ephemeral In-Memory Header| CopilotAPI
+    Vault -.->|Ephemeral In-Memory Header (x-ai-key, x-jev-key)| CopilotAPI
     Vault -.->|Ephemeral In-Memory Header| DisputeAPI
 
     CopilotAPI --> Moonshot
@@ -64,6 +72,7 @@ flowchart TD
     CopilotAPI --> OpenRouter
     CopilotAPI --> Mistral
     CopilotAPI --> Nvidia
+    CopilotAPI --> TypeSafe
 ```
 
 ---
@@ -131,6 +140,7 @@ Every AI capability in MarginFlow strictly adheres to these three product princi
   - **OpenRouter** (`anthropic/claude-3.5-sonnet`, `meta-llama/llama-3.3-70b-instruct`, `deepseek/deepseek-r1`)
   - **Mistral AI** (`mistral-small-latest`, `mistral-large-latest`)
   - **NVIDIA NIM** (`meta/llama-3.1-70b-instruct`)
+  - **TypeSafe AI (Jev System One)** (`jev-latest`, `jev-v1` — Dedicated System 1 Key)
   - **Custom Base URL** (for self-hosted vLLM or Ollama endpoints)
   - **Local Deterministic Fallback** (runs 100% offline with zero cost if no key is configured)
 
@@ -140,7 +150,7 @@ Every AI capability in MarginFlow strictly adheres to these three product princi
 
 | Task | Traditional Manual Process | MarginFlow AI Process | Productivity Gain |
 | :--- | :--- | :--- | :--- |
-| **Marketplace CSV Import** | Download 3 separate sheets; manually rename 15+ headers in Excel; match SKUs manually. (30–45 mins) | Drag & drop raw sheet; auto-detects format, auto-maps columns, and locks COGS. (< 3 secs) | **~90% time saved** on data entry |
+| **Marketplace CSV Import** | Download 3 separate sheets; manually rename 15+ headers in Excel; match SKUs manually. (30–45 mins) | Drag & drop raw sheet; auto-detects format, auto-maps columns with Jev System 1, and locks COGS. (< 3 secs) | **~90% time saved** on data entry |
 | **SAFE-T Dispute Filing** | Lookup return ticket; calculate net unit loss; draft formal policy email to Amazon/Flipkart. (15–20 mins) | Click `[⚡ Draft SAFE-T Claim]`; packet is pre-filled with policy citations and loss math. (30 secs) | **Eliminates 15 mins/ticket**, stops lost revenue |
 | **P&L Anomaly Auditing** | Export orders; build pivot tables to find why margin slipped or which ad campaign is bleeding. (2–3 hours) | Ask Flow: *"Why did profit drop?"* or click on-demand Anomaly Radar prompt. (Instant) | **Instant financial clarity**, zero spreadsheet work |
 | **Courier Freight Auditing** | Cross-reference carrier weight slabs against actual product dimensions on hundreds of orders. | Anomaly Radar automatically flags sub-500g parcels charged on heavy freight tiers. | **Recovers ₹1,000s in silent freight leakage** |
@@ -151,13 +161,14 @@ Every AI capability in MarginFlow strictly adheres to these three product princi
 
 | Component / Layer | Primary Source File(s) | Responsibility |
 | :--- | :--- | :--- |
+| **System 1 Decision Engine**| [`src/lib/ai/jev-client.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/lib/ai/jev-client.ts) | 3-tier non-autoregressive triage, guardrails, & CSV schema matcher |
 | **Copilot Drawer** | [`src/components/ai/cfo-copilot.tsx`](file:///c:/Users/freak/Desktop/Unified%20platform/src/components/ai/cfo-copilot.tsx) | Minimalist assistant drawer, action chip dispatch, opt-in prompt |
 | **BYOK Security Vault** | [`src/lib/security/ai-vault.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/lib/security/ai-vault.ts) | Client-side key encryption, provider registry, secure headers |
-| **AI Settings Modal** | [`src/components/ai/ai-settings-modal.tsx`](file:///c:/Users/freak/Desktop/Unified%20platform/src/components/ai/ai-settings-modal.tsx) | Provider & model selector UI (Moonshot, Gemini, OpenAI, etc.) |
+| **AI Settings Modal** | [`src/components/ai/ai-settings-modal.tsx`](file:///c:/Users/freak/Desktop/Unified%20platform/src/components/ai/ai-settings-modal.tsx) | Provider & model selector UI with dedicated Jev System 1 key field |
 | **Dispute Modal** | [`src/components/modals/dispute-packet-modal.tsx`](file:///c:/Users/freak/Desktop/Unified%20platform/src/components/modals/dispute-packet-modal.tsx) | 1-Click SAFE-T dispute packet preview & copy drawer |
-| **CSV Auto-Mapper Engine**| [`src/domain/csv-auto-mapper.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/domain/csv-auto-mapper.ts) | Multi-format detection, header scoring, catalog COGS locking |
+| **CSV Auto-Mapper Engine**| [`src/domain/csv-auto-mapper.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/domain/csv-auto-mapper.ts) | Multi-format detection, Jev header scoring, catalog COGS locking |
 | **CSV Import Modal** | [`src/components/modals/csv-import-modal.tsx`](file:///c:/Users/freak/Desktop/Unified%20platform/src/components/modals/csv-import-modal.tsx) | Drag-drop upload UI, preview table, column mapping inspection |
 | **Anomaly Radar Engine** | [`src/domain/anomaly-radar.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/domain/anomaly-radar.ts) | Deterministic math for weight overcharges, fee creep, and lag |
-| **Copilot API Proxy** | [`src/app/api/ai-copilot/route.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/app/api/ai-copilot/route.ts) | Ephemeral proxy injecting grounded context into LLM providers |
+| **Copilot API Proxy** | [`src/app/api/ai-copilot/route.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/app/api/ai-copilot/route.ts) | Ephemeral proxy with Jev System 1 triage, guardrails, & fast-path |
 | **Dispute API Proxy** | [`src/app/api/ai-dispute/route.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/app/api/ai-dispute/route.ts) | Ephemeral proxy generating policy-compliant claim narratives |
 | **Local Deterministic AI**| [`src/domain/deterministic-analyst.ts`](file:///c:/Users/freak/Desktop/Unified%20platform/src/domain/deterministic-analyst.ts) | Zero-cost, zero-API-key local offline reasoning engine |

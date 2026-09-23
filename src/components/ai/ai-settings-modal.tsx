@@ -32,6 +32,8 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(settings.activeProvider);
   const [apiKey, setApiKey] = useState<string>("");
   const [showKey, setShowKey] = useState<boolean>(false);
+  const [jevApiKey, setJevApiKey] = useState<string>("");
+  const [showJevKey, setShowJevKey] = useState<boolean>(false);
   const [customBaseUrl, setCustomBaseUrl] = useState<string>("");
   const [modelInput, setModelInput] = useState<string>(settings.model || "");
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
@@ -45,9 +47,11 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
       setSettings(current);
       setSelectedProvider(current.activeProvider);
       setApiKey(current.keys[current.activeProvider] || "");
+      setJevApiKey(current.jevApiKey || "");
       setCustomBaseUrl(current.customBaseUrl || "");
       setModelInput(current.model || PROVIDER_REGISTRY[current.activeProvider]?.defaultModel || "");
       setShowKey(false);
+      setShowJevKey(false);
       setTestState({ status: "idle" });
       setSavedSuccess(false);
     }
@@ -74,6 +78,7 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
         [selectedProvider]: apiKey.trim(),
       },
       customBaseUrl: customBaseUrl.trim() || undefined,
+      jevApiKey: jevApiKey.trim() || undefined,
     };
 
     saveAISettings(updated);
@@ -301,6 +306,51 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
 
             <p className="text-[10px] text-[#86868B] pt-0.5">
               Leave blank to use the built-in deterministic offline engine.
+            </p>
+          </div>
+
+          {/* Jev System 1 Acceleration Key */}
+          <div className="pt-2 border-t border-black/[0.05] space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-[#1D1D1F]">
+                  TypeSafe / Jev Acceleration
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
+                  {jevApiKey ? "⚡ Jev Key Set" : "Local Tier Ready"}
+                </span>
+              </div>
+              <a
+                href="https://typesafe.ai"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[10px] text-[#0071E3] hover:underline flex items-center gap-0.5 font-medium"
+              >
+                <span>Get Jev key</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            </div>
+
+            <div className="relative flex items-center">
+              <input
+                type={showJevKey ? "text" : "password"}
+                value={jevApiKey}
+                onChange={(e) => setJevApiKey(e.target.value)}
+                placeholder="ts_live_... (Optional — unlocks sub-100ms routing)"
+                className="w-full h-9 pl-3 pr-9 bg-[#F5F5F7] rounded-xl border border-black/[0.06] text-xs font-mono text-[#1D1D1F] placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-black"
+              />
+              <button
+                type="button"
+                onClick={() => setShowJevKey(!showJevKey)}
+                className="absolute right-2.5 p-1 text-slate-400 hover:text-slate-700 transition"
+                title={showJevKey ? "Hide" : "Show"}
+              >
+                {showJevKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            <p className="text-[10px] text-[#86868B] pt-0.5">
+              Powers instant sub-100ms intent routing and CSV mapping. When blank, uses OpenRouter or the built-in local engine.
             </p>
           </div>
 

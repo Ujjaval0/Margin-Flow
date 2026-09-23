@@ -5,6 +5,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { GroundedFinancialContext, CFO_SYSTEM_PROMPT } from "@/domain/ai-context";
 import { analyzeFinancialQuery } from "@/domain/deterministic-analyst";
 import { AIProvider, PROVIDER_REGISTRY } from "@/lib/security/ai-vault";
+import { evaluateChatTriage } from "@/lib/ai/jev-client";
 
 /**
  * Translates provider HTTP error codes into plain-English diagnostic messages
@@ -52,6 +53,8 @@ export async function POST(req: NextRequest) {
     const apiKey = req.headers.get("x-ai-key") || "";
     const model = req.headers.get("x-ai-model") || PROVIDER_REGISTRY[provider]?.defaultModel || "gemini-2.0-flash";
     const customBaseUrl = req.headers.get("x-ai-base-url") || "";
+    const jevApiKey = req.headers.get("x-jev-key") || process.env.TYPESAFE_API_KEY || "";
+    const openRouterKey = provider === "openrouter" ? apiKey : (req.headers.get("x-openrouter-key") || "");
 
     const providerMeta = PROVIDER_REGISTRY[provider];
     const providerName = providerMeta?.name || provider;
@@ -60,6 +63,45 @@ export async function POST(req: NextRequest) {
       req.headers.get("x-ai-stream") !== "false" &&
       !req.headers.get("accept")?.includes("application/json");
 
+    // 0. JEV SYSTEM ONE DECISION ENGINE (3-Tier Cascade: Direct -> OpenRouter -> Local)
+    const triage = await evaluateChatTriage(prompt, {
+      jevApiKey,
+      openRouterKey,
+    });
+
+    // Guardrail Check: Probabilistic off-topic filter in sub-80ms (zero LLM tokens)
+    if (triage.is_off_topic > 0.80) {
+      return NextResponse.json({
+        success: true,
+        answer: "I'm dedicated exclusively as your store assistant to help you understand and manage your MarginFlow data—such as your sales, profit margins, orders, returns, and inventory. Let me know what you'd like to explore in your numbers!",
+        chips: [],
+        source: `JEV_GUARDRAIL_${triage.tierUsed}`,
+        provider: "jev-system-one",
+        model: "jev-guardrail",
+        diagnosticMessage: null,
+      });
+    }
+
+    // Fast-Path Deterministic Execution:
+    // When query is a direct operational scan or data summary and does not require open-ended generative prose
+    const isDirectAudit =
+      triage.intent === "anomaly_audit" ||
+      (triage.intent === "settlement_aging" && triage.needs_generative_synthesis < 0.35) ||
+      (triage.intent === "pnl_diagnostic" && triage.needs_generative_synthesis < 0.25);
+
+    if (isDirectAudit && wantsStream) {
+      const fastResult = analyzeFinancialQuery(prompt, context);
+      return NextResponse.json({
+        success: true,
+        answer: fastResult.answer,
+        chips: fastResult.chips,
+        source: `JEV_FAST_PATH_${triage.tierUsed}`,
+        provider: "jev-fast-path",
+        model: `intent:${triage.intent}`,
+        diagnosticMessage: null,
+      });
+    }
+
     // 1. If NO API key provided, execute local deterministic analyst instantly
     if (!apiKey.trim() && provider !== "custom") {
       const result = analyzeFinancialQuery(prompt, context);
@@ -67,15 +109,20 @@ export async function POST(req: NextRequest) {
         success: true,
         answer: result.answer,
         chips: result.chips,
-        source: "LOCAL_DETERMINISTIC",
+        source: `LOCAL_DETERMINISTIC_VIA_${triage.tierUsed}`,
         provider: "deterministic",
         model: "offline-engine",
         diagnosticMessage: null,
       });
     }
 
-    // 2. Format Grounded Prompt with context
+    // 2. Format Grounded Prompt with context + Jev Triage tags
     const fullSystemInstruction = `${CFO_SYSTEM_PROMPT}
+
+JEV_SYSTEM_ONE_TRIAGE (Pre-classified Context):
+- Primary Intent: ${triage.intent}
+- Urgency: ${triage.urgency}
+- Decision Engine: ${triage.tierUsed} (${triage.latencyMs}ms)
 
 GROUNDED_FINANCIAL_CONTEXT (SOURCE OF TRUTH - ALL NUMBERS PRE-CALCULATED):
 ${JSON.stringify(context, null, 2)}`;
@@ -140,6 +187,8 @@ ${JSON.stringify(context, null, 2)}`;
           "x-ai-source": "LLM_PROVIDER",
           "x-ai-provider": provider,
           "x-ai-model": model,
+          "x-jev-tier": triage.tierUsed,
+          "x-jev-latency": String(triage.latencyMs),
         },
       });
     } catch (providerError: any) {

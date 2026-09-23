@@ -274,6 +274,7 @@ export function CfoCopilot() {
           "x-ai-key": activeKey,
           "x-ai-model": aiSettings.model,
           "x-ai-base-url": aiSettings.customBaseUrl || "",
+          "x-jev-key": aiSettings.jevApiKey || "",
         },
         body: JSON.stringify({ prompt: query, context }),
       });
@@ -299,7 +300,10 @@ export function CfoCopilot() {
       } else {
         // Vercel AI SDK text stream
         const assistantMsgId = `msg-asst-${Date.now()}`;
-        const sourceHeader = res.headers.get("x-ai-source") || "LLM_PROVIDER";
+        const jevTierHeader = res.headers.get("x-jev-tier");
+        const sourceHeader = jevTierHeader
+          ? `${res.headers.get("x-ai-source") || "LLM"} (⚡ ${jevTierHeader})`
+          : (res.headers.get("x-ai-source") || "LLM_PROVIDER");
 
         const initialAssistantMsg: ChatMessage = {
           id: assistantMsgId,
