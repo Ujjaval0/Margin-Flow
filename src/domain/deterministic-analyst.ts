@@ -15,8 +15,46 @@ export function analyzeFinancialQuery(
   query: string,
   context: GroundedFinancialContext
 ): AnalystResponse {
-  const q = query.toLowerCase();
-  const { waterfall, trends, lossMakingSkus, heroSkus, settlementAging, channelComparison, damagedReturnsToClaim } = context;
+  const q = (query || "").toLowerCase();
+  const waterfall = context?.waterfall ?? {
+    grossSales: 0,
+    discounts: 0,
+    netRevenue: 0,
+    cogs: 0,
+    grossProfit: 0,
+    grossMarginPercent: 0,
+    marketplaceFees: 0,
+    logisticsCost: 0,
+    returnAndRtoLoss: 0,
+    disputeRecoveries: 0,
+    contributionProfit: 0,
+    contributionMarginPercent: 0,
+    opex: 0,
+    netOperatingProfit: 0,
+    netMarginPercent: 0,
+    totalAdSpend: 0,
+    blendedRoas: 0,
+    blendedPoas: 0,
+    totalOrders: 0,
+    unitsSold: 0,
+  };
+  const trends = context?.trends ?? {
+    grossSalesChange: 0,
+    netSalesChange: 0,
+    contributionProfitChange: 0,
+    netOperatingProfitChange: 0,
+    adSpendChange: 0,
+  };
+  const lossMakingSkus = context?.lossMakingSkus ?? [];
+  const heroSkus = context?.heroSkus ?? [];
+  const settlementAging = context?.settlementAging ?? {
+    within7DaysAmount: 0,
+    between8And14DaysAmount: 0,
+    over14DaysOverdueAmount: 0,
+    overdueOrderCount: 0,
+  };
+  const channelComparison = context?.channelComparison ?? [];
+  const damagedReturnsToClaim = context?.damagedReturnsToClaim ?? [];
 
   // 0. Off-Topic & Explicit Guardrail (No movies, music, songs, entertainment, or explicit content)
   const isOffTopic =

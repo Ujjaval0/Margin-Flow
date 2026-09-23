@@ -225,8 +225,9 @@ ${JSON.stringify(context, null, 2)}`;
       });
     }
   } catch (error: any) {
+    console.error("Copilot route error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to process Copilot query." },
+      { success: false, error: error?.message || "Failed to process Copilot query.", stack: error?.stack },
       { status: 500 }
     );
   }

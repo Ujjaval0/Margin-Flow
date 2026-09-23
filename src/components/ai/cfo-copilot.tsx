@@ -17,6 +17,7 @@ import { computeAnomalyRadar } from "@/domain/anomaly-radar";
 import { parseResponseAndChips } from "@/domain/deterministic-analyst";
 import { formatINR } from "@/lib/utils";
 import { AssistantEmblem } from "./assistant-emblem";
+import { InfinityLoop } from "@/components/ui/infinity-loop";
 import type { SkuEconomicsItem } from "@/components/modals/sku-drawer";
 
 const AISettingsModal = dynamic(
@@ -37,6 +38,96 @@ interface ChatMessage {
   source?: string;
   diagnosticMessage?: string | null;
   timestamp: string;
+}
+
+function ChatLoadingIndicator() {
+  return (
+    <div
+      role="status"
+      aria-label="Loading response"
+      className="py-1 px-1 inline-flex items-center animate-in fade-in duration-150 select-none"
+    >
+      <InfinityLoop className="w-6 h-6 text-[#1D1D1F]" />
+    </div>
+  );
+}
+
+function FormattedMessageText({ text, isUser }: { text?: string; isUser: boolean }) {
+  if (!text || typeof text !== "string") {
+    return null;
+  }
+  if (isUser) {
+    return <p className="whitespace-pre-line text-xs">{text}</p>;
+  }
+
+  const lines = text.split("\n");
+
+  return (
+    <div className="space-y-1.5 text-xs text-[#1D1D1F] leading-relaxed">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={idx} className="h-1" />;
+        }
+
+        if (trimmed.startsWith("### ") || trimmed.startsWith("## ") || trimmed.startsWith("# ")) {
+          const headingText = trimmed.replace(/^#+\s+/, "");
+          return (
+            <h4
+              key={idx}
+              className="font-semibold text-xs text-[#1D1D1F] mt-2 pt-1 border-t border-black/[0.04] first:mt-0 first:pt-0 first:border-0"
+            >
+              {headingText}
+            </h4>
+          );
+        }
+
+        const isBullet = /^[•\-*]\s+/.test(trimmed);
+        const content = isBullet ? trimmed.replace(/^[•\-*]\s+/, "") : line;
+        const parts = parseInlineFormatting(content);
+
+        if (isBullet) {
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-1">
+              <span className="text-[#86868B] font-bold text-[10px] mt-0.5 select-none shrink-0">•</span>
+              <div className="flex-1">{parts}</div>
+            </div>
+          );
+        }
+
+        return <p key={idx}>{parts}</p>;
+      })}
+    </div>
+  );
+}
+
+function parseInlineFormatting(text?: string): React.ReactNode[] {
+  if (!text || typeof text !== "string") {
+    return [];
+  }
+  const regex = /(\*\*.*?\*\*|`.*?`)/g;
+  const segments = text.split(regex);
+
+  return segments.map((seg, i) => {
+    if (seg.startsWith("**") && seg.endsWith("**")) {
+      return (
+        <strong key={i} className="font-semibold text-[#1D1D1F]">
+          {seg.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (seg.startsWith("`") && seg.endsWith("`")) {
+      return (
+        <code
+          key={i}
+          className="px-1.5 py-0.5 rounded bg-black/[0.05] font-mono text-[11px] text-[#1D1D1F] font-medium"
+        >
+          {seg.slice(1, -1)}
+        </code>
+      );
+    }
+    return seg;
+  });
 }
 
 export function CfoCopilot() {
@@ -441,7 +532,7 @@ export function CfoCopilot() {
               <div className="px-5 py-3.5 border-b border-black/[0.06] flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-md">
                 <div className="flex items-center gap-2.5">
                   <div className="w-6 h-6 rounded-full bg-[#1D1D1F] text-white flex items-center justify-center shadow-apple-sm shrink-0">
-                    <AssistantEmblem className="w-3.5 h-3.5 text-white" />
+                    <AssistantEmblem className="w-4 h-4 text-white" />
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight">
@@ -512,6 +603,13 @@ export function CfoCopilot() {
               <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs bg-[#F5F5F7]/40">
                 {messages.map((msg) => {
                   const isUser = msg.sender === "user";
+                  if (!isUser && !msg.text) {
+                    return (
+                      <div key={msg.id} className="flex flex-col items-start">
+                        <ChatLoadingIndicator />
+                      </div>
+                    );
+                  }
                   return (
                     <div
                       key={msg.id}
@@ -524,17 +622,7 @@ export function CfoCopilot() {
                             : "bg-white border border-black/[0.06] text-[#1D1D1F] rounded-tl-xs shadow-apple-sm"
                         }`}
                       >
-                        {msg.text ? (
-                          <p className="whitespace-pre-line text-xs">
-                            {msg.text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/^#+\s+/gm, "")}
-                          </p>
-                        ) : (
-                          <div className="flex items-center gap-1.5 py-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce [animation-delay:-0.32s]" />
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce [animation-delay:-0.16s]" />
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce" />
-                          </div>
-                        )}
+                        <FormattedMessageText text={msg.text} isUser={isUser} />
 
                         {/* Diagnostic Banner — shown when API failed and local engine answered */}
                         {!isUser && msg.diagnosticMessage && (
@@ -568,12 +656,8 @@ export function CfoCopilot() {
                 })}
 
                 {isLoading && (
-                  <div className="flex flex-col items-start animate-in fade-in duration-200">
-                    <div className="bg-white border border-black/[0.06] rounded-2xl rounded-tl-xs px-4 py-3 shadow-apple-sm flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce [animation-delay:-0.32s]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce [animation-delay:-0.16s]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce" />
-                    </div>
+                  <div className="flex flex-col items-start">
+                    <ChatLoadingIndicator />
                   </div>
                 )}
 
@@ -585,16 +669,19 @@ export function CfoCopilot() {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    handleSendMessage();
+                    handleSendMessage().catch((err) => {
+                      console.error("Copilot message error:", err);
+                    });
                   }}
-                  className="flex items-center gap-2 bg-[#FAFAFC] border border-black/[0.06] rounded-xl px-2.5 py-1.5 focus-within:border-[#0071E3] focus-within:ring-2 focus-within:ring-[#0071E3]/20 transition shadow-apple-sm"
+                  className="flex items-center gap-2 bg-[#FAFAFC] border border-black/[0.08] rounded-xl px-2.5 py-1.5 focus-within:border-black/25 focus-within:bg-white transition shadow-apple-sm"
                 >
                   <input
                     type="text"
                     value={inputQuery}
                     onChange={(e) => setInputQuery(e.target.value)}
                     placeholder="Ask about sales, profit margins, orders, returns..."
-                    className="flex-1 h-8 px-1 text-xs bg-transparent text-[#1D1D1F] placeholder:text-[#86868B] focus:outline-none"
+                    className="flex-1 h-8 px-1 text-xs bg-transparent text-[#1D1D1F] placeholder:text-[#86868B] outline-none border-none ring-0 focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 shadow-none"
+                    style={{ outline: "none", boxShadow: "none" }}
                   />
                   <button
                     type="submit"

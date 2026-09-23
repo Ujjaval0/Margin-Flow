@@ -200,10 +200,28 @@ button, a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-in, .page-transition {
+  .animate-in, .page-transition, .animate-claude-beam {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+}
+
+/* Claude Code Progress Shimmer Beam */
+@keyframes claude-beam {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(80%); }
+  100% { transform: translateX(250%); }
+}
+
+.animate-claude-beam {
+  animation: claude-beam 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Infinity Loop dash animation */
+@keyframes loading-ui-infinity-dash {
+  to {
+    stroke-dashoffset: 256.58892822265625;
   }
 }
 
