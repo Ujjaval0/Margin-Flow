@@ -91,6 +91,8 @@ export interface HistoricalCost {
 export interface Product {
   id: string;
   sku: string;
+  mfn?: string;       // Primary MFN Number (e.g. MFN-88192)
+  mfn1?: string;      // MFN-1 Secondary Identifier (e.g. MFN1-88192-A)
   name: string;
   category: string;
   brand: string;
@@ -106,6 +108,8 @@ export interface Product {
 export interface OrderItem {
   id: string;
   sku: string;
+  mfn?: string;
+  mfn1?: string;
   productName: string;
   quantity: number;
   sellingPrice: number; // Unit selling price
@@ -267,6 +271,7 @@ export interface ExtractedField<T> {
 export interface AIStagedDocument {
   id: string;
   fileName: string;
+  fileUrl?: string;
   fileType: "INVOICE" | "SHIPPING_LABEL" | "SETTLEMENT_REPORT" | "SUPPLIER_BILL" | "CLAIM_DOC";
   uploadDate: string;
   status: "STAGED_NEEDS_REVIEW" | "APPROVED_POSTED" | "REJECTED";
@@ -357,5 +362,53 @@ export interface SettlementSummary {
   actualReceived: number;
   pendingSettlement: number;
   totalDeductions: number;
+}
+
+// Partition 8: Customer Support & Complaints
+export type ComplaintCategory =
+  | "WRONG_ITEM_RECEIVED"
+  | "DAMAGED_PRODUCT"
+  | "DELIVERY_DELAY"
+  | "DEFECTIVE_PRODUCT"
+  | "MISSING_QUANTITY"
+  | "SETTLEMENT_OR_REFUND_ISSUE"
+  | "OTHER";
+
+export type ComplaintPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+export type ComplaintStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+
+export interface CustomerComplaint {
+  id: string;               // e.g. TKT-1002
+  ticketNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  orderId?: string;         // Link to Order ID
+  channelOrderId?: string;
+  marketplace?: Marketplace;
+  sku?: string;
+  category: ComplaintCategory;
+  priority: ComplaintPriority;
+  status: ComplaintStatus;
+  subject: string;
+  description: string;
+  createdAt: string;
+  resolvedAt?: string;
+  resolutionNotes?: string;
+}
+
+// Partition 9: User Accounts & Roles
+export type AccountType = "BRAND_OWNER" | "SUPPLIER" | "WHOLESALER";
+
+export interface UserAccount {
+  id: string;
+  name: string;
+  email: string;
+  accountType: AccountType;
+  supplierId?: string;     // Links to specific Supplier record if role is SUPPLIER
+  companyName: string;
+  gstin?: string;
+  phone?: string;
+  authenticatedAt: string;
 }
 

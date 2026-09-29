@@ -4,9 +4,15 @@ import React from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
+import dynamic from "next/dynamic";
 import { Marketplace } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
 import { AssistantEmblem } from "@/components/ai/assistant-emblem";
+
+const NotificationBell = dynamic(
+  () => import("@/components/layout/notification-bell").then((m) => m.NotificationBell),
+  { ssr: false }
+);
 
 interface NavbarProps {
   selectedMarketplace?: Marketplace | "ALL";
@@ -58,6 +64,7 @@ export function Navbar({
     reports: "Analytics & P&L Statements",
     ledger: "Double-Entry General Ledger & Trial Balance",
     webhooks: "Store Integrations",
+    trash: "Recycle Bin",
   };
 
   return (
@@ -89,9 +96,9 @@ export function Navbar({
       </div>
 
       {/* Center/Right Controls */}
-      <div className="flex items-center gap-3 min-w-0 overflow-x-auto no-scrollbar py-1">
+      <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 py-1 overflow-visible">
         {/* Pill Segmented Control (Apple style) */}
-        <div className="bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] inline-flex items-center gap-0.5 text-xs shrink-0">
+        <div className="bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] inline-flex items-center gap-0.5 text-xs shrink-0 max-w-full overflow-x-auto no-scrollbar">
           {marketplaces.map((mp) => {
             const isSelected = selectedMarketplace === mp.id;
             return (
@@ -110,6 +117,9 @@ export function Navbar({
           })}
         </div>
 
+        {/* Notification Bell */}
+        <NotificationBell />
+
         {/* Flow Assistant Quick Trigger */}
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("marginflow_open_copilot"))}
@@ -117,9 +127,7 @@ export function Navbar({
           title="Open Flow Assistant (Ctrl+J)"
           aria-label="Open Flow Assistant"
         >
-          <span className="w-4 h-4 rounded-full bg-[#1D1D1F] text-white flex items-center justify-center shrink-0">
-            <AssistantEmblem className="w-2.5 h-2.5 text-white" />
-          </span>
+          <AssistantEmblem className="w-4 h-4 text-[#1D1D1F] shrink-0" />
           <span className="font-semibold tracking-tight">Flow</span>
           <kbd className="text-[10px] text-[#86868B] bg-black/[0.04] px-1.5 py-0.5 rounded font-mono hidden sm:inline ml-0.5">
             ⌘J

@@ -48,10 +48,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Ephemeral in-flight headers (NEVER logged or persisted to disk/DB)
+    // Ephemeral in-flight headers (fallback to server GEMINI_API_KEY if not sent)
     const provider = (req.headers.get("x-ai-provider") || "gemini") as AIProvider;
-    const apiKey = req.headers.get("x-ai-key") || "";
-    const model = req.headers.get("x-ai-model") || PROVIDER_REGISTRY[provider]?.defaultModel || "gemini-2.0-flash";
+    const apiKey =
+      req.headers.get("x-ai-key") ||
+      (provider === "gemini" ? process.env.GEMINI_API_KEY : "") ||
+      "";
+    const rawModel = req.headers.get("x-ai-model");
+    const model =
+      rawModel ||
+      (provider === "gemini" ? "gemini-2.5-flash" : PROVIDER_REGISTRY[provider]?.defaultModel || "gemini-2.5-flash");
     const customBaseUrl = req.headers.get("x-ai-base-url") || "";
     const jevApiKey = req.headers.get("x-jev-key") || process.env.TYPESAFE_API_KEY || "";
     const openRouterKey = provider === "openrouter" ? apiKey : (req.headers.get("x-openrouter-key") || "");

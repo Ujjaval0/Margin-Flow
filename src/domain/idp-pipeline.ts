@@ -81,7 +81,7 @@ export async function executeIDPPipeline(
     try {
       const google = createGoogleGenerativeAI({ apiKey });
       const { object: validated } = await generateObject({
-        model: google("gemini-1.5-flash"),
+        model: google("gemini-2.5-flash"),
         schema: InvoiceExtractionSchema,
         prompt: `You are a statutory financial document extraction engine. Extract data from the invoice/bill text below:\n\nDOCUMENT TEXT:\n${rawText}`,
       });

@@ -295,7 +295,7 @@ export function WebhookSimulatorView() {
     <div className="space-y-6 w-full max-w-[1440px] min-w-0 mx-auto animate-in fade-in duration-200 pb-16">
       {/* Toast Notification (Apple floating pill) */}
       {notification && (
-        <div className="fixed top-20 right-8 z-50 flex items-center gap-3 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.08)] border border-black/[0.06] animate-in slide-in-from-top-2 duration-200">
+        <div className="fixed top-20 right-8 z-50 flex items-center gap-3 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-black/[0.06] animate-in slide-in-from-top-2 duration-200">
           <span className="w-2 h-2 rounded-full bg-emerald-500" />
           <div className="text-xs font-medium text-[#1D1D1F]">
             <span className="font-semibold">{notification.title}</span> — {notification.message}

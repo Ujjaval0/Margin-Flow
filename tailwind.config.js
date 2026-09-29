@@ -6,8 +6,10 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-inter)", "-apple-system", "BlinkMacSystemFont", "SF Pro Text", "sans-serif"],
+        sans: ["var(--font-jakarta)", "var(--font-inter)", "-apple-system", "BlinkMacSystemFont", "SF Pro Text", "sans-serif"],
+        display: ["var(--font-jakarta)", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
         mono: ["var(--font-geist-mono)", "SF Mono", "Menlo", "Monaco", "Consolas", "monospace"],
+        tech: ["'Space Grotesk'", "sans-serif"],
       },
       colors: {
         apple: {
@@ -31,11 +33,17 @@ module.exports = {
         "3xl": "1.5rem",
       },
       boxShadow: {
-        "2xs": "0 1px 2px 0 rgba(0, 0, 0, 0.03)",
-        "xs": "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-        "apple-sm": "0px 2px 3px -1px rgba(0,0,0,0.1), 0px 1px 0px 0px rgba(25,28,33,0.02), 0px 0px 0px 1px rgba(25,28,33,0.08)",
-        "apple-md": "0px 0px 0px 1px rgba(0,0,0,0.06), 0px 1px 1px -0.5px rgba(0,0,0,0.06), 0px 3px 3px -1.5px rgba(0,0,0,0.06), 0px 6px 6px -3px rgba(0,0,0,0.06), 0px 12px 12px -6px rgba(0,0,0,0.06), 0px 24px 24px -12px rgba(0,0,0,0.06)",
-        "apple-lg": "0 2.8px 2.2px rgba(0,0,0,0.034), 0 6.7px 5.3px rgba(0,0,0,0.048), 0 12.5px 10px rgba(0,0,0,0.06), 0 22.3px 17.9px rgba(0,0,0,0.072), 0 41.8px 33.4px rgba(0,0,0,0.086), 0 100px 80px rgba(0,0,0,0.12)",
+        "2xs": "0 1px 2px 0 rgba(0, 0, 0, 0.015)",
+        "xs": "0 1px 2px 0 rgba(0, 0, 0, 0.025)",
+        "sm": "0 1px 2px 0 rgba(0, 0, 0, 0.025)",
+        DEFAULT: "0 1px 3px 0 rgba(0, 0, 0, 0.03), 0 1px 2px -1px rgba(0, 0, 0, 0.02)",
+        "md": "0 3px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.02)",
+        "lg": "0 6px 12px -2px rgba(0, 0, 0, 0.035), 0 3px 6px -2px rgba(0, 0, 0, 0.02)",
+        "xl": "0 10px 18px -3px rgba(0, 0, 0, 0.04), 0 4px 8px -3px rgba(0, 0, 0, 0.02)",
+        "2xl": "0 16px 32px -6px rgba(0, 0, 0, 0.05)",
+        "apple-sm": "0px 1px 2px -0.5px rgba(0,0,0,0.04), 0px 1px 0px 0px rgba(25,28,33,0.01), 0px 0px 0px 1px rgba(25,28,33,0.03)",
+        "apple-md": "0px 0px 0px 1px rgba(0,0,0,0.03), 0px 1px 1px -0.5px rgba(0,0,0,0.025), 0px 2px 2px -1px rgba(0,0,0,0.02), 0px 4px 4px -2px rgba(0,0,0,0.02), 0px 8px 8px -4px rgba(0,0,0,0.015), 0px 14px 14px -7px rgba(0,0,0,0.015)",
+        "apple-lg": "0 2px 2px rgba(0,0,0,0.015), 0 4px 4px rgba(0,0,0,0.02), 0 8px 8px rgba(0,0,0,0.025), 0 16px 14px rgba(0,0,0,0.03), 0 24px 20px rgba(0,0,0,0.03), 0 48px 40px rgba(0,0,0,0.04)",
       },
       spacing: {
         "4.5": "1.125rem",

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
-import crypto from "crypto";
-import { processDocumentOCR } from "@/domain/ocr-engine";
+import { processAndStageDocument } from "@/lib/ocr/extractor";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB Maximum
 
@@ -121,30 +120,25 @@ export async function POST(request: NextRequest) {
 
         await fs.writeFile(destinationPath, buffer);
 
-        // 5. Extract textual content
-        let textContent = "";
-        if (
-          fileExtension === ".txt" ||
-          fileExtension === ".csv" ||
-          file.type === "text/plain" ||
-          file.type === "text/csv"
-        ) {
-          try {
-            textContent = buffer.toString("utf-8");
-          } catch {
-            textContent = `[Document Text: ${file.name}]`;
+        // 5. Extract textual content & process through real OCR / IDP Pipeline
+        const savedPath = `/uploads/bills/${savedFileName}`;
+        const extraction = await processAndStageDocument(
+          file.name,
+          savedPath,
+          buffer,
+          {
+            customType,
+            mimeType: file.type,
           }
-        } else {
-          textContent = `[Document Scan: ${file.name}]\nFormat: ${fileExtension.toUpperCase()}\nSize: ${(file.size / 1024).toFixed(1)} KB`;
-        }
+        );
 
-        // 6. Process through OCR engine
-        const stagedDocument = processDocumentOCR(file.name, textContent, customType);
-        stagedDocuments.push(stagedDocument);
+        stagedDocuments.push(extraction.stagedDocument);
         results.push({
           fileName: file.name,
-          savedPath: `/uploads/bills/${savedFileName}`,
+          savedPath,
           fileSize: file.size,
+          sourceEngine: extraction.sourceEngine,
+          dbRecordId: extraction.dbRecordId,
         });
       } catch (fileErr: any) {
         errors.push({

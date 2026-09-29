@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Pencil, X, Truck } from "lucide-react";
+import { X } from "lucide-react";
 import {
   Order,
   Marketplace,
@@ -61,6 +61,8 @@ export function OrderModal({
   const [channelOrderId, setChannelOrderId] = useState("");
   const [orderDate, setOrderDate] = useState("");
   const [sku, setSku] = useState("");
+  const [mfn, setMfn] = useState("");
+  const [mfn1, setMfn1] = useState("");
   const [productName, setProductName] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [supplierName, setSupplierName] = useState("");
@@ -91,6 +93,8 @@ export function OrderModal({
       setOrderDate(initialOrder.orderDate);
       const firstItem = initialOrder.items[0];
       setSku(firstItem?.sku || "");
+      setMfn(firstItem?.mfn || "");
+      setMfn1(firstItem?.mfn1 || "");
       setProductName(firstItem?.productName || "");
       setQuantity(String(firstItem?.quantity || 1));
       setUnitCost(String(firstItem?.snapshotUnitCost || 0));
@@ -123,6 +127,8 @@ export function OrderModal({
       setOrderDate(new Date().toISOString().split("T")[0]);
       const initialProd = products[0];
       setSku(initialProd?.sku || "");
+      setMfn(initialProd?.mfn || "");
+      setMfn1(initialProd?.mfn1 || "");
       setProductName(initialProd?.name || "");
       setQuantity("1");
       setUnitCost(String(initialProd?.currentCostPrice || 400));
@@ -201,12 +207,47 @@ export function OrderModal({
   const expectedSettlement = parsedSettlementAmount;
   const estimatedTrueProfit = expectedSettlement - totalWholesaleCost;
 
+  const handleSelectMfn = (mfnValue: string) => {
+    setMfn(mfnValue);
+    const clean = mfnValue.trim().toLowerCase();
+    if (!clean) return;
+
+    const prod = products.find(
+      (p) =>
+        (p.mfn && p.mfn.toLowerCase() === clean) ||
+        (p.mfn1 && p.mfn1.toLowerCase() === clean) ||
+        p.sku.toLowerCase() === clean
+    );
+
+    if (prod) {
+      // As specified: "whenever we enter MFN number in add order section then COGS , Product Name , MFN-1 autofill"
+      setProductName(prod.name);
+      setUnitCost(String(prod.currentCostPrice));
+      setMfn1(prod.mfn1 || "");
+      setSku(prod.sku);
+
+      const sPrice = Math.round(prod.currentCostPrice * 2.5);
+      setSellingPrice(String(sPrice));
+      const pQty = Math.max(1, parseFloat(quantity) || 1);
+      const gSales = sPrice * pQty;
+      const cPct = parseFloat(commissionPercent) || 20;
+      setSettlementAmount(String(Math.round(gSales * (1 - cPct / 100))));
+
+      if (prod.supplierId) {
+        const sup = suppliers.find((s) => s.id === prod.supplierId || s.name === prod.supplierId);
+        if (sup) setSupplierName(sup.name);
+      }
+    }
+  };
+
   const handleSelectSku = (skuValue: string) => {
     setSku(skuValue);
     const prod = products.find((p) => p.sku === skuValue);
     if (prod) {
       setProductName(prod.name);
       setUnitCost(String(prod.currentCostPrice));
+      if (prod.mfn) setMfn(prod.mfn);
+      if (prod.mfn1) setMfn1(prod.mfn1);
       const sPrice = Math.round(prod.currentCostPrice * 2.5);
       setSellingPrice(String(sPrice));
       const pQty = Math.max(1, parseFloat(quantity) || 1);
@@ -221,6 +262,7 @@ export function OrderModal({
       }
     }
   };
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -255,6 +297,8 @@ export function OrderModal({
           {
             ...(initialOrder.items[0] || { id: `ITEM-${Date.now().toString().slice(-4)}` }),
             sku: sku || "SKU-CUSTOM",
+            mfn: mfn || undefined,
+            mfn1: mfn1 || undefined,
             productName: productName || "Order Item",
             quantity: parsedQty,
             sellingPrice: parsedSellingPrice,
@@ -375,6 +419,8 @@ export function OrderModal({
         {
           id: `ITEM-${Date.now().toString().slice(-4)}`,
           sku: sku || "CUSTOM-SKU",
+          mfn: mfn || undefined,
+          mfn1: mfn1 || undefined,
           productName: productName || "Custom Order Item",
           quantity: parsedQty,
           sellingPrice: parsedSellingPrice,
@@ -505,6 +551,7 @@ export function OrderModal({
 
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
+
           {/* 1. Channel & Order Reference */}
           <div className="space-y-3">
             <div>
@@ -560,6 +607,45 @@ export function OrderModal({
 
           {/* 2. Product & Item Details */}
           <div className="space-y-3 pt-2 border-t border-black/[0.06]">
+            {/* MFN Number lookup & MFN-1 field */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-[#FBFBFD] border border-black/[0.05] rounded-2xl">
+              <div>
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                  MFN Number <span className="text-[#0071E3] font-normal">(Auto-fills COGS, Product &amp; MFN-1)</span>
+                </label>
+                <input
+                  type="text"
+                  list="order-modal-catalog-mfns"
+                  value={mfn}
+                  onChange={(e) => handleSelectMfn(e.target.value)}
+                  placeholder="e.g. MFN-WEM-010"
+                  className="w-full px-3 py-2 bg-white border border-black/[0.08] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-[#0071E3] font-mono font-medium uppercase transition-all"
+                />
+                <datalist id="order-modal-catalog-mfns">
+                  {products
+                    .filter((p) => p.mfn)
+                    .map((p) => (
+                      <option key={p.id} value={p.mfn}>
+                        {p.name} ({p.sku})
+                      </option>
+                    ))}
+                </datalist>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
+                  MFN-1 Identifier
+                </label>
+                <input
+                  type="text"
+                  value={mfn1}
+                  onChange={(e) => setMfn1(e.target.value)}
+                  placeholder="e.g. MFN1-WEM-010-A"
+                  className="w-full px-3 py-2 bg-white border border-black/[0.08] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-[#0071E3] font-mono font-medium uppercase transition-all"
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div className="sm:col-span-1">
                 <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">

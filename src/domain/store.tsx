@@ -18,6 +18,9 @@ import {
   FeesBreakdown,
   ClaimsSummary,
   SettlementSummary,
+  CustomerComplaint,
+  UserAccount,
+  AccountType,
 } from "./types";
 import {
   INITIAL_PRODUCTS,
@@ -30,6 +33,8 @@ import {
   INITIAL_EXPENSES,
   INITIAL_AI_DOCUMENTS,
   INITIAL_AUDIT_LOGS,
+  INITIAL_COMPLAINTS,
+  DEFAULT_ACCOUNTS,
 } from "./mock-data";
 import { runSystemGuardrailDiagnostics, validateDocumentArithmetic } from "./guardrails";
 import {
@@ -61,6 +66,10 @@ interface PlatformContextType {
   expenses: Expense[];
   aiDocuments: AIStagedDocument[];
   auditLogs: FinancialAuditLog[];
+  complaints: CustomerComplaint[];
+  currentUser: UserAccount;
+  setCurrentUser: (user: UserAccount) => void;
+  switchAccountType: (role: AccountType, supplierId?: string) => void;
 
   // Channel & Date-Range Filter State
   selectedMarketplace: Marketplace | "ALL";
@@ -110,8 +119,12 @@ interface PlatformContextType {
   deleteClaim: (claimId: string) => void;
   deleteClaims: (claimIds: string[]) => void;
   addProduct: (product: Product) => void;
+  bulkAddProducts: (products: Product[]) => void;
   deleteProduct: (sku: string) => void;
   updateProductCost: (sku: string, newCost: number, reason: string) => void;
+  addComplaint: (complaint: CustomerComplaint) => void;
+  updateComplaintStatus: (ticketId: string, status: CustomerComplaint["status"], resolutionNotes?: string) => void;
+  deleteComplaint: (ticketId: string) => void;
   addSettlement: (settlement: Settlement) => void;
   addExpense: (expense: Expense) => void;
   updateExpense: (expense: Expense) => void;
@@ -155,20 +168,44 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
   const [aiDocuments, setAiDocuments] = useState<AIStagedDocument[]>(INITIAL_AI_DOCUMENTS);
   const [auditLogs, setAuditLogs] = useState<FinancialAuditLog[]>(INITIAL_AUDIT_LOGS);
+  const [complaints, setComplaints] = useState<CustomerComplaint[]>(INITIAL_COMPLAINTS);
+  const [currentUser, setCurrentUser] = useState<UserAccount>(DEFAULT_ACCOUNTS[0]);
   const [datePreset, setDatePreset] = useState<DateRangePreset>("ALL");
   const [customDateRange, setCustomDateRange] = useState<DateFilterRange | null>(null);
   const [selectedMarketplace, setSelectedMarketplace] = useState<Marketplace | "ALL">("ALL");
 
-  // Rehydrate persistent ledger from localStorage on client mount
+  // Rehydrate persistent ledger and user session from localStorage on client mount
   useEffect(() => {
     try {
       if (typeof window !== "undefined") {
+        const savedSession = localStorage.getItem("marginflow_session");
+        if (savedSession) {
+          try {
+            const parsedUser = JSON.parse(savedSession);
+            if (parsedUser && parsedUser.accountType) {
+              setCurrentUser(parsedUser);
+            }
+          } catch {}
+        }
+
         const saved = localStorage.getItem(LEDGER_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed && parsed.data) {
             if (Array.isArray(parsed.data.products)) setProducts(parsed.data.products);
-            if (Array.isArray(parsed.data.orders)) setOrders(parsed.data.orders);
+            if (Array.isArray(parsed.data.orders)) {
+              const seenOrderIds = new Set<string>();
+              const sanitizedOrders = parsed.data.orders.map((o: Order, idx: number) => {
+                if (seenOrderIds.has(o.id)) {
+                  const uniqueId = `${o.id}_${idx}_${Math.floor(Math.random() * 1000)}`;
+                  seenOrderIds.add(uniqueId);
+                  return { ...o, id: uniqueId };
+                }
+                seenOrderIds.add(o.id);
+                return o;
+              });
+              setOrders(sanitizedOrders);
+            }
             if (Array.isArray(parsed.data.returns)) setReturns(parsed.data.returns);
             if (Array.isArray(parsed.data.settlements)) setSettlements(parsed.data.settlements);
             if (Array.isArray(parsed.data.claims)) setClaims(parsed.data.claims);
@@ -177,6 +214,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             if (Array.isArray(parsed.data.expenses)) setExpenses(parsed.data.expenses);
             if (Array.isArray(parsed.data.aiDocuments)) setAiDocuments(parsed.data.aiDocuments);
             if (Array.isArray(parsed.data.auditLogs)) setAuditLogs(parsed.data.auditLogs);
+            if (Array.isArray(parsed.data.complaints)) setComplaints(parsed.data.complaints);
           }
         }
       }
@@ -207,6 +245,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
               expenses,
               aiDocuments,
               auditLogs,
+              complaints,
             },
           };
           const serialized = JSON.stringify(snapshot);
@@ -240,6 +279,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     expenses,
     aiDocuments,
     auditLogs,
+    complaints,
   ]);
 
   // Derive dynamic anchor date from latest order in dataset
@@ -483,11 +523,20 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   // Actions
   const addOrder = useCallback((order: Order) => {
-    const normalizedOrder: Order = {
-      ...order,
-      status: order.status || "DELIVERED",
-    };
-    setOrders((prev) => [normalizedOrder, ...prev]);
+    let assignedId = order.id;
+    setOrders((prev) => {
+      let uniqueId = order.id;
+      if (prev.some((o) => o.id === uniqueId)) {
+        uniqueId = `${order.id}_dup_${Date.now().toString().slice(-4)}_${Math.floor(Math.random() * 1000)}`;
+      }
+      assignedId = uniqueId;
+      const normalizedOrder: Order = {
+        ...order,
+        id: uniqueId,
+        status: order.status || "DELIVERED",
+      };
+      return [normalizedOrder, ...prev];
+    });
 
     // Inventory Engine: Sale = inventory - quantity
     setProducts((prev) =>
@@ -507,7 +556,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString(),
       entityType: "ORDER",
-      entityId: order.id,
+      entityId: assignedId,
       fieldName: "status",
       oldValue: "N/A",
       newValue: order.status,
@@ -1624,6 +1673,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setExpenses(INITIAL_EXPENSES);
     setAiDocuments(INITIAL_AI_DOCUMENTS);
     setAuditLogs(INITIAL_AUDIT_LOGS);
+    setComplaints(INITIAL_COMPLAINTS);
     setDatePreset("ALL");
     setCustomDateRange(null);
   }, []);
@@ -1643,6 +1693,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         expenses,
         aiDocuments,
         auditLogs,
+        complaints,
       },
     };
     return JSON.stringify(snapshot, null, 2);
@@ -1657,6 +1708,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     expenses,
     aiDocuments,
     auditLogs,
+    complaints,
   ]);
 
   const importLedgerSnapshot = useCallback((jsonString: string): boolean => {
@@ -1675,11 +1727,90 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       if (Array.isArray(data.expenses)) setExpenses(data.expenses);
       if (Array.isArray(data.aiDocuments)) setAiDocuments(data.aiDocuments);
       if (Array.isArray(data.auditLogs)) setAuditLogs(data.auditLogs);
+      if (Array.isArray(data.complaints)) setComplaints(data.complaints);
       return true;
     } catch (e) {
       console.error("Failed to parse imported ledger snapshot:", e);
       return false;
     }
+  }, []);
+
+  const bulkAddProducts = useCallback((newProducts: Product[]) => {
+    setProducts((prev) => {
+      const existingSkuMap = new Map(prev.map((p) => [p.sku.toUpperCase(), p]));
+      const updated = [...prev];
+      newProducts.forEach((np) => {
+        const key = np.sku.toUpperCase();
+        if (existingSkuMap.has(key)) {
+          const idx = updated.findIndex((p) => p.sku.toUpperCase() === key);
+          if (idx !== -1) updated[idx] = { ...updated[idx], ...np };
+        } else {
+          updated.unshift(np);
+        }
+      });
+      return updated;
+    });
+
+    const log: FinancialAuditLog = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      entityType: "ORDER",
+      entityId: `BULK-${newProducts.length}`,
+      fieldName: "all",
+      oldValue: "None",
+      newValue: `Bulk imported ${newProducts.length} catalog products with MFN identifiers`,
+      modifiedBy: "Operator",
+      reason: "Bulk catalog SKU ingestion",
+    };
+    setAuditLogs((prev) => [log, ...prev]);
+  }, []);
+
+  const addComplaint = useCallback((complaint: CustomerComplaint) => {
+    setComplaints((prev) => [complaint, ...prev]);
+  }, []);
+
+  const updateComplaintStatus = useCallback(
+    (ticketId: string, status: CustomerComplaint["status"], resolutionNotes?: string) => {
+      setComplaints((prev) =>
+        prev.map((c) =>
+          c.id === ticketId
+            ? {
+                ...c,
+                status,
+                ...(status === "RESOLVED" || status === "CLOSED"
+                  ? {
+                      resolvedAt: new Date().toISOString(),
+                      resolutionNotes: resolutionNotes || c.resolutionNotes || "Issue marked resolved",
+                    }
+                  : {}),
+              }
+            : c
+        )
+      );
+    },
+    []
+  );
+
+  const deleteComplaint = useCallback((ticketId: string) => {
+    setComplaints((prev) => prev.filter((c) => c.id !== ticketId));
+  }, []);
+
+  const switchAccountType = useCallback((role: AccountType, supplierId?: string) => {
+    const matching = DEFAULT_ACCOUNTS.find((a) => a.accountType === role) || {
+      id: `ACC-${Date.now()}`,
+      name: role === "SUPPLIER" ? "Wholesale Supplier" : role === "WHOLESALER" ? "B2B Wholesaler" : "Brand Owner",
+      email: `${role.toLowerCase()}@marginflow.io`,
+      accountType: role,
+      companyName: role === "SUPPLIER" ? "Apex Electronics Mfg Ltd" : role === "WHOLESALER" ? "Metro B2B Wholesalers" : "VoltTech Consumer Electronics",
+      supplierId: supplierId || (role === "SUPPLIER" ? "SUP-001" : undefined),
+      authenticatedAt: new Date().toISOString(),
+    };
+    setCurrentUser(matching);
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("marginflow_session", JSON.stringify(matching));
+      }
+    } catch {}
   }, []);
 
   const contextValue = useMemo(
@@ -1694,6 +1825,10 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       expenses,
       aiDocuments,
       auditLogs,
+      complaints,
+      currentUser,
+      setCurrentUser,
+      switchAccountType,
       isHydrated,
       resetLedgerToDefaults,
       exportLedgerSnapshot,
@@ -1731,8 +1866,12 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       deleteClaim,
       deleteClaims,
       addProduct,
+      bulkAddProducts,
       deleteProduct,
       updateProductCost,
+      addComplaint,
+      updateComplaintStatus,
+      deleteComplaint,
       addSettlement,
       addExpense,
       updateExpense,
@@ -1762,6 +1901,10 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       expenses,
       aiDocuments,
       auditLogs,
+      complaints,
+      currentUser,
+      setCurrentUser,
+      switchAccountType,
       isHydrated,
       resetLedgerToDefaults,
       exportLedgerSnapshot,
@@ -1796,8 +1939,12 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       deleteClaim,
       deleteClaims,
       addProduct,
+      bulkAddProducts,
       deleteProduct,
       updateProductCost,
+      addComplaint,
+      updateComplaintStatus,
+      deleteComplaint,
       addSettlement,
       addExpense,
       updateExpense,

@@ -13,10 +13,12 @@ import {
   Trash2,
   Building2,
   Package,
+  Upload,
 } from "lucide-react";
+import { ProductBulkUploadModal } from "@/components/modals/product-bulk-upload-modal";
 
 export function ProductsView() {
-  const { products, suppliers, addProduct, deleteProduct, updateProductCost } = usePlatform();
+  const { products, suppliers, addProduct, bulkAddProducts, deleteProduct, updateProductCost } = usePlatform();
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isEditCostOpen, setIsEditCostOpen] = useState(false);
@@ -25,9 +27,14 @@ export function ProductsView() {
     "Supplier revision due to raw material adjustment"
   );
 
+  // Bulk Upload Modal State
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+
   // Add Product Modal State
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [newSku, setNewSku] = useState("");
+  const [newMfn, setNewMfn] = useState("");
+  const [newMfn1, setNewMfn1] = useState("");
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("Computer Peripherals");
   const [newBrand, setNewBrand] = useState("VoltTech");
@@ -41,6 +48,8 @@ export function ProductsView() {
   const handleOpenAddProduct = () => {
     setNewSupplierId(suppliers[0]?.id || "SUP-001");
     setNewSku("");
+    setNewMfn("");
+    setNewMfn1("");
     setNewName("");
     setNewCostPrice("350");
     setNewStockQty("100");
@@ -60,6 +69,8 @@ export function ProductsView() {
     const newProd: Product = {
       id: `PROD-${Date.now().toString().slice(-4)}`,
       sku: formattedSku,
+      mfn: newMfn.trim().toUpperCase() || undefined,
+      mfn1: newMfn1.trim().toUpperCase() || undefined,
       name: newName.trim(),
       category: newCategory.trim() || "General",
       brand: newBrand.trim() || "Brand",
@@ -113,6 +124,12 @@ export function ProductsView() {
             {row.original.sku}
           </span>
           <span className="text-[11px] text-[#86868B] tabular-nums">{row.original.id}</span>
+          {(row.original.mfn || row.original.mfn1) && (
+            <div className="text-[10px] text-[#0071E3] font-mono mt-0.5 font-medium">
+              {row.original.mfn ? `MFN: ${row.original.mfn}` : ""}
+              {row.original.mfn1 ? ` • ${row.original.mfn1}` : ""}
+            </div>
+          )}
         </div>
       ),
     },
@@ -242,14 +259,24 @@ export function ProductsView() {
             Point-in-time historical cost basis preservation. Price changes create versioned windows without rewriting past margins.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleOpenAddProduct}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-apple-sm btn-press transition cursor-pointer shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" strokeWidth={2} />
-          <span>Add New Product</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsBulkUploadOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-black/[0.04] text-[#1D1D1F] border border-black/[0.08] text-xs font-medium rounded-full shadow-apple-sm btn-press transition cursor-pointer shrink-0"
+          >
+            <Upload className="w-3.5 h-3.5 text-[#86868B]" strokeWidth={2} />
+            <span>Bulk Upload</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenAddProduct}
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-apple-sm btn-press transition cursor-pointer shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" strokeWidth={2} />
+            <span>Add New Product</span>
+          </button>
+        </div>
       </div>
 
       <DataTable
@@ -484,6 +511,33 @@ export function ProductsView() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">
+                    MFN Number (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. MFN-KEYB-900"
+                    value={newMfn}
+                    onChange={(e) => setNewMfn(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 font-mono font-medium uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="font-medium text-[#6E6E73] block mb-1">
+                    MFN-1 Identifier (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. MFN1-KEYB-900-A"
+                    value={newMfn1}
+                    onChange={(e) => setNewMfn1(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:bg-white focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 font-mono font-medium uppercase"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="font-medium text-[#6E6E73] block mb-1">
                   Product Title / Name *
@@ -614,6 +668,14 @@ export function ProductsView() {
           </div>
         </div>
       )}
+
+      {/* Bulk Product Upload Modal */}
+      <ProductBulkUploadModal
+        isOpen={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
+        onBulkAddProducts={bulkAddProducts}
+        existingProducts={products}
+      />
     </div>
   );
 }

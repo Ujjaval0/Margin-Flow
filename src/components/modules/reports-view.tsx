@@ -618,7 +618,7 @@ export function ReportsView() {
                           backdropFilter: "blur(12px)",
                           borderRadius: "16px",
                           border: "1px solid rgba(0, 0, 0, 0.08)",
-                          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.08)",
+                          boxShadow: "0 4px 12px -2px rgba(0, 0, 0, 0.03)",
                           fontSize: "12px",
                         }}
                         formatter={(value: any) => [formatINR(Number(value)), "Net Profit"]}
@@ -673,7 +673,7 @@ export function ReportsView() {
                           backdropFilter: "blur(12px)",
                           borderRadius: "16px",
                           border: "1px solid rgba(0, 0, 0, 0.08)",
-                          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.08)",
+                          boxShadow: "0 4px 12px -2px rgba(0, 0, 0, 0.03)",
                           fontSize: "12px",
                         }}
                         formatter={(value: any, name: any) => [
@@ -745,7 +745,7 @@ export function ReportsView() {
                         backdropFilter: "blur(12px)",
                         borderRadius: "16px",
                         border: "1px solid rgba(0, 0, 0, 0.08)",
-                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.08)",
+                        boxShadow: "0 4px 12px -2px rgba(0, 0, 0, 0.03)",
                         fontSize: "12px",
                       }}
                       formatter={(value: any, name: any) => [

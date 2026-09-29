@@ -58,6 +58,7 @@ import { OrderModal } from "@/components/modals/order-modal";
 import { PlatformFilterDropdown } from "@/components/ui/marketplace-dropdown";
 import { getMarketplaceBadge } from "@/lib/marketplace-config";
 import { CsvImportModal } from "@/components/modals/csv-import-modal";
+import { InvoiceAutoParseModal } from "@/components/modals/invoice-auto-parse-modal";
 
 interface OrdersViewProps {
   selectedMarketplace?: Marketplace | "ALL";
@@ -436,6 +437,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
 
   // ----------------------------------------------------
   // Selection and Bulk Actions State
@@ -716,8 +718,17 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
           </p>
         </div>
 
-        {/* Top Actions: Import CSV, Export CSV, + Add Order */}
+        {/* Top Actions: Auto-parse Invoice, Import CSV, Export CSV, + Add Order */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsInvoiceModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white hover:bg-black/[0.02] border border-black/[0.08] text-xs font-semibold text-[#1D1D1F] transition shadow-apple-sm active:scale-[0.98] cursor-pointer"
+            title="Auto-parse orders from customer or marketplace invoices (PDF, CSV, TXT)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#0071E3]" />
+            <span>Auto-parse Invoice</span>
+          </button>
+
           <button
             onClick={() => setIsCsvImportOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-white hover:bg-black/[0.02] border border-black/[0.08] text-xs font-semibold text-[#1D1D1F] transition shadow-apple-sm active:scale-[0.98] cursor-pointer"
@@ -881,7 +892,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                   </td>
                 </tr>
               ) : (
-                paginatedOrders.map((order) => {
+                paginatedOrders.map((order, orderIdx) => {
                   const pnl =
                     orderPnlMap.get(order.id) ||
                     calculateOrderProfitability(order, returns, settlements, claims, financialMaps);
@@ -900,7 +911,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
 
                   return (
                     <tr
-                      key={order.id}
+                      key={`${order.id}-${orderIdx}`}
                       className={`transition-colors duration-150 group ${
                         selectedOrderIds.includes(order.id)
                           ? "bg-black/[0.03] font-medium"
@@ -1419,6 +1430,15 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
         isOpen={isCsvImportOpen}
         onClose={() => setIsCsvImportOpen(false)}
         products={products}
+        onImportOrders={handleBatchImportOrders}
+      />
+
+      {/* Invoice Auto-Parse Modal (Bulk & Single) */}
+      <InvoiceAutoParseModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        products={products}
+        suppliers={suppliers}
         onImportOrders={handleBatchImportOrders}
       />
     </div>

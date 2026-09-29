@@ -18,6 +18,7 @@ import {
   Scale,
   Webhook,
   PlugZap,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -38,7 +39,8 @@ export type NavModule =
   | "documents"
   | "reports"
   | "ledger"
-  | "webhooks";
+  | "webhooks"
+  | "trash";
 
 interface SidebarProps {
   activeModule?: NavModule;
@@ -53,7 +55,7 @@ export function Sidebar({
   isOpen,
   onToggle,
 }: SidebarProps) {
-  const { aiDocuments } = usePlatform();
+  const { aiDocuments, currentUser } = usePlatform();
   const pathname = usePathname();
 
   // Determine active module cleanly from prop or pathname without double-render state
@@ -182,7 +184,28 @@ export function Sidebar({
       iconColor: "text-blue-600",
       bgTint: "bg-blue-500/10",
     },
-  ], [pendingDocsCount]);
+    {
+      id: "trash" as NavModule,
+      href: "/trash",
+      label: "Recycle Bin",
+      icon: Trash2,
+      iconColor: "text-[#86868B]",
+      bgTint: "bg-black/[0.04]",
+    },
+  ].filter((item) => {
+    if (currentUser?.accountType === "SUPPLIER") {
+      const allowed: NavModule[] = [
+        "dashboard",
+        "products",
+        "suppliers",
+        "purchases",
+        "documents",
+        "reports",
+      ];
+      return allowed.includes(item.id);
+    }
+    return true;
+  }), [pendingDocsCount, currentUser?.accountType]);
 
   return (
     <aside

@@ -531,9 +531,7 @@ export function CfoCopilot() {
               {/* Apple-Inspired Minimalist Header */}
               <div className="px-5 py-3.5 border-b border-black/[0.06] flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-md">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-6 h-6 rounded-full bg-[#1D1D1F] text-white flex items-center justify-center shadow-apple-sm shrink-0">
-                    <AssistantEmblem className="w-4 h-4 text-white" />
-                  </div>
+                  <AssistantEmblem className="w-5 h-5 text-[#1D1D1F] shrink-0" />
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight">
                       Flow

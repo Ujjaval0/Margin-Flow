@@ -6,23 +6,26 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MarginFlowLogo } from "@/components/MarginFlowLogo";
 import { ArrowLeft, ShieldCheck, CheckCircle2, Lock } from "lucide-react";
+import { DEFAULT_ACCOUNTS } from "@/domain/mock-data";
+import { AccountType } from "@/domain/types";
 
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<AccountType>("BRAND_OWNER");
 
   const handleGoogleAuth = () => {
     setIsLoading(true);
     // Simulate instantaneous Google OAuth handshake & session initialization
     try {
       if (typeof window !== "undefined") {
-        const dummyUser = {
-          name: "E-Commerce Founder",
-          email: "founder@brand.in",
-          provider: "google",
+        const targetAccount =
+          DEFAULT_ACCOUNTS.find((a) => a.accountType === selectedRole) || DEFAULT_ACCOUNTS[0];
+        const sessionUser = {
+          ...targetAccount,
           authenticatedAt: new Date().toISOString(),
         };
-        localStorage.setItem("marginflow_session", JSON.stringify(dummyUser));
+        localStorage.setItem("marginflow_session", JSON.stringify(sessionUser));
       }
     } catch {
       // storage fallback
@@ -72,8 +75,47 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {/* Account Role Selector */}
+          <div className="mt-7">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-[#86868B] uppercase tracking-wider">
+                Operating Role
+              </span>
+              <span className="text-[11px] text-[#0071E3] font-medium">
+                {selectedRole === "BRAND_OWNER"
+                  ? "D2C Brand"
+                  : selectedRole === "SUPPLIER"
+                  ? "Wholesale Supplier"
+                  : "B2B Wholesaler"}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#F5F5F7] rounded-2xl border border-black/[0.04]">
+              {(
+                [
+                  { type: "BRAND_OWNER", label: "Brand Owner", sub: "Omnichannel" },
+                  { type: "SUPPLIER", label: "Supplier", sub: "Vendor" },
+                  { type: "WHOLESALER", label: "Wholesaler", sub: "B2B Trade" },
+                ] as const
+              ).map((role) => (
+                <button
+                  key={role.type}
+                  type="button"
+                  onClick={() => setSelectedRole(role.type)}
+                  className={`py-2 px-1 rounded-xl text-center transition-all ${
+                    selectedRole === role.type
+                      ? "bg-white text-[#1D1D1F] font-semibold shadow-apple-sm border border-black/[0.06]"
+                      : "text-[#6E6E73] hover:text-[#1D1D1F] border border-transparent"
+                  }`}
+                >
+                  <div className="text-xs">{role.label}</div>
+                  <div className="text-[10px] text-[#86868B]">{role.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Authentication Action */}
-          <div className="mt-8 space-y-4">
+          <div className="mt-6 space-y-4">
             <button
               onClick={handleGoogleAuth}
               disabled={isLoading}

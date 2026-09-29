@@ -1329,7 +1329,7 @@ export function DashboardView({
                       backgroundColor: "#FFFFFF",
                       borderRadius: "14px",
                       border: "1px solid rgba(0,0,0,0.08)",
-                      boxShadow: "0 10px 30px -4px rgba(0,0,0,0.08)",
+                      boxShadow: "0 4px 12px -2px rgba(0,0,0,0.03)",
                       fontSize: "12px",
                       padding: "8px 12px",
                     }}
@@ -1387,7 +1387,7 @@ export function DashboardView({
                       backgroundColor: "#FFFFFF",
                       borderRadius: "14px",
                       border: "1px solid rgba(0,0,0,0.08)",
-                      boxShadow: "0 10px 30px -4px rgba(0,0,0,0.08)",
+                      boxShadow: "0 4px 12px -2px rgba(0,0,0,0.03)",
                       fontSize: "12px",
                     }}
                   />
