@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { AIStagedDocument } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
 import { formatINR } from "@/lib/utils";
@@ -49,6 +50,13 @@ export function AIStagingView() {
   // Inspector tab: fields editor vs source scan
   const [activeTab, setActiveTab] = useState<"FIELDS" | "RAW_SCAN">("FIELDS");
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   // Upload Modal State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -60,6 +68,16 @@ export function AIStagingView() {
     "SUPPLIER_BILL" | "INVOICE" | "SETTLEMENT_REPORT"
   >("SUPPLIER_BILL");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isUploadModalOpen && !isUploading) setIsUploadModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isUploadModalOpen, isUploading]);
 
   // Filtered documents list
   const filteredDocuments = useMemo(() => {
@@ -909,7 +927,7 @@ export function AIStagingView() {
       </div>
 
       {/* ─── UPLOAD MODAL (Apple Minimalism) ─── */}
-      {isUploadModalOpen && (
+      {mounted && isUploadModalOpen && createPortal(
         <div
           className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
           onClick={() => !isUploading && setIsUploadModalOpen(false)}
@@ -1155,7 +1173,8 @@ export function AIStagingView() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

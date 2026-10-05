@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Product } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate } from "@/lib/utils";
@@ -20,6 +21,13 @@ import { ProductBulkUploadModal } from "@/components/modals/product-bulk-upload-
 export function ProductsView() {
   const { products, suppliers, addProduct, bulkAddProducts, deleteProduct, updateProductCost } = usePlatform();
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isEditCostOpen, setIsEditCostOpen] = useState(false);
   const [newCost, setNewCost] = useState<number>(350);
@@ -32,6 +40,18 @@ export function ProductsView() {
 
   // Add Product Modal State
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isEditCostOpen) setIsEditCostOpen(false);
+        else if (selectedProduct) setSelectedProduct(null);
+        else if (isAddProductOpen) setIsAddProductOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isEditCostOpen, selectedProduct, isAddProductOpen]);
   const [newSku, setNewSku] = useState("");
   const [newMfn, setNewMfn] = useState("");
   const [newMfn1, setNewMfn1] = useState("");
@@ -287,9 +307,15 @@ export function ProductsView() {
       />
 
       {/* Historical Cost Drawer */}
-      {selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+      {mounted && selectedProduct && createPortal(
+        <div
+          onClick={() => setSelectedProduct(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 sm:p-6 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden"
+          >
             <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
               <div>
                 <span className="text-[11px] text-[#86868B] tabular-nums block">
@@ -368,13 +394,20 @@ export function ProductsView() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Revise Cost Modal */}
-      {isEditCostOpen && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+      {mounted && isEditCostOpen && selectedProduct && createPortal(
+        <div
+          onClick={() => setIsEditCostOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 sm:p-6 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden"
+          >
             <div className="px-6 py-4 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
               <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">
                 Update Purchasing Cost: {selectedProduct.sku}
@@ -442,13 +475,20 @@ export function ProductsView() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Add Product Modal */}
-      {isAddProductOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+      {mounted && isAddProductOpen && createPortal(
+        <div
+          onClick={() => setIsAddProductOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 sm:p-6 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden"
+          >
             <div className="px-6 py-4 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
               <div className="flex items-center gap-2.5">
                 <span className="w-8 h-8 rounded-xl bg-black/[0.04] text-[#1D1D1F] flex items-center justify-center">
@@ -666,7 +706,8 @@ export function ProductsView() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Bulk Product Upload Modal */}

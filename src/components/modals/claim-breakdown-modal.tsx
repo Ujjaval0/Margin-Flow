@@ -196,7 +196,7 @@ export function ClaimBreakdownModal({ cardType, onClose, claims, onSelectFilter 
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div

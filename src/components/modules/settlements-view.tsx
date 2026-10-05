@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Settlement,
   Marketplace,
@@ -21,9 +22,27 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
   const { selectedMarketplace: contextMarketplace, settlements, orders, addSettlement, settlementAging } = usePlatform();
   const selectedMarketplace = propMarketplace ?? contextMarketplace;
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null);
   const [selectedAgingTab, setSelectedAgingTab] = useState<"ALL" | "0-7" | "8-14" | "14+">("ALL");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (selectedSettlement) setSelectedSettlement(null);
+        else if (isCreateOpen) setIsCreateOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedSettlement, isCreateOpen]);
 
   // New settlement state
   const [settlementBatchId, setSettlementBatchId] = useState("AZ-SEP-BATCH-02");
@@ -423,9 +442,15 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
       />
 
       {/* Settlement Breakdown Drawer */}
-      {selectedSettlement && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+      {mounted && selectedSettlement && createPortal(
+        <div
+          onClick={() => setSelectedSettlement(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 sm:p-6 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden"
+          >
             <div className="px-6 py-5 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-[#FAFAFC]">
               <div>
                 <span className="text-[11px] text-[#86868B] tabular-nums block">
@@ -496,13 +521,20 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Record Settlement Modal */}
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+      {mounted && isCreateOpen && createPortal(
+        <div
+          onClick={() => setIsCreateOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 sm:p-6 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden"
+          >
             <div className="px-6 py-4.5 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-[#FAFAFC]">
               <div>
                 <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">Record Marketplace Deposit</h2>
@@ -636,7 +668,8 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

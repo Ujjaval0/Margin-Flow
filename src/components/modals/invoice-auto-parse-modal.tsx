@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import {
   Upload,
   Sparkles,
+  FileScan,
+  FileUp,
   X,
   FileText,
   CheckCircle2,
@@ -47,8 +49,18 @@ async function extractTextFromFile(file: File): Promise<string> {
 
   if (extension === "pdf") {
     try {
-      // 1. Try direct text read (works on text-based PDFs)
       const raw = await file.text();
+      // 1. Extract BT...ET text stream objects from PDF (Tj and TJ)
+      const tjStrings = [...raw.matchAll(/\[(.*?)\]\s*TJ/g)].map((m) =>
+        [...m[1].matchAll(/\(([^)]*)\)/g)].map((p) => p[1]).join("")
+      );
+      const singleTjStrings = [...raw.matchAll(/\(([^)]+)\)\s*Tj/g)].map((m) => m[1]);
+      const pdfDecoded = [...tjStrings, ...singleTjStrings].join(" ").trim();
+
+      if (pdfDecoded.length > 25) {
+        return pdfDecoded;
+      }
+
       if (
         raw.includes("Order") ||
         raw.includes("order") ||
@@ -60,7 +72,7 @@ async function extractTextFromFile(file: File): Promise<string> {
         return raw;
       }
 
-      // 2. Extract ASCII string sequences from binary PDF buffer
+      // 2. Extract ASCII string sequences from binary PDF buffer as fallback
       const buffer = await file.arrayBuffer();
       const bytes = new Uint8Array(buffer);
       const chunks: string[] = [];
@@ -103,52 +115,67 @@ function parseTextToOrder(
 
   // 1. Marketplace channel detection
   let matchedMarketplace: Marketplace = "Amazon India";
-  if (lower.includes("flipkart")) matchedMarketplace = "Flipkart";
-  else if (lower.includes("meesho")) matchedMarketplace = "Meesho";
+  if (lower.includes("flipkart") || lower.includes("instakart")) matchedMarketplace = "Flipkart";
+  else if (lower.includes("meesho") || lower.includes("fashnear")) matchedMarketplace = "Meesho";
   else if (lower.includes("myntra")) matchedMarketplace = "Myntra";
   else if (lower.includes("woocommerce")) matchedMarketplace = "WooCommerce";
-  else if (lower.includes("amazon")) matchedMarketplace = "Amazon India";
-  else if (lower.includes("website") || lower.includes("shopify")) matchedMarketplace = "Personal Website";
+  else if (lower.includes("amazon") || lower.includes("amzn")) matchedMarketplace = "Amazon India";
+  else if (lower.includes("website") || lower.includes("shopify") || lower.includes("d2c")) matchedMarketplace = "Personal Website";
+  else if (fileName.toLowerCase().includes("flipkart")) matchedMarketplace = "Flipkart";
+  else if (fileName.toLowerCase().includes("meesho")) matchedMarketplace = "Meesho";
+  else if (fileName.toLowerCase().includes("myntra")) matchedMarketplace = "Myntra";
 
-  // 2. Order ID / Reference number detection
+  // 2. Order ID / Reference number detection across multi-channel standards
   const idMatch =
-    text.match(/(?:order\s*id|order\s*#|invoice\s*#|ref\s*#)[:.\s]*([A-Z0-9\-_]{6,30})/i) ||
-    text.match(/([0-9]{3}-[0-9]{7}-[0-9]{7})/i) ||
-    text.match(/(OD[0-9]{15,20})/i) ||
-    text.match(/(MSH-[A-Z0-9\-]+)/i);
+    text.match(/(?:order\s*id|order\s*#|invoice\s*#|invoice\s*no|ref\s*#)[:.\s]*([A-Z0-9\-_]{6,30})/i) ||
+    text.match(/\b([0-9]{3}-[0-9]{7}-[0-9]{7})\b/i) ||
+    text.match(/\b(OD[0-9]{15,22})\b/i) ||
+    text.match(/\b(MSH-[A-Z0-9\-]+)\b/i) ||
+    text.match(/\b([0-9]{11,14}(?:_[0-9]+)?)\b/i) ||
+    text.match(/#([0-9]{4,8})/);
 
-  const cleanBaseName = fileName.replace(/\.[^/.]+$/, "").slice(0, 10).toUpperCase();
+  const cleanBaseName = fileName.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9-_]/g, "").slice(0, 10).toUpperCase();
   const extractedOrderId = idMatch
     ? idMatch[1].trim()
     : `INV-${cleanBaseName || Date.now().toString().slice(-6)}`;
 
-  // 3. Date detection
+  // 3. Date detection (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD)
   const dateMatch =
-    text.match(/(?:date|order date|invoice date)[:.\s]*([0-9]{4}[-/][0-9]{2}[-/][0-9]{2})/i) ||
-    text.match(/(?:date|order date)[:.\s]*([0-9]{2}[-/][0-9]{2}[-/][0-9]{4})/i);
+    text.match(/\b(202\d[-/][01]\d[-/][0-3]\d)\b/) ||
+    text.match(/\b([0-3]?\d[-/][01]?\d[-/]202\d)\b/) ||
+    text.match(/(?:date|order\s*date|invoice\s*date)[:.\s]*([0-9]{1,2}[-/][0-9]{1,2}[-/][0-9]{4})/i) ||
+    text.match(/(?:date|order\s*date|invoice\s*date)[:.\s]*([0-9]{4}[-/][0-9]{1,2}[-/][0-9]{1,2})/i);
 
   let extractedDate = new Date().toISOString().split("T")[0];
   if (dateMatch) {
     const raw = dateMatch[1];
-    if (raw.length === 10 && raw.startsWith("202")) extractedDate = raw;
-    else if (raw.includes("/")) {
-      const parts = raw.split("/");
-      if (parts[2]?.length === 4) extractedDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+    if (raw.length === 10 && raw.startsWith("202")) {
+      extractedDate = raw.replace(/\//g, "-");
+    } else if (raw.includes("/") || raw.includes("-")) {
+      const sep = raw.includes("/") ? "/" : "-";
+      const parts = raw.split(sep);
+      if (parts[2]?.length === 4) {
+        extractedDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+      } else if (parts[0]?.length === 4) {
+        extractedDate = `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+      }
     }
   }
 
   // 4. Product matching from text
-  let matchedProd = products[0] || {
+  let matchedProd: Product = products[0] || {
     id: "PROD-GEN",
     sku: "SKU-AUTO",
     name: "Catalog Item",
     category: "General",
-    marketplace: matchedMarketplace,
+    brand: "Generic",
     currentCostPrice: 350,
+    costHistory: [],
+    supplierId: "SUP-001",
+    active: true,
+    channelAliases: {},
     mfn: "MFN-GEN",
     mfn1: "MFN1-GEN",
-    targetCommissionRate: 20,
-    deadStockThresholdDays: 60,
   };
 
   for (const p of products) {
@@ -163,16 +190,36 @@ function parseTextToOrder(
     }
   }
 
-  // 5. Quantity & Price extraction
-  const qtyMatch = text.match(/(?:qty|quantity)[:.\s]*([0-9]+)/i);
+  // 5. Quantity & Price extraction (with robust comma support e.g. ₹1,499.00)
+  const qtyMatch = text.match(/(?:qty|quantity|units)[:.\s]*([0-9]+)/i);
   const parsedQtyVal = qtyMatch ? Math.max(1, parseInt(qtyMatch[1], 10)) : 1;
 
   const priceMatch =
-    text.match(/(?:total|amount|price|selling price|item price)[:.\s]*₹?\s*([0-9]+(?:\.[0-9]{2})?)/i) ||
-    text.match(/₹\s*([0-9]+(?:\.[0-9]{2})?)/);
+    text.match(/(?:grand\s*total|invoice\s*(?:total|value|amount)|total\s*amount|net\s*payable|net\s*amount|total|amount|selling\s*price|item\s*price)[:.\s]*₹?\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/i) ||
+    text.match(/₹\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/);
+
   const parsedPriceVal = priceMatch
-    ? Math.max(0, parseFloat(priceMatch[1]))
+    ? Math.max(0, parseFloat(priceMatch[1].replace(/,/g, "")))
     : Math.round(matchedProd.currentCostPrice * 2.5);
+
+  // 6. Indian Customer State & City Detection
+  const stateKeywords = [
+    "Maharashtra", "Karnataka", "Delhi", "Tamil Nadu", "Gujarat", "Uttar Pradesh",
+    "Telangana", "Haryana", "West Bengal", "Rajasthan", "Kerala", "Madhya Pradesh",
+    "Punjab", "Bihar", "Odisha", "Andhra Pradesh", "Assam", "Goa", "Jharkhand"
+  ];
+  let detectedState = "Maharashtra";
+  let detectedCity = "Mumbai";
+  for (const state of stateKeywords) {
+    if (lower.includes(state.toLowerCase())) {
+      detectedState = state;
+      detectedCity = state === "Delhi" ? "New Delhi" : state === "Karnataka" ? "Bengaluru" : state === "Tamil Nadu" ? "Chennai" : state === "Gujarat" ? "Ahmedabad" : state === "Telangana" ? "Hyderabad" : "Metro City";
+      break;
+    }
+  }
+
+  const nameMatch = text.match(/(?:bill\s*to|ship\s*to|buyer\s*name|customer\s*name)[:.\s]*([A-Za-z\s]{3,25})/i);
+  const customerName = nameMatch ? nameMatch[1].trim() : "Direct Buyer";
 
   const comm = 20;
   const gSales = parsedPriceVal * parsedQtyVal;
@@ -191,9 +238,9 @@ function parseTextToOrder(
     marketplace: matchedMarketplace,
     orderDate: extractedDate,
     status: "DELIVERED",
-    customerName: "Direct Buyer",
-    customerCity: "Mumbai",
-    customerState: "Maharashtra",
+    customerName,
+    customerCity: detectedCity,
+    customerState: detectedState,
     shippingFeeCharged: 0,
     marketplaceChargesEstimate: commDeduction,
     settlementAmount: netSettlement,
@@ -240,18 +287,25 @@ export function InvoiceAutoParseModal({
     return () => setMounted(false);
   }, []);
 
-  if (!isOpen || !mounted) return null;
-
   const handleReset = () => {
     setParsedItems([]);
     setIsProcessing(false);
     setIsDragging(false);
   };
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     handleReset();
     onClose();
-  };
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, handleClose]);
 
   const processFiles = async (files: FileList | File[]) => {
     if (!files || files.length === 0) return;
@@ -353,6 +407,8 @@ export function InvoiceAutoParseModal({
     handleClose();
   };
 
+  if (!isOpen || !mounted) return null;
+
   // Metrics summary
   const totalOrders = parsedItems.length;
   const totalGross = parsedItems.reduce(
@@ -362,23 +418,26 @@ export function InvoiceAutoParseModal({
   const totalSettlement = parsedItems.reduce((sum, item) => sum + (item.order.settlementAmount || 0), 0);
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="apple-card bg-white text-[#1D1D1F] rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+      onClick={handleClose}
+    >
+      <div
+        className="apple-card bg-white text-[#1D1D1F] rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-black/[0.06] flex items-center justify-between bg-[#FBFBFD]">
           <div className="flex items-center gap-3">
-            <span className="w-8 h-8 rounded-xl bg-[#0071E3]/10 border border-[#0071E3]/20 text-[#0071E3] flex items-center justify-center font-bold">
-              <Sparkles className="w-4 h-4" />
-            </span>
+            <div className="w-8 h-8 rounded-xl bg-[#0071E3]/10 border border-[#0071E3]/20 text-[#0071E3] flex items-center justify-center shrink-0">
+              <FileScan className="w-4 h-4 text-[#0071E3]" />
+            </div>
             <div>
-              <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight flex items-center gap-2">
-                <span>Auto-parse from Invoice</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20">
-                  Bulk &amp; Single
-                </span>
+              <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
+                Auto-parse from Invoice
               </h2>
               <p className="text-[11px] text-[#86868B]">
-                Upload customer or marketplace invoices (PDF, CSV, TXT) to auto-fill order details
+                Upload marketplace invoices to auto-fill order details
               </p>
             </div>
           </div>
@@ -403,7 +462,7 @@ export function InvoiceAutoParseModal({
             className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
               isDragging
                 ? "border-[#0071E3] bg-[#0071E3]/5 scale-[0.99]"
-                : "border-[#0071E3]/30 hover:border-[#0071E3] bg-gradient-to-r from-[#0071E3]/[0.02] to-indigo-50/20"
+                : "border-black/[0.12] hover:border-[#0071E3]/60 bg-[#FAFAFC] hover:bg-[#F5F5F7]"
             }`}
           >
             <input
@@ -415,15 +474,15 @@ export function InvoiceAutoParseModal({
               className="hidden"
             />
             <div className="flex flex-col items-center justify-center gap-2 text-xs text-[#6E6E73]">
-              <div className="w-10 h-10 rounded-full bg-[#0071E3]/10 flex items-center justify-center text-[#0071E3]">
-                <Upload className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-2xl bg-white border border-black/[0.08] shadow-apple-sm flex items-center justify-center text-[#0071E3]">
+                <FileUp className="w-5 h-5" />
               </div>
               <div>
                 <p className="font-semibold text-sm text-[#1D1D1F]">
                   Drag &amp; drop invoices here, or <span className="text-[#0071E3] underline underline-offset-2">browse</span>
                 </p>
                 <p className="text-[11px] text-[#86868B] mt-0.5">
-                  Directly upload single or bulk invoices (.pdf, .csv, .txt)
+                  Supports PDF, CSV, or TXT
                 </p>
               </div>
             </div>
@@ -554,8 +613,8 @@ export function InvoiceAutoParseModal({
                 </span>
               </div>
             ) : (
-              <span className="text-[#86868B]">
-                Upload PDF, CSV, or TXT invoices to parse orders
+              <span className="text-[11px] text-[#86868B]">
+                Supports Amazon, Flipkart, Meesho &amp; D2C invoices
               </span>
             )}
           </div>

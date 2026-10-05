@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   ShieldCheck,
@@ -28,6 +29,13 @@ export function DisputePacketModal({
   isOpen,
   onClose,
 }: DisputePacketModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   const platform = usePlatform();
   const [copied, setCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,8 +90,6 @@ export function DisputePacketModal({
     }
   }, [isOpen, returnRecord, platform.orders]);
 
-  if (!isOpen || !returnRecord) return null;
-
   const handleCopyText = async () => {
     if (!claimData?.disputeNarrative) return;
     try {
@@ -96,7 +102,7 @@ export function DisputePacketModal({
   };
 
   const handleCommitToClaimsLedger = () => {
-    if (!claimData || isSubmitting) return;
+    if (!claimData || isSubmitting || !returnRecord) return;
     setIsSubmitting(true);
 
     try {
@@ -131,12 +137,29 @@ export function DisputePacketModal({
     }
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !returnRecord || !mounted) return null;
+
   const isAmazon = returnRecord.marketplace.toLowerCase().includes("amazon");
   const isFlipkart = returnRecord.marketplace.toLowerCase().includes("flipkart");
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="px-6 py-4.5 border-b border-black/[0.06] flex items-center justify-between shrink-0 bg-[#FBFBFD]">
           <div className="flex items-center gap-2.5">
@@ -326,6 +349,7 @@ export function DisputePacketModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

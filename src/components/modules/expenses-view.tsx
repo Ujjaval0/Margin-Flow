@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Expense, ExpenseCategory } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate } from "@/lib/utils";
@@ -10,6 +11,13 @@ import { Plus, X, Pencil, Trash2, AlertTriangle } from "lucide-react";
 
 export function ExpensesView() {
   const { expenses, addExpense, updateExpense, deleteExpense, deleteExpenses } = usePlatform();
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // Add Expense Modal State
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
@@ -34,6 +42,19 @@ export function ExpensesView() {
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (expenseToDelete) setExpenseToDelete(null);
+        else if (isBulkDeleteConfirmOpen) setIsBulkDeleteConfirmOpen(false);
+        else if (editingExpense) setEditingExpense(null);
+        else if (isAddExpenseOpen) setIsAddExpenseOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [expenseToDelete, isBulkDeleteConfirmOpen, editingExpense, isAddExpenseOpen]);
 
   const categories: ExpenseCategory[] = [
     "Advertising",
@@ -312,9 +333,15 @@ export function ExpensesView() {
       />
 
       {/* Add Expense Modal */}
-      {isAddExpenseOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+      {mounted && isAddExpenseOpen && createPortal(
+        <div
+          onClick={() => setIsAddExpenseOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 sm:p-6 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden"
+          >
             <div className="px-6 py-4 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
               <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">Record Operating Overhead</h2>
               <button
@@ -425,13 +452,20 @@ export function ExpensesView() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Expense Modal */}
-      {editingExpense && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+      {mounted && editingExpense && createPortal(
+        <div
+          onClick={() => setEditingExpense(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 sm:p-6 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden"
+          >
             <div className="px-6 py-4 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-slate-50/50">
               <div className="flex items-center gap-2">
                 <span className="w-7 h-7 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center">
@@ -568,21 +602,38 @@ export function ExpensesView() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Single Delete Confirmation Modal */}
-      {expenseToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-150">
-          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 text-[#D70015] flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-4 h-4" />
+      {mounted && expenseToDelete && createPortal(
+        <div
+          onClick={() => setExpenseToDelete(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 text-[#D70015] flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#1D1D1F]">Delete Operating Expense</h3>
+                  <p className="text-[11px] text-[#86868B]">This action cannot be undone.</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-sm font-semibold text-[#1D1D1F]">Delete Operating Expense</h3>
-                <p className="text-[11px] text-[#86868B]">This action cannot be undone.</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setExpenseToDelete(null)}
+                aria-label="Close dialog"
+                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer active:scale-95"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
             <p className="text-xs text-[#6E6E73] leading-relaxed">
               Are you sure you want to delete <strong className="text-[#1D1D1F]">{expenseToDelete.description}</strong> ({formatINR(expenseToDelete.amount)})?
@@ -604,21 +655,38 @@ export function ExpensesView() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Bulk Delete Confirmation Modal */}
-      {isBulkDeleteConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-150">
-          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 text-[#D70015] flex items-center justify-center shrink-0">
-                <Trash2 className="w-4 h-4" />
+      {mounted && isBulkDeleteConfirmOpen && createPortal(
+        <div
+          onClick={() => setIsBulkDeleteConfirmOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200 text-[#D70015] flex items-center justify-center shrink-0">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#1D1D1F]">Delete {selectedExpenseIds.length} Expenses</h3>
+                  <p className="text-[11px] text-[#86868B]">Batch deletion confirmation.</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-sm font-semibold text-[#1D1D1F]">Delete {selectedExpenseIds.length} Expenses</h3>
-                <p className="text-[11px] text-[#86868B]">Batch deletion confirmation.</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsBulkDeleteConfirmOpen(false)}
+                aria-label="Close dialog"
+                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer active:scale-95"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
             <p className="text-xs text-[#6E6E73] leading-relaxed">
               Are you sure you want to delete all <strong className="text-[#1D1D1F]">{selectedExpenseIds.length} selected expenses</strong>? This will permanently remove them from the ledger and adjust the Total OPEX.
@@ -640,7 +708,8 @@ export function ExpensesView() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

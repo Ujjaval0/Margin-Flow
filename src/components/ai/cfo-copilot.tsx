@@ -216,17 +216,19 @@ export function CfoCopilot() {
     return () => window.removeEventListener("marginflow_open_copilot", handleOpenCopilot);
   }, []);
 
-  // Keyboard shortcut Ctrl+J / Cmd+J to toggle copilot
+  // Keyboard shortcut Ctrl+J / Cmd+J to toggle copilot, and Escape to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") {
         e.preventDefault();
         setIsOpen((prev) => !prev);
+      } else if (e.key === "Escape" && isOpen) {
+        setIsOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isOpen]);
 
   // Scroll to bottom on new message
   useEffect(() => {
@@ -523,7 +525,7 @@ export function CfoCopilot() {
           {/* Backdrop Blur */}
           <div
             onClick={() => setIsOpen(false)}
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity animate-in fade-in duration-150"
+            className="absolute inset-0 bg-black/30 backdrop-blur-xs transition-opacity animate-in fade-in duration-150"
           />
 
           <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">

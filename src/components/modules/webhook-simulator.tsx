@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { usePlatform } from "@/domain/store";
 import { formatINR } from "@/lib/utils";
 import { Marketplace, Order } from "@/domain/types";
@@ -122,6 +123,13 @@ export function WebhookSimulatorView() {
     message: string;
   } | null>(null);
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   // Setup Modal
   const [setupModalChannel, setSetupModalChannel] = useState<ChannelState | null>(null);
   const [setupTab, setSetupTab] = useState<"webhook" | "api" | "csv">("webhook");
@@ -130,6 +138,16 @@ export function WebhookSimulatorView() {
   const [pingSuccess, setPingSuccess] = useState(false);
   const [customApiUrl, setCustomApiUrl] = useState("");
   const [customApiKey, setCustomApiKey] = useState("");
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (setupModalChannel) setSetupModalChannel(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setupModalChannel]);
 
   // CSV Ingestion Modal
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
@@ -473,9 +491,15 @@ export function WebhookSimulatorView() {
       </div>
 
       {/* Apple-Style Connection Sheet Modal */}
-      {setupModalChannel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="apple-card rounded-3xl max-w-lg w-full border border-black/[0.08] shadow-apple-lg overflow-hidden animate-in zoom-in-95 duration-150">
+      {mounted && setupModalChannel && createPortal(
+        <div
+          onClick={() => setSetupModalChannel(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-card rounded-3xl max-w-lg w-full border border-black/[0.08] shadow-apple-lg overflow-hidden animate-in zoom-in-95 duration-150"
+          >
             {/* Modal Header */}
             <div className="px-6 pt-5 pb-4 border-b border-black/[0.06] flex items-center justify-between">
               <div>
@@ -664,7 +688,8 @@ export function WebhookSimulatorView() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* CSV Import Modal Integration */}

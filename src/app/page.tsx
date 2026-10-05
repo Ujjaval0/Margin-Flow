@@ -1,31 +1,30 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import Image from "next/image";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MarginFlowLogo } from "@/components/MarginFlowLogo";
-import { HeroApparatus } from "@/components/landing/hero-apparatus";
-import { HairlineLeakGrid } from "@/components/landing/hairline-leak-grid";
-import { AlternatingEngines } from "@/components/landing/alternating-engines";
-import { GlowingSpectrum } from "@/components/landing/glowing-spectrum";
+import { MarginFlowNavbar } from "@/components/landing/ecomflow-navbar";
+import { MarginFlowHero } from "@/components/landing/ecomflow-hero";
+import { MarginFlowFlowMachine } from "@/components/landing/ecomflow-flow-machine";
+import { EcomflowRouteComparison } from "@/components/landing/ecomflow-route-comparison";
+import { EcomflowWorkspaceShowcase } from "@/components/landing/ecomflow-workspace-showcase";
+import { EcomflowCompoundMetrics } from "@/components/landing/ecomflow-compound-metrics";
 import {
   ChevronDown,
   ChevronUp,
   CheckCircle2,
   Mail,
   Building2,
-  Menu,
-  X,
   ArrowUpRight,
+  ShieldCheck,
+  Check,
 } from "lucide-react";
 
 export default function LandingPage() {
   const router = useRouter();
-  const [isScrolled, setIsScrolled] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: "",
@@ -34,15 +33,6 @@ export default function LandingPage() {
     channel: "Amazon + Flipkart",
     message: "",
   });
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   const handleGoogleSignIn = () => {
     setIsAuthenticating(true);
@@ -72,242 +62,89 @@ export default function LandingPage() {
 
   const faqs = [
     {
-      question: "How is MarginFlow different from Tally, Zoho, or Seller Central?",
+      question: "Can MarginFlow audit past historical settlements?",
       answer:
-        "Seller Central reports only show gross sales without factoring in true unit purchase costs, dead weight penalties, or damaged returns. Traditional tools like Tally record lump-sum bank deposits weeks later without order-level attribution. MarginFlow reconciles every transaction in real time: auditing courier freight, computing true profit per SKU, and tracking expiring dispute deadlines so you keep what you earn.",
+        "Yes. Once connected via read-only API or statement upload, MarginFlow analyzes your past 90 days of transactions to quantify historical courier weight overcharges, unannounced category fee hikes, and unfiled claim opportunities.",
     },
     {
-      question: "How does automated courier weight reconciliation work?",
+      question: "Does MarginFlow replace Tally or Zoho Books?",
       answer:
-        "Couriers frequently bill packages at higher dead or volumetric weight slabs (e.g. charging 1.5 kg for a 400g t-shirt). MarginFlow compares each order's billed courier freight weight against your master catalog dimensions, automatically flagging discrepancies and compiling claim tickets before settlement payouts lock in.",
+        "No. MarginFlow feeds verified, transaction-level net cash and isolated tax withholdings (1% TCS & TDS) directly into your accounting workflows, giving your chartered accountant clean, audit-ready data.",
     },
     {
-      question: "Why is ROAS misleading and how does POAS fix it?",
+      question: "How long does store onboarding take?",
       answer:
-        "Return on Ad Spend (ROAS) divides gross sales by ad spend, completely ignoring returns, courier freight, and platform fees. A campaign with 4x ROAS can still lose money if returns are high. Profit on Ad Spend (POAS) divides actual net profit (after deducting product COGS, logistics, and commissions) by ad spend—ensuring you only scale campaigns that generate positive bank cash.",
+        "Under 60 seconds. Authenticate via Google SSO and connect your Amazon India, Flipkart, Meesho, or Shopify stores through 100% secure, official read-only API access.",
     },
     {
-      question: "How does the dispute and claim recovery system work?",
+      question: "How does automated weight reconciliation work?",
       answer:
-        "When customer returns or RTO shipments arrive damaged, swapped, or empty, marketplaces only allow strict 7-to-30 day dispute windows (such as Amazon SAFE-T or Flipkart seller claims). MarginFlow tracks these countdowns, automatically compiles order cost snapshots, tracking numbers, and photo evidence checklists, and tracks recovered refunds directly into your bank ledger.",
-    },
-    {
-      question: "How does MarginFlow handle GST TCS and Section 194-O TDS?",
-      answer:
-        "Indian marketplaces deduct 1% GST TCS and 1% Section 194-O TDS at source. A common mistake is classifying these withholdings as operating expenses. MarginFlow properly classifies them as balance-sheet tax withholding assets, keeping your net operating margin clean, accurate, and ready for your chartered accountant.",
-    },
-    {
-      question: "How do I connect my store and get started?",
-      answer:
-        "Access is immediate through Google single sign-on. You can connect your Amazon India, Flipkart, Meesho, or Shopify stores in under 60 seconds via secure, 100% read-only API access.",
+        "Couriers frequently bill 400g products at 2kg volumetric deadweight slabs. MarginFlow compares billed courier weights against your catalog dimensions, auto-flagging overcharges for reimbursement before payouts lock.",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#121214] selection:bg-[#121214] selection:text-white font-sans antialiased">
+    <div className="min-h-screen bg-[#f6f9f5] text-[#193022] font-sans antialiased selection:bg-[#00ae3b] selection:text-white">
       
-      {/* 1. EDITORIAL MINIMAL NAVBAR (Aintrum style) */}
-      <header
-        className={`sticky top-0 z-50 transition-all duration-300 ${
-          isScrolled
-            ? "backdrop-blur-md bg-[#FAF7F2]/90 border-b border-black/[0.06]"
-            : "bg-transparent border-b border-transparent"
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          {/* Brand Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <MarginFlowLogo className="h-6 sm:h-7 w-auto text-[#121214]" />
-          </Link>
+      {/* 1. DYNAMIC HYSTERESIS FLOATING NAVBAR */}
+      <MarginFlowNavbar
+        onSignIn={handleGoogleSignIn}
+        isAuthenticating={isAuthenticating}
+      />
 
-          {/* Minimal Nav Links */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[#736F66]">
-            <a href="#problems" className="hover:text-[#121214] transition-colors">
-              The Reality
-            </a>
-            <a href="#engines" className="hover:text-[#121214] transition-colors">
-              Engines
-            </a>
-            <a href="#spectrum" className="hover:text-[#121214] transition-colors">
-              Cash Spectrum
-            </a>
-            <Link href="/dashboard" className="hover:text-[#121214] transition-colors">
-              Cockpit
-            </Link>
-            <a href="#faq" className="hover:text-[#121214] transition-colors">
-              FAQ
-            </a>
-            <a href="#contact" className="hover:text-[#121214] transition-colors">
-              Contact
-            </a>
-          </nav>
+      {/* 2. ATMOSPHERIC LIVING EMERALD HERO */}
+      <MarginFlowHero
+        onSignIn={handleGoogleSignIn}
+        isAuthenticating={isAuthenticating}
+      />
 
-          {/* Right Action: Clean Rounded Pills */}
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="hidden sm:inline-block text-sm font-medium text-[#121214] hover:opacity-75 transition-opacity px-3 py-2"
-            >
-              Sign In
-            </Link>
+      {/* 3. THE INTERACTIVE ENGINE: FROM SCATTERED TO CONNECTED */}
+      <MarginFlowFlowMachine />
 
-            <button
-              onClick={handleGoogleSignIn}
-              disabled={isAuthenticating}
-              className="px-5 py-2.5 rounded-full bg-[#121214] hover:bg-black active:scale-95 text-white text-sm font-medium transition-all shadow-sm cursor-pointer"
-            >
-              {isAuthenticating ? "Connecting..." : "Get Started"}
-            </button>
+      {/* 5. THE TWO ROUTES COMPARISON: 3 SECONDS VS 21 DAYS */}
+      <EcomflowRouteComparison />
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-[#121214]"
-              aria-label="Toggle navigation menu"
-            >
-              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-        </div>
+      {/* 6. NOT ANOTHER SPREADSHEET: INTERACTIVE WORKSPACE SHOWCASE */}
+      <EcomflowWorkspaceShowcase />
 
-        {/* Mobile Navigation Drawer */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden bg-[#FAF7F2] border-b border-black/[0.08] px-6 py-6 space-y-4">
-            <div className="flex flex-col space-y-3 text-base font-medium text-[#736F66]">
-              <a href="#problems" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#121214]">
-                The Reality
-              </a>
-              <a href="#engines" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#121214]">
-                Engines
-              </a>
-              <a href="#spectrum" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#121214]">
-                Cash Spectrum
-              </a>
-              <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#121214]">
-                Cockpit
-              </Link>
-              <a href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#121214]">
-                FAQ
-              </a>
-              <a href="#contact" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#121214]">
-                Contact
-              </a>
-            </div>
-            <div className="pt-4 border-t border-black/[0.08] flex items-center justify-between">
-              <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-medium text-[#121214]">
-                Sign In
-              </Link>
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  handleGoogleSignIn();
-                }}
-                className="px-5 py-2 rounded-full bg-[#121214] text-white text-sm font-medium"
-              >
-                Get Started
-              </button>
-            </div>
-          </div>
-        )}
-      </header>
+      {/* 7. GROWTH METRICS & THE COMPOUND EFFECT */}
+      <EcomflowCompoundMetrics />
 
-      {/* 2. THE HERO (True Aintrum Style - Image 1: Split Screen with Free-Flowing Vector Apparatus) */}
-      <section className="pt-10 sm:pt-16 pb-16 sm:pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-          
-          {/* Left Column: Bold Display Typography */}
-          <div className="lg:col-span-5 space-y-6">
-            <h1 className="text-5xl sm:text-6xl lg:text-[72px] font-bold tracking-[-0.035em] text-[#121214] leading-[1.03]">
-              The profit engine for modern commerce.
-            </h1>
-
-            <p className="text-lg sm:text-xl text-[#736F66] leading-relaxed max-w-md font-normal">
-              Automated fee audits, volumetric weight reconciliation, and dispute claim recovery for marketplace sellers.
-            </p>
-
-            {/* Pill CTAs (Image 1 style) */}
-            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <button
-                onClick={handleGoogleSignIn}
-                disabled={isAuthenticating}
-                className="px-7 py-3.5 rounded-full bg-[#121214] hover:bg-black active:scale-95 text-white text-sm font-semibold tracking-tight shadow-sm transition-all cursor-pointer text-center"
-              >
-                {isAuthenticating ? "Connecting..." : "Started now"}
-              </button>
-
-              <Link
-                href="/dashboard"
-                className="px-7 py-3.5 rounded-full bg-white hover:bg-[#F2EFE8] text-[#121214] text-sm font-semibold tracking-tight border border-black/10 transition-all text-center"
-              >
-                See How It Works ↗
-              </Link>
-            </div>
-
-            {/* Integration Text Row */}
-            <div className="pt-6 border-t border-black/[0.08] flex items-center gap-4 text-xs font-mono text-[#736F66]">
-              <span>SYNC CHANNELS:</span>
-              <span className="text-[#121214] font-semibold">Amazon SP-API</span>
-              <span>•</span>
-              <span className="text-[#121214] font-semibold">Flipkart</span>
-              <span>•</span>
-              <span className="text-[#121214] font-semibold">Meesho</span>
-              <span>•</span>
-              <span className="text-[#121214] font-semibold">Shopify</span>
-            </div>
-          </div>
-
-          {/* Right Column: The Free-Flowing Vector Apparatus (Sitting directly on canvas, Aintrum style) */}
-          <div className="lg:col-span-7 flex items-center justify-center">
-            <HeroApparatus />
-          </div>
-
-        </div>
-      </section>
-
-      {/* 3. THE 4-QUADRANT HAIRLINE LEAK GRID (Digital Swift & Medusa style - Image 2 & 4) */}
-      <div id="problems">
-        <HairlineLeakGrid />
-      </div>
-
-      {/* 4. THE 3 CORE ENGINES (Alternating Medusa style - Image 4) */}
-      <div id="engines">
-        <AlternatingEngines />
-      </div>
-
-      {/* 5. THE CASH RETENTION SPECTRUM (Image 5 style) */}
-      <div id="spectrum">
-        <GlowingSpectrum />
-      </div>
-
-      {/* 6. FAQ (Direct & Unadorned) */}
-      <section id="faq" className="border-t border-black/[0.08] bg-white py-20 sm:py-28">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* 8. FAQ: GOOD QUESTIONS. CLEAR ANSWERS. */}
+      <section id="faq" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-white border-t border-[#cfdfd1] select-none">
+        <div className="max-w-4xl mx-auto">
           <div className="mb-14">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#0055FF] mb-3">
-              FAQ
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#121214]">
-              Clear answers for marketplace operators.
+            <span className="text-[11px] font-mono tracking-widest text-[#00872e] uppercase font-semibold block mb-3">
+              A LITTLE MORE CLARITY
+            </span>
+            <h2 className="text-3xl sm:text-5xl font-bold tracking-[-0.04em] text-[#193022] leading-[1.05]">
+              Good questions.<br />
+              <span className="font-serif italic font-normal text-[#00872e]">
+                Clear answers.
+              </span>
             </h2>
+            <p className="mt-4 text-base text-[#5c7062]">
+              Start with the essentials. Find the details for your store’s next audit.
+            </p>
           </div>
 
-          <div className="divide-y divide-black/[0.08] border-y border-black/[0.08]">
+          <div className="divide-y divide-[#cfdfd1] border-y border-[#cfdfd1]">
             {faqs.map((faq, index) => {
               const isOpen = activeFaq === index;
               return (
                 <div key={index} className="py-6">
                   <button
                     onClick={() => setActiveFaq(isOpen ? null : index)}
-                    className="w-full text-left flex items-center justify-between gap-4 font-bold text-base sm:text-lg text-[#121214] hover:text-[#0055FF] transition-colors cursor-pointer"
+                    className="w-full text-left flex items-center justify-between gap-4 font-mono font-bold text-base sm:text-lg text-[#193022] hover:text-[#00872e] transition-colors cursor-pointer"
                   >
                     <span>{faq.question}</span>
-                    <span className="shrink-0 text-[#736F66]">
+                    <span className="shrink-0 text-[#5c7062]">
                       {isOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                     </span>
                   </button>
 
                   {isOpen && (
-                    <div className="pt-4 text-sm sm:text-base text-[#736F66] leading-relaxed">
+                    <div className="pt-3 text-sm sm:text-base text-[#5c7062] leading-relaxed font-sans">
                       {faq.answer}
                     </div>
                   )}
@@ -318,158 +155,79 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 7. CONTACT & CONSULTATION */}
-      <section id="contact" className="border-t border-black/[0.08] bg-[#FAF7F2] py-20 sm:py-28">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-            
-            <div className="space-y-6">
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#0055FF]">
-                Consultation
-              </p>
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#121214] leading-tight">
-                Audit your historical marketplace fee leaks.
-              </h2>
-              <p className="text-base text-[#736F66] leading-relaxed">
-                Whether you process ₹25L or ₹50 Crore annually, our team will review your past 90 days of settlement reports and quantify recoverable funds.
-              </p>
+      {/* 9. FINAL HIGH-EMOTION CTA (Exact Ecomflow .final-cta styling) */}
+      <section className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#060c09] text-white relative overflow-hidden select-none border-t border-white/[0.08]">
+        {/* Ambient Glowing Orb */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[#00ae3b]/15 blur-[120px] rounded-full pointer-events-none" />
 
-              <div className="pt-4 space-y-3 text-sm text-[#736F66]">
-                <div className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-[#121214]" />
-                  <a href="mailto:contact@marginflow.io" className="text-[#121214] font-semibold hover:underline">
-                    contact@marginflow.io
-                  </a>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Building2 className="w-4 h-4 text-[#121214]" />
-                  <span>Bengaluru, Karnataka, India</span>
-                </div>
-              </div>
-            </div>
+        <div className="max-w-4xl mx-auto text-center relative z-10 space-y-6">
+          <span className="text-[11px] font-mono tracking-widest text-[#71d78e] uppercase font-semibold block">
+            YOUR NEXT CHAPTER
+          </span>
 
-            {/* Direct Form */}
-            <div className="bg-white p-8 rounded-2xl border border-black/[0.08]">
-              {contactSubmitted ? (
-                <div className="py-8 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-emerald-50 text-[#129E52] flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-xl font-bold text-[#121214]">Inquiry Received</h3>
-                  <p className="text-sm text-[#736F66]">
-                    Our financial specialist will review your store details and contact you within 24 hours.
-                  </p>
-                </div>
-              ) : (
-                <form onSubmit={handleContactSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#121214] mb-1">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Rohan Sharma"
-                      value={contactForm.name}
-                      onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF7F2] border border-black/[0.08] text-sm text-[#121214] focus:outline-none focus:border-[#0055FF]"
-                    />
-                  </div>
+          <h2 className="text-4xl sm:text-6xl font-bold tracking-[-0.04em] text-white leading-[1.05]">
+            Stop marketplace margin leaks.<br />
+            <span className="font-serif italic font-normal text-[#71d78e]">
+              Let’s get you there.
+            </span>
+          </h2>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-[#121214] mb-1">
-                      Work Email
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="rohan@brand.in"
-                      value={contactForm.email}
-                      onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#FAF7F2] border border-black/[0.08] text-sm text-[#121214] focus:outline-none focus:border-[#0055FF]"
-                    />
-                  </div>
+          <p className="text-base sm:text-lg text-[#9ab1a1] max-w-lg mx-auto font-normal">
+            Tell us where your store is today. Let’s review your past 90 days of settlements and quantify your recoverable capital.
+          </p>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-[#121214] mb-1">
-                        Monthly GMV
-                      </label>
-                      <select
-                        value={contactForm.monthlyGmv}
-                        onChange={(e) => setContactForm({ ...contactForm, monthlyGmv: e.target.value })}
-                        className="w-full px-3 py-2.5 rounded-lg bg-[#FAF7F2] border border-black/[0.08] text-sm text-[#121214] focus:outline-none focus:border-[#0055FF]"
-                      >
-                        <option>Under ₹25L</option>
-                        <option>₹25L - ₹1 Cr</option>
-                        <option>₹1 Cr - ₹5 Cr</option>
-                        <option>₹5 Cr+</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-[#121214] mb-1">
-                        Primary Channel
-                      </label>
-                      <select
-                        value={contactForm.channel}
-                        onChange={(e) => setContactForm({ ...contactForm, channel: e.target.value })}
-                        className="w-full px-3 py-2.5 rounded-lg bg-[#FAF7F2] border border-black/[0.08] text-sm text-[#121214] focus:outline-none focus:border-[#0055FF]"
-                      >
-                        <option>Amazon + Flipkart</option>
-                        <option>Meesho</option>
-                        <option>Shopify D2C</option>
-                        <option>Omnichannel</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-3 rounded-full bg-[#121214] hover:bg-black text-white text-sm font-semibold transition-all cursor-pointer mt-2"
-                  >
-                    Request Free Fee Audit
-                  </button>
-                </form>
-              )}
-            </div>
-
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={isAuthenticating}
+              className="px-8 py-4 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-sm font-mono font-semibold transition-all shadow-[0_0_35px_rgba(0,174,59,0.4)] cursor-pointer flex items-center gap-2"
+            >
+              <span>{isAuthenticating ? "Connecting..." : "Let’s Talk Reconciliation"}</span>
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
           </div>
+
+          <p className="text-xs font-mono text-[#8da494] pt-2">
+            Your brand. Your numbers. A real conversation.
+          </p>
         </div>
       </section>
 
-      {/* SIMPLE REFINED FOOTER */}
-      <footer className="border-t border-black/[0.08] bg-[#FAF7F2] py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-          {/* Logo & Product Name */}
-          <Link href="/" className="flex items-center gap-2.5">
-            <MarginFlowLogo className="h-6 w-auto text-[#121214]" />
-          </Link>
+      {/* 10. ATMOSPHERIC MINIMALIST FOOTER */}
+      <footer className="bg-[#0c140e] border-t border-white/[0.08] text-[#8da494] py-16 px-4 sm:px-6 lg:px-8 select-none">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
+          <div>
+            <Link href="/" className="flex items-center gap-2.5">
+              <MarginFlowLogo className="h-6 w-auto text-white" />
+            </Link>
+            <p className="text-xs font-mono text-[#687d6e] mt-2">
+              Financial truth for marketplace commerce.
+            </p>
+          </div>
 
-          {/* Clean Navigation Links */}
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-xs sm:text-sm font-medium text-[#736F66]">
-            <a href="#problems" className="hover:text-[#121214] transition-colors">
-              The Reality
+          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-xs font-mono font-medium">
+            <a href="#engine" className="hover:text-white transition-colors">
+              The Engine
             </a>
-            <a href="#engines" className="hover:text-[#121214] transition-colors">
-              Engines
+            <a href="#routes" className="hover:text-white transition-colors">
+              Reconciliation
             </a>
-            <a href="#spectrum" className="hover:text-[#121214] transition-colors">
-              Spectrum
+            <a href="#workspace" className="hover:text-white transition-colors">
+              Workspace
             </a>
-            <a href="#faq" className="hover:text-[#121214] transition-colors">
+            <a href="#metrics" className="hover:text-white transition-colors">
+              Impact
+            </a>
+            <a href="#faq" className="hover:text-white transition-colors">
               FAQ
             </a>
-            <Link href="/dashboard" className="hover:text-[#121214] transition-colors">
-              Cockpit ↗
-            </Link>
-            <Link href="/login" className="hover:text-[#121214] transition-colors">
-              Sign In
+            <Link href="/dashboard" className="text-[#71d78e] hover:text-white transition-colors flex items-center gap-1">
+              <span>Cockpit</span>
+              <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
 
-          {/* Copyright */}
-          <p className="text-xs text-[#736F66]">
+          <p className="text-xs font-mono text-[#687d6e]">
             © {new Date().getFullYear()} MarginFlow Technologies
           </p>
         </div>

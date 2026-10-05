@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   Upload,
-  Download,
   FileText,
+  FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
   X,
@@ -16,6 +16,7 @@ import {
   Check,
   ChevronDown,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { Order, Product } from "@/domain/types";
 import { getMarketplaceBadge } from "@/lib/marketplace-config";
 import { formatINR } from "@/lib/utils";
@@ -41,12 +42,6 @@ export function CsvImportModal({
   onImportOrders,
 }: CsvImportModalProps) {
   const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
   const [file, setFile] = useState<File | null>(null);
   const [mappingResult, setMappingResult] = useState<CsvMappingResult | null>(null);
   const [activeTab, setActiveTab] = useState<"PREVIEW" | "COLUMNS">("PREVIEW");
@@ -54,7 +49,10 @@ export function CsvImportModal({
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   const handleReset = () => {
     setFile(null);
@@ -63,14 +61,24 @@ export function CsvImportModal({
     setIsProcessing(false);
   };
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     handleReset();
     onClose();
-  };
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, handleClose]);
 
   const processFile = (uploadedFile: File) => {
-    if (!uploadedFile.name.endsWith(".csv")) {
-      alert("Please select a valid .csv file.");
+    const ext = uploadedFile.name.split(".").pop()?.toLowerCase();
+    if (ext !== "csv" && ext !== "xlsx" && ext !== "xls") {
+      alert("Please select a valid CSV or Excel file (.csv, .xlsx, .xls).");
       return;
     }
 
@@ -80,7 +88,16 @@ export function CsvImportModal({
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const text = e.target?.result as string;
+        let text = "";
+        if (ext === "xlsx" || ext === "xls") {
+          const buffer = e.target?.result as ArrayBuffer;
+          const workbook = XLSX.read(new Uint8Array(buffer), { type: "array" });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          text = XLSX.utils.sheet_to_csv(firstSheet);
+        } else {
+          text = e.target?.result as string;
+        }
+
         if (!text) {
           setIsProcessing(false);
           return;
@@ -88,16 +105,19 @@ export function CsvImportModal({
 
         const aiSettings = loadAISettings();
         const activeKey = aiSettings.keys[aiSettings.activeProvider] || "";
-        const openRouterKey = aiSettings.activeProvider === "openrouter" ? activeKey : (aiSettings.keys["openrouter"] || "");
+        const openRouterKey =
+          aiSettings.activeProvider === "openrouter"
+            ? activeKey
+            : aiSettings.keys["openrouter"] || "";
 
-        // Run smart auto-detection and column mapping with Jev System 1 acceleration
+        // Run smart auto-detection and column mapping
         const result = await detectAndMapCsvWithJev(text, products, {
           jevApiKey: aiSettings.jevApiKey,
           openRouterKey,
         });
         setMappingResult(result);
       } catch (err: unknown) {
-        console.error("CSV import error:", err);
+        console.error("Spreadsheet import error:", err);
       } finally {
         setIsProcessing(false);
       }
@@ -107,7 +127,11 @@ export function CsvImportModal({
       setIsProcessing(false);
     };
 
-    reader.readAsText(uploadedFile);
+    if (ext === "xlsx" || ext === "xls") {
+      reader.readAsArrayBuffer(uploadedFile);
+    } else {
+      reader.readAsText(uploadedFile);
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,155 +165,6 @@ export function CsvImportModal({
     }
   };
 
-  // Download Sample Template CSV
-  const handleDownloadSample = (format: "GENERIC" | "AMAZON" | "FLIPKART" | "MEESHO") => {
-    let headers: string[] = [];
-    let sampleRows: string[][] = [];
-
-    if (format === "AMAZON") {
-      headers = [
-        "order-id",
-        "order-date",
-        "seller-sku",
-        "asin",
-        "product-name",
-        "quantity-purchased",
-        "item-price",
-        "item-tax",
-        "shipping-fee",
-        "ship-city",
-        "ship-state",
-        "order-status",
-      ];
-      sampleRows = [
-        [
-          "408-9921021-1293847",
-          new Date().toISOString().split("T")[0],
-          products[0]?.sku || "ELEC-WEM-01",
-          "B08WEM01-IND",
-          products[0]?.name || "Wireless Ergonomic Mouse",
-          "1",
-          "1499.00",
-          "228.66",
-          "40.00",
-          "Bengaluru",
-          "Karnataka",
-          "Shipped",
-        ],
-        [
-          "402-4410928-8820193",
-          new Date().toISOString().split("T")[0],
-          products[1]?.sku || "ELEC-USBC-65W",
-          "B09GAN65W-BLK",
-          products[1]?.name || "65W GaN Fast Charger",
-          "2",
-          "1299.00",
-          "396.30",
-          "0.00",
-          "Mumbai",
-          "Maharashtra",
-          "Delivered",
-        ],
-      ];
-    } else if (format === "FLIPKART") {
-      headers = [
-        "Order ID",
-        "Order Date",
-        "FSN",
-        "SKU",
-        "Product Title",
-        "Quantity",
-        "Final Sale Amount",
-        "Taxes",
-        "Customer City",
-        "Customer State",
-        "Order State",
-      ];
-      sampleRows = [
-        [
-          "OD329019283019200",
-          new Date().toISOString().split("T")[0],
-          "FLIP-CHG-65W",
-          products[1]?.sku || "ELEC-USBC-65W",
-          products[1]?.name || "65W GaN Fast Charger",
-          "1",
-          "1299.00",
-          "198.15",
-          "Ahmedabad",
-          "Gujarat",
-          "DELIVERED",
-        ],
-      ];
-    } else if (format === "MEESHO") {
-      headers = [
-        "Sub Order No",
-        "Order Date",
-        "SKU",
-        "Product Title",
-        "Quantity",
-        "Supplier Discounted Price",
-        "State",
-        "Status",
-      ];
-      sampleRows = [
-        [
-          "MSH-SUB-8819204",
-          new Date().toISOString().split("T")[0],
-          products[2]?.sku || "ELEC-ANC-EB",
-          products[2]?.name || "Active Noise Cancelling TWS",
-          "1",
-          "2499.00",
-          "Telangana",
-          "Delivered",
-        ],
-      ];
-    } else {
-      headers = [
-        "PLATFORM",
-        "ORDER ID",
-        "ORDER DATE",
-        "SKU",
-        "PRODUCT NAME",
-        "QTY",
-        "SELLING PRICE",
-        "DISCOUNT",
-        "TAX",
-        "SHIPPING FEE",
-        "CITY",
-        "STATE",
-        "STATUS",
-      ];
-      sampleRows = [
-        [
-          "Amazon India",
-          "ORD-IMP-001",
-          new Date().toISOString().split("T")[0],
-          products[0]?.sku || "ELEC-WEM-01",
-          products[0]?.name || "Wireless Ergonomic Mouse",
-          "1",
-          "1499",
-          "100",
-          "228.6",
-          "40",
-          "Bengaluru",
-          "Karnataka",
-          "DELIVERED",
-        ],
-      ];
-    }
-
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...sampleRows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `marginflow_${format.toLowerCase()}_template.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   if (!isOpen || !mounted) return null;
 
   const orders = mappingResult?.orders || [];
@@ -298,30 +173,33 @@ export function CsvImportModal({
   const warnings = mappingResult?.warnings || [];
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="apple-card bg-white text-[#1D1D1F] rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+      onClick={handleClose}
+    >
+      <div
+        className="apple-card bg-white text-[#1D1D1F] rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-black/[0.06] flex items-center justify-between bg-[#FBFBFD]">
           <div className="flex items-center gap-3">
             <span className="w-8 h-8 rounded-xl bg-[#0071E3]/10 border border-[#0071E3]/20 text-[#0071E3] flex items-center justify-center font-bold">
-              <Sparkles className="w-4 h-4" />
+              <FileSpreadsheet className="w-4 h-4" />
             </span>
             <div>
-              <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight flex items-center gap-2">
-                <span>Smart CSV auto-mapper</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#0071E3]/10 text-[#0071E3] border border-[#0071E3]/20">
-                  AI heuristics
-                </span>
+              <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
+                Import CSV or Excel
               </h2>
               <p className="text-[11px] text-[#86868B]">
-                Auto-detects Amazon MTR, Flipkart, Meesho &amp; custom sheets with catalog COGS locking
+                Auto-maps orders and pricing from CSV or Excel spreadsheets
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleClose}
-            aria-label="Close CSV import dialog"
+            aria-label="Close spreadsheet import dialog"
             className="w-8 h-8 rounded-full bg-[#F5F5F7] hover:bg-[#E8E8ED] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -346,57 +224,24 @@ export function CsvImportModal({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 onChange={handleFileSelect}
                 className="hidden"
               />
               <div className="w-12 h-12 rounded-2xl bg-[#0071E3]/10 border border-[#0071E3]/20 text-[#0071E3] flex items-center justify-center mx-auto mb-3">
-                <FileText className="w-6 h-6" />
+                <FileSpreadsheet className="w-6 h-6" />
               </div>
               <p className="text-sm font-semibold text-[#1D1D1F]">
-                Drag &amp; drop your marketplace export sheet (.csv)
+                Drag &amp; drop your marketplace export sheet
               </p>
               <p className="text-xs text-[#86868B] mt-1 font-medium">
-                Auto-recognizes Amazon MTR, Flipkart Orders, Meesho, Shopify &amp; ERP reports
+                Supports CSV or Excel files (.csv, .xlsx, .xls)
               </p>
 
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <div className="mt-5 flex items-center justify-center">
                 <span className="px-4 py-2 rounded-xl bg-[#1D1D1F] hover:bg-black text-white font-medium text-xs shadow-apple-sm btn-press transition">
                   Browse file
                 </span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDownloadSample("AMAZON");
-                  }}
-                  className="px-3 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] font-medium text-xs border border-black/[0.06] shadow-apple-sm btn-press transition flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5 text-[#86868B]" />
-                  <span>Amazon MTR template</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDownloadSample("FLIPKART");
-                  }}
-                  className="px-3 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] font-medium text-xs border border-black/[0.06] shadow-apple-sm btn-press transition flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5 text-[#86868B]" />
-                  <span>Flipkart template</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDownloadSample("MEESHO");
-                  }}
-                  className="px-3 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] font-medium text-xs border border-black/[0.06] shadow-apple-sm btn-press transition flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5 text-[#86868B]" />
-                  <span>Meesho template</span>
-                </button>
               </div>
             </div>
           )}
@@ -642,31 +487,14 @@ export function CsvImportModal({
 
         {/* Footer Actions */}
         <div className="px-6 py-4 bg-[#FBFBFD] border-t border-black/[0.06] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-[#86868B] font-medium">Download templates:</span>
-            <button
-              type="button"
-              onClick={() => handleDownloadSample("AMAZON")}
-              className="text-xs text-[#0071E3] hover:underline font-medium cursor-pointer"
-            >
-              Amazon
-            </button>
-            <span className="text-black/20">•</span>
-            <button
-              type="button"
-              onClick={() => handleDownloadSample("FLIPKART")}
-              className="text-xs text-[#0071E3] hover:underline font-medium cursor-pointer"
-            >
-              Flipkart
-            </button>
-            <span className="text-black/20">•</span>
-            <button
-              type="button"
-              onClick={() => handleDownloadSample("MEESHO")}
-              className="text-xs text-[#0071E3] hover:underline font-medium cursor-pointer"
-            >
-              Meesho
-            </button>
+          <div className="text-xs text-[#86868B]">
+            {orders.length > 0 ? (
+              <span className="font-medium text-[#1D1D1F]">
+                {orders.length} order{orders.length > 1 ? "s" : ""} parsed &amp; verified
+              </span>
+            ) : (
+              <span>Supports CSV &amp; Excel sheets (.csv, .xlsx, .xls)</span>
+            )}
           </div>
 
           <div className="flex items-center gap-2.5">

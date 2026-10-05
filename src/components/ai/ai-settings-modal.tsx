@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   KeyRound,
@@ -28,6 +29,22 @@ interface AISettingsModalProps {
 }
 
 export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const [settings, setSettings] = useState<AISettings>(loadAISettings());
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(settings.activeProvider);
   const [apiKey, setApiKey] = useState<string>("");
@@ -164,14 +181,20 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const currentMeta = PROVIDER_REGISTRY[selectedProvider];
   const hasSavedKey = Boolean(settings.keys[selectedProvider]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="apple-card bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-[460px] overflow-hidden">
+  return createPortal(
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="apple-card bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-[460px] overflow-hidden"
+      >
         {/* Minimal Header */}
         <div className="px-5 py-4 border-b border-black/[0.06] flex items-center justify-between bg-[#FBFBFD]">
           <div className="flex items-center gap-2">
@@ -418,6 +441,7 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

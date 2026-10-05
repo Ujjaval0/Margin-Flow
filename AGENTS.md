@@ -26,3 +26,19 @@ These rules apply universally to all tasks, modifications, and conversations acr
 ## 4. Requirement Verification & Safety
 - **Build Cleanliness**: Ensure that any change compiles with zero TypeScript errors and zero runtime warnings (`npm run build`).
 - **No Regressions**: Changing a specific functionality must never break existing deterministic calculations, ledger invariants, or navigation state.
+
+---
+
+## 5. Permanent UI/UX Standards & Invariants
+- **Authoritative Standard Document**: All UI and interaction work must strictly comply with [`UI_UX_STANDARDS.md`](./UI_UX_STANDARDS.md).
+- **The Dark Tint Rule**:
+  - All modal backdrops MUST use `bg-black/30 backdrop-blur-xs`.
+  - Heavy blurs (`backdrop-blur-md`, `backdrop-blur-lg`, `backdrop-blur-xl`) are strictly prohibited on backdrops.
+  - All modal windows and confirmation dialogs MUST portal to `document.body` via `createPortal(jsx, document.body)` with a `mounted` safety check so the dark tint spans the entire viewport (including Sidebar and Navbar).
+- **Modal Dismissal Invariants**:
+  - Tapping anywhere outside the modal card (on the backdrop) MUST close the modal.
+  - Pressing the <kbd>Escape</kbd> key MUST close the active modal.
+  - Every modal card and confirmation dialog MUST include a circular close "X" button in the top-right header.
+- **Minimalist Workflows**:
+  - In file upload / CSV import dialogs, do not add unsolicited template download buttons or verbose AI marketing text.
+

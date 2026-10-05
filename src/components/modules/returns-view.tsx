@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   ReturnRecord,
   ReturnType,
@@ -79,10 +80,28 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
   const [searchQuery, setSearchQuery] = useState("");
 
   // Modals
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createMode, setCreateMode] = useState<"SCAN_ORDER" | "DIRECT_SKU">("SCAN_ORDER");
   const [editingReturn, setEditingReturn] = useState<ReturnRecord | null>(null);
   const [activeBreakdownCard, setActiveBreakdownCard] = useState<ReturnCardType | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (editingReturn) setEditingReturn(null);
+        else if (isCreateOpen) setIsCreateOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editingReturn, isCreateOpen]);
 
   // Form State for Log Return - Order Mode
   const [selectedOrderId, setSelectedOrderId] = useState(orders[0]?.id || "");
@@ -993,9 +1012,15 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       />
 
       {/* Modal: Dual-Mode Log Return */}
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+      {mounted && isCreateOpen && createPortal(
+        <div
+          onClick={() => setIsCreateOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 sm:p-6 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-lg max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden"
+          >
             <div className="px-6 py-4 border-b border-black/[0.04] flex items-center justify-between bg-[#FBFBFD] shrink-0">
               <div>
                 <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
@@ -1279,13 +1304,20 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal: In-Place Edit Return Record */}
-      {editingReturn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+      {mounted && editingReturn && createPortal(
+        <div
+          onClick={() => setEditingReturn(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 sm:p-6 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden"
+          >
             <div className="px-6 py-4 border-b border-black/[0.04] flex items-center justify-between bg-[#FBFBFD] shrink-0">
               <div>
                 <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
@@ -1454,7 +1486,8 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Interactive Modal: Operational Return Category Deep-Dive Breakdown */}

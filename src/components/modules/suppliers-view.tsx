@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Supplier } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
 import { formatINR } from "@/lib/utils";
@@ -44,10 +45,28 @@ export function SuppliersView() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Modals State
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [payoutSupplier, setPayoutSupplier] = useState<Supplier | null>(null);
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (supplierToDelete) setSupplierToDelete(null);
+        else if (payoutSupplier) setPayoutSupplier(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [supplierToDelete, payoutSupplier]);
 
   // Payout Form State
   const [payoutAmount, setPayoutAmount] = useState("");
@@ -594,9 +613,17 @@ export function SuppliersView() {
       {/* --------------------------------------------------------------------------------- */}
       {/* RECORD PAYOUT / PAYMENT MODAL                                                     */}
       {/* --------------------------------------------------------------------------------- */}
-      {payoutSupplier && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-150">
-          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md p-6 space-y-4">
+      {/* RECORD PAYOUT / PAYMENT MODAL                                                     */}
+      {/* --------------------------------------------------------------------------------- */}
+      {mounted && payoutSupplier && createPortal(
+        <div
+          onClick={() => setPayoutSupplier(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md p-6 space-y-4"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-black/[0.05]">
               <div className="flex items-center gap-2.5">
                 <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-800 flex items-center justify-center">
@@ -709,23 +736,40 @@ export function SuppliersView() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* --------------------------------------------------------------------------------- */}
       {/* DELETE CONFIRMATION MODAL                                                         */}
       {/* --------------------------------------------------------------------------------- */}
-      {supplierToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-150">
-          <div className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-[#D70015] flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
+      {mounted && supplierToDelete && createPortal(
+        <div
+          onClick={() => setSupplierToDelete(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md p-6 space-y-4"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-[#D70015] flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-[#1D1D1F]">Delete Supplier?</h3>
+                  <p className="text-xs text-[#86868B] mt-0.5">Supplier: <strong className="font-semibold text-[#1D1D1F]">{supplierToDelete.name}</strong></p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-[#1D1D1F]">Delete Supplier?</h3>
-                <p className="text-xs text-[#86868B] mt-0.5">Supplier: <strong className="font-semibold text-[#1D1D1F]">{supplierToDelete.name}</strong></p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSupplierToDelete(null)}
+                aria-label="Close dialog"
+                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer active:scale-95"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
 
             <p className="text-xs text-[#6E6E73] leading-relaxed">
@@ -749,7 +793,8 @@ export function SuppliersView() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

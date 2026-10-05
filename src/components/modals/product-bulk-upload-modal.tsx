@@ -58,8 +58,6 @@ export function ProductBulkUploadModal({
     return () => setMounted(false);
   }, []);
 
-  if (!isOpen || !mounted) return null;
-
   const handleReset = () => {
     setFile(null);
     setParsedRows([]);
@@ -67,10 +65,19 @@ export function ProductBulkUploadModal({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     handleReset();
     onClose();
-  };
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, handleClose]);
 
   // Robust CSV parser supporting quotes & commas
   const parseCSV = (text: string): string[][] => {
@@ -322,12 +329,20 @@ export function ProductBulkUploadModal({
     handleClose();
   };
 
+  if (!isOpen || !mounted) return null;
+
   const validCount = parsedRows.filter((r) => r.isValid).length;
   const errorCount = parsedRows.length - validCount;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="apple-card bg-white text-[#1D1D1F] rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+      onClick={handleClose}
+    >
+      <div
+        className="apple-card bg-white text-[#1D1D1F] rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-black/[0.06] flex items-center justify-between bg-[#FBFBFD]">
           <div className="flex items-center gap-3">

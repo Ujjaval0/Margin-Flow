@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Claim, ClaimStatus, Marketplace } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate, formatPercent } from "@/lib/utils";
@@ -17,6 +18,13 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
   const { selectedMarketplace: contextMarketplace, claims, returns, addClaim, updateClaim, editClaim, deleteClaim, deleteClaims } = usePlatform();
   const selectedMarketplace = propMarketplace ?? contextMarketplace;
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   const [isRecordRecoveryOpen, setIsRecordRecoveryOpen] = useState(false);
   const [activeBreakdownCard, setActiveBreakdownCard] = useState<ClaimCardType | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
@@ -25,6 +33,17 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
 
   // Edit modal state
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isRecordRecoveryOpen) setIsRecordRecoveryOpen(false);
+        if (isEditOpen) setIsEditOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isRecordRecoveryOpen, isEditOpen]);
   const [editingClaim, setEditingClaim] = useState<Claim | null>(null);
   const [editFields, setEditFields] = useState<{
     claimType: Claim["claimType"];
@@ -460,9 +479,15 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
       />
 
       {/* Record Recovery Modal */}
-      {isRecordRecoveryOpen && selectedClaim && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden">
+      {mounted && isRecordRecoveryOpen && selectedClaim && createPortal(
+        <div
+          onClick={() => setIsRecordRecoveryOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 sm:p-6 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[calc(100vh-2.5rem)] flex flex-col overflow-hidden"
+          >
             <div className="px-6 py-4.5 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-[#FAFAFC]">
               <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">
                 Record Recovery Credit: {selectedClaim.id}
@@ -534,13 +559,20 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Claim Modal */}
-      {isEditOpen && editingClaim && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+      {mounted && isEditOpen && editingClaim && createPortal(
+        <div
+          onClick={() => setIsEditOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-apple-lg border border-black/[0.08] w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden"
+          >
             <div className="px-6 py-4.5 border-b border-black/[0.05] flex items-center justify-between shrink-0 bg-[#FAFAFC]">
               <h2 className="text-xs font-semibold text-[#1D1D1F] tracking-tight">
                 Edit Claim: {editingClaim.id}
@@ -658,7 +690,8 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Card Breakdown Modal */}

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --turbopack",
     "start": "next start",
     "lint": "next lint"
   },
@@ -23,6 +23,7 @@
     "recharts": "^2.15.1",
     "tailwind-merge": "^3.0.1",
     "tesseract.js": "^7.0.0",
+    "xlsx": "^0.18.5",
     "zod": "^4.6.5"
   },
   "devDependencies": {

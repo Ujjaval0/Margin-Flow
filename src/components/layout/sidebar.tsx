@@ -222,7 +222,7 @@ export function Sidebar({
             className="flex items-center gap-2.5 min-w-0 group hover:opacity-90 transition-opacity"
             title="MarginFlow Dashboard"
           >
-            <MarginFlowLogo className="h-7 w-auto text-[#1D1D1F]" />
+            <MarginFlowLogo className="h-9 w-auto text-[#1D1D1F]" />
           </Link>
         </div>
       ) : (
