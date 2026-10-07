@@ -11,13 +11,23 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, ArrowUpDown, Search, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronDown,
+  ArrowUpDown,
+  Search,
+  X,
+} from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   searchKey?: string;
   searchPlaceholder?: string;
+  statusLegend?: React.ReactNode;
 }
 
 export function DataTable<TData, TValue>({
@@ -25,6 +35,7 @@ export function DataTable<TData, TValue>({
   data,
   searchKey,
   searchPlaceholder = "Filter records...",
+  statusLegend,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState<string>("");
@@ -179,28 +190,102 @@ export function DataTable<TData, TValue>({
         </div>
 
         {/* Minimalist Apple Pagination */}
-        <div className="flex items-center justify-between px-5 py-3 bg-[#FAFAFC] border-t border-black/[0.04] text-xs text-[#86868B]">
-          <div className="tabular-nums font-medium">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {Math.max(1, table.getPageCount())}
+        <div className="px-4 sm:px-6 py-3.5 bg-[#FAFAFC] border-t border-black/[0.06] flex flex-col md:flex-row items-center justify-between text-xs text-[#86868B] gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="text-xs text-[#64748B]">
+              {table.getFilteredRowModel().rows.length === data.length ? (
+                <span>
+                  <strong className="font-semibold text-[#1D1D1F] tabular-nums">{data.length}</strong> total rows
+                </span>
+              ) : (
+                <span>
+                  <strong className="font-semibold text-[#1D1D1F] tabular-nums">{table.getFilteredRowModel().rows.length}</strong> of{" "}
+                  <strong className="font-semibold text-[#1D1D1F] tabular-nums">{data.length}</strong> total rows
+                </span>
+              )}
+            </div>
+
+            {statusLegend && (
+              <>
+                <div className="h-3.5 w-px bg-black/[0.08] hidden sm:block" />
+                {statusLegend}
+              </>
+            )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-              aria-label="Previous page"
-              className="p-1.5 rounded-lg border border-black/[0.06] bg-white hover:bg-black/[0.03] disabled:opacity-30 disabled:cursor-not-allowed transition shadow-apple-sm active:scale-95 cursor-pointer"
-            >
-              <ChevronLeft className="w-3.5 h-3.5 text-[#1D1D1F]" />
-            </button>
-            <button
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-              aria-label="Next page"
-              className="p-1.5 rounded-lg border border-black/[0.06] bg-white hover:bg-black/[0.03] disabled:opacity-30 disabled:cursor-not-allowed transition shadow-apple-sm active:scale-95 cursor-pointer"
-            >
-              <ChevronRight className="w-3.5 h-3.5 text-[#1D1D1F]" />
-            </button>
+
+          <div className="flex items-center gap-4 sm:gap-6 flex-wrap justify-end">
+            {/* Rows per page selector */}
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs text-[#1D1D1F] font-normal whitespace-nowrap">
+                Rows per page
+              </span>
+              <div className="relative inline-flex items-center">
+                <select
+                  value={table.getState().pagination.pageSize}
+                  onChange={(e) => {
+                    table.setPageSize(Number(e.target.value));
+                  }}
+                  aria-label="Rows per page"
+                  className="appearance-none bg-white border border-black/[0.1] hover:border-black/[0.2] text-xs font-semibold text-[#1D1D1F] pl-3 pr-7 py-1 rounded-lg shadow-apple-sm focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-[#86868B] absolute right-2 pointer-events-none stroke-[2]" />
+              </div>
+            </div>
+
+            {/* Page X of Y */}
+            <div className="text-xs text-[#1D1D1F] font-normal whitespace-nowrap">
+              Page <span className="font-semibold tabular-nums">{table.getState().pagination.pageIndex + 1}</span> of{" "}
+              <span className="font-semibold tabular-nums">{Math.max(1, table.getPageCount())}</span>
+            </div>
+
+            {/* Four navigation buttons */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => table.setPageIndex(0)}
+                disabled={!table.getCanPreviousPage()}
+                aria-label="First page"
+                title="First page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+              >
+                <ChevronsLeft className="w-4 h-4 stroke-[1.75]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                aria-label="Previous page"
+                title="Previous page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4 stroke-[1.75]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                aria-label="Next page"
+                title="Next page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4 stroke-[1.75]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                disabled={!table.getCanNextPage()}
+                aria-label="Last page"
+                title="Last page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+              >
+                <ChevronsRight className="w-4 h-4 stroke-[1.75]" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

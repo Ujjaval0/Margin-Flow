@@ -18,15 +18,15 @@ export interface TargetFieldDef {
 }
 
 export const TARGET_FIELDS: TargetFieldDef[] = [
-  { field: "id", label: "Order ID", required: true, aliases: ["orderid", "ordernumber", "order_id", "order id", "id", "sub order no", "suborderno", "order item id", "invoice number"] },
+  { field: "id", label: "Order ID", required: true, aliases: ["orderid", "ordernumber", "order_id", "order id", "sub order no", "suborderno", "order item id", "invoice number", "invoice no", "invoiceno", "order no", "orderno", "order ref", "ref no"] },
   { field: "channelOrderId", label: "Channel Ref", required: false, aliases: ["channelorderid", "channelref", "channel order id", "sub_order_id", "external id", "asin", "fsn"] },
   { field: "marketplace", label: "Marketplace / Channel", required: false, aliases: ["marketplace", "platform", "channel", "source", "sales channel"] },
   { field: "orderDate", label: "Order Date", required: true, aliases: ["date", "orderdate", "purchasedate", "order date", "created at", "order_date", "invoice date"] },
   { field: "status", label: "Order Status", required: false, aliases: ["status", "orderstatus", "order status", "deliverystatus", "delivery status", "order_state", "financial status"] },
-  { field: "sku", label: "SKU", required: true, aliases: ["sku", "itemsku", "sellersku", "seller_sku", "product sku", "lineitem sku", "fsn", "asin", "msku"] },
-  { field: "productName", label: "Product Title", required: false, aliases: ["productname", "itemname", "product", "title", "product title", "lineitem name", "description"] },
-  { field: "quantity", label: "Quantity", required: false, aliases: ["qty", "quantity", "units", "item qty", "lineitem quantity", "pieces"] },
-  { field: "sellingPrice", label: "Selling Price / Gross", required: true, aliases: ["sellingprice", "grosssale", "price", "unitprice", "itemprice", "item-price", "selling price", "final sale amount", "supplier discounted price", "total price", "amount", "total"] },
+  { field: "sku", label: "SKU", required: true, aliases: ["sku", "itemsku", "item_sku", "sellersku", "seller_sku", "product sku", "product_sku", "lineitem sku", "lineitem_sku", "fsn", "asin", "msku", "item code", "itemcode", "item_code", "product code", "productcode", "product_code", "article", "articleno", "article_no", "model", "modelno", "style", "style_id", "barcode"] },
+  { field: "productName", label: "Product Title", required: false, aliases: ["productname", "product_name", "itemname", "item_name", "product", "title", "product title", "lineitem name", "description", "item description", "item_description", "item"] },
+  { field: "quantity", label: "Quantity", required: false, aliases: ["qty", "quantity", "units", "item qty", "item_quantity", "lineitem quantity", "pieces", "count"] },
+  { field: "sellingPrice", label: "Selling Price / Gross", required: true, aliases: ["sellingprice", "selling_price", "grosssale", "gross_sale", "price", "unitprice", "unit_price", "itemprice", "item-price", "selling price", "final sale amount", "supplier discounted price", "total price", "amount", "total", "net amount", "invoice amount"] },
   { field: "discount", label: "Discount", required: false, aliases: ["discount", "discounts", "promodiscount", "item discount", "coupon discount"] },
   { field: "taxAmount", label: "GST / Taxes", required: false, aliases: ["tax", "taxamount", "gst", "total tax", "igst", "cgst", "sgst", "tax rate"] },
   { field: "shippingFeeCharged", label: "Shipping Fee Charged", required: false, aliases: ["shippingfee", "shipping", "shippingfeecharged", "shipping charge", "delivery charge"] },
@@ -311,7 +311,10 @@ export function autoMapColumns(
             highestScore = 1.0;
             bestIndex = colIdx;
           }
-        } else if (cleanH.includes(cleanAlias) || cleanAlias.includes(cleanH)) {
+        } else if (
+          (cleanAlias.length >= 3 && cleanH.length >= 3 && cleanH.includes(cleanAlias)) ||
+          (cleanAlias.length >= 4 && cleanH.length >= 4 && cleanAlias.includes(cleanH))
+        ) {
           if (highestScore < 0.8) {
             highestScore = 0.8;
             bestIndex = colIdx;
@@ -466,10 +469,25 @@ export function detectAndMapCsv(
       return idx !== undefined && row[idx] !== undefined ? row[idx].trim() : "";
     };
 
-    const rawSku = getVal("sku");
+    let rawSku = getVal("sku");
     if (!rawSku) {
-      warnings.push(`Row ${rowNumber}: Skipped (Missing SKU identifier).`);
-      continue;
+      // Robust fallbacks: Channel ref, ASIN/FSN, product title match, or order reference
+      const chRef = getVal("channelOrderId");
+      const pTitle = getVal("productName");
+      const ordId = getVal("id");
+
+      if (chRef && chRef.length >= 3) {
+        rawSku = chRef;
+      } else if (pTitle) {
+        const matched = products.find((p) =>
+          p.name.toLowerCase().includes(pTitle.toLowerCase().slice(0, 15))
+        );
+        rawSku = matched?.sku || `SKU-${pTitle.replace(/[^a-zA-Z0-9]/g, "").slice(0, 10).toUpperCase()}`;
+      } else if (ordId) {
+        rawSku = `SKU-${ordId.replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase()}`;
+      } else {
+        rawSku = `SKU-${i + 1}`;
+      }
     }
 
     // Match product catalog

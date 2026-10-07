@@ -19,6 +19,7 @@ import {
 import { Order, Product, Supplier, Marketplace } from "@/domain/types";
 import { formatINR } from "@/lib/utils";
 import { getMarketplaceBadge } from "@/lib/marketplace-config";
+import { detectAndMapCsv } from "@/domain/csv-auto-mapper";
 
 export interface InvoiceAutoParseModalProps {
   isOpen: boolean;
@@ -35,65 +36,36 @@ interface ParsedInvoiceItem {
   fileType: "PDF" | "CSV" | "TXT";
 }
 
-// Helper: Extract text from uploaded file (.pdf, .csv, .txt)
+// Helper: Extract text from uploaded file (.pdf, .csv, .txt, images)
 async function extractTextFromFile(file: File): Promise<string> {
-  const extension = file.name.split(".").pop()?.toLowerCase();
+  const extension = file.name.split(".").pop()?.toLowerCase() || "";
 
+  // Plain text or CSV files can be read directly in browser
   if (extension === "txt" || extension === "csv") {
     try {
-      return await file.text();
+      const text = await file.text();
+      if (text.trim()) return text;
     } catch {
-      return "";
+      // fallback
     }
   }
 
-  if (extension === "pdf") {
-    try {
-      const raw = await file.text();
-      // 1. Extract BT...ET text stream objects from PDF (Tj and TJ)
-      const tjStrings = [...raw.matchAll(/\[(.*?)\]\s*TJ/g)].map((m) =>
-        [...m[1].matchAll(/\(([^)]*)\)/g)].map((p) => p[1]).join("")
-      );
-      const singleTjStrings = [...raw.matchAll(/\(([^)]+)\)\s*Tj/g)].map((m) => m[1]);
-      const pdfDecoded = [...tjStrings, ...singleTjStrings].join(" ").trim();
-
-      if (pdfDecoded.length > 25) {
-        return pdfDecoded;
+  // Digital PDF or image files: use server route to extract real digital PDF text & OCR
+  try {
+    const formData = new FormData();
+    formData.append("files", file);
+    const res = await fetch("/api/extract-invoice-text", {
+      method: "POST",
+      body: formData,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.results?.[0]?.text) {
+        return data.results[0].text;
       }
-
-      if (
-        raw.includes("Order") ||
-        raw.includes("order") ||
-        raw.includes("Invoice") ||
-        raw.includes("Amazon") ||
-        raw.includes("Flipkart") ||
-        raw.includes("Meesho")
-      ) {
-        return raw;
-      }
-
-      // 2. Extract ASCII string sequences from binary PDF buffer as fallback
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      const chunks: string[] = [];
-      let currentChunk = "";
-      for (let i = 0; i < bytes.length; i++) {
-        const b = bytes[i];
-        if ((b >= 32 && b <= 126) || b === 10 || b === 13 || b === 9) {
-          currentChunk += String.fromCharCode(b);
-        } else {
-          if (currentChunk.length >= 3) {
-            chunks.push(currentChunk);
-          }
-          currentChunk = "";
-        }
-      }
-      if (currentChunk.length >= 3) chunks.push(currentChunk);
-      return chunks.join(" ");
-    } catch (err) {
-      console.warn("PDF extraction fallback error:", err);
-      return "";
     }
+  } catch (err) {
+    console.warn("Server text extraction failed, falling back to client read:", err);
   }
 
   try {
@@ -324,27 +296,17 @@ export function InvoiceAutoParseModal({
 
         // Check if CSV contains multiple tabular rows with headers
         if (ext === "csv") {
-          const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-          if (
-            lines.length > 2 &&
-            lines[0].includes(",") &&
-            !lines[0].toLowerCase().includes("tax invoice") &&
-            !lines[0].toLowerCase().includes("bill of supply")
-          ) {
-            // Multi-row tabular CSV: parse each line as row
-            const headers = lines[0].split(",").map((h) => h.replace(/^["']|["']$/g, "").trim().toLowerCase());
-            for (let r = 1; r < lines.length; r++) {
-              const rowLine = lines[r];
-              if (!rowLine) continue;
-              const rowText = `${lines[0]}\n${rowLine}`;
-              const order = parseTextToOrder(rowText, `${file.name} (Row ${r})`, products, suppliers, i * 100 + r);
+          const text = await file.text();
+          const mapped = detectAndMapCsv(text, products);
+          if (mapped.orders.length > 0) {
+            mapped.orders.forEach((ord, ordIdx) => {
               newItems.push({
-                id: `INV-ITEM-${Date.now()}-${i}-${r}`,
-                order,
-                fileName: `${file.name} (Row ${r})`,
-                fileType,
+                id: `INV-ITEM-${Date.now()}-${i}-${ordIdx}`,
+                order: ord,
+                fileName: `${file.name} (Row ${ordIdx + 1})`,
+                fileType: "CSV",
               });
-            }
+            });
             continue;
           }
         }
@@ -631,7 +593,7 @@ export function InvoiceAutoParseModal({
               type="button"
               disabled={parsedItems.length === 0}
               onClick={handleConfirmImport}
-              className="flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 disabled:pointer-events-none text-xs font-semibold text-white transition shadow-apple-sm active:scale-[0.98] cursor-pointer"
+              className="flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#1D1D1F] hover:bg-black disabled:opacity-40 disabled:pointer-events-none text-xs font-semibold text-white transition shadow-apple-sm active:scale-[0.98] cursor-pointer"
             >
               <span>Import {parsedItems.length > 0 ? `${parsedItems.length} Order${parsedItems.length > 1 ? "s" : ""}` : "Orders"}</span>
               <ArrowRight className="w-3.5 h-3.5" />

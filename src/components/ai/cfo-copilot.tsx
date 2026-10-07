@@ -455,7 +455,21 @@ export function CfoCopilot() {
       const errorMsg: ChatMessage = {
         id: `msg-err-${Date.now()}`,
         sender: "assistant",
-        text: `Unable to process query: ${err.message || "Network error"}. Please try again.`,
+        text: `Unable to reach ${PROVIDER_REGISTRY[aiSettings.activeProvider]?.name || "AI Provider"}: ${err.message || "Network error"}. You can run this with the built-in offline engine or switch your provider in settings.`,
+        chips: [
+          {
+            id: `chip-offline-${Date.now()}`,
+            label: "⚡ Run with Offline Engine",
+            type: "NAVIGATE",
+            payload: { query },
+          },
+          {
+            id: `chip-settings-${Date.now()}`,
+            label: "⚙️ Switch AI Provider",
+            type: "NAVIGATE",
+            payload: { action: "OPEN_SETTINGS" },
+          },
+        ],
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -466,6 +480,11 @@ export function CfoCopilot() {
 
   // Execute Action Chips directly in the UI
   const handleChipClick = (chip: AIActionChip) => {
+    if (chip.payload?.action === "OPEN_SETTINGS") {
+      setIsSettingsOpen(true);
+      return;
+    }
+
     if (chip.payload?.query) {
       handleSendMessage(chip.payload.query);
       return;

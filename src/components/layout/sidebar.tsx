@@ -2,7 +2,7 @@
 
 import React from "react";
 import {
-  LayoutDashboard,
+  Store,
   ShoppingCart,
   RotateCcw,
   ShieldAlert,
@@ -82,8 +82,8 @@ export function Sidebar({
     {
       id: "dashboard" as NavModule,
       href: "/dashboard",
-      label: "Dashboard",
-      icon: LayoutDashboard,
+      label: "Home",
+      icon: Store,
       iconColor: "text-blue-600",
       bgTint: "bg-blue-500/10",
     },
@@ -220,7 +220,7 @@ export function Sidebar({
             href="/dashboard"
             onClick={() => handleNavClick("dashboard")}
             className="flex items-center gap-2.5 min-w-0 group hover:opacity-90 transition-opacity"
-            title="MarginFlow Dashboard"
+            title="MarginFlow Home"
           >
             <MarginFlowLogo className="h-9 w-auto text-[#1D1D1F]" />
           </Link>
@@ -231,7 +231,7 @@ export function Sidebar({
             href="/dashboard"
             onClick={() => handleNavClick("dashboard")}
             className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-black/[0.04] transition-colors"
-            title="MarginFlow Dashboard"
+            title="MarginFlow Home"
           >
             <MarginFlowLogo variant="mark" className="w-5 h-5 text-[#1D1D1F]" />
           </Link>
@@ -240,12 +240,6 @@ export function Sidebar({
 
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-1 no-scrollbar">
-        {isOpen && (
-          <div className="px-3 pt-1 pb-1.5 text-[11px] font-medium text-[#86868B]">
-            Platform Modules
-          </div>
-        )}
-
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeModule === item.id;

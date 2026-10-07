@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const rawModel = req.headers.get("x-ai-model");
     const model =
       rawModel ||
-      (provider === "gemini" ? "gemini-2.5-flash" : PROVIDER_REGISTRY[provider]?.defaultModel || "gemini-2.5-flash");
+      (provider === "gemini" ? "gemini-2.0-flash" : PROVIDER_REGISTRY[provider]?.defaultModel || "gemini-2.0-flash");
     const customBaseUrl = req.headers.get("x-ai-base-url") || "";
     const jevApiKey = req.headers.get("x-jev-key") || process.env.TYPESAFE_API_KEY || "";
     const openRouterKey = provider === "openrouter" ? apiKey : (req.headers.get("x-openrouter-key") || "");
@@ -223,7 +223,15 @@ ${JSON.stringify(context, null, 2)}`;
       return NextResponse.json({
         success: true,
         answer: fallback.answer,
-        chips: fallback.chips,
+        chips: [
+          ...fallback.chips,
+          {
+            id: `chip-switch-${Date.now()}`,
+            label: "⚙️ Switch AI Provider",
+            type: "NAVIGATE",
+            payload: { action: "OPEN_SETTINGS" },
+          },
+        ],
         source: "LOCAL_DETERMINISTIC_FALLBACK",
         provider,
         model,

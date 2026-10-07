@@ -214,15 +214,13 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
           <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
             Marketplace Settlements
           </h1>
-          <p className="text-xs text-[#86868B] mt-0.5">
-            Decoupled cash tracking: Distinguishes orders placed from actual bank payouts and fee deductions.
-          </p>
         </div>
         <button
+          type="button"
           onClick={() => setIsCreateOpen(true)}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-apple-sm transition btn-press cursor-pointer"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1D1D1F] hover:bg-black text-white text-xs font-semibold shadow-apple-sm transition active:scale-[0.98] cursor-pointer shrink-0"
         >
-          <Plus className="w-3.5 h-3.5" strokeWidth={2} />
+          <Plus className="w-3.5 h-3.5" strokeWidth={2.2} />
           <span>Record Settlement</span>
         </button>
       </div>
@@ -504,11 +502,6 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                     </div>
                   ))}
                 </div>
-              </div>
-
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-950 text-[11px] leading-relaxed">
-                <span className="font-semibold block mb-0.5">P6 Tax Guardrail Verification</span>
-                Statutory TCS (1%) &amp; TDS (1%) withheld at source have been mapped to balance sheet withholding assets.
               </div>
             </div>
 

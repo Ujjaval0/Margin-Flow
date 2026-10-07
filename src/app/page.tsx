@@ -4,12 +4,12 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MarginFlowLogo } from "@/components/MarginFlowLogo";
-import { MarginFlowNavbar } from "@/components/landing/ecomflow-navbar";
-import { MarginFlowHero } from "@/components/landing/ecomflow-hero";
-import { MarginFlowFlowMachine } from "@/components/landing/ecomflow-flow-machine";
-import { EcomflowRouteComparison } from "@/components/landing/ecomflow-route-comparison";
-import { EcomflowWorkspaceShowcase } from "@/components/landing/ecomflow-workspace-showcase";
-import { EcomflowCompoundMetrics } from "@/components/landing/ecomflow-compound-metrics";
+import { MarginFlowNavbar } from "@/components/landing/marginflow-navbar";
+import { MarginFlowHero } from "@/components/landing/marginflow-hero";
+import { MarginFlowFlowMachine } from "@/components/landing/marginflow-flow-machine";
+import { MarginFlowRouteComparison } from "@/components/landing/marginflow-route-comparison";
+import { MarginFlowWorkspaceShowcase } from "@/components/landing/marginflow-workspace-showcase";
+import { MarginFlowCompoundMetrics } from "@/components/landing/marginflow-compound-metrics";
 import {
   ChevronDown,
   ChevronUp,
@@ -62,24 +62,34 @@ export default function LandingPage() {
 
   const faqs = [
     {
-      question: "Can MarginFlow audit past historical settlements?",
+      question: "How far back can MarginFlow audit past settlements?",
       answer:
-        "Yes. Once connected via read-only API or statement upload, MarginFlow analyzes your past 90 days of transactions to quantify historical courier weight overcharges, unannounced category fee hikes, and unfiled claim opportunities.",
+        "MarginFlow scans your past 90 days of transactions immediately upon onboarding, auto-flagging historical courier deadweight overcharges, unannounced commission tier increases, and unfiled claim opportunities.",
     },
     {
-      question: "Does MarginFlow replace Tally or Zoho Books?",
+      question: "Does MarginFlow replace Tally, Zoho Books, or my Chartered Accountant?",
       answer:
-        "No. MarginFlow feeds verified, transaction-level net cash and isolated tax withholdings (1% TCS & TDS) directly into your accounting workflows, giving your chartered accountant clean, audit-ready data.",
+        "No. MarginFlow feeds verified, transaction-level net cash and isolated tax withholdings (1% TCS & TDS) directly into your accounting workflows, giving your CA audit-ready, balanced books.",
     },
     {
-      question: "How long does store onboarding take?",
+      question: "How does automated courier weight reconciliation work?",
       answer:
-        "Under 60 seconds. Authenticate via Google SSO and connect your Amazon India, Flipkart, Meesho, or Shopify stores through 100% secure, official read-only API access.",
+        "Couriers frequently bump 400g products into 1.5kg or 2kg deadweight slabs. MarginFlow compares billed courier weights against your catalog dimensions, auto-flagging overcharges for reimbursement before payouts lock.",
     },
     {
-      question: "How does automated weight reconciliation work?",
+      question: "How do you handle Return to Origin (RTO) vs Customer Returns?",
       answer:
-        "Couriers frequently bill 400g products at 2kg volumetric deadweight slabs. MarginFlow compares billed courier weights against your catalog dimensions, auto-flagging overcharges for reimbursement before payouts lock.",
+        "MarginFlow isolates RTOs (courier freight costs with zero return fees) from customer returns (handling fees, damaged goods, or swapped units) so you know exactly how returns impact each SKU's contribution margin.",
+    },
+    {
+      question: "Which marketplaces and sales channels are supported?",
+      answer:
+        "Native support for Amazon India (SP-API), Flipkart, Meesho (smart statement auto-mapper), Shopify D2C, WooCommerce, and Shiprocket courier telemetry.",
+    },
+    {
+      question: "Is my seller central data secure and read-only?",
+      answer:
+        "Yes. We connect via official read-only APIs and bank-grade encryption. MarginFlow cannot modify listings, alter prices, or move funds.",
     },
   ];
 
@@ -98,17 +108,17 @@ export default function LandingPage() {
         isAuthenticating={isAuthenticating}
       />
 
-      {/* 3. THE INTERACTIVE ENGINE: FROM SCATTERED TO CONNECTED */}
+      {/* 3. THE INTERACTIVE ENGINE: 4-WAY CROSS RECONCILIATION */}
       <MarginFlowFlowMachine />
 
       {/* 5. THE TWO ROUTES COMPARISON: 3 SECONDS VS 21 DAYS */}
-      <EcomflowRouteComparison />
+      <MarginFlowRouteComparison />
 
       {/* 6. NOT ANOTHER SPREADSHEET: INTERACTIVE WORKSPACE SHOWCASE */}
-      <EcomflowWorkspaceShowcase />
+      <MarginFlowWorkspaceShowcase />
 
       {/* 7. GROWTH METRICS & THE COMPOUND EFFECT */}
-      <EcomflowCompoundMetrics />
+      <MarginFlowCompoundMetrics />
 
       {/* 8. FAQ: GOOD QUESTIONS. CLEAR ANSWERS. */}
       <section id="faq" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-white border-t border-[#cfdfd1] select-none">
@@ -155,25 +165,25 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 9. FINAL HIGH-EMOTION CTA (Exact Ecomflow .final-cta styling) */}
+      {/* 9. FINAL HIGH-EMOTION CTA (Exact MarginFlow .final-cta styling) */}
       <section className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#060c09] text-white relative overflow-hidden select-none border-t border-white/[0.08]">
         {/* Ambient Glowing Orb */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[#00ae3b]/15 blur-[120px] rounded-full pointer-events-none" />
 
         <div className="max-w-4xl mx-auto text-center relative z-10 space-y-6">
           <span className="text-[11px] font-mono tracking-widest text-[#71d78e] uppercase font-semibold block">
-            YOUR NEXT CHAPTER
+            INSTANT FINANCIAL CLARITY
           </span>
 
           <h2 className="text-4xl sm:text-6xl font-bold tracking-[-0.04em] text-white leading-[1.05]">
             Stop marketplace margin leaks.<br />
             <span className="font-serif italic font-normal text-[#71d78e]">
-              Let’s get you there.
+              See your true numbers in 60 seconds.
             </span>
           </h2>
 
           <p className="text-base sm:text-lg text-[#9ab1a1] max-w-lg mx-auto font-normal">
-            Tell us where your store is today. Let’s review your past 90 days of settlements and quantify your recoverable capital.
+            Connect your channels or upload your latest statement. Audit your past 90 days of settlements and quantify your recoverable capital.
           </p>
 
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -182,13 +192,13 @@ export default function LandingPage() {
               disabled={isAuthenticating}
               className="px-8 py-4 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-sm font-mono font-semibold transition-all shadow-[0_0_35px_rgba(0,174,59,0.4)] cursor-pointer flex items-center gap-2"
             >
-              <span>{isAuthenticating ? "Connecting..." : "Let’s Talk Reconciliation"}</span>
+              <span>{isAuthenticating ? "Connecting..." : "Audit Your Store Free"}</span>
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
 
           <p className="text-xs font-mono text-[#8da494] pt-2">
-            Your brand. Your numbers. A real conversation.
+            Bank-grade encryption • 100% read-only access • No card required
           </p>
         </div>
       </section>
@@ -207,16 +217,16 @@ export default function LandingPage() {
 
           <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-xs font-mono font-medium">
             <a href="#engine" className="hover:text-white transition-colors">
-              The Engine
+              How It Works
             </a>
             <a href="#routes" className="hover:text-white transition-colors">
               Reconciliation
             </a>
             <a href="#workspace" className="hover:text-white transition-colors">
-              Workspace
+              Cockpit
             </a>
             <a href="#metrics" className="hover:text-white transition-colors">
-              Impact
+              Results
             </a>
             <a href="#faq" className="hover:text-white transition-colors">
               FAQ

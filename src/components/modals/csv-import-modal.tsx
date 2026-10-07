@@ -42,7 +42,7 @@ export function CsvImportModal({
   onImportOrders,
 }: CsvImportModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [mappingResult, setMappingResult] = useState<CsvMappingResult | null>(null);
   const [activeTab, setActiveTab] = useState<"PREVIEW" | "COLUMNS">("PREVIEW");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -55,10 +55,11 @@ export function CsvImportModal({
   }, []);
 
   const handleReset = () => {
-    setFile(null);
+    setFiles([]);
     setMappingResult(null);
     setActiveTab("PREVIEW");
     setIsProcessing(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleClose = React.useCallback(() => {
@@ -75,69 +76,88 @@ export function CsvImportModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleClose]);
 
-  const processFile = (uploadedFile: File) => {
-    const ext = uploadedFile.name.split(".").pop()?.toLowerCase();
-    if (ext !== "csv" && ext !== "xlsx" && ext !== "xls") {
-      alert("Please select a valid CSV or Excel file (.csv, .xlsx, .xls).");
+  const processFiles = async (uploadedFiles: FileList | File[]) => {
+    if (!uploadedFiles || uploadedFiles.length === 0) return;
+    const fileArray = Array.from(uploadedFiles).filter((f) => {
+      const ext = f.name.split(".").pop()?.toLowerCase();
+      return ext === "csv" || ext === "xlsx" || ext === "xls";
+    });
+
+    if (fileArray.length === 0) {
+      alert("Please select valid CSV or Excel files (.csv, .xlsx, .xls).");
       return;
     }
 
-    setFile(uploadedFile);
+    setFiles((prev) => [...prev, ...fileArray]);
     setIsProcessing(true);
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
+    const aiSettings = loadAISettings();
+    const activeKey = aiSettings.keys[aiSettings.activeProvider] || "";
+    const openRouterKey =
+      aiSettings.activeProvider === "openrouter"
+        ? activeKey
+        : aiSettings.keys["openrouter"] || "";
+
+    const allOrders: Order[] = mappingResult?.orders ? [...mappingResult.orders] : [];
+    let combinedDetection: any = mappingResult?.detection ? { ...mappingResult.detection } : null;
+    const allErrors: string[] = mappingResult?.errors ? [...mappingResult.errors] : [];
+    const allWarnings: string[] = mappingResult?.warnings ? [...mappingResult.warnings] : [];
+
+    for (const curFile of fileArray) {
+      const ext = curFile.name.split(".").pop()?.toLowerCase();
       try {
         let text = "";
         if (ext === "xlsx" || ext === "xls") {
-          const buffer = e.target?.result as ArrayBuffer;
+          const buffer = await curFile.arrayBuffer();
           const workbook = XLSX.read(new Uint8Array(buffer), { type: "array" });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           text = XLSX.utils.sheet_to_csv(firstSheet);
         } else {
-          text = e.target?.result as string;
+          text = await curFile.text();
         }
 
-        if (!text) {
-          setIsProcessing(false);
-          return;
-        }
-
-        const aiSettings = loadAISettings();
-        const activeKey = aiSettings.keys[aiSettings.activeProvider] || "";
-        const openRouterKey =
-          aiSettings.activeProvider === "openrouter"
-            ? activeKey
-            : aiSettings.keys["openrouter"] || "";
+        if (!text.trim()) continue;
 
         // Run smart auto-detection and column mapping
         const result = await detectAndMapCsvWithJev(text, products, {
           jevApiKey: aiSettings.jevApiKey,
           openRouterKey,
         });
-        setMappingResult(result);
-      } catch (err: unknown) {
-        console.error("Spreadsheet import error:", err);
-      } finally {
-        setIsProcessing(false);
+
+        if (!combinedDetection) {
+          combinedDetection = result.detection;
+        } else {
+          combinedDetection.totalRows += result.detection.totalRows;
+          combinedDetection.matchedSkuCount += result.detection.matchedSkuCount;
+          combinedDetection.unmatchedSkuCount += result.detection.unmatchedSkuCount;
+        }
+
+        allOrders.push(...result.orders);
+        allErrors.push(...result.errors);
+        allWarnings.push(...result.warnings);
+      } catch (err: any) {
+        console.error(`Spreadsheet import error on ${curFile.name}:`, err);
+        allErrors.push(`${curFile.name}: ${err?.message || "Error reading file"}`);
       }
-    };
-
-    reader.onerror = () => {
-      setIsProcessing(false);
-    };
-
-    if (ext === "xlsx" || ext === "xls") {
-      reader.readAsArrayBuffer(uploadedFile);
-    } else {
-      reader.readAsText(uploadedFile);
     }
+
+    if (combinedDetection) {
+      setMappingResult({
+        detection: combinedDetection,
+        orders: allOrders,
+        errors: allErrors,
+        warnings: allWarnings,
+      });
+    }
+
+    setIsProcessing(false);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files[0]) {
-      processFile(files[0]);
+    const fileList = e.target.files;
+    if (fileList && fileList.length > 0) {
+      processFiles(fileList);
+      e.target.value = "";
     }
   };
 
@@ -153,8 +173,8 @@ export function CsvImportModal({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(e.dataTransfer.files);
     }
   };
 
@@ -209,7 +229,7 @@ export function CsvImportModal({
         {/* Content Body */}
         <div className="p-6 space-y-4 overflow-y-auto text-xs flex-1">
           {/* File Dropzone */}
-          {!file && (
+          {files.length === 0 && (
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -224,6 +244,7 @@ export function CsvImportModal({
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 accept=".csv,.xlsx,.xls"
                 onChange={handleFileSelect}
                 className="hidden"
@@ -232,15 +253,15 @@ export function CsvImportModal({
                 <FileSpreadsheet className="w-6 h-6" />
               </div>
               <p className="text-sm font-semibold text-[#1D1D1F]">
-                Drag &amp; drop your marketplace export sheet
+                Drag &amp; drop your marketplace export sheet(s)
               </p>
               <p className="text-xs text-[#86868B] mt-1 font-medium">
-                Supports CSV or Excel files (.csv, .xlsx, .xls)
+                Supports single or multiple CSV or Excel files (.csv, .xlsx, .xls)
               </p>
 
               <div className="mt-5 flex items-center justify-center">
                 <span className="px-4 py-2 rounded-xl bg-[#1D1D1F] hover:bg-black text-white font-medium text-xs shadow-apple-sm btn-press transition">
-                  Browse file
+                  Browse files
                 </span>
               </div>
             </div>
@@ -257,7 +278,7 @@ export function CsvImportModal({
           )}
 
           {/* Results Screen */}
-          {file && !isProcessing && mappingResult && (
+          {files.length > 0 && !isProcessing && mappingResult && (
             <div className="space-y-4">
               {/* Top Detection Pill */}
               <div className="p-4 bg-[#F5F5F7] rounded-2xl border border-black/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -275,7 +296,10 @@ export function CsvImportModal({
                       </span>
                     </div>
                     <p className="text-[11px] text-[#86868B] mt-0.5 tabular-nums">
-                      {file.name} · {orders.length} orders parsed · {detection?.columnMappings.length} columns auto-mapped
+                      {files.length > 1
+                        ? `${files.length} sheets (${files.map((f) => f.name).slice(0, 2).join(", ")}${files.length > 2 ? "..." : ""})`
+                        : files[0]?.name}{" "}
+                      · {orders.length} orders parsed · {detection?.columnMappings.length} columns auto-mapped
                     </p>
                   </div>
                 </div>
@@ -283,8 +307,15 @@ export function CsvImportModal({
                 <div className="flex items-center gap-2 self-start sm:self-auto">
                   <button
                     type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs text-[#0071E3] font-medium px-3.5 py-1.5 rounded-xl border border-[#0071E3]/20 bg-[#0071E3]/5 hover:bg-[#0071E3]/10 shadow-apple-sm btn-press transition cursor-pointer"
+                  >
+                    + Add sheets
+                  </button>
+                  <button
+                    type="button"
                     onClick={handleReset}
-                    className="text-xs text-[#1D1D1F] font-medium px-3.5 py-1.5 rounded-xl border border-black/[0.06] bg-white hover:bg-[#F5F5F7] shadow-apple-sm btn-press transition"
+                    className="text-xs text-[#1D1D1F] font-medium px-3.5 py-1.5 rounded-xl border border-black/[0.06] bg-white hover:bg-[#F5F5F7] shadow-apple-sm btn-press transition cursor-pointer"
                   >
                     Change file
                   </button>

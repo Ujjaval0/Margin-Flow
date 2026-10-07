@@ -19,7 +19,7 @@ export default function GlobalError({
           </p>
           <button
             onClick={() => reset()}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D1D1F] text-white font-medium hover:bg-black transition shadow-apple-sm cursor-pointer"
           >
             <RefreshCw className="w-4 h-4" />
             Reload Application

@@ -601,37 +601,72 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       accessorKey: "returnType",
       header: "Type & Restock",
       cell: ({ row }) => {
-        const t = row.original.returnType;
-        const restock = row.original.restockStatus || "PENDING_RESTOCK";
+        const r = row.original;
+        const t = r.returnType;
+        const restock = r.restockStatus || "PENDING_RESTOCK";
 
-        const typeBadge =
-          t === "RTO"
-            ? "bg-amber-500/10 text-amber-800 border-amber-500/20"
-            : t === "DAMAGED_RETURN"
-            ? "bg-rose-500/10 text-rose-800 border-rose-500/20"
-            : "bg-[#0071E3]/10 text-[#0071E3] border-[#0071E3]/20";
-
-        const restockBadge =
-          restock === "RESTOCKED"
-            ? "bg-emerald-500/10 text-emerald-800 border-emerald-500/20"
-            : restock === "WRITTEN_OFF"
-            ? "bg-black/[0.04] text-[#86868B] border-black/[0.06]"
-            : "bg-amber-500/10 text-amber-800 border-amber-500/20";
+        const isDamaged = t === "DAMAGED_RETURN";
+        const isRTO = t === "RTO";
 
         return (
-          <div className="space-y-1">
-            <span
-              className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${typeBadge}`}
-            >
-              {t.replace(/_/g, " ")}
-            </span>
-            <div>
+          <div className="space-y-1 py-0.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span
-                className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-semibold border ${restockBadge}`}
+                className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border tracking-tight ${
+                  isDamaged
+                    ? "bg-rose-50 text-[#D70015] border-rose-200"
+                    : isRTO
+                    ? "bg-black/[0.04] text-[#1D1D1F] border-black/[0.08]"
+                    : "bg-[#F5F5F7] text-[#1D1D1F] border-black/[0.08]"
+                }`}
               >
-                {restock.replace(/_/g, " ")}
+                {isRTO ? "RTO" : isDamaged ? "Damaged Return" : "Customer Return"}
               </span>
             </div>
+
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span
+                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                  restock === "RESTOCKED"
+                    ? "bg-[#288548]"
+                    : restock === "WRITTEN_OFF"
+                    ? "bg-[#86868B]"
+                    : "bg-[#F59E0B]"
+                }`}
+                style={{
+                  backgroundColor:
+                    restock === "RESTOCKED"
+                      ? "#288548"
+                      : restock === "WRITTEN_OFF"
+                      ? "#86868B"
+                      : "#F59E0B",
+                }}
+              />
+              <span
+                className={`font-medium ${
+                  restock === "RESTOCKED"
+                    ? "text-[#288548]"
+                    : restock === "WRITTEN_OFF"
+                    ? "text-[#86868B]"
+                    : "text-[#B25E00]"
+                }`}
+              >
+                {restock === "RESTOCKED"
+                  ? "Restocked"
+                  : restock === "WRITTEN_OFF"
+                  ? "Written Off"
+                  : "Pending Restock"}
+              </span>
+            </div>
+
+            {r.returnReason && (
+              <p
+                className="text-[10px] text-[#86868B] truncate max-w-[170px]"
+                title={r.returnReason}
+              >
+                {r.returnReason}
+              </p>
+            )}
           </div>
         );
       },
@@ -643,28 +678,69 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         const r = row.original;
         const isSellable = r.condition === "SELLABLE";
         const isDamaged = r.condition === "DAMAGED" || r.condition === "UNUSABLE";
+        const isUnderInspection = r.condition === "UNDER_INSPECTION";
+
+        const dotColor = isSellable
+          ? "#288548"
+          : isDamaged
+          ? "#D70015"
+          : "#F59E0B";
 
         return (
-          <div className="flex items-center gap-1.5">
-            <select
-              value={r.condition}
-              onChange={(e) =>
-                handleQuickConditionChange(r, e.target.value as ProductCondition)
-              }
-              className={`text-[11px] font-semibold py-1 px-2.5 rounded-full border cursor-pointer focus:outline-none transition-all shadow-apple-sm ${
-                isSellable
-                  ? "bg-emerald-500/10 text-emerald-800 border-emerald-500/20"
-                  : isDamaged
-                  ? "bg-rose-500/10 text-rose-800 border-rose-500/20"
-                  : "bg-amber-500/10 text-amber-800 border-amber-500/20"
-              }`}
-            >
-              <option value="SELLABLE">✓ Sellable (Restock)</option>
-              <option value="DAMAGED">⚠ Damaged (Scrap)</option>
-              <option value="USED">◉ Used / Open Box</option>
-              <option value="UNDER_INSPECTION">⏳ Under Inspection</option>
-              <option value="UNUSABLE">✕ Unusable Write-off</option>
-            </select>
+          <div className="space-y-1 py-0.5 min-w-[160px]">
+            {/* Clean Apple Interactive Select */}
+            <div className="relative inline-flex items-center">
+              <span
+                className="w-2 h-2 rounded-full absolute left-2.5 pointer-events-none shrink-0"
+                style={{ backgroundColor: dotColor }}
+                aria-hidden="true"
+              />
+              <select
+                value={r.condition}
+                onChange={(e) =>
+                  handleQuickConditionChange(r, e.target.value as ProductCondition)
+                }
+                className="pl-6 pr-7 py-1 text-xs font-medium text-[#1D1D1F] bg-white hover:bg-[#F5F5F7] border border-black/[0.08] hover:border-black/[0.16] rounded-lg shadow-apple-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 transition appearance-none"
+              >
+                <option value="SELLABLE">Sellable (Restock)</option>
+                <option value="DAMAGED">Damaged (Scrap)</option>
+                <option value="USED">Used / Open Box</option>
+                <option value="UNDER_INSPECTION">Under Inspection</option>
+                <option value="UNUSABLE">Unusable (Write-off)</option>
+              </select>
+              <ChevronDown className="w-3 h-3 text-[#86868B] absolute right-2 pointer-events-none" />
+            </div>
+
+            {/* Useful Operational Context */}
+            <div className="text-[10.5px]">
+              {isSellable ? (
+                <span className="text-[#288548] font-medium flex items-center gap-1">
+                  <Check className="w-3 h-3 text-[#288548]" />
+                  Inventory safe
+                </span>
+              ) : isDamaged ? (
+                r.claimId ? (
+                  <span className="text-[#0071E3] font-medium flex items-center gap-1">
+                    <ShieldAlert className="w-3 h-3 text-[#0071E3]" />
+                    Claim: {r.claimId}
+                  </span>
+                ) : (
+                  <span className="text-[#D70015] font-semibold flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 text-[#D70015]" />
+                    Dispute claim eligible
+                  </span>
+                )
+              ) : isUnderInspection ? (
+                <span className="text-[#B25E00] font-medium flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-[#B25E00]" />
+                  Awaiting warehouse triage
+                </span>
+              ) : (
+                <span className="text-[#6E6E73] font-medium">
+                  Secondary grade
+                </span>
+              )}
+            </div>
           </div>
         );
       },
@@ -822,7 +898,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
           </button>
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-semibold rounded-full shadow-apple-sm transition active:scale-[0.98] cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#1D1D1F] hover:bg-black text-white text-xs font-semibold rounded-full shadow-apple-sm transition active:scale-[0.98] cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" strokeWidth={2.2} />
             <span>Log Return</span>

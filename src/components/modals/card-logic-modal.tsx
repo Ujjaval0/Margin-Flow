@@ -19,7 +19,7 @@ export interface CardLogicModalData {
   }[];
   resultLabel: string;
   resultValue: string;
-  impactNote: string;
+  impactNote?: string;
 }
 
 export interface CardLogicModalProps {
@@ -32,8 +32,15 @@ export function CardLogicModal({ data, onClose }: CardLogicModalProps) {
 
   useEffect(() => {
     setMounted(true);
-    return () => setMounted(false);
-  }, []);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      setMounted(false);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
 
   if (!data || !mounted) return null;
 
@@ -63,8 +70,8 @@ export function CardLogicModal({ data, onClose }: CardLogicModalProps) {
         </div>
 
         {/* Calculation Formula Section */}
-        <div className="p-4 rounded-2xl bg-[#0071E3]/5 border border-[#0071E3]/15">
-          <span className="text-[11px] font-semibold text-[#0071E3] block mb-1">
+        <div className="p-3.5 rounded-2xl bg-[#F5F5F7]">
+          <span className="text-[11px] font-medium text-[#86868B] block mb-1">
             Calculation formula
           </span>
           <div className="text-sm font-semibold text-[#1D1D1F] tracking-tight leading-relaxed">
@@ -100,18 +107,20 @@ export function CardLogicModal({ data, onClose }: CardLogicModalProps) {
           </div>
         </div>
 
-        {/* Business Insight Takeaway */}
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-[#288548]/10 border border-[#288548]/20 rounded-xl text-xs text-[#288548] font-medium">
-          <CheckCircle2 className="w-4 h-4 text-[#288548] shrink-0" />
-          <span className="leading-snug text-[#1D1D1F]">{data.impactNote}</span>
-        </div>
+        {/* Business Insight Takeaway (optional) */}
+        {data.impactNote && (
+          <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-[#288548]/10 border border-[#288548]/20 rounded-xl text-xs text-[#288548] font-medium">
+            <CheckCircle2 className="w-4 h-4 text-[#288548] shrink-0" />
+            <span className="leading-snug text-[#1D1D1F]">{data.impactNote}</span>
+          </div>
+        )}
 
         {/* Close Action */}
         <button
           onClick={onClose}
           className="w-full py-2.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-xl transition shadow-apple-sm btn-press cursor-pointer"
         >
-          Close inspection
+          Close
         </button>
       </div>
     </div>,
@@ -126,7 +135,7 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
   return {
     grossSales: {
       title: "Gross Sales",
-      meaning: "Total catalog value of all customer orders placed across selected channels.",
+      meaning: "Total value of all placed customer orders.",
       formula: "Gross Sales = Item Selling Price × Ordered Quantity",
       equationComponents: [
         { label: "Active Orders Logged", value: `${profitability.totalOrders} orders` },
@@ -142,18 +151,17 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
       ],
       resultLabel: "Total Gross Sales",
       resultValue: formatINR(profitability.grossSales),
-      impactNote: "Measures top-line customer demand before any commission, logistics, or return deductions.",
     },
 
     trueProfit: {
       title: "True Profit",
-      meaning: "Realized in-pocket cash remaining after all marketplace deductions and active supplier COGS.",
-      formula: "True Profit = All Platform Profit − Active Supplier COGS",
+      meaning: "Net profit remaining after platform deductions and wholesale supplier COGS.",
+      formula: "True Profit = Platform Profit − Supplier COGS",
       equationComponents: [
         {
           label: "All Platform Profit (Settlement − Return Fees + Claims)",
           value: formatINR(profitability.netPlatformPayout),
-          color: "text-[#0071E3]",
+          color: "text-[#1D1D1F]",
         },
         {
           label: "Active Supplier Inventory Cost (COGS)",
@@ -168,13 +176,12 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
       ],
       resultLabel: "True In-Pocket Profit",
       resultValue: formatINR(profitability.trueProfit),
-      impactNote: "Actual net cash earned after fulfilling platform deductions, absorbing return fees, realizing claims, and paying supplier COGS.",
     },
 
     netProfit: {
       title: "Net Profit / Platform Payout",
-      meaning: "Net cash disbursed by marketplaces before paying wholesale suppliers.",
-      formula: "Platform Profit = Settlement Received (Delivered) − Return Fees + Claim Recovery",
+      meaning: "Net payout from marketplaces before wholesale supplier costs.",
+      formula: "Platform Profit = Settlement Received − Return Fees + Claim Recovery",
       equationComponents: [
         {
           label: "Settlement Received (Delivered Orders Only)",
@@ -194,12 +201,11 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
       ],
       resultLabel: "All Platform Profit",
       resultValue: formatINR(profitability.netPlatformPayout),
-      impactNote: "Expected bank payout from platforms after return deductions and dispute credits, before supplier COGS.",
     },
 
     returnsRto: {
       title: "Returns & RTO Analysis",
-      meaning: "Logistics deductions and losses from courier rejections (RTO) and customer returns.",
+      meaning: "Logistics deductions and losses from courier rejections and customer returns.",
       formula: "Return Losses = Forward/Reverse Shipping Fees + Damaged Scrap",
       equationComponents: [
         {
@@ -223,12 +229,11 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
       resultValue: `${profitability.rtoCount + profitability.customerReturnCount} items (${formatPercent(
         profitability.returnRate
       )})`,
-      impactNote: "Differentiates undelivered courier transit failures from delivered customer returns.",
     },
 
     wholesalerCogs: {
       title: "Wholesaler Cost (COGS)",
-      meaning: "Total inventory procurement cost payable to wholesale suppliers for sold items.",
+      meaning: "Total inventory purchase cost payable to wholesale suppliers.",
       formula: "Wholesaler COGS = Total Units Sold × Unit Purchase Cost",
       equationComponents: [
         { label: "Total Units Sold", value: `${profitability.totalUnitsSold} units` },
@@ -243,12 +248,11 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
       ],
       resultLabel: "Total Wholesaler Cost",
       resultValue: formatINR(profitability.cogs),
-      impactNote: "Snapshot procurement liability payable to suppliers for all delivered items.",
     },
 
     damagedClaims: {
       title: "Damaged Claims Recovery",
-      meaning: "Reimbursements credited by platforms for courier transit or damage disputes.",
+      meaning: "Reimbursements credited by platforms for transit or damage disputes.",
       formula: "Claims Recovery = Approved SAFE-T & Transit Dispute Credits",
       equationComponents: [
         {
@@ -272,12 +276,11 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
       ],
       resultLabel: "Total Reimbursements Credited",
       resultValue: formatINR(profitability.claimRecoveries),
-      impactNote: "Recovers lost cash directly through dispute claims filed against logistics damage.",
     },
 
     netRevenue: {
       title: "Net Revenue",
-      meaning: "Customer catalog sales after deducting seller promotional discounts.",
+      meaning: "Customer sales value after deducting seller promotional discounts.",
       formula: "Net Revenue = Gross Sales − Promotional Discounts",
       equationComponents: [
         { label: "Gross Catalog Sales", value: formatINR(profitability.grossSales) },
@@ -289,7 +292,6 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
       ],
       resultLabel: "Net Realized Revenue",
       resultValue: formatINR(profitability.netSales),
-      impactNote: "True top-line sales volume before channel fees and product COGS.",
     },
 
     grossProfit: {
@@ -307,7 +309,6 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
       ],
       resultLabel: "Gross Profit",
       resultValue: formatINR(profitability.grossProfit),
-      impactNote: "Product markup margin before marketplace commission and fulfillment fees.",
     },
 
     contributionProfit: {
@@ -334,7 +335,6 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
       ],
       resultLabel: "Contribution Profit",
       resultValue: formatINR(profitability.contributionProfit),
-      impactNote: "Primary unit-economics benchmark of channel sustainability.",
     },
 
     netOperatingProfit: {
@@ -352,7 +352,6 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
       ],
       resultLabel: "Net Operating Profit",
       resultValue: formatINR(profitability.netOperatingProfit),
-      impactNote: "True bottom line after accounting for office, software, and business overheads.",
     },
   };
 }

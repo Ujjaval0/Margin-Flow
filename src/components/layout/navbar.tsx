@@ -1,9 +1,8 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Marketplace } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
@@ -51,7 +50,7 @@ export function Navbar({
   ];
 
   const moduleTitles: Record<string, string> = {
-    dashboard: "Financial & Operational Overview",
+    dashboard: "Home",
     orders: "Order Lifecycle & Cost Snapshots",
     returns: "Returns & Reverse Logistics",
     claims: "SAFE-T Claims & Dispute Recoveries",
@@ -69,28 +68,23 @@ export function Navbar({
 
   return (
     <header className="shrink-0 h-16 w-full bg-white/85 backdrop-blur-xl border-b border-black/[0.06] px-4 sm:px-6 md:px-8 flex items-center justify-between z-20 sticky top-0 transition-all select-none">
-      {/* Left: Clean Breadcrumb & Current View Title */}
-      <div className="flex items-center gap-2 select-none shrink-0 mr-3">
-        {onToggleSidebar && (
+      {/* Left: Sidebar Toggle & Current View Title */}
+      <div className="flex items-center gap-2.5 select-none shrink-0 mr-3">
+        {onToggleSidebar ? (
           <button
             onClick={onToggleSidebar}
-            className="md:hidden p-1.5 -ml-1 mr-0.5 rounded-lg hover:bg-black/[0.05] active:scale-95 text-[#6E6E73] hover:text-[#1D1D1F] transition focus-visible:ring-2 focus-visible:ring-[#0071E3]/40"
-            title="Toggle sidebar"
-            aria-label="Toggle navigation sidebar"
+            className="p-1.5 -ml-1 rounded-lg hover:bg-black/[0.05] active:scale-95 text-[#6E6E73] hover:text-[#1D1D1F] transition focus-visible:ring-2 focus-visible:ring-[#0071E3]/40 cursor-pointer"
+            title={isSidebarOpen ? "Collapse sidebar (⌘B)" : "Expand sidebar (⌘B)"}
+            aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
-            <Menu className="w-4 h-4" />
+            <PanelLeft className="w-4 h-4" />
           </button>
+        ) : (
+          <div className="p-1.5 -ml-1 text-[#6E6E73]">
+            <PanelLeft className="w-4 h-4" />
+          </div>
         )}
-        <Image
-          src="/margin-flow-icon.png"
-          alt="Margin Flow"
-          width={18}
-          height={18}
-          className="w-4 h-4 object-contain opacity-90 shrink-0"
-        />
-        <span className="text-xs font-semibold text-[#86868B] hidden sm:inline">MarginFlow</span>
-        <span className="text-xs text-black/20 hidden sm:inline">/</span>
-        <span className="text-xs font-semibold text-[#1D1D1F] tracking-tight whitespace-nowrap">
+        <span className="text-sm font-medium text-[#1D1D1F] tracking-tight whitespace-nowrap">
           {moduleTitles[activeModule] || activeModule}
         </span>
       </div>

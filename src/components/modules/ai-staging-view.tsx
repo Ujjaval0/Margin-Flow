@@ -340,7 +340,7 @@ export function AIStagingView() {
               setUploadError("");
               setIsUploadModalOpen(true);
             }}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-medium rounded-full shadow-apple-sm btn-press transition cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-apple-sm btn-press transition cursor-pointer"
           >
             <UploadCloud className="w-3.5 h-3.5" />
             <span>Upload documents</span>
@@ -905,7 +905,7 @@ export function AIStagingView() {
                     <button
                       onClick={() => approveStagedDocument(selectedDoc.id)}
                       disabled={!selectedDoc.arithmeticValidation.passed}
-                      className="px-5 py-2 bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-35 disabled:cursor-not-allowed text-white rounded-full text-xs font-medium shadow-apple-sm transition flex items-center gap-1.5 active:scale-[0.98] btn-press cursor-pointer"
+                      className="px-5 py-2 bg-[#1D1D1F] hover:bg-black disabled:opacity-35 disabled:cursor-not-allowed text-white rounded-full text-xs font-medium shadow-apple-sm transition flex items-center gap-1.5 active:scale-[0.98] btn-press cursor-pointer"
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>Commit to books</span>
@@ -1115,7 +1115,7 @@ export function AIStagingView() {
                 type="button"
                 disabled={selectedFiles.length === 0 || isUploading}
                 onClick={() => processUploadedFiles(selectedFiles)}
-                className="px-5 py-2 bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-35 disabled:cursor-not-allowed text-white text-xs font-medium rounded-full shadow-apple-sm transition flex items-center gap-1.5 active:scale-[0.98] btn-press cursor-pointer"
+                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black disabled:opacity-35 disabled:cursor-not-allowed text-white text-xs font-medium rounded-full shadow-apple-sm transition flex items-center gap-1.5 active:scale-[0.98] btn-press cursor-pointer"
               >
                 <FileCheck className="w-3.5 h-3.5" />
                 <span>
@@ -1136,7 +1136,7 @@ export function AIStagingView() {
                   type="button"
                   disabled={isUploading}
                   onClick={() => handleLoadSample("SUPPLIER")}
-                  className="p-3 rounded-2xl border border-black/[0.06] hover:border-[#0071E3]/40 bg-white hover:bg-[#0071E3]/5 text-left transition shadow-apple-sm btn-press disabled:opacity-50 cursor-pointer"
+                  className="p-3 rounded-2xl border border-black/[0.06] hover:border-black/20 bg-white hover:bg-black/[0.02] text-left transition shadow-apple-sm btn-press disabled:opacity-50 cursor-pointer"
                 >
                   <div className="text-[11px] font-medium text-[#1D1D1F] flex items-center justify-between">
                     <span>Wholesale bill</span>
@@ -1149,7 +1149,7 @@ export function AIStagingView() {
                   type="button"
                   disabled={isUploading}
                   onClick={() => handleLoadSample("AMAZON")}
-                  className="p-3 rounded-2xl border border-black/[0.06] hover:border-[#0071E3]/40 bg-white hover:bg-[#0071E3]/5 text-left transition shadow-apple-sm btn-press disabled:opacity-50 cursor-pointer"
+                  className="p-3 rounded-2xl border border-black/[0.06] hover:border-black/20 bg-white hover:bg-black/[0.02] text-left transition shadow-apple-sm btn-press disabled:opacity-50 cursor-pointer"
                 >
                   <div className="text-[11px] font-medium text-[#1D1D1F] flex items-center justify-between">
                     <span>Amazon invoice</span>
@@ -1162,7 +1162,7 @@ export function AIStagingView() {
                   type="button"
                   disabled={isUploading}
                   onClick={() => handleLoadSample("FLIPKART")}
-                  className="p-3 rounded-2xl border border-black/[0.06] hover:border-[#0071E3]/40 bg-white hover:bg-[#0071E3]/5 text-left transition shadow-apple-sm btn-press disabled:opacity-50 cursor-pointer"
+                  className="p-3 rounded-2xl border border-black/[0.06] hover:border-black/20 bg-white hover:bg-black/[0.02] text-left transition shadow-apple-sm btn-press disabled:opacity-50 cursor-pointer"
                 >
                   <div className="text-[11px] font-medium text-[#1D1D1F] flex items-center justify-between">
                     <span>Flipkart courier</span>

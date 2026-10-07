@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatPercent } from "@/lib/utils";
 import {
@@ -66,6 +66,7 @@ export function DashboardView({
   onSelectModule,
 }: DashboardViewProps = {}) {
   const {
+    currentUser,
     selectedMarketplace: contextMarketplace,
     profitability,
     profitabilityTrends,
@@ -95,6 +96,25 @@ export function DashboardView({
 
   const selectedMarketplace = propMarketplace ?? contextMarketplace;
 
+  // Dynamic time and date for live greeting
+  const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    setCurrentTime(new Date());
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const hour = currentTime.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const formattedDate = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(currentTime).toUpperCase();
+  const userName = currentUser?.name?.split(" ")[0] || "Ujjaval";
+
   // Dual-Mode Financial View State: "OPERATOR" (Cash & Payouts) vs "CFO" (GAAP Hierarchy)
   const [viewMode, setViewMode] = useState<"OPERATOR" | "CFO">("OPERATOR");
 
@@ -104,8 +124,20 @@ export function DashboardView({
     setIsMounted(true);
   }, []);
 
-  // Card Logic Inspection Modal State
-  const [activeLogicModal, setActiveLogicModal] = useState<CardLogicModalData | null>(null);
+  // Card Logic Inspection Modal State with Real-Time Dynamic Re-evaluation
+  const [activeLogicKey, setActiveLogicKey] = useState<string | null>(null);
+  const cardLogicDefinitions = useMemo(() => getCardLogicDefinitions(profitability), [profitability]);
+  const activeLogicModal = activeLogicKey ? cardLogicDefinitions[activeLogicKey] : null;
+  const setActiveLogicModal = useCallback((data: CardLogicModalData | null) => {
+    if (!data) {
+      setActiveLogicKey(null);
+      return;
+    }
+    const foundKey = Object.keys(cardLogicDefinitions).find(
+      (k) => cardLogicDefinitions[k].title === data.title
+    );
+    setActiveLogicKey(foundKey || null);
+  }, [cardLogicDefinitions]);
 
   // Quick Action Dialog States
   const [isAddOrderOpen, setIsAddOrderOpen] = useState(false);
@@ -165,14 +197,29 @@ export function DashboardView({
     document.body.removeChild(link);
   };
 
-  // Channel Identity Palette
-  const CHANNEL_PALETTE: Record<string, { fill: string; bg: string; text: string }> = {
-    "Amazon India": { fill: "#F59E0B", bg: "bg-amber-500/10", text: "text-amber-700" },
-    Flipkart: { fill: "#3B82F6", bg: "bg-blue-500/10", text: "text-blue-700" },
-    Myntra: { fill: "#F97316", bg: "bg-orange-500/10", text: "text-orange-700" },
-    Meesho: { fill: "#EC4899", bg: "bg-pink-500/10", text: "text-pink-700" },
-    "Personal Website": { fill: "#10B981", bg: "bg-emerald-500/10", text: "text-emerald-700" },
-  };
+  // Tonal Green Monochrome Palette (matching user reference specification)
+  const TONAL_GREEN_SCALE = [
+    "#0B4D1F", // Dominant / Forest Green
+    "#1F8A3A", // Rich Emerald
+    "#34C759", // Vibrant Apple Green
+    "#7FDC95", // Soft Sage
+    "#C9EED2", // Pale Mint
+  ];
+
+  const sortedMarketplaceBreakdown = [...marketplaceBreakdown]
+    .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
+    .map((item, index) => ({
+      ...item,
+      color: TONAL_GREEN_SCALE[index % TONAL_GREEN_SCALE.length],
+    }));
+
+  const activeChannels = sortedMarketplaceBreakdown.filter((m) => (m.revenue || 0) > 0);
+  const channelPieData =
+    activeChannels.length > 0
+      ? activeChannels
+      : [{ marketplace: "No Revenue", revenue: 1, color: "#E5E5EA" }];
+
+  const totalChannelRevenue = marketplaceBreakdown.reduce((sum, m) => sum + (m.revenue || 0), 0);
 
   const channelChartData = useMemo(() => {
     return marketplaceBreakdown.map((m) => ({
@@ -428,45 +475,31 @@ export function DashboardView({
 
   // Logic definitions for each card
   const {
-    grossSalesLogic,
-    trueProfitLogic,
-    netProfitLogic,
-    returnsRtoLogic,
-    wholesalerCogsLogic,
-    damagedClaimsLogic,
-    netRevenueLogic,
-    grossProfitLogic,
-    contributionProfitLogic,
-    netOperatingProfitLogic,
-  } = useMemo(() => {
-    const defs = getCardLogicDefinitions(profitability);
-    return {
-      grossSalesLogic: defs.grossSales,
-      trueProfitLogic: defs.trueProfit,
-      netProfitLogic: defs.netProfit,
-      returnsRtoLogic: defs.returnsRto,
-      wholesalerCogsLogic: defs.wholesalerCogs,
-      damagedClaimsLogic: defs.damagedClaims,
-      netRevenueLogic: defs.netRevenue,
-      grossProfitLogic: defs.grossProfit,
-      contributionProfitLogic: defs.contributionProfit,
-      netOperatingProfitLogic: defs.netOperatingProfit,
-    };
-  }, [profitability]);
+    grossSales: grossSalesLogic,
+    trueProfit: trueProfitLogic,
+    netProfit: netProfitLogic,
+    returnsRto: returnsRtoLogic,
+    wholesalerCogs: wholesalerCogsLogic,
+    damagedClaims: damagedClaimsLogic,
+    netRevenue: netRevenueLogic,
+    grossProfit: grossProfitLogic,
+    contributionProfit: contributionProfitLogic,
+    netOperatingProfit: netOperatingProfitLogic,
+  } = cardLogicDefinitions;
 
   return (
     <div className="space-y-6 w-full max-w-[1536px] mx-auto animate-in fade-in duration-300">
       {/* ─── Top Header & Controls Area ─── */}
       <div className="space-y-4 pb-1">
-        {/* Row 1: Title & Live Status Indicator */}
+        {/* Row 1: Greetings & Live Status Indicator */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-[#1D1D1F]">
-              Financial Dashboard
-            </h1>
-            <p className="text-xs text-[#86868B] mt-1">
-              Real-time dynamic ecommerce profit &amp; settlement tracker across multi-channel marketplaces.
+            <p suppressHydrationWarning className="text-xs font-semibold uppercase tracking-wider text-[#86868B]">
+              {formattedDate}
             </p>
+            <h1 suppressHydrationWarning className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F] mt-1">
+              {greeting}, {userName}
+            </h1>
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
@@ -482,7 +515,7 @@ export function DashboardView({
 
         {/* Row 2: Dedicated Control Toolbar Strip */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-2 border-t border-black/[0.05]">
-          {/* Left: Mode Switcher & Channel Filter */}
+          {/* Left: Mode Switcher */}
           <div className="flex flex-wrap items-center gap-2.5 text-xs">
             {/* Dual-Mode View Switcher */}
             <div className="inline-flex items-center bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05]">
@@ -509,12 +542,6 @@ export function DashboardView({
                 CFO / Unit Economics
               </button>
             </div>
-
-            {/* Channel Filter Badge */}
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-black/[0.08] text-[#1D1D1F] text-xs font-semibold shadow-apple-sm">
-              <span className="text-[#86868B] font-normal">Channel:</span>
-              <span className="text-[#0071E3] font-semibold">{selectedMarketplace === "ALL" ? "All Channels" : selectedMarketplace}</span>
-            </div>
           </div>
 
           {/* Right: Date-Range Selector & Interactive Custom Calendar Popover */}
@@ -526,7 +553,7 @@ export function DashboardView({
                 onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shrink-0 transition-all cursor-pointer active:scale-[0.98] ${
                   isCalendarOpen || datePreset === "CUSTOM"
-                    ? "bg-[#0071E3] text-white shadow-apple-sm"
+                    ? "bg-[#1D1D1F] text-white shadow-apple-sm"
                     : "text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.04]"
                 }`}
                 title="Open Custom Date Picker"
@@ -590,7 +617,7 @@ export function DashboardView({
                     <button
                       type="button"
                       onClick={selectToday}
-                      className="px-2.5 py-1 text-xs font-semibold text-[#0071E3] bg-[#0071E3]/10 hover:bg-[#0071E3]/20 active:scale-95 rounded-full transition cursor-pointer"
+                      className="px-2.5 py-1 text-xs font-semibold text-[#1D1D1F] bg-black/[0.05] hover:bg-black/[0.08] active:scale-95 rounded-full transition cursor-pointer"
                       title="Select Today's Date"
                     >
                       Today
@@ -674,25 +701,25 @@ export function DashboardView({
                     let cellClass = "text-[#1D1D1F] hover:bg-black/[0.04] rounded-xl font-medium";
 
                     if (isSingleDay) {
-                      cellClass = "bg-[#0071E3] text-white font-semibold rounded-xl shadow-apple-sm";
+                      cellClass = "bg-[#1D1D1F] text-white font-semibold rounded-xl shadow-apple-sm";
                     } else if (isStart) {
                       const roundR = dayOfWeek === 6 ? "rounded-r-xl" : "rounded-r-none";
-                      cellClass = `bg-[#0071E3] text-white font-semibold rounded-l-xl ${roundR} shadow-apple-sm`;
+                      cellClass = `bg-[#1D1D1F] text-white font-semibold rounded-l-xl ${roundR} shadow-apple-sm`;
                     } else if (isEnd) {
                       const roundL = dayOfWeek === 0 ? "rounded-l-xl" : "rounded-l-none";
-                      cellClass = `bg-[#0071E3] text-white font-semibold rounded-r-xl ${roundL} shadow-apple-sm`;
+                      cellClass = `bg-[#1D1D1F] text-white font-semibold rounded-r-xl ${roundL} shadow-apple-sm`;
                     } else if (isInRange) {
                       const roundL = dayOfWeek === 0 || dayNum === 1 ? "rounded-l-lg" : "rounded-l-none";
                       const roundR = dayOfWeek === 6 || isLastDay ? "rounded-r-lg" : "rounded-r-none";
-                      cellClass = `bg-[#0071E3]/10 text-[#0071E3] font-medium ${roundL} ${roundR}`;
+                      cellClass = `bg-black/[0.06] text-[#1D1D1F] font-medium ${roundL} ${roundR}`;
                     } else if (isInHover) {
                       if (hoveredDate === dateStr) {
-                        cellClass = "bg-[#0071E3] text-white font-semibold rounded-r-xl rounded-l-none";
+                        cellClass = "bg-[#1D1D1F] text-white font-semibold rounded-r-xl rounded-l-none";
                       } else {
-                        cellClass = "bg-[#0071E3]/10 text-[#0071E3] font-medium rounded-none";
+                        cellClass = "bg-black/[0.06] text-[#1D1D1F] font-medium rounded-none";
                       }
                     } else if (isToday) {
-                      cellClass = "text-[#0071E3] font-semibold ring-1.5 ring-[#0071E3] bg-[#0071E3]/10 rounded-xl";
+                      cellClass = "text-[#1D1D1F] font-semibold ring-1.5 ring-black/20 bg-black/[0.04] rounded-xl";
                     }
 
                     return (
@@ -778,7 +805,7 @@ export function DashboardView({
                       setIsCalendarOpen(false);
                     }}
                     disabled={!customStartDate}
-                    className="px-4 py-1.5 text-xs font-semibold text-white bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 disabled:cursor-not-allowed rounded-full transition shadow-apple-sm cursor-pointer flex items-center gap-1.5 active:scale-95"
+                    className="px-4 py-1.5 text-xs font-semibold text-white bg-[#1D1D1F] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed rounded-full transition shadow-apple-sm cursor-pointer flex items-center gap-1.5 active:scale-95"
                   >
                     <Check className="w-3.5 h-3.5" />
                     Apply Range
@@ -1282,24 +1309,37 @@ export function DashboardView({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">
-                Channel Economics Comparison
+                Channel Economics
               </h2>
-              <p className="text-xs text-[#86868B] mt-0.5">
-                Gross revenue vs COGS vs marketplace deductions vs net profit.
-              </p>
             </div>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="flex items-center gap-1.5 text-[#6E6E73]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#0071E3]" /> Revenue
+            <div className="flex items-center gap-3.5 text-xs">
+              <span className="flex items-center gap-1.5 text-[#6E6E73] font-medium">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0 inline-block shadow-2xs border border-black/5"
+                  style={{ backgroundColor: "#0071E3" }}
+                />
+                <span>Revenue</span>
               </span>
-              <span className="flex items-center gap-1.5 text-[#6E6E73]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#86868B]" /> COGS
+              <span className="flex items-center gap-1.5 text-[#6E6E73] font-medium">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0 inline-block shadow-2xs border border-black/5"
+                  style={{ backgroundColor: "#8E8E93" }}
+                />
+                <span>COGS</span>
               </span>
-              <span className="flex items-center gap-1.5 text-[#6E6E73]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#D70015]" /> Fees
+              <span className="flex items-center gap-1.5 text-[#6E6E73] font-medium">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0 inline-block shadow-2xs border border-black/5"
+                  style={{ backgroundColor: "#FF9F0A" }}
+                />
+                <span>Fees</span>
               </span>
-              <span className="flex items-center gap-1.5 text-[#6E6E73]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#288548]" /> Profit
+              <span className="flex items-center gap-1.5 text-[#6E6E73] font-medium">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0 inline-block shadow-2xs border border-black/5"
+                  style={{ backgroundColor: "#34C759" }}
+                />
+                <span>Profit</span>
               </span>
             </div>
           </div>
@@ -1314,109 +1354,133 @@ export function DashboardView({
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={280}>
-                <BarChart data={channelChartData} barCategoryGap="20%" margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E5EA" />
-                  <XAxis dataKey="name" stroke="#86868B" fontSize={11} tickLine={false} />
+                <BarChart
+                  data={channelChartData}
+                  barGap={4}
+                  barCategoryGap="24%"
+                  margin={{ top: 10, right: 10, left: -10, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E5EA" strokeOpacity={0.6} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#86868B"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    dy={4}
+                  />
                   <YAxis
                     stroke="#86868B"
                     fontSize={11}
                     tickLine={false}
+                    axisLine={false}
                     tickFormatter={(v) => `₹${Number(v) >= 1000 ? `${(Number(v) / 1000).toFixed(0)}k` : v}`}
                   />
                   <Tooltip
-                    formatter={(value: any) => [formatINR(Number(value)), ""]}
+                    formatter={(value: any, name: any) => [formatINR(Number(value)), name]}
                     contentStyle={{
                       backgroundColor: "#FFFFFF",
                       borderRadius: "14px",
                       border: "1px solid rgba(0,0,0,0.08)",
-                      boxShadow: "0 4px 12px -2px rgba(0,0,0,0.03)",
+                      boxShadow: "0 4px 12px -2px rgba(0,0,0,0.06)",
                       fontSize: "12px",
                       padding: "8px 12px",
                     }}
                   />
-                  <Bar dataKey="Revenue" fill="#0071E3" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="COGS" fill="#86868B" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Fees" fill="#D70015" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Profit" fill="#288548" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Revenue" fill="#0071E3" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                  <Bar dataKey="COGS" fill="#8E8E93" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                  <Bar dataKey="Fees" fill="#FF9F0A" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                  <Bar dataKey="Profit" fill="#34C759" radius={[4, 4, 0, 0]} maxBarSize={22} />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
         </div>
 
-        {/* Revenue Share Donut Chart with Brand Channel Colors */}
+        {/* Revenue Share Donut Chart with Tonal Green Palette */}
         <div className="min-w-0 bg-white p-6 rounded-2xl border border-black/[0.06] shadow-apple-md flex flex-col justify-between">
           <div>
             <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">
               Revenue Distribution by Channel
             </h2>
-            <p className="text-xs text-[#86868B] mt-0.5">Sales share percentage across channels</p>
           </div>
-          <div className="h-52 w-full my-2 relative">
+          <div className="h-52 w-full my-2 relative flex items-center justify-center">
             {!isMounted ? (
               <div className="h-52 w-full flex items-center justify-center text-xs text-[#86868B] bg-[#F5F5F7] rounded-xl">
                 Loading distribution...
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={208} minWidth={0} minHeight={208}>
-                <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                  <Pie
-                    data={
-                      marketplaceBreakdown.some((m) => m.revenue > 0)
-                        ? marketplaceBreakdown.filter((m) => m.revenue > 0)
-                        : [{ marketplace: "No Revenue", revenue: 1 }]
-                    }
-                    dataKey="revenue"
-                    nameKey="marketplace"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={54}
-                    outerRadius={74}
-                    paddingAngle={3}
-                  >
-                    {marketplaceBreakdown.map((entry) => (
-                      <Cell
-                        key={`cell-${entry.marketplace}`}
-                        fill={CHANNEL_PALETTE[entry.marketplace]?.fill || "#86868B"}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: any) => formatINR(Number(value))}
-                    contentStyle={{
-                      backgroundColor: "#FFFFFF",
-                      borderRadius: "14px",
-                      border: "1px solid rgba(0,0,0,0.08)",
-                      boxShadow: "0 4px 12px -2px rgba(0,0,0,0.03)",
-                      fontSize: "12px",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={208} minWidth={0} minHeight={208}>
+                  <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                    <Pie
+                      data={channelPieData}
+                      dataKey="revenue"
+                      nameKey="marketplace"
+                      cx="50%"
+                      cy="50%"
+                      startAngle={90}
+                      endAngle={-270}
+                      innerRadius={56}
+                      outerRadius={78}
+                      stroke="#FFFFFF"
+                      strokeWidth={2}
+                      paddingAngle={2}
+                    >
+                      {channelPieData.map((entry) => (
+                        <Cell
+                          key={`cell-${entry.marketplace}`}
+                          fill={entry.color}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: any) => {
+                        const numVal = Number(value);
+                        const share = totalChannelRevenue > 0 ? (numVal / totalChannelRevenue) * 100 : 0;
+                        return [`${formatINR(numVal)} (${share.toFixed(1)}%)`, "Revenue"];
+                      }}
+                      contentStyle={{
+                        backgroundColor: "#FFFFFF",
+                        borderRadius: "14px",
+                        border: "1px solid rgba(0,0,0,0.08)",
+                        boxShadow: "0 4px 12px -2px rgba(0,0,0,0.06)",
+                        fontSize: "12px",
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+
+                {/* Donut Center Metric - Prominent amount on top, uppercase sub-label below */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
+                  <span className="text-lg sm:text-xl font-bold text-[#1D1D1F] tracking-tight tabular-nums">
+                    {formatINR(totalChannelRevenue)}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-[#86868B] mt-0.5">
+                    Revenue
+                  </span>
+                </div>
+              </>
             )}
           </div>
           <div className="space-y-2 pt-3 border-t border-black/[0.04] text-xs">
-            {marketplaceBreakdown.map((m) => {
-              const pal = CHANNEL_PALETTE[m.marketplace];
+            {sortedMarketplaceBreakdown.map((m) => {
+              const share = totalChannelRevenue > 0 ? (m.revenue / totalChannelRevenue) * 100 : 0;
               return (
-                <div key={m.marketplace} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                <div key={m.marketplace} className="flex items-center justify-between py-0.5">
+                  <div className="flex items-center gap-2 min-w-0">
                     <span
-                      className="w-2.5 h-2.5 rounded-full shadow-apple-sm"
-                      style={{ backgroundColor: pal?.fill || "#86868B" }}
+                      className="w-2.5 h-2.5 rounded-full shrink-0 shadow-apple-sm border border-black/5"
+                      style={{ backgroundColor: m.color }}
                     />
-                    <span className="text-[#1D1D1F] font-medium">{m.marketplace}</span>
-                    {m.adSpend > 0 && (
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                        m.poas >= 1.0
-                          ? "bg-emerald-500/10 text-emerald-800 border border-emerald-500/20"
-                          : "bg-amber-500/10 text-amber-800 border border-amber-500/20"
-                      }`}>
-                        {m.poas}x POAS
-                      </span>
-                    )}
+                    <span className="text-[#1D1D1F] font-medium truncate">{m.marketplace}</span>
+                    <span className="text-[#86868B] text-[11px] font-medium tabular-nums shrink-0">
+                      {share.toFixed(1)}%
+                    </span>
                   </div>
-                  <span className="font-semibold text-[#1D1D1F] tabular-nums">{formatINR(m.revenue)}</span>
+                  <span className="font-semibold text-[#1D1D1F] tabular-nums shrink-0 ml-2">
+                    {formatINR(m.revenue)}
+                  </span>
                 </div>
               );
             })}
@@ -1475,7 +1539,7 @@ export function DashboardView({
                 setSkuSearch("");
                 scrollToSkuTable();
               }}
-              className="px-3.5 py-1.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:scale-[0.98] text-white font-medium text-xs shadow-apple-sm transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-[#1D1D1F] hover:bg-black active:scale-[0.98] text-white font-medium text-xs shadow-apple-sm transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
               title="Filter table to all loss-making products"
             >
               <span>Filter Table</span>
@@ -1489,19 +1553,16 @@ export function DashboardView({
       <div id="sku-economics-table" className="bg-white rounded-2xl border border-black/[0.06] shadow-apple-md overflow-hidden scroll-mt-20">
         {/* Table Header & Filtering Controls */}
         <div className="p-4 sm:p-5 border-b border-black/[0.04] flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white">
-          {/* Left: Title & Description */}
+          {/* Left: Title */}
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
-                Product SKU Profitability &amp; Unit Economics
+                SKU Economics
               </h2>
               <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black/[0.04] text-[#6E6E73] font-semibold border border-black/[0.06] tabular-nums">
                 {processedSkus.length} SKUs
               </span>
             </div>
-            <p className="text-xs text-[#86868B] mt-1 leading-relaxed max-w-2xl">
-              Net revenue, COGS, marketplace charges, return losses, and true contribution margin per SKU. Click any row to inspect unit breakdown.
-            </p>
           </div>
 
           {/* Right: Unified Controls Strip (Search + Filter Pills + Export) */}

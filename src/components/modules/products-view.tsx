@@ -291,9 +291,9 @@ export function ProductsView() {
           <button
             type="button"
             onClick={handleOpenAddProduct}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-apple-sm btn-press transition cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1D1D1F] hover:bg-black text-white text-xs font-semibold shadow-apple-sm transition active:scale-[0.98] cursor-pointer shrink-0"
           >
-            <Plus className="w-3.5 h-3.5" strokeWidth={2} />
+            <Plus className="w-3.5 h-3.5" strokeWidth={2.2} />
             <span>Add New Product</span>
           </button>
         </div>

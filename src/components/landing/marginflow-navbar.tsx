@@ -10,8 +10,6 @@ export interface MarginFlowNavbarProps {
   isAuthenticating: boolean;
 }
 
-export type EcomflowNavbarProps = MarginFlowNavbarProps;
-
 export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavbarProps) {
   const [isFloating, setIsFloating] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -52,7 +50,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
         <div
           className={`relative mx-auto pointer-events-auto flex items-center justify-between transition-all duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
             isFloating
-              ? "max-w-6xl xl:max-w-7xl h-16 px-6 sm:px-8"
+              ? "max-w-7xl h-16 px-6 sm:px-8"
               : "max-w-7xl h-22 sm:h-24 px-4 sm:px-6 lg:px-8"
           }`}
           style={{
@@ -92,7 +90,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
 
           {/* Desktop Nav Links */}
           <nav
-            className="relative z-10 hidden lg:flex items-center gap-6 xl:gap-8 text-xs font-mono font-medium tracking-wider whitespace-nowrap shrink-0 transition-colors duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+            className="relative z-10 hidden lg:flex items-center gap-6 xl:gap-8 text-xs sm:text-[13px] font-sans font-medium whitespace-nowrap shrink-0 transition-colors duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
             style={{
               color: isFloating ? "#5c7062" : "#9ab1a1",
             }}
@@ -103,7 +101,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
                 isFloating ? "hover:text-[#193022]" : "hover:text-[#b6f5cc]"
               }`}
             >
-              The Engine
+              How It Works
             </a>
             <a
               href="#routes"
@@ -114,20 +112,12 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
               Reconciliation
             </a>
             <a
-              href="#calculator"
-              className={`transition-colors duration-200 ${
-                isFloating ? "hover:text-[#193022]" : "hover:text-[#b6f5cc]"
-              }`}
-            >
-              ROI Calculator
-            </a>
-            <a
               href="#workspace"
               className={`transition-colors duration-200 ${
                 isFloating ? "hover:text-[#193022]" : "hover:text-[#b6f5cc]"
               }`}
             >
-              Workspace
+              Cockpit
             </a>
             <a
               href="#metrics"
@@ -135,7 +125,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
                 isFloating ? "hover:text-[#193022]" : "hover:text-[#b6f5cc]"
               }`}
             >
-              Impact
+              Results
             </a>
             <a
               href="#faq"
@@ -151,7 +141,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
           <div className="relative z-10 flex items-center gap-3 shrink-0 whitespace-nowrap">
             <Link
               href="/login"
-              className={`hidden sm:inline-block text-xs font-mono font-medium px-3.5 py-2 transition-colors duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)] shrink-0 whitespace-nowrap ${
+              className={`hidden sm:inline-block text-xs sm:text-[13px] font-sans font-medium px-3.5 py-2 transition-colors duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)] shrink-0 whitespace-nowrap ${
                 isFloating ? "hover:text-[#193022]" : "hover:text-white"
               }`}
               style={{
@@ -164,7 +154,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
             <button
               onClick={onSignIn}
               disabled={isAuthenticating}
-              className="flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-xs font-mono font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(0,174,59,0.3)] cursor-pointer shrink-0 whitespace-nowrap"
+              className="flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-xs sm:text-[13px] font-sans font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(0,174,59,0.3)] cursor-pointer shrink-0 whitespace-nowrap"
             >
               <span>{isAuthenticating ? "Connecting..." : "Audit Your Store Free"}</span>
               <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
@@ -203,7 +193,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
           }`}
         >
           <div
-            className={`flex flex-col space-y-3 font-mono text-sm ${
+            className={`flex flex-col space-y-3 font-sans font-medium text-sm ${
               isFloating ? "text-[#5c7062]" : "text-[#9ab1a1]"
             }`}
           >
@@ -214,7 +204,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
                 isFloating ? "hover:text-[#193022]" : "hover:text-white"
               }`}
             >
-              The Engine
+              How It Works
             </a>
             <a
               href="#routes"
@@ -226,22 +216,13 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
               Reconciliation
             </a>
             <a
-              href="#calculator"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`transition-colors ${
-                isFloating ? "hover:text-[#193022]" : "hover:text-white"
-              }`}
-            >
-              ROI Calculator
-            </a>
-            <a
               href="#workspace"
               onClick={() => setIsMobileMenuOpen(false)}
               className={`transition-colors ${
                 isFloating ? "hover:text-[#193022]" : "hover:text-white"
               }`}
             >
-              Workspace
+              Cockpit
             </a>
             <a
               href="#metrics"
@@ -250,7 +231,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
                 isFloating ? "hover:text-[#193022]" : "hover:text-white"
               }`}
             >
-              Impact
+              Results
             </a>
             <a
               href="#faq"
@@ -264,7 +245,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
           </div>
 
           <div
-            className={`pt-4 border-t flex items-center justify-between font-mono ${
+            className={`pt-4 border-t flex items-center justify-between font-sans ${
               isFloating ? "border-black/[0.08]" : "border-white/[0.1]"
             }`}
           >
@@ -293,6 +274,3 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
     </header>
   );
 }
-
-// Backward-compatible alias
-export const EcomflowNavbar = MarginFlowNavbar;

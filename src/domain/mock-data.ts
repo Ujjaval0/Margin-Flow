@@ -1321,8 +1321,8 @@ export const INITIAL_COMPLAINTS: CustomerComplaint[] = [
 export const DEFAULT_ACCOUNTS: UserAccount[] = [
   {
     id: "ACC-001",
-    name: "E-Commerce Founder",
-    email: "founder@brand.in",
+    name: "Ujjaval",
+    email: "ujjaval@brand.in",
     accountType: "BRAND_OWNER",
     companyName: "VoltTech Consumer Electronics",
     gstin: "27AABCV1234F1Z1",

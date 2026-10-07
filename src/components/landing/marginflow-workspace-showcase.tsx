@@ -4,12 +4,12 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, Clock, Layers, Scale, ShieldCheck, FileCheck, DollarSign } from "lucide-react";
 
-export function EcomflowWorkspaceShowcase() {
+export function MarginFlowWorkspaceShowcase() {
   const [activeTab, setActiveTab] = useState<"orders" | "weight" | "claims" | "settlements">("orders");
 
   return (
     <section id="workspace" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#f6f9f5] text-[#193022] border-t border-[#cfdfd1] select-none">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         
         {/* Section Heading */}
         <div className="max-w-2xl mb-14">
@@ -25,7 +25,7 @@ export function EcomflowWorkspaceShowcase() {
             </span>
           </h2>
           <p className="mt-4 text-base sm:text-lg text-[#5c7062] leading-relaxed">
-            Reconciled unit economics, courier weight telemetry, and dispute dossiers in one clean dashboard.
+            Real unit economics, courier deadweight detection, and automated dispute dossiers in one cockpit.
           </p>
 
           <div className="mt-6">
@@ -39,7 +39,7 @@ export function EcomflowWorkspaceShowcase() {
           </div>
         </div>
 
-        {/* macOS Style Application Window (Exact Ecomflow structure) */}
+        {/* macOS Style Application Window (Exact MarginFlow structure) */}
         <div className="rounded-3xl bg-white border border-[#cfdfd1] shadow-[0_24px_60px_rgba(25,48,34,0.08)] overflow-hidden">
           
           {/* macOS Title Bar */}
@@ -68,8 +68,8 @@ export function EcomflowWorkspaceShowcase() {
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
                   <div>
-                    <span className="text-xs font-mono font-bold text-[#193022]">ORDER WATERFALL // CM2 CALCULATION</span>
-                    <p className="text-xs text-[#5c7062]">Every order cost element verified against bank remittance.</p>
+                    <span className="text-xs font-mono font-bold text-[#193022]">ORDER WATERFALL // TRUE CM2 & POAS</span>
+                    <p className="text-xs text-[#5c7062]">Gross checkout price verified against locked COGS, courier fees, and return losses.</p>
                   </div>
                   <span className="px-3 py-1 rounded-full bg-emerald-50 text-[#00872e] text-xs font-mono font-bold">
                     +41.3% True Net Margin
@@ -90,7 +90,7 @@ export function EcomflowWorkspaceShowcase() {
                   <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1]">
                     <span className="text-[10px] text-[#5c7062] block">COURIER & COMM</span>
                     <strong className="text-xl text-rose-700 block mt-1">−₹460.00</strong>
-                    <span className="text-[10px] text-[#5c7062]">Audited logistics</span>
+                    <span className="text-[10px] text-[#5c7062]">Platform & logistics fees</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-[#193022] text-white">
                     <span className="text-[10px] text-[#71d78e] block">CLEARED BANK CASH</span>
@@ -106,7 +106,7 @@ export function EcomflowWorkspaceShowcase() {
                 <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
                   <div>
                     <span className="text-xs font-mono font-bold text-[#193022]">COURIER WEIGHT SLAB RADAR</span>
-                    <p className="text-xs text-[#5c7062]">Live disparity detection between catalog dimensions and courier bills.</p>
+                    <p className="text-xs text-[#5c7062]">Disparity detection between catalog dimensions and billed courier weight slabs.</p>
                   </div>
                   <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-mono font-bold">
                     ⚠️ −₹185.00 Flagged Overcharge
@@ -138,7 +138,7 @@ export function EcomflowWorkspaceShowcase() {
                 <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
                   <div>
                     <span className="text-xs font-mono font-bold text-[#193022]">DISPUTE RECOVERY & SAFE-T DOCKET</span>
-                    <p className="text-xs text-[#5c7062]">Active countdown timers and pre-compiled photo evidence checklists.</p>
+                    <p className="text-xs text-[#5c7062]">Active SLA countdown timers and pre-compiled SAFE-T/SPF evidence dossiers.</p>
                   </div>
                   <span className="px-3 py-1 rounded-full bg-amber-100 text-[#b67d46] text-xs font-mono font-bold">
                     ⏱ 4 Days Left in SLA
@@ -167,7 +167,7 @@ export function EcomflowWorkspaceShowcase() {
                 <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
                   <div>
                     <span className="text-xs font-mono font-bold text-[#193022]">BANK SETTLEMENT RECONCILIATION</span>
-                    <p className="text-xs text-[#5c7062]">One-to-one matching between marketplace UTR remittances and invoiced orders.</p>
+                    <p className="text-xs text-[#5c7062]">One-to-one matching between marketplace UTR remittances, orders, and 1% tax withholdings.</p>
                   </div>
                   <span className="px-3 py-1 rounded-full bg-emerald-50 text-[#00872e] text-xs font-mono font-bold">
                     100% Reconciled
@@ -195,7 +195,7 @@ export function EcomflowWorkspaceShowcase() {
             )}
           </div>
 
-          {/* 4 Interactive Feature Category Buttons (Exact Ecomflow .platform-shortcuts) */}
+          {/* 4 Interactive Feature Category Buttons (Exact MarginFlow .platform-shortcuts) */}
           <div className="grid grid-cols-2 md:grid-cols-4 border-t border-[#cfdfd1] divide-x divide-[#cfdfd1] bg-[#f1f5ee]">
             {[
               { id: "orders", label: "Orders & CM2", sub: "True net profit per SKU", icon: Layers },
@@ -234,3 +234,4 @@ export function EcomflowWorkspaceShowcase() {
     </section>
   );
 }
+

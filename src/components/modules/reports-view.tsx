@@ -53,7 +53,6 @@ export function ReportsView() {
   // Top-level Navigation: "analytics" (Analytics & Insights) vs "pnl" (P&L Ledger Statement)
   const [activeTab, setActiveTab] = useState<"analytics" | "pnl">("analytics");
   const [selectedChannel, setSelectedChannel] = useState<string>("All Channels");
-  const channels = ["All Channels", "Amazon", "Flipkart", "Meesho", "Website"];
 
   // Sync selectedChannel when global marketplace filter changes
   useEffect(() => {
@@ -385,30 +384,6 @@ export function ReportsView() {
          ───────────────────────────────────────────────────────────── */}
       {activeTab === "analytics" && (
         <div className="space-y-6">
-          {/* Channel Filter Pill Capsule */}
-          <div className="flex items-center justify-between gap-3 overflow-x-auto pb-0.5">
-            <div className="bg-black/[0.04] p-1 rounded-full border border-black/[0.06] inline-flex items-center gap-1 text-xs">
-              {channels.map((ch) => (
-                <button
-                  key={ch}
-                  onClick={() => setSelectedChannel(ch)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs transition-all shrink-0 cursor-pointer ${
-                    selectedChannel === ch
-                      ? "bg-white text-[#1D1D1F] font-semibold shadow-apple-sm"
-                      : "text-[#6E6E73] hover:text-[#1D1D1F] font-medium"
-                  }`}
-                >
-                  {ch}
-                </button>
-              ))}
-            </div>
-            {selectedChannel !== "All Channels" && (
-              <span className="text-xs text-[#86868B] font-medium hidden sm:inline">
-                Filtering metrics for <strong className="text-[#1D1D1F]">{selectedChannel}</strong>
-              </span>
-            )}
-          </div>
-
           {/* 1. Top 3 Executive KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Card 1: Unique Products */}

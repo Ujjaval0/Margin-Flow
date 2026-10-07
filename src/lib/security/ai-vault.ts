@@ -18,7 +18,6 @@ export type AIProvider =
   | "nvidia"
   | "mistral"
   | "glm"
-  | "typesafe"
   | "custom";
 
 export interface ProviderMeta {
@@ -38,13 +37,12 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
     name: "Google Gemini",
     defaultModel: "gemini-2.0-flash",
     recommendedModels: [
+      "gemini-2.5-flash",
       "gemini-2.0-flash",
       "gemini-2.0-flash-lite",
       "gemini-1.5-flash",
-      "gemini-1.5-flash-8b",
       "gemini-1.5-pro",
-      "gemini-2.5-flash-preview-05-20",
-      "gemini-2.5-pro-preview-06-05",
+      "gemini-2.5-pro",
     ],
     placeholderKey: "AIzaSy...",
     keyDocsUrl: "https://aistudio.google.com/app/apikey",
@@ -57,11 +55,8 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
       "llama-3.3-70b-versatile",
       "llama-3.1-8b-instant",
       "deepseek-r1-distill-llama-70b",
-      "llama-3.2-1b-preview",
-      "llama-3.2-3b-preview",
-      "mixtral-8x7b-32768",
-      "gemma2-9b-it",
       "qwen-qwq-32b",
+      "mixtral-8x7b-32768",
     ],
     placeholderKey: "gsk_...",
     keyDocsUrl: "https://console.groq.com/keys",
@@ -86,13 +81,9 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
     recommendedModels: [
       "gpt-4o-mini",
       "gpt-4o",
-      "gpt-4.1-mini",
-      "gpt-4.1",
-      "gpt-4-turbo",
       "o3-mini",
-      "o3",
-      "o4-mini",
-      "gpt-3.5-turbo",
+      "gpt-4.5-preview",
+      "o1",
     ],
     placeholderKey: "sk-proj-...",
     keyDocsUrl: "https://platform.openai.com/api-keys",
@@ -101,23 +92,15 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
   openrouter: {
     id: "openrouter",
     name: "OpenRouter",
-    defaultModel: "anthropic/claude-3.5-haiku",
+    defaultModel: "anthropic/claude-3.7-sonnet",
     recommendedModels: [
-      "anthropic/claude-sonnet-4-5",
-      "anthropic/claude-opus-4-5",
+      "anthropic/claude-3.7-sonnet",
       "anthropic/claude-3.5-haiku",
-      "anthropic/claude-3.5-sonnet",
-      "typesafe/jev-latest",
-      "openai/gpt-4o",
-      "openai/gpt-4o-mini",
-      "openai/o3-mini",
-      "google/gemini-2.5-pro-preview",
-      "google/gemini-2.0-flash",
-      "deepseek/deepseek-chat",
       "deepseek/deepseek-r1",
+      "google/gemini-2.0-flash",
+      "openai/gpt-4o-mini",
       "meta-llama/llama-3.3-70b-instruct",
       "mistralai/mistral-large-2411",
-      "google/gemini-2.0-flash-exp:free",
     ],
     placeholderKey: "sk-or-v1-...",
     keyDocsUrl: "https://openrouter.ai/keys",
@@ -129,11 +112,9 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
     defaultModel: "mistral-small-latest",
     recommendedModels: [
       "mistral-small-latest",
-      "mistral-medium-latest",
       "mistral-large-latest",
-      "mistral-saba-latest",
       "codestral-latest",
-      "devstral-small-2505",
+      "mistral-saba-latest",
     ],
     placeholderKey: "mis_...",
     keyDocsUrl: "https://console.mistral.ai/api-keys/",
@@ -142,13 +123,10 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
   nvidia: {
     id: "nvidia",
     name: "NVIDIA NIM",
-    defaultModel: "meta/llama-3.1-70b-instruct",
+    defaultModel: "meta/llama-3.3-70b-instruct",
     recommendedModels: [
       "meta/llama-3.3-70b-instruct",
-      "meta/llama-3.1-70b-instruct",
-      "meta/llama-3.1-8b-instruct",
       "nvidia/llama-3.1-nemotron-70b-instruct",
-      "mistralai/mistral-large-2-instruct",
       "deepseek-ai/deepseek-r1",
     ],
     placeholderKey: "nvapi-...",
@@ -161,12 +139,8 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
     defaultModel: "glm-4-flash",
     recommendedModels: [
       "glm-4-flash",
-      "glm-4-flash-250414",
       "glm-4-air",
-      "glm-4-airx",
       "glm-4",
-      "glm-4-long",
-      "glm-z1-flash",
     ],
     placeholderKey: "••••••••",
     keyDocsUrl: "https://open.bigmodel.cn/",
@@ -179,9 +153,7 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
     recommendedModels: [
       "moonshot-v1-8k",
       "moonshot-v1-32k",
-      "moonshot-v1-128k",
       "kimi-latest",
-      "kimi-thinking-preview",
     ],
     placeholderKey: "sk-...",
     keyDocsUrl: "https://platform.moonshot.cn/console/api-keys",
@@ -192,33 +164,17 @@ export const PROVIDER_REGISTRY: Record<AIProvider, ProviderMeta> = {
     name: "Custom / Local (Ollama, vLLM, LM Studio)",
     defaultModel: "llama3",
     recommendedModels: [
-      "llama3",
-      "llama3.1",
+      "llama3.3",
       "llama3.2",
-      "mistral",
+      "llama3",
       "deepseek-r1",
-      "deepseek-coder-v2",
       "qwen2.5",
-      "qwen2.5-coder",
-      "phi4",
-      "gemma3",
+      "mistral",
     ],
     placeholderKey: "optional-token",
     keyDocsUrl: "https://ollama.com",
     defaultBaseUrl: "http://localhost:11434/v1",
     supportsCustomBaseUrl: true,
-  },
-  typesafe: {
-    id: "typesafe",
-    name: "TypeSafe AI (Jev System One)",
-    defaultModel: "jev-latest",
-    recommendedModels: [
-      "jev-latest",
-      "jev-v1",
-    ],
-    placeholderKey: "ts_live_...",
-    keyDocsUrl: "https://typesafe.ai",
-    defaultBaseUrl: "https://api.typesafe.ai/v1",
   },
 };
 
@@ -243,6 +199,134 @@ const DEFAULT_SETTINGS: AISettings = {
   enableJevAcceleration: true,
 };
 
+export interface DiscoveredModel {
+  id: string;
+  name: string;
+  description?: string;
+  contextWindow?: number;
+  isRecommended?: boolean;
+}
+
+const MODEL_CACHE_PREFIX = "marginflow_models_cache_";
+
+/**
+ * Retrieve cached models for a provider from sessionStorage
+ */
+export function getCachedModels(provider: AIProvider): DiscoveredModel[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = sessionStorage.getItem(`${MODEL_CACHE_PREFIX}${provider}`);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Persist cached models for a provider into sessionStorage
+ */
+export function setCachedModels(provider: AIProvider, models: DiscoveredModel[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(`${MODEL_CACHE_PREFIX}${provider}`, JSON.stringify(models));
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Fetch live models from provider via server-side proxy
+ */
+export async function fetchLiveModels(
+  provider: AIProvider,
+  apiKey: string,
+  customBaseUrl?: string
+): Promise<{ success: boolean; models: DiscoveredModel[]; diagnosticMessage: string; error?: string }> {
+  try {
+    const res = await fetch("/api/ai-vault", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "models",
+        provider,
+        apiKey,
+        customBaseUrl,
+      }),
+    });
+
+    const data = await res.json();
+    if (data.success && Array.isArray(data.models)) {
+      setCachedModels(provider, data.models);
+      return {
+        success: true,
+        models: data.models,
+        diagnosticMessage: data.diagnosticMessage || `Loaded ${data.models.length} live models.`,
+      };
+    }
+    return {
+      success: false,
+      models: [],
+      diagnosticMessage: data.diagnosticMessage || data.error || "Failed to fetch models.",
+      error: data.error,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      models: [],
+      diagnosticMessage: err?.message || "Network error fetching models.",
+      error: err?.message,
+    };
+  }
+}
+
+/**
+ * Diagnostic key and endpoint test via server-side proxy
+ */
+export async function verifyConnection(
+  provider: AIProvider,
+  apiKey: string,
+  model?: string,
+  customBaseUrl?: string
+): Promise<{ success: boolean; latencyMs: number; diagnosticMessage: string; models?: DiscoveredModel[]; error?: string }> {
+  try {
+    const res = await fetch("/api/ai-vault", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "verify",
+        provider,
+        apiKey,
+        model,
+        customBaseUrl,
+      }),
+    });
+
+    const data = await res.json();
+    if (data.models && Array.isArray(data.models)) {
+      setCachedModels(provider, data.models);
+    }
+    return {
+      success: Boolean(data.success),
+      latencyMs: data.latencyMs || 0,
+      diagnosticMessage: data.diagnosticMessage || (data.success ? "Connection verified." : "Verification failed."),
+      models: data.models,
+      error: data.error,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      latencyMs: 0,
+      diagnosticMessage: err?.message || "Network error during verification.",
+      error: err?.message,
+    };
+  }
+}
+
 /**
  * Load AI settings securely from client-side storage
  */
@@ -252,9 +336,16 @@ export function loadAISettings(): AISettings {
     const raw = localStorage.getItem(VAULT_STORAGE_KEY);
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
+
+    // Safeguard if previously set provider is no longer in registry (e.g. legacy 'typesafe')
+    let activeProvider: AIProvider = parsed.activeProvider || "gemini";
+    if (!PROVIDER_REGISTRY[activeProvider]) {
+      activeProvider = "gemini";
+    }
+
     return {
-      activeProvider: parsed.activeProvider || "gemini",
-      model: parsed.model || PROVIDER_REGISTRY[parsed.activeProvider as AIProvider]?.defaultModel || "gemini-1.5-flash",
+      activeProvider,
+      model: parsed.model || PROVIDER_REGISTRY[activeProvider]?.defaultModel || "gemini-2.0-flash",
       keys: parsed.keys || {},
       customBaseUrl: parsed.customBaseUrl,
       useLocalFallbackIfEmpty: parsed.useLocalFallbackIfEmpty ?? true,

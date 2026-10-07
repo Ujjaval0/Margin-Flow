@@ -24,6 +24,11 @@ import {
   ArrowUpRight,
   Receipt,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronDown,
 } from "lucide-react";
 import { SupplierModal } from "@/components/modals/supplier-modal";
 
@@ -245,6 +250,27 @@ export function SuppliersView() {
     );
   }, [suppliers, searchQuery]);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / pageSize));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  const paginatedSuppliers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredSuppliers.slice(start, start + pageSize);
+  }, [filteredSuppliers, currentPage, pageSize]);
+
   // Open Edit Modal
   const handleOpenEdit = (s: Supplier) => {
     setEditingSupplier(s);
@@ -304,9 +330,9 @@ export function SuppliersView() {
         <button
           type="button"
           onClick={() => setIsAddOpen(true)}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white rounded-full text-xs font-medium shadow-apple-sm btn-press transition shrink-0 cursor-pointer"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1D1D1F] hover:bg-black text-white text-xs font-semibold shadow-apple-sm transition active:scale-[0.98] shrink-0 cursor-pointer"
         >
-          <Plus className="w-3.5 h-3.5" strokeWidth={2} />
+          <Plus className="w-3.5 h-3.5" strokeWidth={2.2} />
           <span>Add New Supplier</span>
         </button>
       </div>
@@ -387,9 +413,9 @@ export function SuppliersView() {
             <button
               type="button"
               onClick={() => setIsAddOpen(true)}
-              className="mt-2 flex items-center gap-2 px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-apple-sm btn-press transition"
+              className="mt-2 flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#1D1D1F] hover:bg-black text-white text-xs font-semibold shadow-apple-sm transition active:scale-[0.98] cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" strokeWidth={2.2} />
               <span>Add Your First Supplier</span>
             </button>
           </div>
@@ -449,7 +475,7 @@ export function SuppliersView() {
                     </td>
                   </tr>
                 ) : (
-                  filteredSuppliers.map((sup) => {
+                  paginatedSuppliers.map((sup) => {
                     const fin = supplierFinancials.get(sup.id) || {
                       sourcedCogs: 0,
                       totalPaid: 0,
@@ -585,6 +611,102 @@ export function SuppliersView() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Footer info & pagination bar */}
+          <div className="px-4 sm:px-6 py-3.5 bg-[#FAFAFC] border-t border-black/[0.06] flex flex-col md:flex-row items-center justify-between text-xs text-[#86868B] gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="text-xs text-[#64748B]">
+                {filteredSuppliers.length === suppliers.length ? (
+                  <span>
+                    <strong className="font-semibold text-[#1D1D1F] tabular-nums">{suppliers.length}</strong> total rows
+                  </span>
+                ) : (
+                  <span>
+                    <strong className="font-semibold text-[#1D1D1F] tabular-nums">{filteredSuppliers.length}</strong> of{" "}
+                    <strong className="font-semibold text-[#1D1D1F] tabular-nums">{suppliers.length}</strong> total rows
+                  </span>
+                )}
+              </div>
+
+
+            </div>
+
+            <div className="flex items-center gap-4 sm:gap-6 flex-wrap justify-end">
+              {/* Rows per page selector */}
+              <div className="flex items-center gap-2.5">
+                <span className="text-xs text-[#1D1D1F] font-normal whitespace-nowrap">
+                  Rows per page
+                </span>
+                <div className="relative inline-flex items-center">
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    aria-label="Rows per page"
+                    className="appearance-none bg-white border border-black/[0.1] hover:border-black/[0.2] text-xs font-semibold text-[#1D1D1F] pl-3 pr-7 py-1 rounded-lg shadow-apple-sm focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition cursor-pointer"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-[#86868B] absolute right-2 pointer-events-none stroke-[2]" />
+                </div>
+              </div>
+
+              {/* Page X of Y */}
+              <div className="text-xs text-[#1D1D1F] font-normal whitespace-nowrap">
+                Page <span className="font-semibold tabular-nums">{currentPage}</span> of{" "}
+                <span className="font-semibold tabular-nums">{totalPages}</span>
+              </div>
+
+              {/* Four navigation buttons */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage <= 1}
+                  aria-label="First page"
+                  title="First page"
+                  className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+                >
+                  <ChevronsLeft className="w-4 h-4 stroke-[1.75]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  aria-label="Previous page"
+                  title="Previous page"
+                  className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4 stroke-[1.75]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  aria-label="Next page"
+                  title="Next page"
+                  className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4 stroke-[1.75]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage >= totalPages}
+                  aria-label="Last page"
+                  title="Last page"
+                  className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+                >
+                  <ChevronsRight className="w-4 h-4 stroke-[1.75]" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

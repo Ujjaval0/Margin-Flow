@@ -50,6 +50,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import {
   calculateOrderProfitability,
@@ -68,13 +70,12 @@ interface OrdersViewProps {
 
 // Synthesize the Delivery & Return status matching user's exact specification
 type SynthesizedStatusKey =
+  | "CONFIRMED"
+  | "SHIPPED"
   | "DELIVERED"
-  | "CUSTOMER RETURN"
   | "RTO"
-  | "DAMAGED RETURN"
-  | "CLAIM PENDING"
-  | "CLAIM APPROVED"
-  | "OTHER";
+  | "RETURNED"
+  | "CANCELLED";
 
 function getSynthesizedStatus(
   order: Order,
@@ -86,47 +87,17 @@ function getSynthesizedStatus(
   pillClass: string;
   dotColor: string;
 } {
-  // 1. Claims
-  const approvedClaim = orderClaims.find(
-    (c) => c.status === "APPROVED" || c.status === "RECOVERED" || c.status === "PARTIALLY_RECOVERED"
-  );
-  if (order.status === "CLAIM_APPROVED" || approvedClaim) {
+  // 1. Cancelled
+  if (order.status === "CANCELLED") {
     return {
-      key: "CLAIM APPROVED",
-      label: "Claim Approved",
-      pillClass: "bg-emerald-500/10 text-emerald-800 border border-emerald-500/20",
-      dotColor: "bg-emerald-500",
-    };
-  }
-
-  const pendingClaim = orderClaims.find(
-    (c) => c.status === "FILED" || c.status === "UNDER_REVIEW" || c.status === "NOT_FILED"
-  );
-  if (order.status === "CLAIM_PENDING" || pendingClaim) {
-    return {
-      key: "CLAIM PENDING",
-      label: "Claim Pending",
-      pillClass: "bg-amber-500/10 text-amber-800 border border-amber-500/20",
-      dotColor: "bg-amber-500",
-    };
-  }
-
-  // 2. Returns
-  const damagedReturn = orderReturns.find(
-    (r) =>
-      r.returnType === "DAMAGED_RETURN" ||
-      r.condition === "DAMAGED" ||
-      r.condition === "UNUSABLE"
-  );
-  if (order.status === "DAMAGED_RETURN" || damagedReturn) {
-    return {
-      key: "DAMAGED RETURN",
-      label: "Damaged Return",
+      key: "CANCELLED",
+      label: "Cancelled",
       pillClass: "bg-rose-500/10 text-rose-800 border border-rose-500/20",
       dotColor: "bg-rose-500",
     };
   }
 
+  // 2. RTO (Undelivered Courier Return)
   const rtoReturn = orderReturns.find((r) => r.returnType === "RTO");
   if (order.status === "RTO" || rtoReturn) {
     return {
@@ -137,24 +108,68 @@ function getSynthesizedStatus(
     };
   }
 
-  const customerReturn = orderReturns.find(
-    (r) => r.returnType === "CUSTOMER_RETURN"
-  );
-  if (
-    order.status === "CUSTOMER_RETURN" ||
+  // 3. Customer & Damaged Returns
+  const isReturn =
     order.status === "RETURNED" ||
+    order.status === "CUSTOMER_RETURN" ||
+    order.status === "DAMAGED_RETURN" ||
     order.status === "PARTIALLY_RETURNED" ||
-    customerReturn
-  ) {
+    orderReturns.length > 0;
+
+  if (isReturn) {
+    const approvedClaim = orderClaims.find(
+      (c) => c.status === "APPROVED" || c.status === "RECOVERED" || c.status === "PARTIALLY_RECOVERED"
+    );
+    if (approvedClaim) {
+      return {
+        key: "RETURNED",
+        label: "Claim Approved",
+        pillClass: "bg-emerald-500/10 text-emerald-800 border border-emerald-500/20",
+        dotColor: "bg-emerald-500",
+      };
+    }
+
+    const pendingClaim = orderClaims.find(
+      (c) => c.status === "FILED" || c.status === "UNDER_REVIEW" || c.status === "NOT_FILED"
+    );
+    if (pendingClaim) {
+      return {
+        key: "RETURNED",
+        label: "Claim Pending",
+        pillClass: "bg-amber-500/10 text-amber-800 border border-amber-500/20",
+        dotColor: "bg-amber-500",
+      };
+    }
+
     return {
-      key: "CUSTOMER RETURN",
-      label: "Customer Return",
+      key: "RETURNED",
+      label: "Returned",
       pillClass: "bg-orange-500/10 text-orange-800 border border-orange-500/20",
       dotColor: "bg-orange-500",
     };
   }
 
-  // 3. Delivered or default active sale
+  // 4. Shipped
+  if (order.status === "SHIPPED") {
+    return {
+      key: "SHIPPED",
+      label: "Shipped",
+      pillClass: "bg-indigo-500/10 text-indigo-800 border border-indigo-500/20",
+      dotColor: "bg-indigo-500",
+    };
+  }
+
+  // 5. Confirmed
+  if (order.status === "CONFIRMED" || order.status === "PENDING") {
+    return {
+      key: "CONFIRMED",
+      label: "Confirmed",
+      pillClass: "bg-blue-500/10 text-blue-800 border border-blue-500/20",
+      dotColor: "bg-blue-500",
+    };
+  }
+
+  // 6. Delivered
   return {
     key: "DELIVERED",
     label: "Delivered",
@@ -164,158 +179,18 @@ function getSynthesizedStatus(
 }
 
 // ----------------------------------------------------
-// Enhanced Custom Status & Claims Dropdown
+// Status Pill Filter Options (Matching Reference Design)
 // ----------------------------------------------------
-interface StatusDropdownProps {
-  selected: string;
-  onChange: (val: string) => void;
-  counts: Record<string, number>;
-}
+const STATUS_PILL_OPTIONS = [
+  { id: "ALL", label: "ALL" },
+  { id: "CONFIRMED", label: "CONFIRMED" },
+  { id: "SHIPPED", label: "SHIPPED" },
+  { id: "DELIVERED", label: "DELIVERED" },
+  { id: "RTO", label: "RTO" },
+  { id: "RETURNED", label: "RETURNED" },
+  { id: "CANCELLED", label: "CANCELLED" },
+] as const;
 
-const STATUS_GROUPS = [
-  {
-    category: "General",
-    items: [
-      { id: "All Statuses", label: "All Statuses", icon: Filter, color: "bg-black/[0.04] text-[#1D1D1F] border-black/[0.06]", dot: "bg-[#86868B]" },
-    ],
-  },
-  {
-    category: "Lifecycle & Returns",
-    items: [
-      { id: "DELIVERED", label: "Delivered", icon: CheckCircle2, color: "bg-emerald-500/10 text-emerald-800 border-emerald-500/20", dot: "bg-emerald-500" },
-      { id: "CUSTOMER RETURN", label: "Customer Return", icon: RotateCcw, color: "bg-orange-500/10 text-orange-800 border-orange-500/20", dot: "bg-orange-500" },
-      { id: "RTO", label: "RTO", icon: Truck, color: "bg-amber-500/10 text-amber-800 border-amber-500/20", dot: "bg-amber-500" },
-      { id: "DAMAGED RETURN", label: "Damaged Return", icon: AlertTriangle, color: "bg-rose-500/10 text-rose-800 border-rose-500/20", dot: "bg-rose-500" },
-    ],
-  },
-  {
-    category: "Disputes & Claims",
-    items: [
-      { id: "CLAIM PENDING", label: "Claim Pending", icon: ShieldAlert, color: "bg-amber-500/10 text-amber-800 border-amber-500/20", dot: "bg-amber-500" },
-      { id: "CLAIM APPROVED", label: "Claim Approved", icon: ShieldCheck, color: "bg-emerald-500/10 text-emerald-800 border-emerald-500/20", dot: "bg-emerald-500" },
-    ],
-  },
-];
-
-function EnhancedStatusDropdown({ selected, onChange, counts }: StatusDropdownProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const allItems = STATUS_GROUPS.flatMap((g) => g.items);
-  const activeItem = allItems.find((i) => i.id === selected) || allItems[0];
-  const ActiveIcon = activeItem.icon;
-  const isFiltered = selected !== "All Statuses";
-
-  return (
-    <div ref={containerRef} className="relative min-w-[210px]">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between gap-2.5 px-4 py-2 bg-white rounded-full text-xs font-medium border transition shadow-apple-sm cursor-pointer active:scale-[0.98] ${
-          isOpen
-            ? "border-black/[0.2] ring-2 ring-[#0071E3]/20 text-[#1D1D1F]"
-            : isFiltered
-            ? "border-black/[0.15] bg-[#F5F5F7] text-[#1D1D1F] font-semibold"
-            : "border-black/[0.08] hover:border-black/[0.15] text-[#1D1D1F]"
-        }`}
-      >
-        <div className="flex items-center gap-2 truncate">
-          <span
-            className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 border text-[10px] ${activeItem.color}`}
-          >
-            <ActiveIcon className="w-3 h-3" />
-          </span>
-          <span className="font-semibold truncate">{activeItem.label}</span>
-        </div>
-
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span
-            className={`text-[11px] font-mono px-2 py-0.5 rounded-full font-medium tabular-nums ${
-              isFiltered ? "bg-[#1D1D1F] text-white" : "bg-black/[0.04] text-[#6E6E73]"
-            }`}
-          >
-            {counts[selected] || 0}
-          </span>
-          <ChevronDown
-            className={`w-3.5 h-3.5 text-[#86868B] transition-transform duration-200 ${
-              isOpen ? "rotate-180 text-[#1D1D1F]" : ""
-            }`}
-          />
-        </div>
-      </button>
-
-      {/* Floating Animated Popup Menu */}
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-1.5 w-72 bg-white/95 backdrop-blur-xl rounded-2xl border border-black/[0.08] shadow-apple-lg p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-          {STATUS_GROUPS.map((group, gIdx) => (
-            <div key={group.category} className={gIdx > 0 ? "mt-2 pt-2 border-t border-black/[0.04]" : ""}>
-              <div className="px-2.5 py-1 text-[10px] font-semibold text-[#86868B] flex items-center justify-between">
-                <span>{group.category}</span>
-                <span>Count</span>
-              </div>
-
-              <div className="space-y-0.5 mt-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const isSelected = selected === item.id;
-                  const count = counts[item.id] || 0;
-
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        onChange(item.id);
-                        setIsOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors group cursor-pointer ${
-                        isSelected
-                          ? "bg-black/[0.05] text-[#1D1D1F] font-semibold"
-                          : "hover:bg-black/[0.02] text-[#1D1D1F] font-normal"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border ${item.color}`}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                        </span>
-                        <span>{item.label}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`text-[11px] font-mono px-2 py-0.5 rounded-full tabular-nums ${
-                            isSelected
-                              ? "bg-[#1D1D1F] text-white font-semibold"
-                              : "bg-black/[0.04] text-[#86868B] group-hover:bg-black/[0.08]"
-                          }`}
-                        >
-                          {count}
-                        </span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-[#0071E3]" />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ----------------------------------------------------
 // Custom Bulk Status Dropdown (Apple/Linear UI)
@@ -434,7 +309,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState<Marketplace | "ALL">("ALL");
-  const [statusFilter, setStatusFilter] = useState("All Statuses");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -531,27 +406,38 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
       Myntra: 0,
       Meesho: 0,
       WooCommerce: 0,
+      "Personal Website": 0,
+      "B2B Wholesale": 0,
       Other: 0,
     };
 
     const sCounts: Record<string, number> = {
-      "All Statuses": orders.length,
+      ALL: 0,
+      CONFIRMED: 0,
+      SHIPPED: 0,
       DELIVERED: 0,
-      "CUSTOMER RETURN": 0,
       RTO: 0,
-      "DAMAGED RETURN": 0,
-      "CLAIM PENDING": 0,
-      "CLAIM APPROVED": 0,
+      RETURNED: 0,
+      CANCELLED: 0,
     };
 
     orders.forEach((order) => {
       // Platform counting
-      if (order.marketplace === "Amazon India") pCounts["Amazon India"]++;
-      else if (order.marketplace === "Flipkart") pCounts.Flipkart++;
-      else if (order.marketplace === "Myntra") pCounts.Myntra++;
-      else if (order.marketplace === "Meesho") pCounts.Meesho++;
-      else if (order.marketplace === "WooCommerce" || order.marketplace === "Personal Website") pCounts.WooCommerce++;
-      else pCounts.Other++;
+      if (pCounts[order.marketplace] !== undefined) {
+        pCounts[order.marketplace]++;
+      } else {
+        pCounts.Other = (pCounts.Other || 0) + 1;
+      }
+
+      // Filter status counts if platformFilter or globalMarketplace is active
+      if (platformFilter !== "ALL" && order.marketplace !== platformFilter) {
+        return;
+      }
+      if (globalMarketplace !== "ALL" && order.marketplace !== globalMarketplace) {
+        return;
+      }
+
+      sCounts.ALL++;
 
       // Status counting with O(1) indexed lookup
       const orderReturns = returnsMap.get(order.id) || (order.channelOrderId ? returnsMap.get(order.channelOrderId) : undefined) || [];
@@ -563,7 +449,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
     });
 
     return { platformCounts: pCounts, statusCounts: sCounts };
-  }, [orders, returnsMap, claimsMap]);
+  }, [orders, returnsMap, claimsMap, globalMarketplace, platformFilter]);
 
   // Filtered orders pipeline
   const filteredOrders = useMemo(() => {
@@ -576,20 +462,24 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
       }
 
       // 1. Platform Dropdown Filter
-      if (platformFilter !== "ALL") {
-        if (platformFilter === "WooCommerce") {
-          if (order.marketplace !== "WooCommerce" && order.marketplace !== "Personal Website") return false;
-        } else {
-          if (order.marketplace !== platformFilter) return false;
-        }
+      if (platformFilter !== "ALL" && order.marketplace !== platformFilter) {
+        return false;
       }
 
-      // 2. Status & Claims Dropdown Filter with O(1) indexed lookup
-      if (statusFilter !== "All Statuses") {
-        const orderReturns = returnsMap.get(order.id) || (order.channelOrderId ? returnsMap.get(order.channelOrderId) : undefined) || [];
-        const orderClaims = claimsMap.get(order.id) || [];
-        const synthesized = getSynthesizedStatus(order, orderReturns, orderClaims);
-        if (synthesized.key !== statusFilter) return false;
+      // 2. Status Filter with O(1) indexed lookup
+      if (statusFilter !== "ALL") {
+        if (statusFilter === "SETTLED") {
+          const pnl = orderPnlMap.get(order.id);
+          if (!pnl?.isSettled) return false;
+        } else if (statusFilter === "PENDING") {
+          const pnl = orderPnlMap.get(order.id);
+          if (pnl?.isSettled) return false;
+        } else {
+          const orderReturns = returnsMap.get(order.id) || (order.channelOrderId ? returnsMap.get(order.channelOrderId) : undefined) || [];
+          const orderClaims = claimsMap.get(order.id) || [];
+          const synthesized = getSynthesizedStatus(order, orderReturns, orderClaims);
+          if (synthesized.key !== statusFilter) return false;
+        }
       }
 
       // 3. Search Bar Filter
@@ -604,7 +494,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
 
       return true;
     });
-  }, [orders, returnsMap, claimsMap, globalMarketplace, platformFilter, statusFilter, searchQuery]);
+  }, [orders, returnsMap, claimsMap, orderPnlMap, globalMarketplace, platformFilter, statusFilter, searchQuery]);
 
   // Sync local platformFilter when globalMarketplace changes
   useEffect(() => {
@@ -623,6 +513,13 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
   }, [globalMarketplace, platformFilter, statusFilter, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
   const paginatedOrders = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredOrders.slice(start, start + pageSize);
@@ -718,28 +615,23 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
     importedOrders.forEach((o) => addOrder(o));
   };
 
-  const isAnyFilterActive = platformFilter !== "ALL" || statusFilter !== "All Statuses" || searchQuery !== "";
+  const isAnyFilterActive = platformFilter !== "ALL" || statusFilter !== "ALL" || searchQuery !== "";
 
   return (
     <div className="space-y-5 w-full max-w-[1600px] min-w-0 mx-auto animate-in fade-in duration-300">
       {/* Top Header Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-1">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-[#1D1D1F]">
-              Orders Ledger
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-black/[0.04] border border-black/[0.06] text-[#6E6E73] text-xs font-semibold tabular-nums shadow-apple-sm">
-              {orders.length} orders
-            </span>
-          </div>
-          <p className="text-xs text-[#86868B] mt-1">
-            Operational order intake, channel synchronization, returns tracking, and snapshot profitability.
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
+            Manage your orders
+          </h1>
+          <p className="text-xs sm:text-sm text-[#86868B] mt-1">
+            Effortlessly track and manage every order with real-time status updates and detailed insights.
           </p>
         </div>
 
         {/* Top Actions: Auto-parse Invoice, Import CSV, Export CSV, + Add Order */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <button
             onClick={() => setIsInvoiceModalOpen(true)}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white hover:bg-black/[0.02] border border-black/[0.08] text-xs font-semibold text-[#1D1D1F] transition shadow-apple-sm active:scale-[0.98] cursor-pointer"
@@ -771,7 +663,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
 
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0071E3] hover:bg-[#0077ED] text-xs font-semibold text-white transition shadow-apple-sm active:scale-[0.98] cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1D1D1F] hover:bg-black text-xs font-semibold text-white transition shadow-apple-sm active:scale-[0.98] cursor-pointer"
             title="Record New Order"
           >
             <Plus className="w-4 h-4" strokeWidth={2.5} />
@@ -780,7 +672,40 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
         </div>
       </div>
 
-      {/* Enhanced Control & Filter Bar */}
+      {/* Pill Segmented Control (Apple style matching Image 2) */}
+      <div className="flex items-center overflow-x-auto no-scrollbar py-0.5">
+        <div className="bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] inline-flex items-center gap-0.5 text-xs shrink-0 max-w-full">
+          {STATUS_PILL_OPTIONS.map((opt) => {
+            const isSelected = statusFilter === opt.id;
+            const count = statusCounts[opt.id] ?? 0;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setStatusFilter(isSelected && opt.id !== "ALL" ? "ALL" : opt.id)}
+                className={`inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-1.5 rounded-full text-xs whitespace-nowrap cursor-pointer select-none font-semibold ${
+                  isSelected
+                    ? "bg-white text-[#1D1D1F] shadow-apple-sm"
+                    : "text-[#6E6E73] hover:text-[#1D1D1F]"
+                }`}
+              >
+                <span className="tracking-tight uppercase">{opt.label}</span>
+                <span
+                  className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[11px] font-bold tabular-nums ${
+                    isSelected
+                      ? "bg-black/[0.06] text-[#1D1D1F]"
+                      : "bg-black/[0.03] text-[#86868B]"
+                  }`}
+                >
+                  {count.toLocaleString()}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Control Bar: Search and Platform Filter */}
       <div className="bg-white rounded-2xl p-3 border border-black/[0.06] shadow-apple-md">
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
           {/* Search Bar */}
@@ -807,15 +732,11 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
           {/* Enhanced Custom Platform Dropdown */}
           <PlatformFilterDropdown
             selected={platformFilter}
-            onChange={setPlatformFilter}
+            onChange={(val) => {
+              setPlatformFilter(val);
+              setCurrentPage(1);
+            }}
             counts={platformCounts}
-          />
-
-          {/* Enhanced Custom Status & Claims Dropdown */}
-          <EnhancedStatusDropdown
-            selected={statusFilter}
-            onChange={setStatusFilter}
-            counts={statusCounts}
           />
         </div>
       </div>
@@ -903,7 +824,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                           onClick={() => {
                             setSearchQuery("");
                             setPlatformFilter("ALL");
-                            setStatusFilter("All Statuses");
+                            setStatusFilter("ALL");
                           }}
                           className="text-xs px-3.5 py-1.5 rounded-full bg-white text-[#1D1D1F] border border-black/[0.08] hover:bg-black/[0.02] font-semibold mt-2 transition shadow-apple-sm cursor-pointer active:scale-95"
                         >
@@ -953,16 +874,13 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
 
                       {/* 1. PLATFORM & DATE */}
                       <td className="py-3.5 px-4 align-middle">
-                        <div className="space-y-1">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${platformBadge.pillClass}`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${platformBadge.dotClass}`}></span>
-                            <span>{platformBadge.label}</span>
+                        <div>
+                          <span className="font-semibold text-[#1D1D1F] text-xs block tracking-tight">
+                            {platformBadge.label}
                           </span>
-                          <div className="text-[11px] text-[#86868B] font-medium tabular-nums">
+                          <span className="text-[11px] text-[#86868B] font-normal tabular-nums block mt-0.5">
                             {formatDate(order.orderDate)}
-                          </div>
+                          </span>
                         </div>
                       </td>
 
@@ -1046,24 +964,9 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
 
                       {/* 7. NET PROFIT */}
                       <td className="py-3.5 px-4 align-middle">
-                        <div
-                          className={`text-sm font-semibold tracking-tight tabular-nums ${
-                            pnl.contributionProfit >= 0 ? "text-[#288548]" : "text-[#D70015]"
-                          }`}
-                        >
+                        <div className="text-sm font-semibold tracking-tight tabular-nums text-[#1D1D1F]">
                           {pnl.contributionProfit >= 0 ? "+" : ""}
                           {formatINR(pnl.contributionProfit)}
-                        </div>
-                        <div className="mt-0.5">
-                          <span
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border tabular-nums inline-block ${
-                              pnl.contributionProfit >= 0
-                                ? "bg-emerald-500/10 text-emerald-800 border-emerald-500/20"
-                                : "bg-rose-500/10 text-rose-800 border-rose-500/20"
-                            }`}
-                          >
-                            {formatPercent(pnl.contributionMargin)}
-                          </span>
                         </div>
                       </td>
 
@@ -1108,75 +1011,94 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
         </div>
 
         {/* Footer info & pagination bar */}
-        <div className="px-4 py-3 bg-[#FBFBFD] border-t border-black/[0.06] flex flex-col md:flex-row items-center justify-between text-xs text-[#86868B] gap-3">
-          <div className="flex items-center gap-4">
-            <div>
-              Showing{" "}
-              <span className="font-semibold text-[#1D1D1F] tabular-nums">
-                {filteredOrders.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
-              </span>{" "}
-              to{" "}
-              <span className="font-semibold text-[#1D1D1F] tabular-nums">
-                {Math.min(currentPage * pageSize, filteredOrders.length)}
-              </span>{" "}
-              of <span className="font-semibold text-[#1D1D1F] tabular-nums">{filteredOrders.length}</span> filtered orders
-              {filteredOrders.length !== orders.length && (
-                <span className="text-[#86868B] ml-1 font-normal">({orders.length} total)</span>
+        <div className="px-4 sm:px-6 py-3.5 bg-[#FBFBFD] border-t border-black/[0.06] flex flex-col md:flex-row items-center justify-between text-xs text-[#86868B] gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="text-xs text-[#64748B]">
+              {filteredOrders.length === orders.length ? (
+                <span>
+                  <strong className="font-semibold text-[#1D1D1F] tabular-nums">{orders.length}</strong> total rows
+                </span>
+              ) : (
+                <span>
+                  <strong className="font-semibold text-[#1D1D1F] tabular-nums">{filteredOrders.length}</strong> of{" "}
+                  <strong className="font-semibold text-[#1D1D1F] tabular-nums">{orders.length}</strong> total rows
+                </span>
               )}
-            </div>
-
-            <div className="flex items-center gap-1.5 pl-3 border-l border-black/[0.06]">
-              <span className="text-[11px] text-[#86868B]">Per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="bg-white border border-black/[0.08] rounded-full text-xs font-semibold py-0.5 px-2.5 text-[#1D1D1F] shadow-apple-sm focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] cursor-pointer"
-              >
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-3 text-[11px] mr-2">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Settled
+          <div className="flex items-center gap-4 sm:gap-6 flex-wrap justify-end">
+            {/* Rows per page selector */}
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs text-[#1D1D1F] font-normal whitespace-nowrap">
+                Rows per page
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-amber-500" /> Pending
-              </span>
+              <div className="relative inline-flex items-center">
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  aria-label="Rows per page"
+                  className="appearance-none bg-white border border-black/[0.1] hover:border-black/[0.2] text-xs font-semibold text-[#1D1D1F] pl-3 pr-7 py-1 rounded-lg shadow-apple-sm focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-[#86868B] absolute right-2 pointer-events-none stroke-[2]" />
+              </div>
             </div>
 
-            {/* Pagination buttons */}
+            {/* Page X of Y */}
+            <div className="text-xs text-[#1D1D1F] font-normal whitespace-nowrap">
+              Page <span className="font-semibold tabular-nums">{currentPage}</span> of{" "}
+              <span className="font-semibold tabular-nums">{totalPages}</span>
+            </div>
+
+            {/* Four navigation buttons: First, Previous, Next, Last */}
             <div className="flex items-center gap-1.5">
               <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage <= 1}
+                aria-label="First page"
+                title="First page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+              >
+                <ChevronsLeft className="w-4 h-4 stroke-[1.75]" />
+              </button>
+              <button
+                type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
-                className="w-7 h-7 rounded-full border border-black/[0.08] bg-white hover:bg-black/[0.04] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-[#1D1D1F] shadow-apple-sm transition active:scale-95 cursor-pointer"
-                title="Previous page"
                 aria-label="Previous page"
+                title="Previous page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ChevronLeft className="w-4 h-4 stroke-[1.75]" />
               </button>
-
-              <span className="px-2.5 py-0.5 text-xs font-medium text-[#86868B]">
-                Page <span className="font-semibold text-[#1D1D1F] tabular-nums">{currentPage}</span> of{" "}
-                <span className="font-semibold text-[#1D1D1F] tabular-nums">{totalPages}</span>
-              </span>
-
               <button
+                type="button"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
-                className="w-7 h-7 rounded-full border border-black/[0.08] bg-white hover:bg-black/[0.04] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-[#1D1D1F] shadow-apple-sm transition active:scale-95 cursor-pointer"
-                title="Next page"
                 aria-label="Next page"
+                title="Next page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
               >
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-4 h-4 stroke-[1.75]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage >= totalPages}
+                aria-label="Last page"
+                title="Last page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+              >
+                <ChevronsRight className="w-4 h-4 stroke-[1.75]" />
               </button>
             </div>
           </div>

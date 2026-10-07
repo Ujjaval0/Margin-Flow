@@ -47,7 +47,7 @@ export function ProductBulkUploadModal({
   existingProducts,
 }: ProductBulkUploadModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [parsedRows, setParsedRows] = useState<ParsedProductRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -59,7 +59,7 @@ export function ProductBulkUploadModal({
   }, []);
 
   const handleReset = () => {
-    setFile(null);
+    setFiles([]);
     setParsedRows([]);
     setIsProcessing(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -106,30 +106,30 @@ export function ProductBulkUploadModal({
     return result;
   };
 
-  const processFile = (uploadedFile: File) => {
-    if (!uploadedFile.name.endsWith(".csv") && !uploadedFile.name.endsWith(".txt")) {
-      alert("Please upload a valid .csv file.");
+  const processFiles = async (uploadedFiles: FileList | File[]) => {
+    if (!uploadedFiles || uploadedFiles.length === 0) return;
+    const fileArray = Array.from(uploadedFiles).filter(
+      (f) => f.name.endsWith(".csv") || f.name.endsWith(".txt")
+    );
+
+    if (fileArray.length === 0) {
+      alert("Please upload valid .csv or .txt catalog files.");
       return;
     }
 
-    setFile(uploadedFile);
+    setFiles((prev) => [...prev, ...fileArray]);
     setIsProcessing(true);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
+    const allRows: ParsedProductRow[] = [...parsedRows];
+    const seenSkus = new Set(allRows.map((r) => r.sku));
+
+    for (const curFile of fileArray) {
       try {
-        const content = e.target?.result as string;
-        if (!content) {
-          setIsProcessing(false);
-          return;
-        }
+        const content = await curFile.text();
+        if (!content.trim()) continue;
 
         const table = parseCSV(content);
-        if (table.length < 2) {
-          alert("CSV file must contain a header row and at least one product row.");
-          setIsProcessing(false);
-          return;
-        }
+        if (table.length < 2) continue;
 
         const headers = table[0].map((h) => h.toLowerCase().trim().replace(/[^a-z0-9]/g, ""));
 
@@ -137,11 +137,11 @@ export function ProductBulkUploadModal({
         const findCol = (keywords: string[]) =>
           headers.findIndex((h) => keywords.some((kw) => h.includes(kw)));
 
-        const skuIdx = findCol(["sku", "itemcode", "mastercode"]);
+        const skuIdx = findCol(["sku", "itemcode", "mastercode", "productcode", "article"]);
         const mfnIdx = findCol(["mfnnumber", "mfn", "mpn", "partnumber"]);
         const mfn1Idx = findCol(["mfn1", "mfnsecondary", "mfn2", "aliascode"]);
-        const nameIdx = findCol(["name", "title", "productname", "itemdescription"]);
-        const costIdx = findCol(["cost", "cogs", "costprice", "purchaseprice", "unitcost"]);
+        const nameIdx = findCol(["name", "title", "productname", "itemdescription", "item"]);
+        const costIdx = findCol(["cost", "cogs", "costprice", "purchaseprice", "unitcost", "price"]);
         const catIdx = findCol(["category", "dept"]);
         const brandIdx = findCol(["brand", "make"]);
         const supplierIdx = findCol(["supplier", "vendor", "supplierid"]);
@@ -149,8 +149,6 @@ export function ProductBulkUploadModal({
         const azIdx = findCol(["amazon", "asin"]);
         const fkIdx = findCol(["flipkart", "fsn"]);
         const mshIdx = findCol(["meesho"]);
-
-        const rows: ParsedProductRow[] = [];
 
         for (let i = 1; i < table.length; i++) {
           const row = table[i];
@@ -162,17 +160,17 @@ export function ProductBulkUploadModal({
           const rawName = nameIdx !== -1 ? row[nameIdx] : "";
           const rawCost = costIdx !== -1 ? parseFloat(row[costIdx]?.replace(/[^0-9.]/g, "")) : 0;
           const rawCat = catIdx !== -1 && row[catIdx] ? row[catIdx] : "General";
-          const rawBrand = brandIdx !== -1 && row[brandIdx] ? row[brandIdx] : "VoltTech";
+          const rawBrand = brandIdx !== -1 && row[brandIdx] ? row[brandIdx] : "Catalog";
           const rawSupplier = supplierIdx !== -1 && row[supplierIdx] ? row[supplierIdx] : "Direct Supplier";
           const rawStock = stockIdx !== -1 ? parseInt(row[stockIdx]?.replace(/[^0-9]/g, ""), 10) || 50 : 50;
 
-          const aliasAz = azIdx !== -1 && row[azIdx] ? row[azIdx] : rawSku;
-          const aliasFk = fkIdx !== -1 && row[fkIdx] ? row[fkIdx] : rawSku;
-          const aliasMsh = mshIdx !== -1 && row[mshIdx] ? row[mshIdx] : rawSku;
+          const sku = rawSku.trim().toUpperCase() || (rawName ? `SKU-${rawName.replace(/[^a-zA-Z0-9]/g, "").slice(0, 10).toUpperCase()}` : `SKU-${i}`);
+          const name = rawName.trim() || `Item (${sku})`;
+          const cost = isNaN(rawCost) || rawCost <= 0 ? 350 : rawCost;
 
-          const sku = rawSku.trim().toUpperCase();
-          const name = rawName.trim();
-          const cost = isNaN(rawCost) ? 0 : rawCost;
+          const aliasAz = azIdx !== -1 && row[azIdx] ? row[azIdx] : sku;
+          const aliasFk = fkIdx !== -1 && row[fkIdx] ? row[fkIdx] : sku;
+          const aliasMsh = mshIdx !== -1 && row[mshIdx] ? row[mshIdx] : sku;
 
           let isValid = true;
           let error = "";
@@ -188,34 +186,33 @@ export function ProductBulkUploadModal({
             error = "Cost price must be > 0";
           }
 
-          rows.push({
-            sku,
-            mfn: rawMfn.trim().toUpperCase(),
-            mfn1: rawMfn1.trim().toUpperCase(),
-            name,
-            category: rawCat,
-            brand: rawBrand,
-            costPrice: cost,
-            supplierId: rawSupplier,
-            stockQuantity: rawStock,
-            aliasAmazon: aliasAz,
-            aliasFlipkart: aliasFk,
-            aliasMeesho: aliasMsh,
-            isValid,
-            error,
-          });
+          if (!seenSkus.has(sku)) {
+            seenSkus.add(sku);
+            allRows.push({
+              sku,
+              mfn: rawMfn.trim().toUpperCase(),
+              mfn1: rawMfn1.trim().toUpperCase(),
+              name,
+              category: rawCat,
+              brand: rawBrand,
+              costPrice: cost,
+              supplierId: rawSupplier,
+              stockQuantity: rawStock,
+              aliasAmazon: aliasAz,
+              aliasFlipkart: aliasFk,
+              aliasMeesho: aliasMsh,
+              isValid,
+              error,
+            });
+          }
         }
-
-        setParsedRows(rows);
       } catch (err) {
-        console.error("Failed to parse product CSV:", err);
-        alert("Error reading CSV file. Please verify format.");
-      } finally {
-        setIsProcessing(false);
+        console.error(`Failed to parse product CSV ${curFile.name}:`, err);
       }
-    };
+    }
 
-    reader.readAsText(uploadedFile);
+    setParsedRows(allRows);
+    setIsProcessing(false);
   };
 
   const handleDownloadSample = () => {
@@ -374,7 +371,7 @@ export function ProductBulkUploadModal({
         {/* Content */}
         <div className="p-6 space-y-4 overflow-y-auto text-xs flex-1">
           {/* File Dropzone */}
-          {!file && (
+          {files.length === 0 && (
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -384,8 +381,8 @@ export function ProductBulkUploadModal({
               onDrop={(e) => {
                 e.preventDefault();
                 setIsDragging(false);
-                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                  processFile(e.dataTransfer.files[0]);
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  processFiles(e.dataTransfer.files);
                 }
               }}
               onClick={() => fileInputRef.current?.click()}
@@ -398,10 +395,12 @@ export function ProductBulkUploadModal({
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 accept=".csv,.txt"
                 onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    processFile(e.target.files[0]);
+                  if (e.target.files && e.target.files.length > 0) {
+                    processFiles(e.target.files);
+                    e.target.value = "";
                   }
                 }}
                 className="hidden"
@@ -410,15 +409,15 @@ export function ProductBulkUploadModal({
                 <FileSpreadsheet className="w-6 h-6" />
               </div>
               <p className="text-sm font-semibold text-[#1D1D1F]">
-                Drag &amp; drop your catalog CSV spreadsheet
+                Drag &amp; drop your catalog CSV spreadsheet(s)
               </p>
               <p className="text-xs text-[#86868B] mt-1 font-medium">
-                Supports SKU, MFN Number, MFN-1, Product Title, COGS, Brand &amp; Supplier mapping
+                Supports single or multiple CSV files (.csv, .txt) with SKU, MFN, Title, COGS &amp; Aliases
               </p>
 
               <div className="mt-5 flex items-center justify-center gap-2">
                 <span className="px-4 py-2 rounded-xl bg-[#1D1D1F] hover:bg-black text-white font-medium text-xs shadow-apple-sm btn-press transition">
-                  Browse file
+                  Browse files
                 </span>
                 <button
                   type="button"
@@ -426,7 +425,7 @@ export function ProductBulkUploadModal({
                     e.stopPropagation();
                     handleDownloadSample();
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] font-medium text-xs border border-black/[0.06] shadow-apple-sm btn-press transition flex items-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] font-medium text-xs border border-black/[0.06] shadow-apple-sm btn-press transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5 text-[#86868B]" />
                   <span>Download sample template (.csv)</span>
@@ -446,7 +445,7 @@ export function ProductBulkUploadModal({
           )}
 
           {/* Results Preview */}
-          {file && !isProcessing && parsedRows.length > 0 && (
+          {files.length > 0 && !isProcessing && parsedRows.length > 0 && (
             <div className="space-y-4">
               {/* Summary Banner */}
               <div className="p-4 bg-[#F5F5F7] rounded-2xl border border-black/[0.06] flex items-center justify-between">
@@ -456,7 +455,9 @@ export function ProductBulkUploadModal({
                   </div>
                   <div>
                     <span className="font-semibold text-[#1D1D1F] text-xs">
-                      {file.name}
+                      {files.length > 1
+                        ? `${files.length} catalog files (${files.map((f) => f.name).slice(0, 2).join(", ")}${files.length > 2 ? "..." : ""})`
+                        : files[0]?.name}
                     </span>
                     <p className="text-[11px] text-[#86868B] mt-0.5 tabular-nums">
                       {validCount} valid products ready to import · {errorCount} errors
@@ -464,13 +465,22 @@ export function ProductBulkUploadModal({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="text-xs text-[#1D1D1F] font-medium px-3.5 py-1.5 rounded-xl border border-black/[0.06] bg-white hover:bg-[#F5F5F7] shadow-apple-sm btn-press transition"
-                >
-                  Change file
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs text-[#0071E3] font-medium px-3.5 py-1.5 rounded-xl border border-[#0071E3]/20 bg-[#0071E3]/5 hover:bg-[#0071E3]/10 shadow-apple-sm btn-press transition cursor-pointer"
+                  >
+                    + Add files
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="text-xs text-[#1D1D1F] font-medium px-3.5 py-1.5 rounded-xl border border-black/[0.06] bg-white hover:bg-[#F5F5F7] shadow-apple-sm btn-press transition cursor-pointer"
+                  >
+                    Change files
+                  </button>
+                </div>
               </div>
 
               {/* Table Preview */}

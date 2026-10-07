@@ -7,7 +7,7 @@ import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate, formatPercent } from "@/lib/utils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { X, ArrowDownRight, Sparkles, Trash2, Pencil } from "lucide-react";
+import { X, ArrowDownRight, ShieldAlert, Trash2, Pencil } from "lucide-react";
 import { ClaimBreakdownModal, ClaimCardType } from "@/components/modals/claim-breakdown-modal";
 
 interface ClaimsViewProps {
@@ -350,6 +350,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
         </div>
 
         <button
+          type="button"
           onClick={() => {
             const unclaimed = returns.find(
               (r) => !r.claimId && (r.condition === "DAMAGED" || r.returnType === "DAMAGED_RETURN")
@@ -362,9 +363,12 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
               );
             }
           }}
-          className="px-4 py-2 rounded-full bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium flex items-center gap-1.5 shadow-apple-sm transition btn-press cursor-pointer"
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white hover:bg-black/[0.02] border border-black/[0.08] text-xs font-semibold text-[#1D1D1F] transition shadow-apple-sm active:scale-[0.98] cursor-pointer shrink-0"
+          title="Draft SAFE-T or marketplace dispute claim packet"
         >
-          <Sparkles className="w-3.5 h-3.5 text-[#0071E3]" />
+          <div className="w-5 h-5 rounded-md bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center shrink-0">
+            <ShieldAlert className="w-3.5 h-3.5 text-[#0071E3]" />
+          </div>
           <span>Draft Dispute Claim</span>
         </button>
       </div>

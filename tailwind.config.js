@@ -41,9 +41,10 @@ module.exports = {
         "lg": "0 6px 12px -2px rgba(0, 0, 0, 0.035), 0 3px 6px -2px rgba(0, 0, 0, 0.02)",
         "xl": "0 10px 18px -3px rgba(0, 0, 0, 0.04), 0 4px 8px -3px rgba(0, 0, 0, 0.02)",
         "2xl": "0 16px 32px -6px rgba(0, 0, 0, 0.05)",
-        "apple-sm": "0px 1px 2px -0.5px rgba(0,0,0,0.04), 0px 1px 0px 0px rgba(25,28,33,0.01), 0px 0px 0px 1px rgba(25,28,33,0.03)",
-        "apple-md": "0px 0px 0px 1px rgba(0,0,0,0.03), 0px 1px 1px -0.5px rgba(0,0,0,0.025), 0px 2px 2px -1px rgba(0,0,0,0.02), 0px 4px 4px -2px rgba(0,0,0,0.02), 0px 8px 8px -4px rgba(0,0,0,0.015), 0px 14px 14px -7px rgba(0,0,0,0.015)",
-        "apple-lg": "0 2px 2px rgba(0,0,0,0.015), 0 4px 4px rgba(0,0,0,0.02), 0 8px 8px rgba(0,0,0,0.025), 0 16px 14px rgba(0,0,0,0.03), 0 24px 20px rgba(0,0,0,0.03), 0 48px 40px rgba(0,0,0,0.04)",
+        "apple-xs": "0 1px 2px 0 rgba(0, 0, 0, 0.02)",
+        "apple-sm": "0 1px 2px 0 rgba(0, 0, 0, 0.025)",
+        "apple-md": "0 1px 3px 0 rgba(0, 0, 0, 0.025), 0 1px 2px -1px rgba(0, 0, 0, 0.015)",
+        "apple-lg": "0 4px 16px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.03)",
       },
       spacing: {
         "4.5": "1.125rem",

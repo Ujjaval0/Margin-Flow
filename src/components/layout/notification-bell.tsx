@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useMemo, useState, useRef, useEffect } from "react";
-import { Bell, X, ArrowRight, AlertTriangle, Info, CheckCircle2 } from "lucide-react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { Bell, X, CheckCheck, CheckCircle2, ChevronDown } from "lucide-react";
 import { usePlatform } from "@/domain/store";
 import Link from "next/link";
 
@@ -14,7 +15,21 @@ export interface AppNotification {
   actionUrl: string;
   actionLabel: string;
   entityId?: string;
+  timestamp?: string;
+  detailsTitle?: string;
+  details?: string[];
+  extraCount?: number;
 }
+
+type FilterOption = "ALL" | "CRITICAL" | "WARNING" | "INFO" | "UNREAD";
+
+const FILTER_LABELS: Record<FilterOption, string> = {
+  ALL: "All",
+  CRITICAL: "Critical",
+  WARNING: "Warnings",
+  INFO: "Updates",
+  UNREAD: "Unread",
+};
 
 /** Derives live notifications purely from store data with full safety fallbacks. */
 function useLiveNotifications(): AppNotification[] {
@@ -45,11 +60,17 @@ function useLiveNotifications(): AppNotification[] {
           id: `claim-deadline-${ret.id}`,
           type: "CLAIM_DEADLINE_APPROACHING",
           severity: daysLeft <= 1 ? "CRITICAL" : "WARNING",
-          title: daysLeft === 0 ? "Claim deadline expires TODAY" : `Claim deadline in ${daysLeft} day${daysLeft > 1 ? "s" : ""}`,
+          title: daysLeft === 0 ? "Claim deadline expires today" : `Claim deadline in ${daysLeft} day${daysLeft > 1 ? "s" : ""}`,
           body: `${returnLabel} (${ret.marketplace})${amtStr}. File your dispute before the window closes.`,
           actionUrl: "/claims",
           actionLabel: "Go to Claims",
           entityId: ret.id,
+          timestamp: daysLeft === 0 ? "Urgent · Today" : `${daysLeft}d left`,
+          detailsTitle: "Dispute details:",
+          details: [
+            `Return ID: ${returnLabel} · ${ret.marketplace}`,
+            ret.lossAmount > 0 ? `At-risk loss: ₹${ret.lossAmount.toLocaleString("en-IN")}` : `Reason: ${ret.returnReason || "Customer Return"}`,
+          ],
         });
       }
     });
@@ -71,6 +92,12 @@ function useLiveNotifications(): AppNotification[] {
           actionUrl: "/returns",
           actionLabel: "View Returns",
           entityId: ret.id,
+          timestamp: `${daysOver}d ago`,
+          detailsTitle: "Expired claim summary:",
+          details: [
+            `Return ID: ${returnLabel} (${ret.marketplace})`,
+            `Dispute SLA expired by ${daysOver} day${daysOver > 1 ? "s" : ""}`,
+          ],
         });
       }
     });
@@ -96,6 +123,14 @@ function useLiveNotifications(): AppNotification[] {
         body: `₹${total.toLocaleString("en-IN")} pending beyond 14 days with no matching payout recorded.`,
         actionUrl: "/settlements",
         actionLabel: "Review Settlements",
+        timestamp: "3 hours ago",
+        detailsTitle: "Orders awaiting payout:",
+        details: overdueOrders.slice(0, 3).map((o) => {
+          const ordId = (o as any).displayId || o.id.slice(0, 8);
+          const amt = (o.items || []).reduce((s, i) => s + (i.sellingPrice || 0) * (i.quantity || 1), 0);
+          return `Order #${ordId}: ₹${amt.toLocaleString("en-IN")} (${o.marketplace})`;
+        }),
+        extraCount: overdueOrders.length > 3 ? overdueOrders.length - 3 : 0,
       });
     }
 
@@ -107,11 +142,17 @@ function useLiveNotifications(): AppNotification[] {
         id: `low-stock-${p.sku}`,
         type: "LOW_INVENTORY",
         severity: stock === 0 ? "CRITICAL" : "WARNING",
-        title: stock === 0 ? "Out of stock" : `Low stock — ${stock} unit${stock !== 1 ? "s" : ""} left`,
+        title: stock === 0 ? "Out of stock alert" : `Low stock — ${stock} unit${stock !== 1 ? "s" : ""} left`,
         body: `${p.name} (${p.sku}) is running low. Reorder soon to avoid stockouts.`,
         actionUrl: "/products",
         actionLabel: "View Products",
         entityId: p.sku,
+        timestamp: "4 hours ago",
+        detailsTitle: "Catalog item:",
+        details: [
+          `SKU: ${p.sku}`,
+          `Units on hand: ${stock}`,
+        ],
       });
     });
 
@@ -131,6 +172,12 @@ function useLiveNotifications(): AppNotification[] {
           actionUrl: "/returns",
           actionLabel: "View Returns",
           entityId: ret.id,
+          timestamp: `${daysAgo}d ago`,
+          detailsTitle: "Reverse logistics:",
+          details: [
+            `Return ID: ${returnLabel}`,
+            `Status: Pending Restock Examination`,
+          ],
         });
       }
     });
@@ -146,6 +193,10 @@ function useLiveNotifications(): AppNotification[] {
         body: `${pendingDocs.length} uploaded document${pendingDocs.length > 1 ? "s" : ""} ${pendingDocs.length > 1 ? "are" : "is"} waiting for your approval in the AI Staging Sandbox.`,
         actionUrl: "/documents",
         actionLabel: "Open AI Staging",
+        timestamp: "Yesterday",
+        detailsTitle: "Documents awaiting approval:",
+        details: pendingDocs.slice(0, 3).map((d) => `${d.fileName || d.id}: ${d.fileType || "INVOICE"}`),
+        extraCount: pendingDocs.length > 3 ? pendingDocs.length - 3 : 0,
       });
     }
 
@@ -165,6 +216,12 @@ function useLiveNotifications(): AppNotification[] {
           actionUrl: "/suppliers",
           actionLabel: "View Suppliers",
           entityId: bill.id,
+          timestamp: `${daysOld}d ago`,
+          detailsTitle: "Payable breakdown:",
+          details: [
+            `Supplier: ${bill.supplierName}`,
+            `Total due: ₹${bill.totalAmount.toLocaleString("en-IN")}`,
+          ],
         });
       }
     });
@@ -179,29 +236,103 @@ function useLiveNotifications(): AppNotification[] {
 export function NotificationBell() {
   const notifications = useLiveNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
-  const [filterSeverity, setFilterSeverity] = useState<"ALL" | "CRITICAL" | "WARNING">("ALL");
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState<FilterOption>("ALL");
+  const [mounted, setMounted] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
 
-  const visible = useMemo(() => {
-    return notifications.filter((n) => {
-      if (dismissedIds.has(n.id)) return false;
-      if (filterSeverity === "CRITICAL") return n.severity === "CRITICAL";
-      if (filterSeverity === "WARNING") return n.severity === "WARNING";
-      return true;
-    });
-  }, [notifications, dismissedIds, filterSeverity]);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const allVisibleCount = useMemo(() => {
-    return notifications.filter((n) => !dismissedIds.has(n.id)).length;
+  // Close dropdown on outside click when open
+  useEffect(() => {
+    if (!isFilterOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
+        setIsFilterOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isFilterOpen]);
+
+  // Non-dismissed notifications
+  const activeNotifications = useMemo(() => {
+    return notifications.filter((n) => !dismissedIds.has(n.id));
   }, [notifications, dismissedIds]);
+
+  // Counts
+  const unreadCount = useMemo(() => {
+    return activeNotifications.filter((n) => !readIds.has(n.id)).length;
+  }, [activeNotifications, readIds]);
 
   const criticalCount = useMemo(() => {
-    return notifications.filter((n) => !dismissedIds.has(n.id) && n.severity === "CRITICAL").length;
-  }, [notifications, dismissedIds]);
+    return activeNotifications.filter((n) => n.severity === "CRITICAL").length;
+  }, [activeNotifications]);
 
   const warningCount = useMemo(() => {
-    return notifications.filter((n) => !dismissedIds.has(n.id) && n.severity === "WARNING").length;
-  }, [notifications, dismissedIds]);
+    return activeNotifications.filter((n) => n.severity === "WARNING").length;
+  }, [activeNotifications]);
+
+  const infoCount = useMemo(() => {
+    return activeNotifications.filter((n) => n.severity === "INFO").length;
+  }, [activeNotifications]);
+
+  // Filtered items based on active dropdown selection
+  const visible = useMemo(() => {
+    return activeNotifications.filter((n) => {
+      if (filter === "CRITICAL") return n.severity === "CRITICAL";
+      if (filter === "WARNING") return n.severity === "WARNING";
+      if (filter === "INFO") return n.severity === "INFO";
+      if (filter === "UNREAD") return !readIds.has(n.id);
+      return true;
+    });
+  }, [activeNotifications, filter, readIds]);
+
+  // Group notifications into cleanly partitioned sections
+  const partitions = useMemo(() => {
+    const groups: {
+      key: "CRITICAL" | "WARNING" | "INFO";
+      label: string;
+      sublabel: string;
+      items: AppNotification[];
+    }[] = [];
+
+    const crit = visible.filter((n) => n.severity === "CRITICAL");
+    if (crit.length > 0) {
+      groups.push({
+        key: "CRITICAL",
+        label: "Critical",
+        sublabel: "Immediate action required",
+        items: crit,
+      });
+    }
+
+    const warn = visible.filter((n) => n.severity === "WARNING");
+    if (warn.length > 0) {
+      groups.push({
+        key: "WARNING",
+        label: "Warnings",
+        sublabel: "Action advised",
+        items: warn,
+      });
+    }
+
+    const info = visible.filter((n) => n.severity === "INFO");
+    if (info.length > 0) {
+      groups.push({
+        key: "INFO",
+        label: "Updates",
+        sublabel: "Operational notices",
+        items: info,
+      });
+    }
+
+    return groups;
+  }, [visible]);
 
   // Close on Escape key
   useEffect(() => {
@@ -209,6 +340,7 @@ export function NotificationBell() {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setIsOpen(false);
+        setIsFilterOpen(false);
       }
     };
     window.addEventListener("keydown", handleKey);
@@ -219,8 +351,12 @@ export function NotificationBell() {
     setDismissedIds((prev) => new Set([...prev, id]));
   };
 
-  const dismissAll = () => {
-    setDismissedIds(new Set(notifications.map((n) => n.id)));
+  const markAsRead = (id: string) => {
+    setReadIds((prev) => new Set([...prev, id]));
+  };
+
+  const markAllAsRead = () => {
+    setReadIds(new Set(notifications.map((n) => n.id)));
   };
 
   return (
@@ -228,195 +364,332 @@ export function NotificationBell() {
       {/* Bell Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => {
+          setIsOpen((prev) => !prev);
+          setIsFilterOpen(false);
+        }}
         className={`relative h-[34px] w-[34px] rounded-full border flex items-center justify-center transition-all duration-150 cursor-pointer shrink-0 ${
           isOpen
-            ? "bg-[#1D1D1F] text-white border-transparent shadow-apple-md ring-2 ring-[#0071E3]/30"
+            ? "bg-[#0071E3]/10 text-[#0071E3] border-[#0071E3]/30 shadow-apple-sm ring-2 ring-[#0071E3]/20"
             : "bg-white hover:bg-[#F5F5F7] text-[#1D1D1F] border-black/[0.08] shadow-apple-sm active:scale-[0.96]"
         }`}
         title="View Notifications"
-        aria-label={`Notifications${allVisibleCount > 0 ? ` (${allVisibleCount} active)` : ""}`}
+        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
       >
-        <Bell className={`w-4 h-4 ${isOpen ? "text-white" : "text-[#1D1D1F]"}`} strokeWidth={1.8} />
-        {allVisibleCount > 0 && (
+        <Bell className={`w-4 h-4 ${isOpen ? "text-[#0071E3]" : "text-[#1D1D1F]"}`} strokeWidth={1.8} />
+        {unreadCount > 0 && (
           <span
-            className={`absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full text-white text-[9.5px] font-bold flex items-center justify-center ring-2 ring-white shadow-xs ${
-              criticalCount > 0 ? "bg-[#D70015]" : "bg-[#B25E00]"
-            }`}
+            className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white shadow-xs bg-[#0071E3]"
           >
-            {allVisibleCount > 9 ? "9+" : allVisibleCount}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
 
-      {/* POP-UP PANEL & BACKDROP */}
-      {isOpen && (
+      {/* Pop-up Panel & Backdrop */}
+      {isOpen && mounted && createPortal(
         <>
-          {/* Click-outside backdrop: zero tint, zero blur */}
+          {/* Click-outside backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-transparent"
-            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px] animate-in fade-in duration-150"
+            onClick={() => {
+              setIsOpen(false);
+              setIsFilterOpen(false);
+            }}
             aria-hidden="true"
           />
 
-          {/* Elevated Floating Pop-up Card: 100% Solid Opaque White (Zero Transparency, Zero Blur) */}
+          {/* Elevated Floating Pop-up Card */}
           <div
-            className="fixed right-3 sm:right-6 md:right-8 top-[68px] z-50 w-[420px] max-w-[calc(100vw-24px)] bg-white rounded-2xl border border-black/15 shadow-[0_20px_50px_rgba(0,0,0,0.2),0_6px_20px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col max-h-[82vh] animate-in fade-in zoom-in-95 duration-150"
+            className="fixed right-3 sm:right-6 md:right-8 top-[60px] z-50 w-[380px] max-w-[calc(100vw-24px)] bg-white rounded-2xl border border-black/[0.08] shadow-apple-lg overflow-hidden flex flex-col max-h-[530px] animate-in fade-in zoom-in-95 duration-150 origin-top-right"
             role="dialog"
             aria-modal="true"
             aria-label="Notifications Panel"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
           >
-            {/* Header */}
-            <div className="px-5 py-3.5 border-b border-black/[0.06] flex items-center justify-between bg-[#FBFBFD] shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-black/[0.04] border border-black/[0.06] flex items-center justify-center">
-                  <Bell className="w-3.5 h-3.5 text-[#1D1D1F]" strokeWidth={2} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-[#1D1D1F] tracking-tight">Notifications</span>
-                    {allVisibleCount > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/[0.05] text-[#1D1D1F] font-bold border border-black/[0.06]">
-                        {allVisibleCount}
-                      </span>
-                    )}
-                  </div>
+            {/* Header: Clean title + Filter Dropdown + Mark all as read */}
+            <div className="px-4 py-3 border-b border-black/[0.06] flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-[14px] font-semibold text-[#1D1D1F] tracking-tight">Notifications</h2>
+
+                {/* Filter Dropdown Selector */}
+                <div className="relative" ref={filterDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterOpen((prev) => !prev)}
+                    className="inline-flex items-center gap-1 text-[12px] font-medium text-[#515154] hover:text-[#1D1D1F] bg-black/[0.04] hover:bg-black/[0.07] px-2 py-0.5 rounded-md transition cursor-pointer"
+                    aria-label="Filter notifications"
+                    aria-expanded={isFilterOpen}
+                  >
+                    <span>{FILTER_LABELS[filter]}</span>
+                    <ChevronDown className="w-3 h-3 text-[#86868B]" />
+                  </button>
+
+                {/* Filter Menu */}
+                  {isFilterOpen && (
+                    <div className="absolute left-0 top-full mt-1.5 w-40 bg-white rounded-xl shadow-apple-md p-1 z-30 animate-in fade-in zoom-in-95 duration-100 divide-y divide-black/[0.04]">
+                      <div className="py-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFilter("ALL");
+                            setIsFilterOpen(false);
+                          }}
+                          className={`w-full px-2.5 py-1.5 rounded-lg text-left text-[11.5px] flex items-center justify-between transition cursor-pointer ${
+                            filter === "ALL"
+                              ? "bg-[#0071E3]/10 text-[#0071E3] font-semibold"
+                              : "text-[#1D1D1F] hover:bg-black/[0.04]"
+                          }`}
+                        >
+                          <span>All</span>
+                          <span className="text-[10px] text-[#86868B] tabular-nums font-mono">
+                            {activeNotifications.length}
+                          </span>
+                        </button>
+                      </div>
+
+                      <div className="py-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFilter("CRITICAL");
+                            setIsFilterOpen(false);
+                          }}
+                          className={`w-full px-2.5 py-1.5 rounded-lg text-left text-[11.5px] flex items-center justify-between transition cursor-pointer ${
+                            filter === "CRITICAL"
+                              ? "bg-[#0071E3]/10 text-[#0071E3] font-semibold"
+                              : "text-[#1D1D1F] hover:bg-black/[0.04]"
+                          }`}
+                        >
+                          <span>Critical</span>
+                          <span className="text-[10px] text-[#86868B] tabular-nums font-mono">
+                            {criticalCount}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFilter("WARNING");
+                            setIsFilterOpen(false);
+                          }}
+                          className={`w-full px-2.5 py-1.5 rounded-lg text-left text-[11.5px] flex items-center justify-between transition cursor-pointer ${
+                            filter === "WARNING"
+                              ? "bg-[#0071E3]/10 text-[#0071E3] font-semibold"
+                              : "text-[#1D1D1F] hover:bg-black/[0.04]"
+                          }`}
+                        >
+                          <span>Warnings</span>
+                          <span className="text-[10px] text-[#86868B] tabular-nums font-mono">
+                            {warningCount}
+                          </span>
+                        </button>
+
+                        {infoCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilter("INFO");
+                              setIsFilterOpen(false);
+                            }}
+                            className={`w-full px-2.5 py-1.5 rounded-lg text-left text-[11.5px] flex items-center justify-between transition cursor-pointer ${
+                              filter === "INFO"
+                                ? "bg-[#0071E3]/10 text-[#0071E3] font-semibold"
+                                : "text-[#1D1D1F] hover:bg-black/[0.04]"
+                            }`}
+                          >
+                            <span>Updates</span>
+                            <span className="text-[10px] text-[#86868B] tabular-nums font-mono">
+                              {infoCount}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFilter("UNREAD");
+                            setIsFilterOpen(false);
+                          }}
+                          className={`w-full px-2.5 py-1.5 rounded-lg text-left text-[11.5px] flex items-center justify-between transition cursor-pointer ${
+                            filter === "UNREAD"
+                              ? "bg-[#0071E3]/10 text-[#0071E3] font-semibold"
+                              : "text-[#1D1D1F] hover:bg-black/[0.04]"
+                          }`}
+                        >
+                          <span>Unread</span>
+                          <span className="text-[10px] text-[#86868B] tabular-nums font-mono">
+                            {unreadCount}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Right: Mark all as read + Close Button */}
               <div className="flex items-center gap-2">
-                {allVisibleCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={dismissAll}
-                    className="text-[11px] text-[#0071E3] hover:text-black font-semibold transition cursor-pointer px-2 py-1 rounded-lg hover:bg-black/[0.03]"
-                  >
-                    Mark all read
-                  </button>
-                )}
                 <button
                   type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="w-7 h-7 rounded-lg hover:bg-black/[0.05] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer"
+                  onClick={markAllAsRead}
+                  disabled={unreadCount === 0}
+                  className={`text-[12px] font-medium flex items-center gap-1.5 px-1 py-0.5 transition cursor-pointer ${
+                    unreadCount > 0
+                      ? "text-[#6E6E73] hover:text-[#1D1D1F]"
+                      : "text-[#AEAEB2] cursor-default pointer-events-none"
+                  }`}
+                  title={unreadCount > 0 ? "Mark all as read" : "All notifications are read"}
+                >
+                  <span>Mark all as read</span>
+                  <CheckCheck className={`w-3.5 h-3.5 ${unreadCount > 0 ? "text-[#0071E3]" : "text-[#AEAEB2]"}`} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    setIsFilterOpen(false);
+                  }}
+                  className="w-6 h-6 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer active:scale-95"
                   aria-label="Close notifications panel"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
 
-            {/* Filter Chips Bar */}
-            <div className="px-5 py-2 border-b border-black/[0.04] bg-white flex items-center gap-1.5 shrink-0 text-xs">
-              <button
-                type="button"
-                onClick={() => setFilterSeverity("ALL")}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition cursor-pointer ${
-                  filterSeverity === "ALL"
-                    ? "bg-[#1D1D1F] text-white shadow-2xs font-semibold"
-                    : "bg-[#F5F5F7] text-[#6E6E73] hover:text-[#1D1D1F]"
-                }`}
-              >
-                All ({allVisibleCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterSeverity("CRITICAL")}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition cursor-pointer flex items-center gap-1 ${
-                  filterSeverity === "CRITICAL"
-                    ? "bg-[#D70015] text-white shadow-2xs font-semibold"
-                    : "bg-[#F5F5F7] text-[#6E6E73] hover:text-[#1D1D1F]"
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#D70015]" />
-                Critical ({criticalCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterSeverity("WARNING")}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition cursor-pointer flex items-center gap-1 ${
-                  filterSeverity === "WARNING"
-                    ? "bg-[#B25E00] text-white shadow-2xs font-semibold"
-                    : "bg-[#F5F5F7] text-[#6E6E73] hover:text-[#1D1D1F]"
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#B25E00]" />
-                Warnings ({warningCount})
-              </button>
-            </div>
-
-            {/* Notifications Scroll List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-black/[0.04] overscroll-contain">
+            {/* Scrollable Notifications List partitioned by section */}
+            <div className="flex-1 overflow-y-auto overscroll-contain">
               {visible.length === 0 ? (
-                <div className="py-14 px-6 text-center">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-3">
-                    <CheckCircle2 className="w-5 h-5 text-[#288548]" />
+                <div className="py-12 px-4 text-center">
+                  <div className="w-9 h-9 rounded-full bg-emerald-500/10 text-[#288548] flex items-center justify-center mx-auto mb-2">
+                    <CheckCircle2 className="w-4 h-4" />
                   </div>
-                  <p className="text-xs font-semibold text-[#1D1D1F]">All caught up!</p>
-                  <p className="text-[11px] text-[#86868B] mt-1 max-w-[260px] mx-auto leading-relaxed">
-                    {filterSeverity === "ALL"
-                      ? "Zero pending alerts. Your ledger, claims, and settlements are in good standing."
-                      : `No active ${filterSeverity.toLowerCase()} alerts right now.`}
+                  <p className="text-xs font-semibold text-[#1D1D1F]">All caught up</p>
+                  <p className="text-[11px] text-[#86868B] mt-0.5 leading-snug">
+                    {filter === "ALL"
+                      ? "Zero pending alerts. Your ledger is in good standing."
+                      : `No ${FILTER_LABELS[filter].toLowerCase()} alerts found.`}
                   </p>
                 </div>
               ) : (
-                visible.map((n) => {
-                  const isCritical = n.severity === "CRITICAL";
-                  const isWarning = n.severity === "WARNING";
-                  const dotColor = isCritical ? "bg-[#D70015]" : isWarning ? "bg-[#B25E00]" : "bg-[#0071E3]";
-                  const badgeBg = isCritical
-                    ? "bg-rose-50 text-[#D70015] border-rose-200/60"
-                    : isWarning
-                    ? "bg-amber-50 text-[#B25E00] border-amber-200/60"
-                    : "bg-blue-50 text-[#0071E3] border-blue-200/60";
-
+                partitions.map((group) => {
                   return (
-                    <div
-                      key={n.id}
-                      className="px-5 py-3.5 flex items-start gap-3.5 hover:bg-[#FBFBFD] transition-colors group relative"
-                    >
-                      {/* Status indicator */}
-                      <div className="mt-1 shrink-0 flex items-center justify-center">
-                        <span className={`w-2 h-2 rounded-full ${dotColor}`} />
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0 pr-6">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-[9.5px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${badgeBg}`}>
-                            {n.severity}
+                    <div key={group.key} className="border-b border-black/[0.04] last:border-b-0">
+                      {/* Section Partition Header */}
+                      <div className="px-4 py-2 bg-[#F9F9FB] border-y border-black/[0.04] flex items-center justify-between sticky top-0 z-10">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-semibold tracking-wider uppercase text-[#1D1D1F]">
+                            {group.label}
+                          </span>
+                          <span className="text-[10px] font-medium text-[#6E6E73] bg-black/[0.05] px-1.5 py-0.5 rounded-full tabular-nums">
+                            {group.items.length}
                           </span>
                         </div>
-
-                        <p className="text-xs font-semibold text-[#1D1D1F] leading-snug">
-                          {n.title}
-                        </p>
-
-                        <p className="text-[11px] text-[#6E6E73] mt-1 leading-relaxed">
-                          {n.body}
-                        </p>
-
-                        <div className="mt-2.5">
-                          <Link
-                            href={n.actionUrl}
-                            onClick={() => setIsOpen(false)}
-                            className="inline-flex items-center gap-1.5 text-xs text-[#0071E3] hover:text-[#005bb5] font-semibold hover:underline active:scale-95 transition"
-                          >
-                            <span>{n.actionLabel}</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </Link>
-                        </div>
+                        <span className="text-[10px] text-[#86868B] font-normal">
+                          {group.sublabel}
+                        </span>
                       </div>
 
-                      {/* Quick Dismiss button */}
-                      <button
-                        type="button"
-                        onClick={() => dismiss(n.id)}
-                        className="absolute right-3.5 top-3.5 opacity-60 group-hover:opacity-100 transition p-1 rounded-lg hover:bg-black/[0.06] text-[#86868B] hover:text-[#1D1D1F] cursor-pointer"
-                        title="Dismiss notification"
-                        aria-label="Dismiss notification"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Items in this Partition */}
+                      <div className="divide-y divide-black/[0.04]">
+                        {group.items.map((n) => {
+                          const isUnread = !readIds.has(n.id);
+
+                          return (
+                            <div
+                              key={n.id}
+                              className="px-4 py-3.5 hover:bg-black/[0.015] transition-colors flex items-start gap-2.5 relative group"
+                            >
+                              {/* Blue Dot for unread only, consistent across all severities */}
+                              <div className="shrink-0 mt-1 flex items-center justify-center w-2 h-2">
+                                {isUnread && (
+                                  <span
+                                    className="w-2 h-2 rounded-full bg-[#0071E3] shrink-0"
+                                    aria-hidden="true"
+                                  />
+                                )}
+                              </div>
+
+                              {/* Notification Body Content */}
+                              <div className="flex-1 min-w-0 pr-2">
+                                <h4
+                                  className={`text-[13px] tracking-tight leading-snug ${
+                                    isUnread ? "font-semibold text-[#1D1D1F]" : "font-medium text-[#424245]"
+                                  }`}
+                                >
+                                  {n.title}
+                                </h4>
+
+                                <p className="text-[12px] text-[#515154] mt-1 leading-relaxed">
+                                  {n.body}
+                                </p>
+
+                                {/* Optional Item Review List Preview */}
+                                {n.details && n.details.length > 0 && (
+                                  <div className="mt-2 text-[11px] text-[#6E6E73] bg-[#F9F9FB] rounded-lg p-2.5 border border-black/[0.04] space-y-1">
+                                    {n.detailsTitle && (
+                                      <p className="font-semibold text-[#1D1D1F] text-[10.5px] mb-1">
+                                        {n.detailsTitle}
+                                      </p>
+                                    )}
+                                    {n.details.map((detail, idx) => (
+                                      <p key={idx} className="font-mono text-[10.5px] text-[#424245] leading-normal">
+                                        {detail}
+                                      </p>
+                                    ))}
+                                    {n.extraCount && n.extraCount > 0 ? (
+                                      <p className="text-[10px] text-[#86868B] pt-0.5">
+                                        ... and {n.extraCount} more
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                )}
+
+                                {/* Action Button */}
+                                <div className="mt-2.5">
+                                  <Link
+                                    href={n.actionUrl}
+                                    onClick={() => {
+                                      markAsRead(n.id);
+                                      setIsOpen(false);
+                                    }}
+                                    className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-lg bg-[#1D1D1F] hover:bg-black text-white text-[11px] font-medium transition-all active:scale-95 shadow-xs"
+                                  >
+                                    {n.actionLabel}
+                                  </Link>
+                                </div>
+
+                                {/* Timestamp */}
+                                {n.timestamp && (
+                                  <p className="text-[11px] text-[#86868B] mt-2">
+                                    {n.timestamp}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Quick Dismiss Button (Hover) */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  dismiss(n.id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-black/[0.06] text-[#86868B] hover:text-[#1D1D1F] cursor-pointer shrink-0"
+                                title="Dismiss notification"
+                                aria-label="Dismiss notification"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })
@@ -424,21 +697,25 @@ export function NotificationBell() {
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-2.5 border-t border-black/[0.05] bg-[#FBFBFD] flex items-center justify-between text-[11px] text-[#86868B] shrink-0">
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#288548]" />
-                Live Ledger Sync
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="font-medium hover:text-[#1D1D1F] transition cursor-pointer px-2 py-0.5 rounded hover:bg-black/[0.04]"
-              >
-                Close
-              </button>
+            <div className="px-4 py-2.5 border-t border-black/[0.05] bg-[#FBFBFD] flex items-center justify-between text-[10.5px] text-[#86868B] shrink-0">
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0071E3] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#0071E3]"></span>
+                </span>
+                <span className="font-medium text-[#1D1D1F] text-[10.5px]">Live Ledger Sync</span>
+              </div>
+              <div className="flex items-center gap-1 text-[9.5px] text-[#86868B]">
+                <span>Press</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-black/[0.05] font-mono text-[9px] border border-black/[0.06] text-[#1D1D1F]">
+                  ESC
+                </kbd>
+                <span>to close</span>
+              </div>
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </>
   );

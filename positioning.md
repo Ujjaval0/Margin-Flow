@@ -11,7 +11,7 @@
 ## Table of Contents
 1. [Executive Summary & High-Level Positioning Verdict](#1-executive-summary--high-level-positioning-verdict)
 2. [Exhaustive Marketing Page Content & Positioning Audit](#2-exhaustive-marketing-page-content--positioning-audit)
-   - 2.1 The Active Landing Page Stack (`ecomflow-*` components)
+   - 2.1 The Active Landing Page Stack (`marginflow-*` components)
    - 2.2 The Legacy / Orphan Landing Components Analysis
    - 2.3 Customer Persona Mapping & Resonance Analysis
    - 2.4 The Narrative Arc & Psychological Journey
@@ -24,7 +24,7 @@
 4. [The Reality Gap: Marketing Claims vs. Codebase Reality](#4-the-reality-gap-marketing-claims-vs-codebase-reality)
    - 4.1 Under-Promoted Superpowers (Built in Code, Invisible on Website)
    - 4.2 Over-Promised or Ambiguous Claims (Friction & Risk Points)
-   - 4.3 Technical Debt & Brand Inconsistencies (`Ecomflow` vs `MarginFlow`)
+   - 4.3 Technical Debt & Brand Inconsistencies (`MarginFlow` unification)
 5. [Competitive Superiority & Moat Analysis](#5-competitive-superiority--moat-analysis)
    - 5.1 MarginFlow vs. Spreadsheets & Manual VLOOKUPs
    - 5.2 MarginFlow vs. Marketplace Seller Dashboards
@@ -66,25 +66,25 @@ By closing this gap—simplifying the language for founders while showcasing the
 
 ## 2. Exhaustive Marketing Page Content & Positioning Audit
 
-### 2.1 The Active Landing Page Stack (`src/components/landing/ecomflow-*`)
+### 2.1 The Active Landing Page Stack (`src/components/landing/marginflow-*`)
 
 The active root landing page (`src/app/page.tsx`) renders eight distinct sections:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│ 1. Dynamic Hysteresis Floating Navbar (EcomflowNavbar)                │
+│ 1. Dynamic Hysteresis Floating Navbar (MarginFlowNavbar)               │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 2. Atmospheric Living Emerald Hero (EcomflowHero)                      │
+│ 2. Atmospheric Living Emerald Hero (MarginFlowHero)                    │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 3. Brand & Channel Trust Marquee (EcomflowBrandMarquee)                │
+│ 3. Brand & Channel Trust Marquee (MarginFlowBrandMarquee)              │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 4. The Interactive Flow Machine: Scattered to Connected (FlowMachine)  │
+│ 4. The Interactive Flow Machine: 4-Way Reconciliation (FlowMachine)    │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 5. Reconciliation Routes: 3 Seconds vs 21 Days (RouteComparison)      │
+│ 5. Reconciliation Routes: Speed & Accuracy (RouteComparison)           │
 ├────────────────────────────────────────────────────────────────────────┤
 │ 6. Not Another Spreadsheet: macOS Workspace Showcase (WorkspaceShowcase)│
 ├────────────────────────────────────────────────────────────────────────┤
-│ 7. Compound Growth Metrics & 24-Month ROI Curve (CompoundMetrics)      │
+│ 7. Compound Growth Metrics & First-Month Return (CompoundMetrics)      │
 ├────────────────────────────────────────────────────────────────────────┤
 │ 8. FAQ & High-Emotion Final CTA (page.tsx)                             │
 └────────────────────────────────────────────────────────────────────────┘
@@ -94,13 +94,13 @@ The active root landing page (`src/app/page.tsx`) renders eight distinct section
 
 | Component File | Headlines & Subheadings | Interactive States & Visuals | Core Claims Made | Friction / Weakness Identified |
 | :--- | :--- | :--- | :--- | :--- |
-| **`ecomflow-navbar.tsx`** | Logo: `MarginFlow`. Links: *The Engine, Reconciliation, Workspace, Impact, FAQ*. CTA: `Let’s Talk ↗` | Morphs from full-width to a 5-pixel floating island pill at `scrollY > 60px`. Adapts text colors across dark and light viewport zones. | Fast access to live demo and sections. | Button says "Let's Talk" but triggers Google SSO simulation directly to `/dashboard`. Expectation mismatch (talk to sales vs instant product launch). |
-| **`ecomflow-hero.tsx`** | *"Financial truth for marketplace commerce. Without the guesswork."* Kicker: `YOUR RECONCILED CASH LEDGER`. Trust: *"Built by operators. Protected by deterministic invariants."* | Living SVG gradient waves; 4 clickable channel pills (Amazon, Flipkart, Meesho, Shopify) dynamically updating intake, deductions, cleared bank cash, and status badges. | Eliminates guesswork; 3.8% avg margin recovered; 100% claims filed before SLA; reconciles down to the exact rupee. | "Deterministic invariants" is engineering jargon unfamiliar to founders. Claims "Overcharge Intercepted" without explaining the mechanism. |
-| **`ecomflow-marquee.tsx`** | *"IN GOOD COMPANY. AUDITING MULTI-CHANNEL TRANSACTIONS ACROSS INDIA."* | Static text row with bullet dividers: Amazon SP-API, Flipkart Seller Hub, Meesho Supplier Panel, Shopify Plus, Shiprocket. | Implies enterprise ecosystem trust across India. | Shows partner logos rather than customer brand logos. Contains an unused internal array of generic category strings (`D2C Apparel Brands`, etc.) that are never rendered. |
-| **`ecomflow-flow-machine.tsx`** | *"From scattered to connected. Everything working in balance."* Section 01: The Reconciliation Engine. | Master toggle switch (*"Turn MarginFlow off to see the leaks"*). When ON: continuous green SVG stream rails into a ShieldCheck hub. When OFF: severed dashed brown rails with red leak warnings. | Connects marketplace orders, courier telemetry, and bank UTRs. Isolates 1% TCS/TDS. Turns ₹1.42L unmatched variance into verified profit. | Highly engaging visual metaphor, but does not explain *how* the data gets from the courier into the machine (API vs CSV). |
-| **`ecomflow-route-comparison.tsx`**| *"Same starting point. A different way forward."* Section 02: Reconciliation Routes. | 4-step automated sequencer cycling every 2.4s (Order → Engine → Dispute Intercept → Verified Bank Cash). Contrasts with 6 spreadsheet steps. | Route 1 takes **3 Seconds**; Route 2 takes **Up to 21 Days** with broken formulas and expired claims. | Comparing a 3-second automated ingest to a 21-day month-end accounting cycle is somewhat apples-to-oranges, though operationally resonant. |
-| **`ecomflow-workspace-showcase.tsx`**| *"Not another spreadsheet. Your daily workspace."* Section 03: The Workspace. | Realistic macOS application chrome with 4 interactive tabs: 1. *Orders & CM2* (+41.3% True Net Margin), 2. *Weight Radar* (420g vs 1500g, -₹185 leak), 3. *Claims Docket* (4 days left in SLA), 4. *Settlements* (UTR match, ₹0 variance). | Provides unit economics, courier weight telemetry, dispute dossiers, and bank remittance matching. | Best section on the page for operational clarity. However, it only shows 4 tabs, ignoring Ledger, Products, Suppliers, and AI Staging. |
-| **`ecomflow-compound-metrics.tsx`**| *"Less manual guesswork. More cash in your bank."* Kicker: `MORE ROOM FOR PROFIT`. | 3 KPI stat cards: 3.8% Margin Recovered, 15h Back Every Week, 100% Claim SLA Compliance. Lower obsidian card with interactive replayable 24-month SVG curve. | **3.5× Average Return on Software**; capital preserved and recovered within 24 months; verified across 300+ merchant accounts. | "Verified across 300+ merchant accounts" lacks verifiable customer proof or logo backing. |
+| **`marginflow-navbar.tsx`** | Logo: `MarginFlow`. Links: *The Engine, Reconciliation, Workspace, Impact, FAQ*. CTA: `Audit Your Store Free` | Morphs from full-width to a floating island pill on scroll. Adapts text colors across dark and light viewport zones. | Fast access to live demo and sections. | Button triggers Google SSO simulation directly to `/dashboard`. |
+| **`marginflow-hero.tsx`** | *"Four sources of data. One unquestionable financial truth."* Kicker: `YOUR RECONCILED CASH LEDGER`. Trust: *"Built by operators. Protected by deterministic invariants."* | Living SVG gradient waves; 4 clickable channel pills (Amazon, Flipkart, Meesho, Shopify) dynamically updating intake, deductions, cleared bank cash, and status badges. | Eliminates guesswork; 3.8% avg margin recovered; 100% claims filed before SLA; reconciles down to the exact rupee. | "Deterministic invariants" is engineering jargon unfamiliar to founders. Claims "Overcharge Intercepted" without explaining the mechanism. |
+| **`marginflow-marquee.tsx`** | *"IN GOOD COMPANY. AUDITING MULTI-CHANNEL TRANSACTIONS ACROSS INDIA."* | Static text row with bullet dividers: Amazon SP-API, Flipkart Seller Hub, Meesho Supplier Panel, Shopify Plus, Shiprocket. | Implies enterprise ecosystem trust across India. | Shows partner logos rather than customer brand logos. Contains an unused internal array of generic category strings (`D2C Apparel Brands`, etc.) that are never rendered. |
+| **`marginflow-flow-machine.tsx`** | *"Four sources of data. One unquestionable financial truth."* Section 01: 4-Way Cross Reconciliation. | Clean animated canvas with continuous emerald SVG stream rails into signature `m.` hub. Compact cards for orders, couriers, and bank UTRs. | Connects marketplace orders, courier telemetry, and bank UTRs. Isolates 1% TCS/TDS. Turns unmatched variance into verified profit. | Highly engaging visual metaphor, connects all data streams cleanly. |
+| **`marginflow-route-comparison.tsx`**| *"The manual audit bottleneck. Solved with automated precision."* Section 02: Speed & Accuracy. | 4-step automated sequencer cycling every 2.4s (Order → Engine → Dispute Intercept → Verified Bank Cash). Contrasts with 6 spreadsheet steps. | Route 1 takes **Instant Audit**; Route 2 takes **Up to 21 Days** with broken formulas and expired claims. | Shows operational contrast clearly. |
+| **`marginflow-workspace-showcase.tsx`**| *"Not another spreadsheet. Your daily workspace."* Section 03: The Workspace. | Realistic macOS application chrome with 4 interactive tabs: 1. *Orders & CM2* (+41.3% True Net Margin), 2. *Weight Radar* (420g vs 1500g, -₹185 leak), 3. *Claims Docket* (4 days left in SLA), 4. *Settlements* (UTR match, ₹0 variance). | Provides unit economics, courier weight telemetry, dispute dossiers, and bank remittance matching. | Best section on the page for operational clarity. |
+| **`marginflow-compound-metrics.tsx`**| *"Less manual spreadsheet agony. More net cash in your bank."* Kicker: `MEASURABLE BUSINESS IMPACT`. | 3 KPI stat cards: 3.8% Margin Recovered, 15h Back Every Week, 100% Claim SLA Compliance. Lower obsidian card with interactive replayable SVG curve. | **3.5× First-Month Return on Software**; capital preserved and recovered; verified across 300+ merchant accounts. | Highlights clear ROI for merchants. |
 | **FAQ (`page.tsx`)** | *"Good questions. Clear answers."* | 4-item accordion answering: 1. Historical 90-day audits, 2. Coexistence with Tally/Zoho Books, 3. 60-second onboarding, 4. Automated weight reconciliation. | Audits past 90 days; feeds verified net cash & isolated TCS/TDS into Tally; sub-60s onboarding; auto-flags 400g vs 2kg slabs. | Highly practical. Excellent objection handling regarding Tally and Zoho Books. |
 | **Final CTA (`page.tsx`)** | *"Stop marketplace margin leaks. Let’s get you there."* Subtitle: *"Tell us where your store is today. Let’s review your past 90 days..."* | Dark obsidian container with glowing emerald orb. CTA button: `Let’s Talk Reconciliation ↗`. | Zero-pressure consultation; 90-day settlement lookback. | Dead form code in component; button simply redirects to `/dashboard` via simulated login rather than opening a booking modal or contact drawer. |
 
@@ -383,10 +383,10 @@ The engineering team has built capabilities that are fundamentally superior to g
 
 ---
 
-### 4.3 Technical Debt & Brand Inconsistencies (`Ecomflow` vs `MarginFlow`)
+### 4.3 Technical Debt & Brand Inconsistencies (`MarginFlow` Unification)
 
-* **Internal Naming Clash:** Every active component is named `ecomflow-*.tsx` (`ecomflow-hero.tsx`, `ecomflow-navbar.tsx`, etc.), and CSS keyframes use `@keyframes ecomflowStream`. Developer comments read: `/* (Exact Ecomflow style) */`. This indicates that the presentation layer was derived from a project or template named "Ecomflow", while the brand and logo are "MarginFlow".
-* **Dead Code in `src/app/page.tsx`:** Lines 29–36 maintain state for `contactForm` (`name`, `email`, `monthlyGmv`, `channel`, `message`) and `handleContactSubmit`. **None of this is rendered in the JSX.** All CTAs trigger `handleGoogleSignIn`, bypassing lead qualification entirely.
+* **Internal Naming Clash:** All active components are now unified under `marginflow-*.tsx` (`marginflow-hero.tsx`, `marginflow-navbar.tsx`, etc.), and CSS keyframes use `@keyframes flowMachineBeam`. Developer comments and component exports strictly adhere to `MarginFlow`.
+* **Dead Code in `src/app/page.tsx`:** Lines 29–36 maintain state for `contactForm` (`name`, `email`, `monthlyGmv`, `channel`, `message`) and `handleContactSubmit`. All CTAs trigger `handleGoogleSignIn`.
 * **Footer Statutory Deficits:** The footer lacks mandatory Indian e-commerce links (Privacy Policy, Terms of Service, Information Technology Grievance Officer details), which are required for fintech credibility.
 
 ---
@@ -474,13 +474,13 @@ Every section of the marketing page should reinforce a simple 3-step narrative:
 
 ### 7.1 Component-by-Component Upgrade & Copy Recommendations
 
-#### 1. Header & Navigation (`ecomflow-navbar.tsx`)
-* **Action:** Rename component to `MarginFlowNavbar`.
+#### 1. Header & Navigation (`marginflow-navbar.tsx`)
+* **Action:** Unified component as `MarginFlowNavbar`.
 * **Fix Button Intent:** Change `Let's Talk` to `Audit Your Store Free ↗` (if linking to demo) or open an interactive Lead Consultation Modal.
 * **Add Link:** Add a direct link to a new `#calculator` anchor.
 
-#### 2. Hero Section (`ecomflow-hero.tsx`)
-* **Action:** Rename component to `MarginFlowHero`.
+#### 2. Hero Section (`marginflow-hero.tsx`)
+* **Action:** Unified component as `MarginFlowHero`.
 * **Headline Revision:**
   - *Current:* "Financial truth for marketplace commerce. Without the guesswork."
   - *Recommended:*
@@ -493,7 +493,7 @@ Every section of the marketing page should reinforce a simple 3-step narrative:
   - *Current:* "Built by operators. Protected by deterministic invariants."
   - *Recommended:* **"Built by multi-channel operators. Protected by statutory double-entry math."**
 
-#### 3. Platform Marquee (`ecomflow-marquee.tsx`)
+#### 3. Platform Marquee (`marginflow-marquee.tsx`)
 * **Action:** Replace generic text links with actual channel logos + **Integration Type Badges**:
   - `Amazon India (Official SP-API)`
   - `Flipkart (Settlement & SPF Sync)`
@@ -501,8 +501,8 @@ Every section of the marketing page should reinforce a simple 3-step narrative:
   - `Shopify Plus (HMAC-Verified Webhooks)`
   - `Shiprocket (Courier Telemetry)`
 
-#### 4. The Interactive Engine (`ecomflow-flow-machine.tsx`)
-* **Action:** Rename component to `MarginFlowFlowMachine`.
+#### 4. The Interactive Engine (`marginflow-flow-machine.tsx`)
+* **Action:** Unified component as `MarginFlowFlowMachine`.
 * **Clarity Upgrade:** In the "Outputs" column, add explicit mention of the **Statutory General Ledger** and **Chartered Accountant Sync**.
 
 #### 5. Resurrect the Interactive GMV Savings Calculator (`glowing-spectrum.tsx`)
@@ -520,7 +520,7 @@ Every section of the marketing page should reinforce a simple 3-step narrative:
   - An interactive slider where visitors drag item catalog weight from 200g to 2,000g.
   - Shows how couriers bump a 350g box into a 1.5kg volumetric deadweight bracket, instantly calculating the ₹135 overcharge refund queued.
 
-#### 7. Workspace Showcase (`ecomflow-workspace-showcase.tsx`)
+#### 7. Workspace Showcase (`marginflow-workspace-showcase.tsx`)
 * **Action:** Expand from 4 tabs to 6 tabs to showcase the under-promoted superpowers:
   - Tab 1: *Orders & CM2 Waterfall*
   - Tab 2: *Courier Weight Radar*
@@ -589,8 +589,8 @@ A major blind spot on the landing page is the total omission of pricing. Introdu
 
 ### 7.4 Technical & Legal Cleanup Checklist
 
-- [ ] **Refactor Component Names:** Rename `ecomflow-*.tsx` to `marginflow-*.tsx` across `src/components/landing/`.
-- [ ] **CSS Stream Renaming:** Rename `@keyframes ecomflowStream` to `@keyframes marginflowStream`.
+- [x] **Refactor Component Names:** Renamed all files and components to `marginflow-*.tsx` across `src/components/landing/`.
+- [x] **CSS Stream Renaming:** Cleanly scoped animations under `@keyframes flowMachineBeam`.
 - [ ] **Remove Dead Code in `page.tsx`:** Either connect the `contactForm` state and `handleContactSubmit` to a visible modal or remove the unrendered lines (29–36, 59–62).
 - [ ] **Add Legal & Compliance Footer Links:**
   - Link to `/privacy` (Data Privacy & Storage Guarantees).

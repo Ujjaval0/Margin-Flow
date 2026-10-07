@@ -90,6 +90,3 @@ export function MarginFlowBrandMarquee() {
   );
 }
 
-// Backward-compatible alias
-export const EcomflowBrandMarquee = MarginFlowBrandMarquee;
-
