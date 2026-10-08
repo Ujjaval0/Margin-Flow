@@ -58,11 +58,24 @@ import {
   buildFinancialMaps,
   OrderProfitability,
 } from "@/domain/profitability-engine";
-import { OrderModal } from "@/components/modals/order-modal";
+import dynamic from "next/dynamic";
 import { PlatformFilterDropdown } from "@/components/ui/marketplace-dropdown";
 import { getMarketplaceBadge } from "@/lib/marketplace-config";
-import { CsvImportModal } from "@/components/modals/csv-import-modal";
-import { InvoiceAutoParseModal } from "@/components/modals/invoice-auto-parse-modal";
+
+const OrderModal = dynamic(
+  () => import("@/components/modals/order-modal").then((mod) => mod.OrderModal),
+  { ssr: false }
+);
+
+const CsvImportModal = dynamic(
+  () => import("@/components/modals/csv-import-modal").then((mod) => mod.CsvImportModal),
+  { ssr: false }
+);
+
+const InvoiceAutoParseModal = dynamic(
+  () => import("@/components/modals/invoice-auto-parse-modal").then((mod) => mod.InvoiceAutoParseModal),
+  { ssr: false }
+);
 
 interface OrdersViewProps {
   selectedMarketplace?: Marketplace | "ALL";
@@ -279,7 +292,438 @@ function BulkStatusDropdown({ onSelect }: BulkStatusDropdownProps) {
   );
 }
 
+// ----------------------------------------------------
+// Order Date Filter Helpers & Component
+// ----------------------------------------------------
+type OrderDatePreset = "ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS" | "THIS_MONTH" | "CUSTOM";
 
+function getLocalDateStr(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function formatDateSimple(dateStr: string): string {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return dateStr;
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function addDaysToDateStr(dateStr: string, daysToAdd: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return dateStr;
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + daysToAdd);
+  return getLocalDateStr(date);
+}
+
+function getMonthStartAndEnd(dateStr: string): { start: string; end: string } {
+  const [y, m] = dateStr.split("-").map(Number);
+  if (isNaN(y) || isNaN(m)) return { start: dateStr, end: dateStr };
+  const start = `${y}-${String(m).padStart(2, "0")}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const end = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { start, end };
+}
+
+interface OrderDateCalendarFilterProps {
+  datePreset: OrderDatePreset;
+  startDate: string;
+  endDate: string;
+  anchorDate: string;
+  onSelectPreset: (preset: "ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS" | "THIS_MONTH") => void;
+  onSelectCustomRange: (start: string, end: string) => void;
+  onReset: () => void;
+}
+
+function OrderDateCalendarFilter({
+  datePreset,
+  startDate,
+  endDate,
+  anchorDate,
+  onSelectPreset,
+  onSelectCustomRange,
+  onReset,
+}: OrderDateCalendarFilterProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const target = startDate || anchorDate || getLocalDateStr();
+    const [y, m] = target.split("-").map(Number);
+    if (!isNaN(y) && !isNaN(m)) return new Date(y, m - 1, 1);
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      const target = startDate || anchorDate || getLocalDateStr();
+      const [y, m] = target.split("-").map(Number);
+      if (!isNaN(y) && !isNaN(m)) {
+        setCalendarMonth(new Date(y, m - 1, 1));
+      }
+      setHoveredDate(null);
+    }
+  }, [isOpen, startDate, anchorDate]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setIsOpen(false);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
+
+  const isDateActive = datePreset !== "ALL" && Boolean(startDate);
+
+  const displayLabel = useMemo(() => {
+    if (!isDateActive) return "All Dates";
+    if (datePreset === "TODAY") return "Today";
+    if (datePreset === "LAST_7_DAYS") return "Last 7 Days";
+    if (datePreset === "LAST_30_DAYS") return "Last 30 Days";
+    if (datePreset === "THIS_MONTH") return "This Month";
+    const end = endDate || startDate;
+    if (startDate === end) return formatDateSimple(startDate);
+    return `${formatDateSimple(startDate)} – ${formatDateSimple(end)}`;
+  }, [isDateActive, datePreset, startDate, endDate]);
+
+  const handleDayClick = (dateStr: string) => {
+    if (!startDate || (startDate && endDate)) {
+      onSelectCustomRange(dateStr, "");
+      setHoveredDate(null);
+    } else {
+      if (dateStr < startDate) {
+        onSelectCustomRange(dateStr, startDate);
+      } else {
+        onSelectCustomRange(startDate, dateStr);
+      }
+      setHoveredDate(null);
+    }
+  };
+
+  const calendarDays = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const todayStr = getLocalDateStr();
+
+    const days: ({
+      dateStr: string;
+      dayNum: number;
+      dayOfWeek: number;
+      isStart: boolean;
+      isEnd: boolean;
+      isSingleDay: boolean;
+      isInRange: boolean;
+      isInHover: boolean;
+      isToday: boolean;
+      isLastDay: boolean;
+    } | null)[] = [];
+
+    for (let i = 0; i < firstDay; i++) {
+      days.push(null);
+    }
+
+    const minDate =
+      startDate && endDate
+        ? startDate < endDate
+          ? startDate
+          : endDate
+        : startDate;
+    const maxDate =
+      startDate && endDate
+        ? startDate > endDate
+          ? startDate
+          : endDate
+        : "";
+
+    for (let d = 1; d <= totalDays; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const dayOfWeek = new Date(year, month, d).getDay();
+      const isStart = startDate === dateStr;
+      const isEnd = (endDate || startDate) === dateStr;
+      const isSingleDay = Boolean(startDate && (endDate === startDate || !endDate) && isStart);
+      const isInRange = Boolean(minDate && maxDate && dateStr > minDate && dateStr < maxDate);
+
+      let isInHover = false;
+      if (startDate && !endDate && hoveredDate && hoveredDate !== startDate) {
+        const minH = startDate < hoveredDate ? startDate : hoveredDate;
+        const maxH = startDate > hoveredDate ? startDate : hoveredDate;
+        isInHover = dateStr > minH && dateStr <= maxH;
+      }
+
+      const isToday = dateStr === todayStr;
+
+      days.push({
+        dateStr,
+        dayNum: d,
+        dayOfWeek,
+        isStart,
+        isEnd: Boolean(endDate && isEnd),
+        isSingleDay,
+        isInRange,
+        isInHover,
+        isToday,
+        isLastDay: d === totalDays,
+      });
+    }
+
+    return days;
+  }, [calendarMonth, startDate, endDate, hoveredDate]);
+
+  const PRESETS: { id: "ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS" | "THIS_MONTH"; label: string }[] = [
+    { id: "ALL", label: "All" },
+    { id: "TODAY", label: "Today" },
+    { id: "LAST_7_DAYS", label: "7 Days" },
+    { id: "LAST_30_DAYS", label: "30 Days" },
+    { id: "THIS_MONTH", label: "Month" },
+  ];
+
+  return (
+    <div ref={ref} className={`relative shrink-0 ${isOpen ? "z-40" : "z-10"}`}>
+      {/* Trigger Button */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] border shadow-apple-sm ${
+          isDateActive
+            ? "bg-[#1D1D1F] text-white border-[#1D1D1F]"
+            : "bg-white hover:bg-black/[0.02] border-black/[0.08] text-[#1D1D1F]"
+        }`}
+        title="Filter orders by calendar date or range"
+      >
+        <Calendar className={`w-3.5 h-3.5 shrink-0 ${isDateActive ? "text-white" : "text-[#86868B]"}`} />
+        <span className="text-[10px] font-semibold opacity-70">Date:</span>
+        <span className="truncate max-w-[170px] sm:max-w-none">{displayLabel}</span>
+        {isDateActive ? (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              onReset();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+                onReset();
+              }
+            }}
+            className="w-4 h-4 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center p-0.5 ml-0.5 transition cursor-pointer"
+            title="Clear date filter"
+            aria-label="Clear date filter"
+          >
+            <X className="w-2.5 h-2.5" />
+          </span>
+        ) : (
+          <ChevronDown
+            className={`w-3.5 h-3.5 text-[#86868B] transition-transform duration-200 ${
+              isOpen ? "rotate-180 text-[#1D1D1F]" : ""
+            }`}
+          />
+        )}
+      </button>
+
+      {/* Floating Calendar Popover */}
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-[315px] sm:w-[335px] max-w-[calc(100vw-2rem)] bg-white rounded-3xl border border-black/[0.08] shadow-apple-lg p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-2.5 border-b border-black/[0.04] mb-3">
+            <h4 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">Filter Orders by Date</h4>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const [y, m] = (anchorDate || getLocalDateStr()).split("-").map(Number);
+                  if (!isNaN(y) && !isNaN(m)) setCalendarMonth(new Date(y, m - 1, 1));
+                  onSelectPreset("TODAY");
+                }}
+                className="px-2.5 py-1 text-xs font-semibold text-[#1D1D1F] bg-black/[0.05] hover:bg-black/[0.08] active:scale-95 rounded-full transition cursor-pointer"
+                title="Jump to today / latest order"
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] text-[#86868B] hover:text-[#1D1D1F] flex items-center justify-center transition cursor-pointer"
+                title="Close"
+                aria-label="Close calendar"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Presets Strip */}
+          <div className="flex items-center gap-1 bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] mb-3 text-xs overflow-x-auto no-scrollbar">
+            {PRESETS.map((p) => {
+              const isSelected = datePreset === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    onSelectPreset(p.id);
+                  }}
+                  className={`flex-1 px-2 py-1 rounded-full text-xs font-semibold text-center whitespace-nowrap transition cursor-pointer active:scale-95 ${
+                    isSelected
+                      ? "bg-white text-[#1D1D1F] shadow-apple-sm"
+                      : "text-[#6E6E73] hover:text-[#1D1D1F]"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Month Navigation */}
+          <div className="flex items-center justify-between px-1 mb-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setCalendarMonth(
+                  new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
+                );
+              }}
+              className="w-7 h-7 rounded-full hover:bg-black/[0.04] flex items-center justify-center text-[#6E6E73] hover:text-[#1D1D1F] transition cursor-pointer"
+              title="Previous Month"
+              aria-label="Previous Month"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-semibold text-[#1D1D1F]">
+              {calendarMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setCalendarMonth(
+                  new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)
+                );
+              }}
+              className="w-7 h-7 rounded-full hover:bg-black/[0.04] flex items-center justify-center text-[#6E6E73] hover:text-[#1D1D1F] transition cursor-pointer"
+              title="Next Month"
+              aria-label="Next Month"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Weekday Row */}
+          <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
+            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+              <span key={day} className="text-[10px] font-semibold text-[#86868B]">
+                {day}
+              </span>
+            ))}
+          </div>
+
+          {/* Days Grid */}
+          <div
+            className="grid grid-cols-7 gap-y-1 text-center mb-3"
+            onMouseLeave={() => setHoveredDate(null)}
+          >
+            {calendarDays.map((d, idx) => {
+              if (!d) {
+                return <div key={`empty-${idx}`} className="h-8 w-full" />;
+              }
+              const {
+                dateStr,
+                dayNum,
+                dayOfWeek,
+                isStart,
+                isEnd,
+                isSingleDay,
+                isInRange,
+                isInHover,
+                isToday,
+                isLastDay,
+              } = d;
+
+              let cellClass = "text-[#1D1D1F] hover:bg-black/[0.04] rounded-xl font-medium";
+
+              if (isSingleDay) {
+                cellClass = "bg-[#1D1D1F] text-white font-semibold rounded-xl shadow-apple-sm";
+              } else if (isStart) {
+                const roundR = dayOfWeek === 6 ? "rounded-r-xl" : "rounded-r-none";
+                cellClass = `bg-[#1D1D1F] text-white font-semibold rounded-l-xl ${roundR} shadow-apple-sm`;
+              } else if (isEnd) {
+                const roundL = dayOfWeek === 0 ? "rounded-l-xl" : "rounded-l-none";
+                cellClass = `bg-[#1D1D1F] text-white font-semibold rounded-r-xl ${roundL} shadow-apple-sm`;
+              } else if (isInRange) {
+                const roundL = dayOfWeek === 0 || dayNum === 1 ? "rounded-l-lg" : "rounded-l-none";
+                const roundR = dayOfWeek === 6 || isLastDay ? "rounded-r-lg" : "rounded-r-none";
+                cellClass = `bg-black/[0.06] text-[#1D1D1F] font-medium ${roundL} ${roundR}`;
+              } else if (isInHover) {
+                if (hoveredDate === dateStr) {
+                  cellClass = "bg-[#1D1D1F] text-white font-semibold rounded-r-xl rounded-l-none";
+                } else {
+                  cellClass = "bg-black/[0.06] text-[#1D1D1F] font-medium rounded-none";
+                }
+              } else if (isToday) {
+                cellClass = "text-[#1D1D1F] font-semibold ring-1.5 ring-black/20 bg-black/[0.04] rounded-xl";
+              }
+
+              return (
+                <div key={dateStr} className="p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => handleDayClick(dateStr)}
+                    onMouseEnter={() => {
+                      if (startDate && !endDate) setHoveredDate(dateStr);
+                    }}
+                    className={`w-full h-7.5 flex items-center justify-center text-xs transition cursor-pointer select-none ${cellClass}`}
+                  >
+                    {dayNum}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Footer Controls */}
+          <div className="pt-2.5 border-t border-black/[0.04] flex items-center justify-between text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                onReset();
+              }}
+              className="text-[#86868B] hover:text-[#1D1D1F] font-medium hover:underline cursor-pointer"
+            >
+              Reset to All
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="px-3.5 py-1.5 bg-[#1D1D1F] hover:bg-black text-white text-xs font-semibold rounded-full shadow-apple-sm transition active:scale-95 cursor-pointer"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ----------------------------------------------------
 // Main OrdersView Component
@@ -308,14 +752,61 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = React.useDeferredValue(searchQuery);
   const [platformFilter, setPlatformFilter] = useState<Marketplace | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [datePreset, setDatePreset] = useState<OrderDatePreset>("ALL");
+  const [dateStartDate, setDateStartDate] = useState<string>("");
+  const [dateEndDate, setDateEndDate] = useState<string>("");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
   }, []);
+
+  const latestOrderDate = useMemo(() => {
+    if (orders && orders.length > 0) {
+      return orders.reduce((max, o) => (o.orderDate > max ? o.orderDate : max), orders[0].orderDate);
+    }
+    return getLocalDateStr();
+  }, [orders]);
+
+  const handleSelectDatePreset = (preset: "ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS" | "THIS_MONTH") => {
+    setDatePreset(preset);
+    setCurrentPage(1);
+    if (preset === "ALL") {
+      setDateStartDate("");
+      setDateEndDate("");
+    } else if (preset === "TODAY") {
+      setDateStartDate(latestOrderDate);
+      setDateEndDate(latestOrderDate);
+    } else if (preset === "LAST_7_DAYS") {
+      setDateStartDate(addDaysToDateStr(latestOrderDate, -6));
+      setDateEndDate(latestOrderDate);
+    } else if (preset === "LAST_30_DAYS") {
+      setDateStartDate(addDaysToDateStr(latestOrderDate, -29));
+      setDateEndDate(latestOrderDate);
+    } else if (preset === "THIS_MONTH") {
+      const { start, end } = getMonthStartAndEnd(latestOrderDate);
+      setDateStartDate(start);
+      setDateEndDate(end);
+    }
+  };
+
+  const handleSelectCustomRange = (start: string, end: string) => {
+    setDatePreset("CUSTOM");
+    setDateStartDate(start);
+    setDateEndDate(end);
+    setCurrentPage(1);
+  };
+
+  const handleResetDateFilter = () => {
+    setDatePreset("ALL");
+    setDateStartDate("");
+    setDateEndDate("");
+    setCurrentPage(1);
+  };
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -437,6 +928,16 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
         return;
       }
 
+      // Filter status counts by active date range
+      if (datePreset !== "ALL" && dateStartDate) {
+        const effectiveEnd = dateEndDate || dateStartDate;
+        const minD = dateStartDate < effectiveEnd ? dateStartDate : effectiveEnd;
+        const maxD = dateStartDate > effectiveEnd ? dateStartDate : effectiveEnd;
+        if (order.orderDate < minD || order.orderDate > maxD) {
+          return;
+        }
+      }
+
       sCounts.ALL++;
 
       // Status counting with O(1) indexed lookup
@@ -449,11 +950,11 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
     });
 
     return { platformCounts: pCounts, statusCounts: sCounts };
-  }, [orders, returnsMap, claimsMap, globalMarketplace, platformFilter]);
+  }, [orders, returnsMap, claimsMap, globalMarketplace, platformFilter, datePreset, dateStartDate, dateEndDate]);
 
   // Filtered orders pipeline
   const filteredOrders = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = deferredSearchQuery.trim().toLowerCase();
 
     return orders.filter((order) => {
       // Global header filter constraint
@@ -482,7 +983,17 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
         }
       }
 
-      // 3. Search Bar Filter
+      // 3. Date Range Filter
+      if (datePreset !== "ALL" && dateStartDate) {
+        const effectiveEnd = dateEndDate || dateStartDate;
+        const minD = dateStartDate < effectiveEnd ? dateStartDate : effectiveEnd;
+        const maxD = dateStartDate > effectiveEnd ? dateStartDate : effectiveEnd;
+        if (order.orderDate < minD || order.orderDate > maxD) {
+          return false;
+        }
+      }
+
+      // 4. Search Bar Filter
       if (q !== "") {
         const matchesId = order.id.toLowerCase().includes(q) || order.channelOrderId.toLowerCase().includes(q);
         const matchesCustomer = order.customerName.toLowerCase().includes(q);
@@ -494,7 +1005,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
 
       return true;
     });
-  }, [orders, returnsMap, claimsMap, orderPnlMap, globalMarketplace, platformFilter, statusFilter, searchQuery]);
+  }, [orders, returnsMap, claimsMap, orderPnlMap, globalMarketplace, platformFilter, statusFilter, deferredSearchQuery, datePreset, dateStartDate, dateEndDate]);
 
   // Sync local platformFilter when globalMarketplace changes
   useEffect(() => {
@@ -510,7 +1021,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
   // Reset to page 1 whenever filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [globalMarketplace, platformFilter, statusFilter, searchQuery]);
+  }, [globalMarketplace, platformFilter, statusFilter, deferredSearchQuery, datePreset, dateStartDate, dateEndDate]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
 
@@ -615,7 +1126,11 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
     importedOrders.forEach((o) => addOrder(o));
   };
 
-  const isAnyFilterActive = platformFilter !== "ALL" || statusFilter !== "ALL" || searchQuery !== "";
+  const isAnyFilterActive =
+    platformFilter !== "ALL" ||
+    statusFilter !== "ALL" ||
+    searchQuery !== "" ||
+    datePreset !== "ALL";
 
   return (
     <div className="space-y-5 w-full max-w-[1600px] min-w-0 mx-auto animate-in fade-in duration-300">
@@ -705,7 +1220,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
         </div>
       </div>
 
-      {/* Control Bar: Search and Platform Filter */}
+      {/* Control Bar: Search, Calendar Date Range, and Platform Filter */}
       <div className="bg-white rounded-2xl p-3 border border-black/[0.06] shadow-apple-md">
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
           {/* Search Bar */}
@@ -728,6 +1243,17 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
               </button>
             )}
           </div>
+
+          {/* Interactive Calendar Date Range Filter */}
+          <OrderDateCalendarFilter
+            datePreset={datePreset}
+            startDate={dateStartDate}
+            endDate={dateEndDate}
+            anchorDate={latestOrderDate}
+            onSelectPreset={handleSelectDatePreset}
+            onSelectCustomRange={handleSelectCustomRange}
+            onReset={handleResetDateFilter}
+          />
 
           {/* Enhanced Custom Platform Dropdown */}
           <PlatformFilterDropdown
@@ -825,6 +1351,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                             setSearchQuery("");
                             setPlatformFilter("ALL");
                             setStatusFilter("ALL");
+                            handleResetDateFilter();
                           }}
                           className="text-xs px-3.5 py-1.5 rounded-full bg-white text-[#1D1D1F] border border-black/[0.08] hover:bg-black/[0.02] font-semibold mt-2 transition shadow-apple-sm cursor-pointer active:scale-95"
                         >
@@ -953,7 +1480,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                           <div>
                             <div className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums flex items-center gap-1.5">
                               <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                              <span>{formatINR(grossSale - order.marketplaceChargesEstimate)}</span>
+                              <span>{formatINR(pnl.settledAmount)}</span>
                             </div>
                             <span className="text-[10px] text-amber-800 font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 inline-block mt-0.5">
                               Pending
@@ -1424,6 +1951,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
         onClose={() => setIsInvoiceModalOpen(false)}
         products={products}
         suppliers={suppliers}
+        existingOrders={orders}
         onImportOrders={handleBatchImportOrders}
       />
     </div>

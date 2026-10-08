@@ -39,13 +39,14 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState<string>("");
+  const deferredGlobalFilter = React.useDeferredValue(globalFilter);
 
   const table = useReactTable({
     data,
     columns,
     state: {
       sorting,
-      globalFilter,
+      globalFilter: deferredGlobalFilter,
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,

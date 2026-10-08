@@ -14,7 +14,6 @@ import {
   AlertCircle,
   ChevronDown,
   Sparkles,
-  Zap,
   Sliders,
   ShieldCheck,
 } from "lucide-react";
@@ -62,10 +61,6 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
   const [customBaseUrl, setCustomBaseUrl] = useState<string>("");
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
-  // TypeSafe Jev optional tier
-  const [jevApiKey, setJevApiKey] = useState<string>("");
-  const [showJevKey, setShowJevKey] = useState<boolean>(false);
-
   // Dynamic live models
   const [liveModels, setLiveModels] = useState<DiscoveredModel[]>([]);
   const [isFetchingModels, setIsFetchingModels] = useState<boolean>(false);
@@ -78,6 +73,7 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
   }>({ status: "idle" });
 
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+  const [showSuggestionToast, setShowSuggestionToast] = useState<boolean>(false);
 
   const currentMeta = PROVIDER_REGISTRY[selectedProvider] || PROVIDER_REGISTRY["gemini"];
   const hasSavedKey = Boolean(settings.keys[selectedProvider]);
@@ -122,7 +118,6 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
       setSelectedProvider(current.activeProvider);
       const activeKey = current.keys[current.activeProvider] || "";
       setApiKey(activeKey);
-      setJevApiKey(current.jevApiKey || "");
       setCustomBaseUrl(current.customBaseUrl || "");
 
       const activeModel = current.model || PROVIDER_REGISTRY[current.activeProvider]?.defaultModel || "";
@@ -137,12 +132,43 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
       setIsCustomModelMode(!isKnown && activeModel.length > 0 && current.activeProvider !== "custom");
 
       setShowKey(false);
-      setShowJevKey(false);
       setTestState({ status: "idle" });
       setSavedSuccess(false);
       setShowAdvanced(Boolean(current.customBaseUrl));
+
+      const seen = typeof window !== "undefined" && localStorage.getItem("marginflow_model_suggestion_seen");
+      const hasAnyKey = Object.values(current.keys || {}).some((k) => Boolean(k && k.trim()));
+      if (!seen && !hasAnyKey) {
+        setShowSuggestionToast(true);
+      } else {
+        setShowSuggestionToast(false);
+      }
     }
   }, [isOpen]);
+
+  // Auto-dismiss recommendation pop-up after 9 seconds
+  useEffect(() => {
+    if (showSuggestionToast) {
+      const timer = setTimeout(() => {
+        handleDismissSuggestion();
+      }, 9000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuggestionToast]);
+
+  const handleDismissSuggestion = () => {
+    setShowSuggestionToast(false);
+    try {
+      localStorage.setItem("marginflow_model_suggestion_seen", "true");
+    } catch {}
+  };
+
+  const handleKeyInputFocus = () => {
+    const seen = typeof window !== "undefined" && localStorage.getItem("marginflow_model_suggestion_seen");
+    if (!seen && !showSuggestionToast) {
+      setShowSuggestionToast(true);
+    }
+  };
 
   // Provider change handler
   const handleProviderChange = (p: AIProvider) => {
@@ -233,6 +259,11 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
 
   // Save updated settings
   const handleSave = () => {
+    try {
+      localStorage.setItem("marginflow_model_suggestion_seen", "true");
+    } catch {}
+    setShowSuggestionToast(false);
+
     const finalModel = modelInput.trim() || PROVIDER_REGISTRY[selectedProvider]?.defaultModel || "";
 
     const updated: AISettings = {
@@ -244,8 +275,6 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
         [selectedProvider]: apiKey.trim(),
       },
       customBaseUrl: customBaseUrl.trim() || undefined,
-      jevApiKey: jevApiKey.trim() || undefined,
-      enableJevAcceleration: true,
     };
 
     saveAISettings(updated);
@@ -277,7 +306,6 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
       purgeAISettings();
       setSettings(loadAISettings());
       setApiKey("");
-      setJevApiKey("");
       setTestState({ status: "idle" });
       onClose();
     }
@@ -352,6 +380,34 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
             </div>
           </div>
 
+          {/* One-time Model Recommendation Pop-up */}
+          {showSuggestionToast && (
+            <div className="p-3 bg-[#1D1D1F] text-white rounded-2xl shadow-apple-md border border-white/10 animate-in fade-in slide-in-from-top-2 duration-200 relative">
+              <button
+                type="button"
+                onClick={handleDismissSuggestion}
+                aria-label="Dismiss recommendation"
+                className="absolute right-2.5 top-2.5 w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+              <div className="flex items-start gap-2.5 pr-6">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0 mt-0.5" />
+                <div className="space-y-1 text-[11px] leading-relaxed">
+                  <p className="font-semibold text-white text-[11px] tracking-tight">
+                    Recommended Models for Best Results &amp; Lowest Cost
+                  </p>
+                  <p className="text-white/80">
+                    <strong className="text-amber-300 font-medium">Bulk Invoices:</strong> Gemini 2.5 Flash or GPT-4o Mini (fastest &amp; lowest cost).
+                  </p>
+                  <p className="text-white/80">
+                    <strong className="text-sky-300 font-medium">CFO Chat:</strong> Claude 3.7, DeepSeek R1, or GPT-4o (deep financial reasoning).
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* API Key Input */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -373,6 +429,7 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
               <input
                 type={showKey ? "text" : "password"}
                 value={apiKey}
+                onFocus={handleKeyInputFocus}
                 onChange={(e) => {
                   setApiKey(e.target.value);
                   setTestState({ status: "idle" });
@@ -488,51 +545,6 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
             </div>
           )}
 
-          {/* TypeSafe / Jev Acceleration (Clearly Optional Tier) */}
-          <div className="pt-2 border-t border-black/[0.05] space-y-1.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold text-[#1D1D1F] flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-[#0071E3]" />
-                  <span>Speed & Intent Acceleration</span>
-                </span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-black/[0.04] text-[#1D1D1F] font-medium border border-black/[0.06]">
-                  {jevApiKey ? "⚡ Jev Key Active" : "Local Tier (0ms)"}
-                </span>
-              </div>
-              <a
-                href="https://typesafe.ai"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[10px] text-[#0071E3] hover:underline flex items-center gap-0.5 font-medium"
-              >
-                <span>TypeSafe Jev</span>
-                <ExternalLink className="w-2.5 h-2.5" />
-              </a>
-            </div>
-
-            <div className="relative flex items-center">
-              <input
-                type={showJevKey ? "text" : "password"}
-                value={jevApiKey}
-                onChange={(e) => setJevApiKey(e.target.value)}
-                placeholder="ts_live_... (100% Optional)"
-                className="w-full h-8 pl-3 pr-8 bg-[#F5F5F7] rounded-xl border border-black/[0.06] text-xs font-mono text-[#1D1D1F] placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-black"
-              />
-              <button
-                type="button"
-                onClick={() => setShowJevKey(!showJevKey)}
-                aria-label={showJevKey ? "Hide key" : "Show key"}
-                className="absolute right-2 p-1 text-slate-400 hover:text-slate-700 transition"
-              >
-                {showJevKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-              </button>
-            </div>
-
-            <p className="text-[10px] text-[#86868B] leading-tight">
-              Optional. MarginFlow already includes a built-in 0ms local intent classifier. Add a TypeSafe Jev key only if you want remote System One routing.
-            </p>
-          </div>
 
           {/* Advanced Endpoint URL Collapsible */}
           <div className="pt-1">

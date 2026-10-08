@@ -40,7 +40,6 @@ function useLiveNotifications(): AppNotification[] {
   const settlements = platform?.settlements || [];
   const products = platform?.products || [];
   const purchases = platform?.purchases || [];
-  const aiDocuments = platform?.aiDocuments || [];
 
   return useMemo(() => {
     const notes: AppNotification[] = [];
@@ -182,25 +181,7 @@ function useLiveNotifications(): AppNotification[] {
       }
     });
 
-    // ── 6. AI DOCUMENTS PENDING REVIEW (> 0 staged docs) ─────────────────
-    const pendingDocs = aiDocuments.filter((d) => d.status === "STAGED_NEEDS_REVIEW");
-    if (pendingDocs.length > 0) {
-      notes.push({
-        id: "ai-docs-pending",
-        type: "AI_DOCUMENT_PENDING",
-        severity: "INFO",
-        title: `${pendingDocs.length} document${pendingDocs.length > 1 ? "s" : ""} need review`,
-        body: `${pendingDocs.length} uploaded document${pendingDocs.length > 1 ? "s" : ""} ${pendingDocs.length > 1 ? "are" : "is"} waiting for your approval in the AI Staging Sandbox.`,
-        actionUrl: "/documents",
-        actionLabel: "Open AI Staging",
-        timestamp: "Yesterday",
-        detailsTitle: "Documents awaiting approval:",
-        details: pendingDocs.slice(0, 3).map((d) => `${d.fileName || d.id}: ${d.fileType || "INVOICE"}`),
-        extraCount: pendingDocs.length > 3 ? pendingDocs.length - 3 : 0,
-      });
-    }
-
-    // ── 7. SUPPLIER PAYMENT OVERDUE ───────────────────────────────────────
+    // ── 6. SUPPLIER PAYMENT OVERDUE ───────────────────────────────────────
     purchases.forEach((bill) => {
       if (bill.paymentStatus !== "PENDING") return;
       const invoiceDate = new Date(bill.invoiceDate);
@@ -230,7 +211,7 @@ function useLiveNotifications(): AppNotification[] {
     notes.sort((a, b) => order[a.severity] - order[b.severity]);
 
     return notes;
-  }, [returns, orders, settlements, products, purchases, aiDocuments]);
+  }, [returns, orders, settlements, products, purchases]);
 }
 
 export function NotificationBell() {

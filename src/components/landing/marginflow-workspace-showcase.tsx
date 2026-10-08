@@ -13,11 +13,6 @@ export function MarginFlowWorkspaceShowcase() {
         
         {/* Section Heading */}
         <div className="max-w-2xl mb-14">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[#cfdfd1] text-xs font-mono font-medium text-[#00872e] mb-4 shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00ae3b]" />
-            <span>03 // THE WORKSPACE</span>
-          </div>
-
           <h2 className="text-3xl sm:text-5xl font-bold tracking-[-0.04em] text-[#193022] leading-[1.05]">
             Not another spreadsheet.<br />
             <span className="font-serif italic font-normal text-[#00872e]">

@@ -88,7 +88,7 @@ export function analyzeFinancialQuery(
   // 0.1 Warm Conversational Greetings
   if (q === "hi" || q === "hello" || q === "hey" || q.includes("who are you") || q.includes("what can you do")) {
     return {
-      answer: `Hello! I'm Flow, your store assistant. I have full real-time access to your store's performance across all active channels. Currently, your store has generated ${formatINR(waterfall.netRevenue)} in net sales with a ${waterfall.netMarginPercent.toFixed(1)}% net operating margin (${formatINR(waterfall.netOperatingProfit)} profit). What would you like to explore today?`,
+      answer: `Hello! I'm Flow, your store assistant.\nAsk me anything about your sales, profits, returns, or store metrics.`,
       chips: [],
     };
   }
@@ -124,25 +124,10 @@ export function analyzeFinancialQuery(
         payload: { channel: topChannel.channel },
       });
     }
-    if (damagedReturnsToClaim.length > 0) {
-      chips.push({
-        id: "draft-claim-return",
-        label: `⚡ Draft SAFE-T Claim (${damagedReturnsToClaim.length})`,
-        type: "DRAFT_CLAIM",
-        payload: { returnId: damagedReturnsToClaim[0].returnId },
-      });
-    } else {
-      chips.push({
-        id: "view-settlements",
-        label: "Check Settlements",
-        type: "NAVIGATE",
-        payload: { route: "/settlements" },
-      });
-    }
 
     const answer = isDown
-      ? `Net Operating Profit is down ${changeText}% period-over-period to ${formatINR(waterfall.netOperatingProfit)} (${waterfall.netMarginPercent.toFixed(1)}% margin). The primary drag is ${formatINR(waterfall.returnAndRtoLoss)} in returns & RTO courier freight${worstSku ? `, led by negative contribution on ${worstSku.sku} (-${formatINR(Math.abs(worstSku.netProfit))})` : ""}.`
-      : `Net Operating Profit is up ${changeText}% to ${formatINR(waterfall.netOperatingProfit)} with a healthy ${waterfall.netMarginPercent.toFixed(1)}% net margin on ${formatINR(waterfall.netRevenue)} net revenue. Growth is driven by ${heroSkus[0]?.sku || "hero products"} generating strong POAS (${waterfall.blendedPoas.toFixed(2)}x) across channels.`;
+      ? `Net Operating Profit is down ${changeText}% to ${formatINR(waterfall.netOperatingProfit)} (${waterfall.netMarginPercent.toFixed(1)}% margin).\n\nKey drivers:\nI. Return & Courier Drag: ${formatINR(waterfall.returnAndRtoLoss)}\nII. Top Drag Product: ${worstSku ? `${worstSku.sku} (-${formatINR(Math.abs(worstSku.netProfit))})` : "None"}\nIII. Net Revenue: ${formatINR(waterfall.netRevenue)}`
+      : `Net Operating Profit is up ${changeText}% to ${formatINR(waterfall.netOperatingProfit)} (${waterfall.netMarginPercent.toFixed(1)}% margin).\n\nKey drivers:\nI. Net Revenue: ${formatINR(waterfall.netRevenue)}\nII. Top Performer: ${heroSkus[0]?.sku || "Hero Products"} (${waterfall.blendedPoas.toFixed(2)}x POAS)`;
 
     return { answer, chips: chips.slice(0, 2) };
   }
@@ -163,16 +148,16 @@ export function analyzeFinancialQuery(
     }
     chips.push({
       id: "view-orders",
-      label: "View High-Ad Orders",
+      label: "View Orders",
       type: "NAVIGATE",
       payload: { route: "/orders" },
     });
 
     const answer = targetSku
-      ? `Blended POAS is ${waterfall.blendedPoas.toFixed(2)}x across ${formatINR(waterfall.totalAdSpend)} total ad spend. Critical ad drag detected on ${targetSku.sku}: spent ${formatINR(targetSku.adSpend)} on ads with high return rate (${targetSku.returnRate.toFixed(1)}%), generating a negative POAS of ${targetSku.poas.toFixed(2)}x.`
-      : `Ad spend efficiency is stable with blended POAS at ${waterfall.blendedPoas.toFixed(2)}x and ROAS at ${waterfall.blendedRoas.toFixed(2)}x across ${formatINR(waterfall.totalAdSpend)} in marketing investments. All active campaigns are generating positive net contribution cash.`;
+      ? `Blended POAS is ${waterfall.blendedPoas.toFixed(2)}x on ${formatINR(waterfall.totalAdSpend)} ad spend.\n\nI. Drag Product: ${targetSku.sku}\nII. Ad Spend: ${formatINR(targetSku.adSpend)} (${targetSku.returnRate.toFixed(1)}% return rate)\nIII. Product POAS: ${targetSku.poas.toFixed(2)}x`
+      : `Ad spend efficiency is stable on ${formatINR(waterfall.totalAdSpend)} marketing investments.\n\nI. Blended POAS: ${waterfall.blendedPoas.toFixed(2)}x\nII. Blended ROAS: ${waterfall.blendedRoas.toFixed(2)}x\nIII. Status: Active campaigns are generating positive net contribution`;
 
-    return { answer, chips };
+    return { answer, chips: chips.slice(0, 2) };
   }
 
   // 3. Settlement Aging & Overdue Payouts
@@ -183,7 +168,7 @@ export function analyzeFinancialQuery(
     const chips: AIActionChip[] = [
       {
         id: "go-settlements",
-        label: "Open Settlements Reconciliation",
+        label: "Open Settlements",
         type: "NAVIGATE",
         payload: { route: "/settlements" },
       },
@@ -199,8 +184,8 @@ export function analyzeFinancialQuery(
     }
 
     const answer = overdueAmt > 0
-      ? `There is ${formatINR(overdueAmt)} in delayed marketplace disbursements aging past 14 days across ${count} un-settled orders. Cross-reference your bank credit UTRs against open settlement batches to confirm whether withholding adjustments or bank clearance holds apply.`
-      : `Disbursement cycle is healthy: 100% of pending settlement batches are within the 0–14 day standard cycle (${formatINR(settlementAging.within7DaysAmount)} cycle-safe). Net bank deposit matching is fully balanced.`;
+      ? `${formatINR(overdueAmt)} in payouts is delayed past 14 days across ${count} orders.\n\nI. Overdue Payouts: ${formatINR(overdueAmt)}\nII. Pending (8–14 Days): ${formatINR(settlementAging.between8And14DaysAmount)}\nIII. On Schedule (0–7 Days): ${formatINR(settlementAging.within7DaysAmount)}`
+      : `Disbursements are on schedule with zero overdue balance.\n\nI. Current Cycle (0–7 Days): ${formatINR(settlementAging.within7DaysAmount)}\nII. Pending Cycle (8–14 Days): ${formatINR(settlementAging.between8And14DaysAmount)}`;
 
     return { answer, chips: chips.slice(0, 2) };
   }
@@ -211,30 +196,24 @@ export function analyzeFinancialQuery(
     const chips: AIActionChip[] = [
       {
         id: "nav-returns",
-        label: "View Returns & RTOs",
+        label: "View Returns",
         type: "NAVIGATE",
         payload: { route: "/returns" },
-      },
-      {
-        id: "nav-claims",
-        label: "View Claims Ledger",
-        type: "NAVIGATE",
-        payload: { route: "/claims" },
       },
     ];
 
     if (unclaimed.length > 0) {
       chips.unshift({
         id: `draft-claim-${unclaimed[0].returnId}`,
-        label: `⚡ Draft SAFE-T for ${unclaimed[0].sku}`,
+        label: `Claim for ${unclaimed[0].sku}`,
         type: "DRAFT_CLAIM",
         payload: { returnId: unclaimed[0].returnId },
       });
     }
 
     const answer = unclaimed.length > 0
-      ? `Total returns & RTO loss stands at ${formatINR(waterfall.returnAndRtoLoss)}. You have ${unclaimed.length} unfiled damaged returns totaling ${formatINR(unclaimed.reduce((s, r) => s + r.lossAmount, 0))} in recoverable capital. File Amazon SAFE-T or Flipkart dispute before the 30-day SLA window closes.`
-      : `Returns & RTO losses total ${formatINR(waterfall.returnAndRtoLoss)}. All physical damaged returns currently have active dispute claims filed with marketplace partner portals.`;
+      ? `Total return losses stand at ${formatINR(waterfall.returnAndRtoLoss)}.\n\nI. Unclaimed Damaged Returns: ${unclaimed.length} units (${formatINR(unclaimed.reduce((s, r) => s + r.lossAmount, 0))})\nII. Action: File SAFE-T or dispute claims before 30-day window expires`
+      : `Total return losses stand at ${formatINR(waterfall.returnAndRtoLoss)}.\n\n• All physical damaged returns have active dispute claims filed.`;
 
     return { answer, chips: chips.slice(0, 2) };
   }
@@ -244,13 +223,13 @@ export function analyzeFinancialQuery(
   const chips: AIActionChip[] = [
     {
       id: "check-orders",
-      label: "Review Orders Ledger",
+      label: "Review Orders",
       type: "NAVIGATE",
       payload: { route: "/orders" },
     },
     {
       id: "check-reports",
-      label: "View Full P&L Statement",
+      label: "View P&L Statement",
       type: "NAVIGATE",
       payload: { route: "/reports" },
     },
@@ -265,7 +244,7 @@ export function analyzeFinancialQuery(
     });
   }
 
-  const answer = `Across all channels, MarginFlow reports ${formatINR(waterfall.netRevenue)} in net sales and ${formatINR(waterfall.netOperatingProfit)} in net operating cash profit (${waterfall.netMarginPercent.toFixed(1)}% margin). ${topHero ? `Top contributor is ${topHero.sku} generating ${formatINR(topHero.netProfit)} net profit.` : ""} Total ad spend is ${formatINR(waterfall.totalAdSpend)} at ${waterfall.blendedPoas.toFixed(2)}x POAS.`;
+  const answer = `Store Overview:\n\nI. Net Sales: ${formatINR(waterfall.netRevenue)}\nII. Net Operating Profit: ${formatINR(waterfall.netOperatingProfit)} (${waterfall.netMarginPercent.toFixed(1)}% margin)\nIII. Ad Spend: ${formatINR(waterfall.totalAdSpend)} (${waterfall.blendedPoas.toFixed(2)}x POAS)${topHero ? `\nIV. Top Product: ${topHero.sku} (${formatINR(topHero.netProfit)} profit)` : ""}`;
 
   return { answer, chips: chips.slice(0, 2) };
 }

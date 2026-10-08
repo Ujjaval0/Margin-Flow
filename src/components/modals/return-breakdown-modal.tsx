@@ -14,9 +14,11 @@ import {
   CheckCircle2,
   AlertTriangle,
   Store,
+  ChevronDown,
 } from "lucide-react";
-import { ReturnRecord, Order } from "@/domain/types";
+import { ReturnRecord, Order, Claim, Product } from "@/domain/types";
 import { formatINR } from "@/lib/utils";
+import { computeReturnFinancials } from "@/domain/profitability-engine";
 
 export type ReturnCardType =
   | "totalReturnsLoss"
@@ -29,6 +31,8 @@ export interface ReturnBreakdownModalProps {
   onClose: () => void;
   returns: ReturnRecord[];
   orders: Order[];
+  claims?: Claim[];
+  products?: Product[];
   effectiveChannel: string;
   onSelectTab?: (tab: "ALL" | "CUSTOMER_RETURN" | "RTO" | "OLD_RETURNS") => void;
 }
@@ -38,10 +42,13 @@ export function ReturnBreakdownModal({
   onClose,
   returns,
   orders,
+  claims = [],
+  products = [],
   effectiveChannel,
   onSelectTab,
 }: ReturnBreakdownModalProps) {
   const [mounted, setMounted] = useState(false);
+  const [showOperationalSplit, setShowOperationalSplit] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -102,10 +109,12 @@ export function ReturnBreakdownModal({
   const rtoUnits = rtoReturns.reduce((sum, r) => sum + r.quantity, 0);
   const customerUnits = customerReturns.reduce((sum, r) => sum + r.quantity, 0);
 
+  const getFin = (r: ReturnRecord) => computeReturnFinancials(r, orders, products, claims);
+
   // Financials
-  const totalLoss = filteredReturns.reduce((sum, r) => sum + r.lossAmount, 0);
-  const rtoLoss = rtoReturns.reduce((sum, r) => sum + r.lossAmount, 0);
-  const customerLoss = customerReturns.reduce((sum, r) => sum + r.lossAmount, 0);
+  const totalLoss = filteredReturns.reduce((sum, r) => sum + getFin(r).netLoss, 0);
+  const rtoLoss = rtoReturns.reduce((sum, r) => sum + getFin(r).netLoss, 0);
+  const customerLoss = customerReturns.reduce((sum, r) => sum + getFin(r).netLoss, 0);
 
   const customerFreight = customerReturns.reduce((sum, r) => sum + r.returnShippingCost, 0);
   const customerReturnFees = customerReturns.reduce(
@@ -120,12 +129,7 @@ export function ReturnBreakdownModal({
 
   // QC conditions
   const sellableReturns = filteredReturns.filter((r) => r.condition === "SELLABLE");
-  const damagedReturns = filteredReturns.filter(
-    (r) =>
-      r.condition === "DAMAGED" ||
-      r.condition === "UNUSABLE" ||
-      r.returnType === "DAMAGED_RETURN"
-  );
+  const damagedReturns = filteredReturns.filter((r) => getFin(r).isDamaged);
   const inspectionReturns = filteredReturns.filter(
     (r) => r.condition === "UNDER_INSPECTION" || r.condition === "USED"
   );
@@ -144,7 +148,7 @@ export function ReturnBreakdownModal({
       totalUnits: chReturns.reduce((sum, r) => sum + r.quantity, 0),
       rtoUnits: chRto.reduce((sum, r) => sum + r.quantity, 0),
       customerUnits: chCust.reduce((sum, r) => sum + r.quantity, 0),
-      loss: chReturns.reduce((sum, r) => sum + r.lossAmount, 0),
+      loss: chReturns.reduce((sum, r) => sum + getFin(r).netLoss, 0),
       count: chReturns.length,
     };
   });
@@ -170,11 +174,17 @@ export function ReturnBreakdownModal({
     (r) => getAgingDays(r.receivedDate || r.returnDate) < 7
   );
 
-  // Dispute Potential
-  const claimCost = damagedReturns.reduce((sum, r) => sum + r.lossAmount, 0);
-  const filedClaims = damagedReturns.filter((r) => !!r.claimId);
-  const unfiledClaims = damagedReturns.filter((r) => !r.claimId);
-  const unfiledLoss = unfiledClaims.reduce((sum, r) => sum + r.lossAmount, 0);
+  // Dispute Potential (Real-time synchronized with claim status & reimbursement)
+  const claimCost = damagedReturns.reduce((sum, r) => sum + getFin(r).baseLoss, 0);
+  const filedClaims = damagedReturns.filter((r) => {
+    const fin = getFin(r);
+    return !!fin.claim && fin.claim.status !== "NOT_FILED";
+  });
+  const unfiledClaims = damagedReturns.filter((r) => {
+    const fin = getFin(r);
+    return !fin.claim || fin.claim.status === "NOT_FILED";
+  });
+  const unfiledLoss = unfiledClaims.reduce((sum, r) => sum + getFin(r).baseLoss, 0);
 
   return createPortal(
     <div
@@ -206,25 +216,15 @@ export function ReturnBreakdownModal({
                   {effectiveChannel === "ALL" ? "All channels" : effectiveChannel}
                 </span>
               </div>
-              <p className="text-xs text-[#86868B] mt-0.5 leading-relaxed font-medium">
-                {cardType === "totalReturnsLoss" &&
-                  "Direct operational breakdown comparing customer returns vs RTO undelivered packages."}
-                {cardType === "rtoFailureRate" &&
-                  "Delivery failure proportion against total units dispatched across marketplaces."}
-                {cardType === "oldAgingBacklog" &&
-                  "Aging reverse inventory packages resting in quarantine or pending warehouse QC putaway."}
-                {cardType === "disputeClaimPotential" &&
-                  "Damaged and scrap return loss eligible for marketplace SAFE-T claims and carrier disputes."}
-              </p>
             </div>
           </div>
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="w-8 h-8 rounded-full bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#86868B] hover:text-[#1D1D1F] flex items-center justify-center transition cursor-pointer shrink-0 ml-4"
+            className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] text-[#86868B] hover:text-[#1D1D1F] flex items-center justify-center transition cursor-pointer shrink-0 ml-4 active:scale-95"
             title="Close"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
@@ -237,7 +237,7 @@ export function ReturnBreakdownModal({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="apple-card p-3.5 rounded-2xl shadow-apple-sm">
                   <span className="text-[10px] font-semibold text-[#86868B] block">
-                    Total loss
+                    Total Loss
                   </span>
                   <span className="text-xl font-semibold text-[#D70015] tracking-tight tabular-nums block mt-1">
                     {formatINR(totalLoss)}
@@ -270,7 +270,7 @@ export function ReturnBreakdownModal({
                   <span className="text-[10px] font-semibold text-[#86868B] block">
                     Restocked salvage
                   </span>
-                  <span className="text-xl font-semibold text-[#288548] tracking-tight tabular-nums block mt-1">
+                  <span className="text-xl font-semibold text-[#1D1D1F] tracking-tight tabular-nums block mt-1">
                     {formatINR(totalSalvageValue)}
                   </span>
                   <span className="text-[11px] text-[#86868B] font-medium block mt-0.5 tabular-nums">
@@ -283,23 +283,23 @@ export function ReturnBreakdownModal({
               <div className="p-3.5 bg-[#FAFAFC] rounded-2xl border border-black/[0.04] space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-medium text-[#1D1D1F] flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#0071E3] inline-block"></span>
+                    <span className="w-2 h-2 rounded-full bg-[#1D1D1F] inline-block"></span>
                     Customer returns ({totalUnits > 0 ? Math.round((customerUnits / totalUnits) * 100) : 0}%)
                   </span>
-                  <span className="font-medium text-[#1D1D1F] flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#B25E00] inline-block"></span>
+                  <span className="font-medium text-[#6E6E73] flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#86868B] inline-block"></span>
                     RTO undelivered ({totalUnits > 0 ? Math.round((rtoUnits / totalUnits) * 100) : 0}%)
                   </span>
                 </div>
                 <div className="w-full h-1.5 bg-black/[0.06] rounded-full overflow-hidden flex">
                   <div
-                    className="h-full bg-[#0071E3] transition-all duration-300"
+                    className="h-full bg-[#1D1D1F] transition-all duration-300"
                     style={{
                       width: `${totalUnits > 0 ? (customerUnits / totalUnits) * 100 : 0}%`,
                     }}
                   />
                   <div
-                    className="h-full bg-[#B25E00] transition-all duration-300"
+                    className="h-full bg-black/20 transition-all duration-300"
                     style={{
                       width: `${totalUnits > 0 ? (rtoUnits / totalUnits) * 100 : 0}%`,
                     }}
@@ -307,93 +307,115 @@ export function ReturnBreakdownModal({
                 </div>
               </div>
 
-              {/* Detailed Arithmetic Comparison: RTO vs Customer Return */}
-              <div>
-                <p className="text-[10px] font-semibold text-[#86868B] mb-2">
-                  Detailed operational split
-                  <span className="ml-1.5 font-normal text-[#86868B]">· Units &amp; financial impact</span>
-                </p>
-                <div className="rounded-2xl border border-black/[0.06] overflow-hidden divide-y divide-black/[0.04] bg-white">
-                  {/* Customer Returns Row */}
-                  <div className="p-4 bg-white hover:bg-[#FAFAFC] transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[#0071E3]"></span>
-                        <span className="text-xs font-semibold text-[#1D1D1F]">Customer returns</span>
-                        <span className="text-[10px] bg-[#0071E3]/10 text-[#0071E3] px-2 py-0.5 rounded-full font-medium">
-                          {customerReturns.length} records
-                        </span>
+              {/* Detailed Operational Split with 1-Click Toggle */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOperationalSplit((prev) => !prev)}
+                  className="w-full p-3 rounded-2xl bg-[#FAFAFC] hover:bg-[#F5F5F7] border border-black/[0.04] flex items-center justify-between text-xs transition cursor-pointer select-none group"
+                  aria-expanded={showOperationalSplit}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-[#1D1D1F]">
+                      Detailed operational split
+                    </span>
+                    <span className="text-[11px] text-[#86868B] hidden sm:inline">
+                      · Units &amp; financial impact
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#6E6E73] group-hover:text-[#1D1D1F] transition">
+                    <span>{showOperationalSplit ? "Hide details" : "Show details"}</span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                        showOperationalSplit ? "rotate-180" : ""
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                {showOperationalSplit && (
+                  <div className="rounded-2xl border border-black/[0.06] overflow-hidden divide-y divide-black/[0.04] bg-white animate-in fade-in duration-150">
+                    {/* Customer Returns Row */}
+                    <div className="p-4 bg-white hover:bg-[#FAFAFC] transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#1D1D1F]"></span>
+                          <span className="text-xs font-semibold text-[#1D1D1F]">Customer returns</span>
+                          <span className="text-[10px] bg-black/[0.04] text-[#6E6E73] px-2 py-0.5 rounded-full font-medium">
+                            {customerReturns.length} records
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-sm font-semibold text-[#1D1D1F] tabular-nums">
+                            {customerUnits} units
+                          </span>
+                          <span className="text-xs text-[#6E6E73] font-medium block tabular-nums">
+                            Loss: <span className="text-[#1D1D1F] font-semibold">{formatINR(customerLoss)}</span>
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mt-2.5 pt-2.5 border-t border-black/[0.04] text-[11px] text-[#86868B]">
+                        <div>
+                          <span>Return logistics freight: </span>
+                          <span className="font-medium text-[#1D1D1F] tabular-nums">{formatINR(customerFreight)}</span>
+                        </div>
+                        <div>
+                          <span>Customer return penalty fees: </span>
+                          <span className="font-medium text-[#1D1D1F] tabular-nums">{formatINR(customerReturnFees)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RTO Undelivered Row */}
+                    <div className="p-4 bg-white hover:bg-[#FAFAFC] transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#86868B]"></span>
+                          <span className="text-xs font-semibold text-[#1D1D1F]">RTO (doorstep rejection / undelivered)</span>
+                          <span className="text-[10px] bg-black/[0.04] text-[#6E6E73] px-2 py-0.5 rounded-full font-medium">
+                            {rtoReturns.length} records
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-sm font-semibold text-[#1D1D1F] tabular-nums">
+                            {rtoUnits} units
+                          </span>
+                          <span className="text-xs text-[#86868B] font-medium block tabular-nums">
+                            Loss: <span className="text-[#1D1D1F] font-semibold">{formatINR(rtoLoss)}</span>
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mt-2.5 pt-2.5 border-t border-black/[0.04] text-[11px] text-[#86868B]">
+                        <div>
+                          <span>RTO freight incurred: </span>
+                          <span className="font-medium text-[#1D1D1F] tabular-nums">{formatINR(rtoFreight)}</span>
+                        </div>
+                        <div>
+                          <span>Product integrity: </span>
+                          <span className="font-medium text-[#1D1D1F]">100% intact / restockable</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Total Summary Row */}
+                    <div className="px-4 py-3 bg-[#FAFAFC] flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-semibold text-[#1D1D1F]">Total reverse pipeline</span>
+                        <p className="text-[11px] text-[#86868B] mt-0.5">
+                          Net realized reverse logistics deficit across all channels
+                        </p>
                       </div>
                       <div className="text-right">
-                        <span className="text-sm font-semibold text-[#1D1D1F] tabular-nums">
-                          {customerUnits} units
+                        <span className="text-base font-semibold text-[#1D1D1F] tabular-nums">
+                          {formatINR(totalLoss)}
                         </span>
-                        <span className="text-xs text-[#D70015] font-medium block tabular-nums">
-                          Loss: {formatINR(customerLoss)}
+                        <span className="text-[11px] text-[#86868B] font-medium block mt-0.5 tabular-nums">
+                          {totalUnits} returned units
                         </span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mt-2.5 pt-2.5 border-t border-black/[0.04] text-[11px] text-[#86868B]">
-                      <div>
-                        <span>Return logistics freight: </span>
-                        <span className="font-medium text-[#1D1D1F] tabular-nums">{formatINR(customerFreight)}</span>
-                      </div>
-                      <div>
-                        <span>Customer return penalty fees: </span>
-                        <span className="font-medium text-[#1D1D1F] tabular-nums">{formatINR(customerReturnFees)}</span>
                       </div>
                     </div>
                   </div>
-
-                  {/* RTO Undelivered Row */}
-                  <div className="p-4 bg-white hover:bg-[#FAFAFC] transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[#B25E00]"></span>
-                        <span className="text-xs font-semibold text-[#1D1D1F]">RTO (doorstep rejection / undelivered)</span>
-                        <span className="text-[10px] bg-[#B25E00]/10 text-[#B25E00] px-2 py-0.5 rounded-full font-medium">
-                          {rtoReturns.length} records
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-semibold text-[#1D1D1F] tabular-nums">
-                          {rtoUnits} units
-                        </span>
-                        <span className="text-xs text-[#86868B] font-medium block tabular-nums">
-                          Loss: {formatINR(rtoLoss)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mt-2.5 pt-2.5 border-t border-black/[0.04] text-[11px] text-[#86868B]">
-                      <div>
-                        <span>RTO freight incurred: </span>
-                        <span className="font-medium text-[#1D1D1F] tabular-nums">{formatINR(rtoFreight)}</span>
-                      </div>
-                      <div>
-                        <span>Product integrity: </span>
-                        <span className="font-medium text-[#288548]">100% intact / restockable</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Total Summary Row */}
-                  <div className="px-4 py-3 bg-[#FAFAFC] flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-semibold text-[#1D1D1F]">Total reverse pipeline</span>
-                      <p className="text-[11px] text-[#86868B] mt-0.5">
-                        Net realized reverse logistics deficit across all channels
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-base font-semibold text-[#D70015] tabular-nums">
-                        {formatINR(totalLoss)}
-                      </span>
-                      <span className="text-[11px] text-[#86868B] font-medium block mt-0.5 tabular-nums">
-                        {totalUnits} returned units
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Channel Breakdown Table */}
@@ -662,37 +684,43 @@ export function ReturnBreakdownModal({
                       No damaged or dispute-eligible returns recorded in current channel.
                     </div>
                   ) : (
-                    damagedReturns.map((r) => (
-                      <div
-                        key={r.id}
-                        className="p-3.5 bg-white hover:bg-[#FAFAFC] flex items-center justify-between transition-colors"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-[#1D1D1F]">{r.id}</span>
-                            <span className="text-[11px] text-[#86868B] font-medium tabular-nums">({r.orderId})</span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-black/[0.04] text-[#6E6E73]">
-                              {r.marketplace}
-                            </span>
+                    damagedReturns.map((r) => {
+                      const fin = getFin(r);
+                      const activeClaim = fin.claim;
+                      const activeClaimId = activeClaim?.id ?? r.claimId;
+                      return (
+                        <div
+                          key={r.id}
+                          className="p-3.5 bg-white hover:bg-[#FAFAFC] flex items-center justify-between transition-colors"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-[#1D1D1F]">{r.id}</span>
+                              <span className="text-[11px] text-[#86868B] font-medium tabular-nums">({r.orderId})</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-black/[0.04] text-[#6E6E73]">
+                                {r.marketplace}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-[#86868B] mt-0.5 font-medium">{r.productName || r.sku}</p>
                           </div>
-                          <p className="text-[11px] text-[#86868B] mt-0.5 font-medium">{r.productName || r.sku}</p>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-xs font-semibold text-[#D70015] tabular-nums block">
-                            Loss: {formatINR(r.lossAmount)}
-                          </span>
-                          {r.claimId ? (
-                            <span className="text-[10px] font-medium text-[#288548] bg-[#288548]/10 px-2 py-0.5 rounded-full mt-0.5 inline-block">
-                              Claim: {r.claimId}
+                          <div className="text-right">
+                            <span className="text-xs font-semibold text-[#D70015] tabular-nums block">
+                              Net Loss: {formatINR(fin.netLoss)}
                             </span>
-                          ) : (
-                            <span className="text-[10px] font-medium text-[#0071E3] bg-[#0071E3]/10 px-2 py-0.5 rounded-full mt-0.5 inline-block">
-                              Unfiled (eligible)
-                            </span>
-                          )}
+                            {activeClaim ? (
+                              <span className="text-[10px] font-medium text-[#0071E3] bg-[#0071E3]/10 px-2 py-0.5 rounded-full mt-0.5 inline-block">
+                                Claim: {activeClaimId} ({fin.claimStatusLabel})
+                                {fin.reimbursementAmount > 0 ? ` · -${formatINR(fin.reimbursementAmount)}` : ""}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-medium text-[#D70015] bg-rose-500/10 px-2 py-0.5 rounded-full mt-0.5 inline-block">
+                                Unclaimed Damage
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -703,30 +731,7 @@ export function ReturnBreakdownModal({
         {/* Footer Actions */}
         <div className="px-6 py-4 border-t border-black/[0.05] bg-[#FAFAFC] flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            {cardType === "totalReturnsLoss" && onSelectTab && (
-              <>
-                <button
-                  onClick={() => {
-                    onSelectTab("CUSTOMER_RETURN");
-                    onClose();
-                  }}
-                  className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white border border-black/[0.08] hover:bg-black/[0.03] text-[#1D1D1F] transition flex items-center gap-1.5 cursor-pointer shadow-apple-sm btn-press"
-                >
-                  <span>Filter customer returns ({customerReturns.length})</span>
-                  <ArrowRight className="w-3 h-3 text-[#86868B]" />
-                </button>
-                <button
-                  onClick={() => {
-                    onSelectTab("RTO");
-                    onClose();
-                  }}
-                  className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white border border-black/[0.08] hover:bg-black/[0.03] text-[#1D1D1F] transition flex items-center gap-1.5 cursor-pointer shadow-apple-sm btn-press"
-                >
-                  <span>Filter RTOs ({rtoReturns.length})</span>
-                  <ArrowRight className="w-3 h-3 text-[#86868B]" />
-                </button>
-              </>
-            )}
+
 
             {cardType === "rtoFailureRate" && onSelectTab && (
               <button

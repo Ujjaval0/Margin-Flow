@@ -22,11 +22,9 @@ import { getMarketplaceBadge } from "@/lib/marketplace-config";
 import { formatINR } from "@/lib/utils";
 import {
   detectAndMapCsv,
-  detectAndMapCsvWithJev,
   CsvMappingResult,
   TARGET_FIELDS,
 } from "@/domain/csv-auto-mapper";
-import { loadAISettings } from "@/lib/security/ai-vault";
 
 export interface CsvImportModalProps {
   isOpen: boolean;
@@ -91,13 +89,6 @@ export function CsvImportModal({
     setFiles((prev) => [...prev, ...fileArray]);
     setIsProcessing(true);
 
-    const aiSettings = loadAISettings();
-    const activeKey = aiSettings.keys[aiSettings.activeProvider] || "";
-    const openRouterKey =
-      aiSettings.activeProvider === "openrouter"
-        ? activeKey
-        : aiSettings.keys["openrouter"] || "";
-
     const allOrders: Order[] = mappingResult?.orders ? [...mappingResult.orders] : [];
     let combinedDetection: any = mappingResult?.detection ? { ...mappingResult.detection } : null;
     const allErrors: string[] = mappingResult?.errors ? [...mappingResult.errors] : [];
@@ -119,10 +110,7 @@ export function CsvImportModal({
         if (!text.trim()) continue;
 
         // Run smart auto-detection and column mapping
-        const result = await detectAndMapCsvWithJev(text, products, {
-          jevApiKey: aiSettings.jevApiKey,
-          openRouterKey,
-        });
+        const result = detectAndMapCsv(text, products);
 
         if (!combinedDetection) {
           combinedDetection = result.detection;

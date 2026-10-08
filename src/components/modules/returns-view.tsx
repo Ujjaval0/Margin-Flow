@@ -12,13 +12,17 @@ import {
 } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate } from "@/lib/utils";
+import { computeReturnFinancials } from "@/domain/profitability-engine";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { PlatformFilterDropdown } from "@/components/ui/marketplace-dropdown";
-import {
-  ReturnBreakdownModal,
-  ReturnCardType,
-} from "@/components/modals/return-breakdown-modal";
+import dynamic from "next/dynamic";
+import type { ReturnCardType } from "@/components/modals/return-breakdown-modal";
+
+const ReturnBreakdownModal = dynamic(
+  () => import("@/components/modals/return-breakdown-modal").then((mod) => mod.ReturnBreakdownModal),
+  { ssr: false }
+);
 import {
   Plus,
   X,
@@ -56,6 +60,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     returns,
     orders,
     products,
+    claims,
     addReturn,
     updateReturn,
     restockReturn,
@@ -182,10 +187,13 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
   const rtoCount = channelFilteredReturns.filter((r) => r.returnType === "RTO").length;
   const oldReturnsCount = channelFilteredReturns.filter(isOldReturn).length;
 
-  // Operational KPI Calculations
+  // Operational KPI Calculations (Real-time financial impact)
   const totalReturnLoss = useMemo(() => {
-    return channelFilteredReturns.reduce((sum, r) => sum + r.lossAmount, 0);
-  }, [channelFilteredReturns]);
+    return channelFilteredReturns.reduce((sum, r) => {
+      const fin = computeReturnFinancials(r, orders, products, claims);
+      return sum + fin.netLoss;
+    }, 0);
+  }, [channelFilteredReturns, orders, products, claims]);
 
   const totalReturnUnits = useMemo(() => {
     return channelFilteredReturns.reduce((sum, r) => sum + r.quantity, 0);
@@ -215,16 +223,24 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     };
   }, [channelFilteredReturns, orders, effectiveChannel]);
 
-  // Claim potential & urgent expiring claims
+  // Claim potential & urgent expiring claims (Real-time synchronized with claim status & reimbursement)
   const claimStats = useMemo(() => {
-    const damagedReturns = channelFilteredReturns.filter(
-      (r) =>
-        r.condition === "DAMAGED" ||
-        r.condition === "UNUSABLE" ||
-        r.returnType === "DAMAGED_RETURN"
-    );
-    const totalDamagedCost = damagedReturns.reduce((sum, r) => sum + r.lossAmount, 0);
-    const claimedCount = damagedReturns.filter((r) => !!r.claimId).length;
+    const damagedReturns = channelFilteredReturns.filter((r) => {
+      const fin = computeReturnFinancials(r, orders, products, claims);
+      return fin.isDamaged;
+    });
+    const totalDamagedCost = damagedReturns.reduce((sum, r) => {
+      const fin = computeReturnFinancials(r, orders, products, claims);
+      return sum + fin.baseLoss;
+    }, 0);
+    const totalReimbursed = damagedReturns.reduce((sum, r) => {
+      const fin = computeReturnFinancials(r, orders, products, claims);
+      return sum + fin.reimbursementAmount;
+    }, 0);
+    const claimedCount = damagedReturns.filter((r) => {
+      const fin = computeReturnFinancials(r, orders, products, claims);
+      return !!fin.claim && fin.claim.status !== "NOT_FILED";
+    }).length;
     const expiringSoon = channelFilteredReturns.filter((r) => {
       if (!r.claimDeadline) return false;
       const days = Math.floor(
@@ -236,11 +252,12 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
     return {
       totalDamagedCost,
+      totalReimbursed,
       claimedCount,
       totalDamagedCount: damagedReturns.length,
       expiringSoon,
     };
-  }, [channelFilteredReturns, CURRENT_SIM_DATE]);
+  }, [channelFilteredReturns, orders, products, claims, CURRENT_SIM_DATE]);
 
   // Tab and Search Filtering
   const displayedReturns = useMemo(() => {
@@ -311,27 +328,30 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       "Notes",
     ];
 
-    const rows = displayedReturns.map((r) => [
-      r.id,
-      r.orderId,
-      r.channelOrderId,
-      r.awbNumber || "",
-      r.marketplace,
-      r.returnDate,
-      r.receivedDate || r.returnDate,
-      r.returnType,
-      r.condition,
-      r.restockStatus || "PENDING_RESTOCK",
-      r.sku,
-      `"${(r.productName || "").replace(/"/g, '""')}"`,
-      r.quantity,
-      r.returnShippingCost,
-      r.inventoryRecoveryValue,
-      r.lossAmount,
-      r.claimId || "",
-      r.claimDeadline || "",
-      `"${(r.notes || r.returnReason).replace(/"/g, '""')}"`,
-    ]);
+    const rows = displayedReturns.map((r) => {
+      const fin = computeReturnFinancials(r, orders, products, claims);
+      return [
+        r.id,
+        r.orderId,
+        r.channelOrderId,
+        r.awbNumber || "",
+        r.marketplace,
+        r.returnDate,
+        r.receivedDate || r.returnDate,
+        r.returnType,
+        r.condition,
+        r.restockStatus || "PENDING_RESTOCK",
+        r.sku,
+        `"${(r.productName || "").replace(/"/g, '""')}"`,
+        r.quantity,
+        r.returnShippingCost,
+        r.inventoryRecoveryValue,
+        fin.netLoss,
+        fin.claim?.id || r.claimId || "",
+        r.claimDeadline || "",
+        `"${(r.notes || r.returnReason).replace(/"/g, '""')}"`,
+      ];
+    });
 
     const csvContent =
       "data:text/csv;charset=utf-8," +
@@ -361,11 +381,36 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
   ) => {
     const product = products.find((p) => p.sku === ret.sku);
     const unitCost = product ? product.currentCostPrice : 350;
-    const isLoss = newCondition === "DAMAGED" || newCondition === "UNUSABLE";
+    const isLoss = newCondition === "DAMAGED" || newCondition === "UNUSABLE" || newCondition === "MISSING";
     const isRto = ret.returnType === "RTO";
-    let calculatedLoss = isRto ? 0 : (ret.returnShippingCost + (ret.customerReturnFee ?? 0));
-    if (!isRto && isLoss) {
-      calculatedLoss += unitCost * ret.quantity - ret.inventoryRecoveryValue;
+    const fees = isRto ? 0 : (ret.returnShippingCost + (ret.customerReturnFee ?? 0));
+    let baseLoss = isRto ? 0 : fees;
+    if (isLoss) {
+      baseLoss = Math.max(0, unitCost * ret.quantity - ret.inventoryRecoveryValue) + fees;
+    }
+
+    const linkedClaim = claims.find(
+      (c) => (ret.claimId && c.id === ret.claimId) || c.returnId === ret.id
+    );
+    const reimbursement = linkedClaim ? (linkedClaim.amountRecovered || 0) : 0;
+    const calculatedLoss = Math.max(0, baseLoss - reimbursement);
+
+    let claimId = ret.claimId;
+    if (isLoss && !claimId && !linkedClaim) {
+      claimId = `CLM-${Date.now().toString().slice(-4)}`;
+      const newClaim: Claim = {
+        id: claimId,
+        orderId: ret.orderId,
+        returnId: ret.id,
+        marketplace: ret.marketplace,
+        claimType: ret.returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
+        claimDate: new Date().toISOString().split("T")[0],
+        amountClaimed: baseLoss,
+        amountRecovered: 0,
+        status: "FILED",
+        notes: `Dispute claim logged on QC status change (${newCondition}).`,
+      };
+      addClaim(newClaim);
     }
 
     const updated: ReturnRecord = {
@@ -380,6 +425,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
           ? "WRITTEN_OFF"
           : "PENDING_RESTOCK",
       lossAmount: calculatedLoss,
+      claimId: claimId || ret.claimId,
     };
     updateReturn(updated);
   };
@@ -437,10 +483,30 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       unitCostBasis = product.currentCostPrice;
     }
 
+    const isDamaged = condition === "DAMAGED" || condition === "UNUSABLE";
     const calculatedCustomerFee = returnType === "RTO" ? 0 : returnShipping;
     let calculatedLoss = returnType === "RTO" ? 0 : (returnShipping + calculatedCustomerFee);
-    if (returnType !== "RTO" && (condition === "DAMAGED" || condition === "UNUSABLE")) {
+    if (isDamaged) {
       calculatedLoss += unitCostBasis * quantity - recoveryValue;
+    }
+
+    let claimIdToLink: string | undefined = undefined;
+    // Auto-create claim if damaged or lost
+    if (condition === "DAMAGED" || returnType === "LOST_RETURN") {
+      claimIdToLink = `CLM-${Date.now().toString().slice(-4)}`;
+      const newClaim: Claim = {
+        id: claimIdToLink,
+        orderId: orderIdToLink,
+        returnId: retId,
+        marketplace: finalMarketplace,
+        claimType: returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
+        claimDate: new Date().toISOString().split("T")[0],
+        amountClaimed: calculatedLoss,
+        amountRecovered: 0,
+        status: "FILED",
+        notes: `Auto-dispute claim logged for ${retId} (${condition}).`,
+      };
+      addClaim(newClaim);
     }
 
     const newReturn: ReturnRecord = {
@@ -463,27 +529,10 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       otherReturnCosts: returnType === "RTO" ? 0 : 10,
       inventoryRecoveryValue: recoveryValue,
       lossAmount: calculatedLoss,
+      claimId: claimIdToLink,
     };
 
     addReturn(newReturn);
-
-    // Auto-create claim if damaged or lost
-    if (condition === "DAMAGED" || returnType === "LOST_RETURN") {
-      const claimId = `CLM-${Date.now().toString().slice(-4)}`;
-      const newClaim: Claim = {
-        id: claimId,
-        orderId: orderIdToLink,
-        returnId: retId,
-        marketplace: finalMarketplace,
-        claimType: returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
-        claimDate: new Date().toISOString().split("T")[0],
-        amountClaimed: calculatedLoss,
-        amountRecovered: 0,
-        status: "FILED",
-        notes: `Auto-dispute claim logged for ${retId} (${condition}).`,
-      };
-      addClaim(newClaim);
-    }
 
     setIsCreateOpen(false);
   };
@@ -497,14 +546,21 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     const unitCost = product ? product.currentCostPrice : 350;
 
     const isRto = editingReturn.returnType === "RTO";
+    const isDamaged =
+      editingReturn.condition === "DAMAGED" ||
+      editingReturn.condition === "UNUSABLE";
     let calculatedLoss = isRto ? 0 : (editingReturn.returnShippingCost + (editingReturn.customerReturnFee ?? 0));
-    if (
-      !isRto &&
-      (editingReturn.condition === "DAMAGED" ||
-      editingReturn.condition === "UNUSABLE")
-    ) {
+    if (isDamaged) {
       calculatedLoss +=
         unitCost * editingReturn.quantity - editingReturn.inventoryRecoveryValue;
+    }
+
+    // Deduct any existing reimbursement from linked claim
+    const linkedClaim = claims.find(
+      (c) => c.returnId === editingReturn.id || (editingReturn.claimId && c.id === editingReturn.claimId)
+    );
+    if (linkedClaim && linkedClaim.amountRecovered > 0) {
+      calculatedLoss = Math.max(0, calculatedLoss - linkedClaim.amountRecovered);
     }
 
     updateReturn({
@@ -719,17 +775,21 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   Inventory safe
                 </span>
               ) : isDamaged ? (
-                r.claimId ? (
-                  <span className="text-[#0071E3] font-medium flex items-center gap-1">
-                    <ShieldAlert className="w-3 h-3 text-[#0071E3]" />
-                    Claim: {r.claimId}
-                  </span>
-                ) : (
-                  <span className="text-[#D70015] font-semibold flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3 text-[#D70015]" />
-                    Dispute claim eligible
-                  </span>
-                )
+                (() => {
+                  const fin = computeReturnFinancials(r, orders, products, claims);
+                  const activeClaimId = fin.claim?.id ?? r.claimId;
+                  return activeClaimId ? (
+                    <span className="text-[#0071E3] font-medium flex items-center gap-1">
+                      <ShieldAlert className="w-3 h-3 text-[#0071E3]" />
+                      Claim: {activeClaimId}
+                    </span>
+                  ) : (
+                    <span className="text-[#D70015] font-semibold flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 text-[#D70015]" />
+                      Dispute claim eligible
+                    </span>
+                  );
+                })()
               ) : isUnderInspection ? (
                 <span className="text-[#B25E00] font-medium flex items-center gap-1">
                   <Clock className="w-3 h-3 text-[#B25E00]" />
@@ -750,19 +810,42 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       header: "Logistics & Net Loss",
       cell: ({ row }) => {
         const r = row.original;
+        const fin = computeReturnFinancials(r, orders, products, claims);
+        const hasReimbursement = fin.reimbursementAmount > 0;
+        const isNetLoss = fin.netFinancialImpact > 0;
+        const isNetProfit = fin.netFinancialImpact < 0;
+
         return (
           <div className="space-y-0.5">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-semibold text-[#D70015] tracking-tight tabular-nums block">
-                {formatINR(r.lossAmount)}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span
+                className={`text-sm font-semibold tracking-tight tabular-nums block ${
+                  isNetLoss
+                    ? "text-[#D70015]"
+                    : isNetProfit
+                    ? "text-[#288548]"
+                    : "text-[#1D1D1F]"
+                }`}
+              >
+                {isNetProfit
+                  ? `+${formatINR(Math.abs(fin.netFinancialImpact))}`
+                  : formatINR(fin.netFinancialImpact)}
               </span>
+              {hasReimbursement && (
+                <span className="text-[10px] text-[#288548] font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 tabular-nums">
+                  -{formatINR(fin.reimbursementAmount)} Reimbursed
+                </span>
+              )}
               {r.inventoryRecoveryValue > 0 && (
                 <span className="text-[10px] text-[#288548] font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 tabular-nums">
-                  +{formatINR(r.inventoryRecoveryValue)}
+                  +{formatINR(r.inventoryRecoveryValue)} Scrap
                 </span>
               )}
             </div>
             <div className="text-[11px] text-[#86868B] font-medium tabular-nums flex items-center gap-1.5 flex-wrap">
+              {fin.damageLoss > 0 && (
+                <span>Damage: {formatINR(fin.damageLoss)}</span>
+              )}
               <span>Freight: {formatINR(r.returnShippingCost)}</span>
               {(r.customerReturnFee ?? 0) > 0 && (
                 <span>• Fee: {formatINR(r.customerReturnFee)}</span>
@@ -777,7 +860,8 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       header: "Dispute / SLA",
       cell: ({ row }) => {
         const r = row.original;
-        const claimId = r.claimId;
+        const fin = computeReturnFinancials(r, orders, products, claims);
+        const claim = fin.claim;
         const isExpiring =
           r.claimDeadline &&
           Math.floor(
@@ -787,12 +871,22 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
         return (
           <div className="space-y-0.5">
-            {claimId ? (
-              <span className="text-[11px] text-[#0071E3] bg-[#0071E3]/10 px-2 py-0.5 rounded-full border border-[#0071E3]/20 font-semibold tabular-nums inline-flex items-center gap-1">
+            {claim ? (
+              <span
+                className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold tabular-nums inline-flex items-center gap-1 ${
+                  claim.status === "RECOVERED" || claim.status === "APPROVED" || claim.status === "PARTIALLY_RECOVERED"
+                    ? "text-[#288548] bg-emerald-500/10 border-emerald-500/20"
+                    : claim.status === "REJECTED"
+                    ? "text-[#D70015] bg-rose-500/10 border-rose-500/20"
+                    : claim.status === "NOT_FILED"
+                    ? "text-[#6E6E73] bg-black/[0.04] border-black/[0.08]"
+                    : "text-[#0071E3] bg-[#0071E3]/10 border-[#0071E3]/20"
+                }`}
+              >
                 <ShieldAlert className="w-3 h-3" />
-                {claimId}
+                {claim.id} ({fin.claimStatusLabel})
               </span>
-            ) : r.condition === "DAMAGED" ? (
+            ) : r.condition === "DAMAGED" || r.condition === "UNUSABLE" ? (
               <span className="text-[10px] text-[#D70015] bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20 font-semibold inline-flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" />
                 Unclaimed Damage
@@ -820,7 +914,14 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       header: "Quick Actions",
       cell: ({ row }) => {
         const r = row.original;
+        const fin = computeReturnFinancials(r, orders, products, claims);
         const canRestock = r.restockStatus === "PENDING_RESTOCK";
+        const hasClaim = !!(fin.claim || r.claimId);
+        const claimLabel = !hasClaim
+          ? "Draft Claim"
+          : fin.claim?.status === "NOT_FILED"
+          ? "Review Draft"
+          : "Dispute Claim";
 
         return (
           <div className="flex items-center gap-1.5">
@@ -836,7 +937,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
             )}
 
             {/* 1-Click SAFE-T Dispute Generator */}
-            {(r.condition === "DAMAGED" || r.condition === "UNUSABLE" || r.returnType === "DAMAGED_RETURN" || !r.claimId) && (
+            {(r.condition === "DAMAGED" || r.condition === "UNUSABLE" || r.returnType === "DAMAGED_RETURN" || !hasClaim) && (
               <button
                 onClick={() =>
                   window.dispatchEvent(
@@ -849,7 +950,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                 className="px-2.5 py-1 bg-[#0071E3]/10 hover:bg-[#0071E3]/20 text-[#0071E3] border border-[#0071E3]/20 rounded-full text-[10px] font-semibold flex items-center gap-1 shadow-apple-sm transition active:scale-95 cursor-pointer shrink-0"
               >
                 <ShieldAlert className="w-3 h-3 text-[#0071E3]" />
-                <span>Draft Claim</span>
+                <span>{claimLabel}</span>
               </button>
             )}
 
@@ -885,7 +986,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
             Returns &amp; Reverse Logistics (RTO)
           </h1>
           <p className="text-xs text-[#86868B] mt-1">
-            High-speed intake, multi-channel quarantine, physical QC grading, restock putaway, and automated dispute claims.
+            Track customer returns, RTO shipments, and inventory recovery.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -977,7 +1078,9 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
           </div>
           <div className="my-2">
             <div className="text-3xl font-semibold text-[#288548] tracking-[-0.02em] tabular-nums">{formatINR(claimStats.totalDamagedCost)}</div>
-            <span className="text-xs text-[#86868B] mt-1 font-medium block tabular-nums">{claimStats.claimedCount} of {claimStats.totalDamagedCount} filed</span>
+            <span className="text-xs text-[#86868B] mt-1 font-medium block tabular-nums">
+              {claimStats.claimedCount} of {claimStats.totalDamagedCount} filed{claimStats.totalReimbursed > 0 ? ` · ${formatINR(claimStats.totalReimbursed)} reimbursed` : ""}
+            </span>
           </div>
           <div className="text-xs text-[#86868B] pt-3 border-t border-black/[0.04]">
             Damage loss recoverable via marketplace SAFE-T claims
@@ -1572,6 +1675,8 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         onClose={() => setActiveBreakdownCard(null)}
         returns={channelFilteredReturns}
         orders={orders}
+        claims={claims}
+        products={products}
         effectiveChannel={effectiveChannel}
         onSelectTab={(tab) => {
           setActiveTab(tab);

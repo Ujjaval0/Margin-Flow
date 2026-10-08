@@ -3,13 +3,13 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MarginFlowLogo } from "@/components/MarginFlowLogo";
 import { MarginFlowNavbar } from "@/components/landing/marginflow-navbar";
 import { MarginFlowHero } from "@/components/landing/marginflow-hero";
 import { MarginFlowFlowMachine } from "@/components/landing/marginflow-flow-machine";
 import { MarginFlowRouteComparison } from "@/components/landing/marginflow-route-comparison";
 import { MarginFlowWorkspaceShowcase } from "@/components/landing/marginflow-workspace-showcase";
 import { MarginFlowCompoundMetrics } from "@/components/landing/marginflow-compound-metrics";
+import { MarginFlowFooter } from "@/components/landing/marginflow-footer";
 import {
   ChevronDown,
   ChevronUp,
@@ -203,45 +203,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 10. ATMOSPHERIC MINIMALIST FOOTER */}
-      <footer className="bg-[#0c140e] border-t border-white/[0.08] text-[#8da494] py-16 px-4 sm:px-6 lg:px-8 select-none">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
-          <div>
-            <Link href="/" className="flex items-center gap-2.5">
-              <MarginFlowLogo className="h-6 w-auto text-white" />
-            </Link>
-            <p className="text-xs font-mono text-[#687d6e] mt-2">
-              Financial truth for marketplace commerce.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-xs font-mono font-medium">
-            <a href="#engine" className="hover:text-white transition-colors">
-              How It Works
-            </a>
-            <a href="#routes" className="hover:text-white transition-colors">
-              Reconciliation
-            </a>
-            <a href="#workspace" className="hover:text-white transition-colors">
-              Cockpit
-            </a>
-            <a href="#metrics" className="hover:text-white transition-colors">
-              Results
-            </a>
-            <a href="#faq" className="hover:text-white transition-colors">
-              FAQ
-            </a>
-            <Link href="/dashboard" className="text-[#71d78e] hover:text-white transition-colors flex items-center gap-1">
-              <span>Cockpit</span>
-              <ArrowUpRight className="w-3 h-3" />
-            </Link>
-          </div>
-
-          <p className="text-xs font-mono text-[#687d6e]">
-            © {new Date().getFullYear()} MarginFlow Technologies
-          </p>
-        </div>
-      </footer>
+      {/* 10. IMMERSIVE ARCHITECTURAL FOOTER */}
+      <MarginFlowFooter
+        onSignIn={handleGoogleSignIn}
+        isAuthenticating={isAuthenticating}
+      />
 
     </div>
   );

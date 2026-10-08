@@ -215,14 +215,14 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
           {/* Left Column: Slogan & Zero-Fluff Proposition */}
           <div className="lg:col-span-6 space-y-6">
             <h1 className="text-4xl sm:text-6xl lg:text-[68px] font-bold tracking-[-0.04em] text-white leading-[1.04]">
-              Stop Marketplace Margin Leaks.<br />
-              <span className="font-serif italic font-normal text-[#71d78e]">
+              Stop Marketplace Margin Leaks.
+              <span className="block mt-2 sm:mt-3 text-2xl sm:text-4xl lg:text-[42px] font-serif italic font-normal text-[#71d78e] leading-[1.15]">
                 Know your true net profit down to the exact rupee.
               </span>
             </h1>
 
             <p className="text-base sm:text-lg text-[#9ab1a1] leading-relaxed max-w-lg font-normal">
-              Amazon, Flipkart, and couriers silently erode margins through deadweight overcharges, unverified return fees, and commission creep. MarginFlow cross-audits every order, isolates RTO losses, and recovers cash before settlements lock.
+              Amazon, Flipkart, and couriers silently erode your margins. MarginFlow audits every order to recover lost cash automatically.
             </p>
 
             {/* CTAs */}

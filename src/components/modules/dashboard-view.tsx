@@ -45,16 +45,31 @@ import {
   Package,
   AlertTriangle,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { DateRangePreset } from "@/domain/profitability-engine";
-import { OrderModal } from "@/components/modals/order-modal";
-import { RecordReturnModal } from "@/components/modals/record-return-modal";
-import { AddPurchaseModal } from "@/components/modals/add-purchase-modal";
-import {
-  CardLogicModal,
-  CardLogicModalData,
-  getCardLogicDefinitions,
-} from "@/components/modals/card-logic-modal";
-import { SkuDrawer } from "@/components/modals/sku-drawer";
+import { getCardLogicDefinitions } from "@/components/modals/card-logic-modal";
+import type { CardLogicModalData } from "@/components/modals/card-logic-modal";
+
+const OrderModal = dynamic(
+  () => import("@/components/modals/order-modal").then((mod) => mod.OrderModal),
+  { ssr: false }
+);
+const RecordReturnModal = dynamic(
+  () => import("@/components/modals/record-return-modal").then((mod) => mod.RecordReturnModal),
+  { ssr: false }
+);
+const AddPurchaseModal = dynamic(
+  () => import("@/components/modals/add-purchase-modal").then((mod) => mod.AddPurchaseModal),
+  { ssr: false }
+);
+const CardLogicModal = dynamic(
+  () => import("@/components/modals/card-logic-modal").then((mod) => mod.CardLogicModal),
+  { ssr: false }
+);
+const SkuDrawer = dynamic(
+  () => import("@/components/modals/sku-drawer").then((mod) => mod.SkuDrawer),
+  { ssr: false }
+);
 
 interface DashboardViewProps {
   selectedMarketplace?: Marketplace | "ALL";
@@ -87,6 +102,8 @@ export function DashboardView({
     feesBreakdown,
     claimsSummary,
     settlementSummary,
+    acknowledgedLossLeaderSkus,
+    toggleLossLeaderAcknowledgment,
     addOrder,
     addReturn,
     addPurchase,
@@ -231,9 +248,17 @@ export function DashboardView({
     }));
   }, [marketplaceBreakdown]);
 
+  // Session dismissal state for Margin Erosion Advisory banner
+  const [isAdvisoryDismissed, setIsAdvisoryDismissed] = useState(false);
+
   const lossMakingSkus = useMemo(() => {
     return skuBreakdown.filter((s) => s.profit < 0);
   }, [skuBreakdown]);
+
+  // Active risk SKUs excluding user-acknowledged Loss Leaders
+  const activeAdvisorySkus = useMemo(() => {
+    return lossMakingSkus.filter((s) => !acknowledgedLossLeaderSkus.includes(s.sku));
+  }, [lossMakingSkus, acknowledgedLossLeaderSkus]);
 
   // Filtered & Sorted SKUs
   const processedSkus = useMemo(() => {
@@ -1489,9 +1514,9 @@ export function DashboardView({
       </div>
 
       {/* Loss-making SKU Alert Banner */}
-      {lossMakingSkus.length > 0 && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-black/[0.06] shadow-apple-md flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs transition-all">
-          <div className="flex items-start gap-3.5 min-w-0">
+      {!isAdvisoryDismissed && activeAdvisorySkus.length > 0 && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-black/[0.06] shadow-apple-md flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs transition-all relative">
+          <div className="flex items-start gap-3.5 min-w-0 pr-8 md:pr-0">
             <div className="w-9 h-9 rounded-xl bg-[#D70015]/[0.08] border border-[#D70015]/15 text-[#D70015] flex items-center justify-center shrink-0 mt-0.5">
               <AlertTriangle className="w-4 h-4" />
             </div>
@@ -1501,20 +1526,20 @@ export function DashboardView({
                   Margin Erosion Advisory
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full bg-[#D70015]/[0.08] border border-[#D70015]/15 text-[10px] font-semibold text-[#D70015] tracking-wide">
-                  {lossMakingSkus.length === 1 ? "1 SKU at Risk" : `${lossMakingSkus.length} SKUs at Risk`}
+                  {activeAdvisorySkus.length === 1 ? "1 SKU at Risk" : `${activeAdvisorySkus.length} SKUs at Risk`}
                 </span>
               </div>
               <p className="text-[#86868B] text-xs leading-relaxed">
-                {lossMakingSkus.length === 1
+                {activeAdvisorySkus.length === 1
                   ? "1 product SKU is currently operating at a net loss"
-                  : `${lossMakingSkus.length} product SKUs are currently operating at a net loss`}{" "}
+                  : `${activeAdvisorySkus.length} product SKUs are currently operating at a net loss`}{" "}
                 after factoring in reverse logistics freight and return damage write-offs.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap shrink-0 pl-12 md:pl-0">
-            {lossMakingSkus.map((s) => (
+            {activeAdvisorySkus.map((s) => (
               <button
                 key={s.sku}
                 onClick={() => {
@@ -1544,6 +1569,16 @@ export function DashboardView({
             >
               <span>Filter Table</span>
               <ArrowDownRight className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsAdvisoryDismissed(true)}
+              aria-label="Dismiss advisory banner"
+              className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer active:scale-95 shrink-0 ml-1"
+              title="Dismiss advisory banner"
+            >
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -1760,11 +1795,14 @@ export function DashboardView({
                         <span
                           className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
                             isLoss
-                              ? "bg-rose-500/10 text-rose-800 border-rose-500/20"
+                              ? acknowledgedLossLeaderSkus.includes(s.sku)
+                                ? "bg-amber-500/10 text-amber-800 border-amber-500/20"
+                                : "bg-rose-500/10 text-rose-800 border-rose-500/20"
                               : s.margin > 0.2
                               ? "bg-emerald-500/10 text-emerald-800 border-emerald-500/20"
                               : "bg-amber-500/10 text-amber-800 border-amber-500/20"
                           }`}
+                          title={isLoss && acknowledgedLossLeaderSkus.includes(s.sku) ? "Acknowledged Loss Leader" : undefined}
                         >
                           {formatPercent(s.margin)}
                         </span>
@@ -1887,6 +1925,10 @@ export function DashboardView({
       <SkuDrawer
         skuData={selectedSkuForDrawer}
         onClose={() => setSelectedSkuForDrawer(null)}
+        isAcknowledgedLossLeader={
+          selectedSkuForDrawer ? acknowledgedLossLeaderSkus.includes(selectedSkuForDrawer.sku) : false
+        }
+        onToggleLossLeader={toggleLossLeaderAcknowledgment}
       />
 
       {/* ─── CARD LOGIC INSPECTION MODAL ─── */}

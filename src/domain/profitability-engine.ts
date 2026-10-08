@@ -6,6 +6,8 @@ import {
   Claim,
   Expense,
   Marketplace,
+  Product,
+  ClaimStatus,
 } from "./types";
 
 export interface ProfitabilityMetrics {
@@ -327,19 +329,22 @@ export function calculateBusinessProfitability(
       order.status === "CLAIM_APPROVED" ||
       orderReturns.some(
         (r) => r.returnType === "DAMAGED_RETURN" || r.condition === "DAMAGED" || r.condition === "UNUSABLE"
-      ) ||
-      orderClaims.length > 0;
+      );
 
     const isCustomerReturn =
       order.status === "CUSTOMER_RETURN" ||
       order.status === "RETURNED" ||
       orderReturns.some((r) => r.returnType === "CUSTOMER_RETURN");
 
-    if (isRto) {
+    if (isRto && !isDamaged) {
       rtoCount += orderUnits;
       // COGS is inactive (0), Settlement is 0 (Points 6 & 15)
     } else if (isDamaged || order.status === "CLAIM_PENDING" || order.status === "CLAIM_APPROVED") {
-      customerReturnCount += orderUnits;
+      if (isRto) {
+        rtoCount += orderUnits;
+      } else {
+        customerReturnCount += orderUnits;
+      }
       damagedUnitsCount += orderUnits;
       // COGS is active (Points 5, 10 & 12)
       activeCogs += orderCogs;
@@ -353,10 +358,20 @@ export function calculateBusinessProfitability(
       activeCogs += orderCogs;
 
       // Settlement is counted ONLY for DELIVERED orders (Point 15)
-      const linkedSettlements = [
+      const rawSettlements = [
         ...(maps.settlementsByOrderMap.get(order.id) || []),
-        ...(order.channelOrderId ? maps.settlementsByOrderMap.get(order.channelOrderId) || [] : []),
+        ...(order.channelOrderId && order.channelOrderId !== order.id
+          ? maps.settlementsByOrderMap.get(order.channelOrderId) || []
+          : []),
       ];
+      const sSeen = new Set<string>();
+      const linkedSettlements: Settlement[] = [];
+      for (const s of rawSettlements) {
+        if (!sSeen.has(s.id)) {
+          sSeen.add(s.id);
+          linkedSettlements.push(s);
+        }
+      }
 
       if (linkedSettlements.length > 0) {
         settlementReceived += linkedSettlements.reduce((sum, s) => sum + s.netSettlement, 0);
@@ -497,14 +512,26 @@ export function calculateOrderProfitability(
   });
 
   // Check linked settlements with O(1) indexed map lookup if available
-  const linkedSettlements = indexedMaps
+  const rawLinkedSettlements = indexedMaps
     ? [
         ...(indexedMaps.settlementsByOrderMap.get(order.id) || []),
-        ...(order.channelOrderId ? indexedMaps.settlementsByOrderMap.get(order.channelOrderId) || [] : []),
+        ...(order.channelOrderId && order.channelOrderId !== order.id
+          ? indexedMaps.settlementsByOrderMap.get(order.channelOrderId) || []
+          : []),
       ]
     : settlements.filter(
         (s) => s.orderId === order.id || (order.channelOrderId && s.orderId === order.channelOrderId)
       );
+
+  // Deduplicate by settlement id
+  const settlementSeen = new Set<string>();
+  const linkedSettlements: Settlement[] = [];
+  for (const s of rawLinkedSettlements) {
+    if (!settlementSeen.has(s.id)) {
+      settlementSeen.add(s.id);
+      linkedSettlements.push(s);
+    }
+  }
 
   // Settlement amount
   let settledAmount = 0;
@@ -551,8 +578,7 @@ export function calculateOrderProfitability(
     order.status === "CLAIM_APPROVED" ||
     linkedReturns.some(
       (r) => r.returnType === "DAMAGED_RETURN" || r.condition === "DAMAGED" || r.condition === "UNUSABLE"
-    ) ||
-    linkedClaims.length > 0;
+    );
 
   const isCustomerReturn =
     order.status === "CUSTOMER_RETURN" ||
@@ -571,20 +597,20 @@ export function calculateOrderProfitability(
   let contributionProfit = 0;
   let chargesDeducted = 0;
 
-  if (isRto) {
-    // Point 6: RTO -> Settlement = 0, COGS = 0, Return Fee = 0, Profit = 0
-    effectiveSettlement = 0;
-    activeCogs = 0;
-    returnFee = 0;
-    contributionProfit = 0;
-    chargesDeducted = grossSales;
-  } else if (isDamaged || order.status === "CLAIM_PENDING" || order.status === "CLAIM_APPROVED") {
-    // Point 5 & 10: Customer Return + Damaged / Damaged Return / Claim:
-    // Settlement = 0, COGS = Active, Return Fee = Yes, Claim = approved amount
+  if (isDamaged || order.status === "CLAIM_PENDING" || order.status === "CLAIM_APPROVED") {
+    // Point 5 & 10: Damaged Return / Claim (Customer Return or RTO):
+    // Settlement = 0, COGS = Active, Return Fee = Yes (0 if RTO), Claim = approved amount
     // Profit = Claim Recovery − COGS − Return Fee
     effectiveSettlement = 0;
     activeCogs = totalOrderCogs;
     contributionProfit = Math.round((claimRecovery - activeCogs - returnFee) * 100) / 100;
+    chargesDeducted = grossSales;
+  } else if (isRto) {
+    // Point 6: Undamaged RTO -> Settlement = 0, COGS = 0, Return Fee = 0, Profit = 0
+    effectiveSettlement = 0;
+    activeCogs = 0;
+    returnFee = 0;
+    contributionProfit = 0;
     chargesDeducted = grossSales;
   } else if (isCustomerReturn) {
     // Point 4: Customer Return + Good:
@@ -841,6 +867,149 @@ export function calculateSkuProfitability(
       poas,
     };
   });
+}
+
+export interface ReturnFinancials {
+  unitCost: number;
+  productCost: number;
+  isDamaged: boolean;
+  salvageValue: number;
+  returnShippingCost: number;
+  customerReturnFee: number;
+  damageLoss: number;
+  baseLoss: number;
+  claim?: Claim;
+  claimStatus: ClaimStatus | "UNCLAIMED" | "NO_CLAIM";
+  claimStatusLabel: string;
+  amountClaimed: number;
+  reimbursementAmount: number;
+  netLoss: number;
+  isNetProfit: boolean;
+  netFinancialImpact: number;
+}
+
+/**
+ * Computes deterministic real-time financial impact for any return event,
+ * linking damaged product cost basis, courier logistics fees, and claim reimbursements.
+ * Stays synchronized across Draft, Dispute, and Reimbursed claim transitions.
+ */
+export function computeReturnFinancials(
+  r: ReturnRecord,
+  orders: Order[] = [],
+  products: Product[] = [],
+  claims: Claim[] = []
+): ReturnFinancials {
+  // 1. Determine Product Unit Cost from Order snapshot or Catalog
+  const order = orders.find(
+    (o) => o.id === r.orderId || (r.channelOrderId && o.channelOrderId === r.channelOrderId)
+  );
+  const orderItem = order?.items.find((i) => i.sku === r.sku);
+  const matchedProduct = products.find((p) => p.sku === r.sku);
+  const unitCost = orderItem?.snapshotUnitCost ?? matchedProduct?.currentCostPrice ?? 350;
+  const productCost = unitCost * r.quantity;
+
+  // 2. Identify Damage State
+  const isDamaged =
+    r.condition === "DAMAGED" ||
+    r.condition === "UNUSABLE" ||
+    r.condition === "MISSING" ||
+    r.returnType === "DAMAGED_RETURN";
+
+  // 3. Logistics Fees & Salvage
+  const salvageValue = r.inventoryRecoveryValue || 0;
+  const isRto = r.returnType === "RTO";
+  const customerReturnFee = isRto ? 0 : (r.customerReturnFee ?? 0);
+  const returnShippingCost = isRto ? 0 : (r.returnShippingCost || 0);
+  const logisticsFees = returnShippingCost + customerReturnFee;
+
+  // 4. Base Loss (Gross Loss before Claim Reimbursement)
+  const damageLoss = isDamaged ? Math.max(0, productCost - salvageValue) : 0;
+  let baseLoss = 0;
+  if (isDamaged) {
+    baseLoss = damageLoss + logisticsFees;
+  } else {
+    baseLoss = isRto ? 0 : logisticsFees;
+  }
+
+  // Fallback to r.lossAmount if baseLoss is 0 and non-RTO recorded an explicit loss
+  if (baseLoss === 0 && r.lossAmount > 0 && !isRto) {
+    baseLoss = r.lossAmount;
+  }
+
+  // 5. Match Linked Claim
+  const claim = claims.find(
+    (c) =>
+      (r.claimId && c.id === r.claimId) ||
+      c.returnId === r.id ||
+      (c.orderId && (c.orderId === r.orderId || (r.channelOrderId && c.orderId === r.channelOrderId)))
+  );
+
+  // 6. Reimbursement & Claim Amount
+  const amountClaimed = claim ? claim.amountClaimed : (isDamaged ? baseLoss : 0);
+  const reimbursementAmount = claim ? (claim.amountRecovered || 0) : 0;
+
+  // 7. Claim Status Label
+  let claimStatus: ClaimStatus | "UNCLAIMED" | "NO_CLAIM" = "NO_CLAIM";
+  let claimStatusLabel = "No Claim Needed";
+
+  if (claim) {
+    claimStatus = claim.status;
+    switch (claim.status) {
+      case "NOT_FILED":
+        claimStatusLabel = "Draft Claim";
+        break;
+      case "FILED":
+        claimStatusLabel = "Dispute Filed";
+        break;
+      case "UNDER_REVIEW":
+        claimStatusLabel = "Dispute in Review";
+        break;
+      case "APPROVED":
+        claimStatusLabel = reimbursementAmount > 0 ? "Approved & Reimbursed" : "Approved";
+        break;
+      case "PARTIALLY_RECOVERED":
+        claimStatusLabel = "Partially Reimbursed";
+        break;
+      case "RECOVERED":
+        claimStatusLabel = "Reimbursed";
+        break;
+      case "REJECTED":
+        claimStatusLabel = "Dispute Rejected";
+        break;
+      case "CLOSED":
+        claimStatusLabel = "Closed";
+        break;
+      default:
+        claimStatusLabel = String(claim.status).replace(/_/g, " ");
+    }
+  } else if (isDamaged) {
+    claimStatus = "UNCLAIMED";
+    claimStatusLabel = "Unclaimed (Draft Eligible)";
+  }
+
+  // 8. Real-time Net Financial Impact (Net Loss or Net Profit)
+  const netFinancialImpact = Math.round((baseLoss - reimbursementAmount) * 100) / 100;
+  const isNetProfit = netFinancialImpact < 0;
+  const netLoss = Math.max(0, netFinancialImpact);
+
+  return {
+    unitCost,
+    productCost,
+    isDamaged,
+    salvageValue,
+    returnShippingCost,
+    customerReturnFee,
+    damageLoss,
+    baseLoss,
+    claim,
+    claimStatus,
+    claimStatusLabel,
+    amountClaimed,
+    reimbursementAmount,
+    netLoss,
+    isNetProfit,
+    netFinancialImpact,
+  };
 }
 
 export type DateRangePreset = "ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS" | "THIS_MONTH" | "PREVIOUS_MONTH" | "CUSTOM";

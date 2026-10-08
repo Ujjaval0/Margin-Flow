@@ -89,6 +89,8 @@ interface PlatformContextType {
   };
   marketplaceBreakdown: MarketplaceProfitability[];
   skuBreakdown: SkuProfitability[];
+  acknowledgedLossLeaderSkus: string[];
+  toggleLossLeaderAcknowledgment: (sku: string) => void;
   settlementAging: SettlementAgingSummary;
   guardrailStatus: GuardrailCheckResult[];
   inventoryMetrics: InventoryMetrics;
@@ -170,6 +172,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [auditLogs, setAuditLogs] = useState<FinancialAuditLog[]>(INITIAL_AUDIT_LOGS);
   const [complaints, setComplaints] = useState<CustomerComplaint[]>(INITIAL_COMPLAINTS);
   const [currentUser, setCurrentUser] = useState<UserAccount>(DEFAULT_ACCOUNTS[0]);
+  const [acknowledgedLossLeaderSkus, setAcknowledgedLossLeaderSkus] = useState<string[]>([]);
   const [datePreset, setDatePreset] = useState<DateRangePreset>("ALL");
   const [customDateRange, setCustomDateRange] = useState<DateFilterRange | null>(null);
   const [selectedMarketplace, setSelectedMarketplace] = useState<Marketplace | "ALL">("ALL");
@@ -180,12 +183,15 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined") {
         const savedSession = localStorage.getItem("marginflow_session");
         if (savedSession) {
-          try {
             const parsedUser = JSON.parse(savedSession);
-            if (parsedUser && parsedUser.accountType) {
-              setCurrentUser(parsedUser);
+            if (parsedUser) {
+              setCurrentUser((prev) => ({
+                ...prev,
+                ...parsedUser,
+                accountType: parsedUser.accountType || prev.accountType,
+                onboardingPreferences: parsedUser.onboardingPreferences || prev.onboardingPreferences,
+              }));
             }
-          } catch {}
         }
 
         const saved = localStorage.getItem(LEDGER_STORAGE_KEY);
@@ -215,6 +221,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             if (Array.isArray(parsed.data.aiDocuments)) setAiDocuments(parsed.data.aiDocuments);
             if (Array.isArray(parsed.data.auditLogs)) setAuditLogs(parsed.data.auditLogs);
             if (Array.isArray(parsed.data.complaints)) setComplaints(parsed.data.complaints);
+            if (Array.isArray(parsed.data.acknowledgedLossLeaderSkus)) setAcknowledgedLossLeaderSkus(parsed.data.acknowledgedLossLeaderSkus);
           }
         }
       }
@@ -246,6 +253,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
               aiDocuments,
               auditLogs,
               complaints,
+              acknowledgedLossLeaderSkus,
             },
           };
           const serialized = JSON.stringify(snapshot);
@@ -280,6 +288,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     aiDocuments,
     auditLogs,
     complaints,
+    acknowledgedLossLeaderSkus,
   ]);
 
   // Derive dynamic anchor date from latest order in dataset
@@ -753,12 +762,18 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     const isDamaged =
       returnRecord.condition === "DAMAGED" ||
       returnRecord.condition === "UNUSABLE" ||
-      returnRecord.condition === "MISSING";
+      returnRecord.condition === "MISSING" ||
+      returnRecord.returnType === "DAMAGED_RETURN";
 
     const effectiveReturnFee =
       returnRecord.returnType === "RTO" ? 0 : (returnRecord.customerReturnFee ?? 0);
     const effectiveLossAmount =
-      returnRecord.returnType === "RTO" ? 0 : returnRecord.lossAmount;
+      (returnRecord.returnType === "RTO" && !isDamaged) ? 0 : returnRecord.lossAmount;
+
+    let claimIdToLink = returnRecord.claimId;
+    if (!claimIdToLink && (isDamaged || returnRecord.returnType === "LOST_RETURN")) {
+      claimIdToLink = `CLM-${Date.now().toString().slice(-4)}`;
+    }
 
     const enrichedRecord: ReturnRecord = {
       ...returnRecord,
@@ -771,6 +786,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         (!isDamaged ? "RESTOCKED" : "WRITTEN_OFF"),
       customerReturnFee: effectiveReturnFee,
       lossAmount: effectiveLossAmount,
+      claimId: claimIdToLink,
     };
 
     setReturns((prev) => [enrichedRecord, ...prev]);
@@ -796,7 +812,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         );
         if (!existingClaim) {
           const autoClaim: Claim = {
-            id: `CLM-${Date.now().toString().slice(-4)}`,
+            id: claimIdToLink || `CLM-${Date.now().toString().slice(-4)}`,
             orderId: enrichedRecord.orderId,
             returnId: enrichedRecord.id,
             marketplace: enrichedRecord.marketplace,
@@ -1078,12 +1094,22 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   const addClaim = useCallback((claim: Claim) => {
     setClaims((prev) => [claim, ...prev]);
+    if (claim.returnId) {
+      setReturns((prevReturns) =>
+        prevReturns.map((r) =>
+          r.id === claim.returnId ? { ...r, claimId: claim.id } : r
+        )
+      );
+    }
   }, []);
 
   const updateClaim = useCallback((claimId: string, recoveredAmount: number, status: Claim["status"]) => {
+    let linkedReturnId: string | undefined;
+
     setClaims((prev) =>
       prev.map((c) => {
         if (c.id === claimId) {
+          linkedReturnId = c.returnId;
           const log: FinancialAuditLog = {
             id: `AUD-${Date.now()}`,
             timestamp: new Date().toISOString(),
@@ -1122,6 +1148,19 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           };
         }
         return c;
+      })
+    );
+
+    // Keep linked return synchronized with claimId
+    setReturns((prevReturns) =>
+      prevReturns.map((r) => {
+        if (r.claimId === claimId || (linkedReturnId && r.id === linkedReturnId)) {
+          return {
+            ...r,
+            claimId,
+          };
+        }
+        return r;
       })
     );
   }, []);
@@ -1296,7 +1335,15 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addSettlement = useCallback((settlement: Settlement) => {
-    setSettlements((prev) => [settlement, ...prev]);
+    setSettlements((prev) => {
+      const existingIdx = prev.findIndex(
+        (s) => s.id === settlement.id || (settlement.orderId && s.orderId === settlement.orderId)
+      );
+      if (existingIdx >= 0) {
+        return prev.map((s, idx) => (idx === existingIdx ? settlement : s));
+      }
+      return [settlement, ...prev];
+    });
   }, []);
 
   const addExpense = useCallback((expense: Expense) => {
@@ -1674,6 +1721,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setAiDocuments(INITIAL_AI_DOCUMENTS);
     setAuditLogs(INITIAL_AUDIT_LOGS);
     setComplaints(INITIAL_COMPLAINTS);
+    setAcknowledgedLossLeaderSkus([]);
     setDatePreset("ALL");
     setCustomDateRange(null);
   }, []);
@@ -1694,6 +1742,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         aiDocuments,
         auditLogs,
         complaints,
+        acknowledgedLossLeaderSkus,
       },
     };
     return JSON.stringify(snapshot, null, 2);
@@ -1709,6 +1758,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     aiDocuments,
     auditLogs,
     complaints,
+    acknowledgedLossLeaderSkus,
   ]);
 
   const importLedgerSnapshot = useCallback((jsonString: string): boolean => {
@@ -1728,11 +1778,18 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       if (Array.isArray(data.aiDocuments)) setAiDocuments(data.aiDocuments);
       if (Array.isArray(data.auditLogs)) setAuditLogs(data.auditLogs);
       if (Array.isArray(data.complaints)) setComplaints(data.complaints);
+      if (Array.isArray(data.acknowledgedLossLeaderSkus)) setAcknowledgedLossLeaderSkus(data.acknowledgedLossLeaderSkus);
       return true;
     } catch (e) {
       console.error("Failed to parse imported ledger snapshot:", e);
       return false;
     }
+  }, []);
+
+  const toggleLossLeaderAcknowledgment = useCallback((sku: string) => {
+    setAcknowledgedLossLeaderSkus((prev) =>
+      prev.includes(sku) ? prev.filter((s) => s !== sku) : [...prev, sku]
+    );
   }, []);
 
   const bulkAddProducts = useCallback((newProducts: Product[]) => {
@@ -1844,6 +1901,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       profitabilityTrends,
       marketplaceBreakdown,
       skuBreakdown,
+      acknowledgedLossLeaderSkus,
+      toggleLossLeaderAcknowledgment,
       settlementAging,
       guardrailStatus,
       inventoryMetrics,
@@ -1917,6 +1976,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       profitabilityTrends,
       marketplaceBreakdown,
       skuBreakdown,
+      acknowledgedLossLeaderSkus,
+      toggleLossLeaderAcknowledgment,
       settlementAging,
       guardrailStatus,
       inventoryMetrics,

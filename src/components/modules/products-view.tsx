@@ -16,7 +16,12 @@ import {
   Package,
   Upload,
 } from "lucide-react";
-import { ProductBulkUploadModal } from "@/components/modals/product-bulk-upload-modal";
+import dynamic from "next/dynamic";
+
+const ProductBulkUploadModal = dynamic(
+  () => import("@/components/modals/product-bulk-upload-modal").then((mod) => mod.ProductBulkUploadModal),
+  { ssr: false }
+);
 
 export function ProductsView() {
   const { products, suppliers, addProduct, bulkAddProducts, deleteProduct, updateProductCost } = usePlatform();

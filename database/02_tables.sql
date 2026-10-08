@@ -21,6 +21,7 @@ CREATE TABLE user_accounts (
   company_name    TEXT NOT NULL DEFAULT 'My Company',
   gstin           TEXT,
   phone           TEXT,
+  password_hash   TEXT,                   -- Populated for email/password authentication
   supplier_id     UUID,                   -- Populated only for SUPPLIER role (FK added later)
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()

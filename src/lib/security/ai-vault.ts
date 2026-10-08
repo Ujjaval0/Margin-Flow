@@ -184,8 +184,6 @@ export interface AISettings {
   keys: Partial<Record<AIProvider, string>>;
   customBaseUrl?: string;
   useLocalFallbackIfEmpty: boolean;
-  jevApiKey?: string;
-  enableJevAcceleration?: boolean;
 }
 
 const VAULT_STORAGE_KEY = "marginflow_ai_vault_v1";
@@ -195,8 +193,6 @@ const DEFAULT_SETTINGS: AISettings = {
   model: "gemini-2.0-flash",
   keys: {},
   useLocalFallbackIfEmpty: true,
-  jevApiKey: "",
-  enableJevAcceleration: true,
 };
 
 export interface DiscoveredModel {
@@ -337,7 +333,7 @@ export function loadAISettings(): AISettings {
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
 
-    // Safeguard if previously set provider is no longer in registry (e.g. legacy 'typesafe')
+    // Safeguard if previously set provider is no longer in registry
     let activeProvider: AIProvider = parsed.activeProvider || "gemini";
     if (!PROVIDER_REGISTRY[activeProvider]) {
       activeProvider = "gemini";
@@ -349,8 +345,6 @@ export function loadAISettings(): AISettings {
       keys: parsed.keys || {},
       customBaseUrl: parsed.customBaseUrl,
       useLocalFallbackIfEmpty: parsed.useLocalFallbackIfEmpty ?? true,
-      jevApiKey: parsed.jevApiKey || "",
-      enableJevAcceleration: parsed.enableJevAcceleration ?? true,
     };
   } catch (e) {
     console.error("Failed to parse AI settings from storage", e);

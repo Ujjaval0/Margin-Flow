@@ -5,7 +5,123 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { GroundedFinancialContext, CFO_SYSTEM_PROMPT } from "@/domain/ai-context";
 import { analyzeFinancialQuery } from "@/domain/deterministic-analyst";
 import { AIProvider, PROVIDER_REGISTRY } from "@/lib/security/ai-vault";
-import { evaluateChatTriage } from "@/lib/ai/jev-client";
+
+type ChatIntent =
+  | "pnl_diagnostic"
+  | "anomaly_audit"
+  | "sku_inspection"
+  | "settlement_aging"
+  | "returns_claim"
+  | "general_chat";
+
+interface ChatTriageResult {
+  is_off_topic: number;
+  intent: ChatIntent;
+  needs_generative_synthesis: number;
+  urgency: "Low" | "Medium" | "High";
+}
+
+/**
+ * Local deterministic chat triage — classifies intent, off-topic probability,
+ * and whether the query needs generative prose or a direct data card.
+ */
+function triageChat(prompt: string): ChatTriageResult {
+  const q = prompt.toLowerCase().trim();
+
+  // 1. Off-Topic Probability
+  const offTopicKeywords = [
+    "movie", "film", "cinema", "music", "song", "singer", "actor", "actress",
+    "hollywood", "bollywood", "taylor swift", "netflix", "spotify", "cricket",
+    "ipl", "football", "sports", "recipe", "cooking", "dating", "porn", "sex",
+    "explicit", "politics", "election", "weather"
+  ];
+  let offTopicMatches = 0;
+  for (const kw of offTopicKeywords) {
+    if (q.includes(kw)) offTopicMatches++;
+  }
+  const is_off_topic = offTopicMatches > 0 ? Math.min(1.0, 0.75 + offTopicMatches * 0.15) : 0.05;
+
+  // 2. Intent Classification
+  let intent: ChatIntent = "general_chat";
+  if (
+    q.includes("anomaly") ||
+    q.includes("radar") ||
+    q.includes("fee creep") ||
+    q.includes("overcharge") ||
+    q.includes("weight bump") ||
+    q.includes("leakage")
+  ) {
+    intent = "anomaly_audit";
+  } else if (
+    q.includes("profit") ||
+    q.includes("margin") ||
+    q.includes("loss") ||
+    q.includes("revenue") ||
+    q.includes("sales") ||
+    q.includes("waterfall") ||
+    q.includes("poas") ||
+    q.includes("roas")
+  ) {
+    intent = "pnl_diagnostic";
+  } else if (
+    q.includes("settlement") ||
+    q.includes("aging") ||
+    q.includes("overdue") ||
+    q.includes("payout") ||
+    q.includes("disbursement")
+  ) {
+    intent = "settlement_aging";
+  } else if (
+    q.includes("claim") ||
+    q.includes("safe-t") ||
+    q.includes("safet") ||
+    q.includes("dispute") ||
+    q.includes("damaged return")
+  ) {
+    intent = "returns_claim";
+  } else if (
+    q.includes("sku") ||
+    q.includes("product") ||
+    q.includes("item") ||
+    q.includes("asin") ||
+    q.includes("fsn")
+  ) {
+    intent = "sku_inspection";
+  }
+
+  // 3. Needs Generative Synthesis
+  let needs_generative_synthesis = 0.20;
+  if (
+    q.startsWith("why") ||
+    q.startsWith("how") ||
+    q.startsWith("explain") ||
+    q.includes("advise") ||
+    q.includes("recommend") ||
+    q.includes("strategy") ||
+    q.length > 80
+  ) {
+    needs_generative_synthesis = 0.85;
+  } else if (
+    q === "hi" ||
+    q === "hello" ||
+    q === "hey" ||
+    q.includes("scan") ||
+    q.includes("audit") ||
+    q.includes("show")
+  ) {
+    needs_generative_synthesis = 0.15;
+  }
+
+  // 4. Urgency
+  let urgency: "Low" | "Medium" | "High" = "Low";
+  if (q.includes("urgent") || q.includes("immediately") || q.includes("loss") || q.includes("fraud") || q.includes("bleeding")) {
+    urgency = "High";
+  } else if (q.includes("why") || q.includes("alert") || q.includes("drop") || q.includes("overdue")) {
+    urgency = "Medium";
+  }
+
+  return { is_off_topic, intent, needs_generative_synthesis, urgency };
+}
 
 /**
  * Translates provider HTTP error codes into plain-English diagnostic messages
@@ -59,8 +175,6 @@ export async function POST(req: NextRequest) {
       rawModel ||
       (provider === "gemini" ? "gemini-2.0-flash" : PROVIDER_REGISTRY[provider]?.defaultModel || "gemini-2.0-flash");
     const customBaseUrl = req.headers.get("x-ai-base-url") || "";
-    const jevApiKey = req.headers.get("x-jev-key") || process.env.TYPESAFE_API_KEY || "";
-    const openRouterKey = provider === "openrouter" ? apiKey : (req.headers.get("x-openrouter-key") || "");
 
     const providerMeta = PROVIDER_REGISTRY[provider];
     const providerName = providerMeta?.name || provider;
@@ -69,11 +183,8 @@ export async function POST(req: NextRequest) {
       req.headers.get("x-ai-stream") !== "false" &&
       !req.headers.get("accept")?.includes("application/json");
 
-    // 0. JEV SYSTEM ONE DECISION ENGINE (3-Tier Cascade: Direct -> OpenRouter -> Local)
-    const triage = await evaluateChatTriage(prompt, {
-      jevApiKey,
-      openRouterKey,
-    });
+    // 0. Local deterministic chat triage (intent classification, off-topic filter)
+    const triage = triageChat(prompt);
 
     // Guardrail Check: Probabilistic off-topic filter in sub-80ms (zero LLM tokens)
     if (triage.is_off_topic > 0.80) {
@@ -81,9 +192,9 @@ export async function POST(req: NextRequest) {
         success: true,
         answer: "I'm dedicated exclusively as your store assistant to help you understand and manage your MarginFlow data—such as your sales, profit margins, orders, returns, and inventory. Let me know what you'd like to explore in your numbers!",
         chips: [],
-        source: `JEV_GUARDRAIL_${triage.tierUsed}`,
-        provider: "jev-system-one",
-        model: "jev-guardrail",
+        source: "LOCAL_GUARDRAIL",
+        provider: "deterministic",
+        model: "local-triage",
         diagnosticMessage: null,
       });
     }
@@ -101,8 +212,8 @@ export async function POST(req: NextRequest) {
         success: true,
         answer: fastResult.answer,
         chips: fastResult.chips,
-        source: `JEV_FAST_PATH_${triage.tierUsed}`,
-        provider: "jev-fast-path",
+        source: "LOCAL_FAST_PATH",
+        provider: "deterministic",
         model: `intent:${triage.intent}`,
         diagnosticMessage: null,
       });
@@ -115,20 +226,19 @@ export async function POST(req: NextRequest) {
         success: true,
         answer: result.answer,
         chips: result.chips,
-        source: `LOCAL_DETERMINISTIC_VIA_${triage.tierUsed}`,
+        source: "LOCAL_DETERMINISTIC",
         provider: "deterministic",
         model: "offline-engine",
         diagnosticMessage: null,
       });
     }
 
-    // 2. Format Grounded Prompt with context + Jev Triage tags
+    // 2. Format Grounded Prompt with context + triage tags
     const fullSystemInstruction = `${CFO_SYSTEM_PROMPT}
 
-JEV_SYSTEM_ONE_TRIAGE (Pre-classified Context):
+CHAT_TRIAGE (Pre-classified Context):
 - Primary Intent: ${triage.intent}
 - Urgency: ${triage.urgency}
-- Decision Engine: ${triage.tierUsed} (${triage.latencyMs}ms)
 
 GROUNDED_FINANCIAL_CONTEXT (SOURCE OF TRUTH - ALL NUMBERS PRE-CALCULATED):
 ${JSON.stringify(context, null, 2)}`;
@@ -193,8 +303,6 @@ ${JSON.stringify(context, null, 2)}`;
           "x-ai-source": "LLM_PROVIDER",
           "x-ai-provider": provider,
           "x-ai-model": model,
-          "x-jev-tier": triage.tierUsed,
-          "x-jev-latency": String(triage.latencyMs),
         },
       });
     } catch (providerError: any) {

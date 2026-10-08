@@ -1,7 +1,5 @@
-"use client";
-
-import { AIStagingView } from "@/components/modules/ai-staging-view";
+import { redirect } from "next/navigation";
 
 export default function DocumentsPage() {
-  return <AIStagingView />;
+  redirect("/orders");
 }

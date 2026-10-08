@@ -712,6 +712,7 @@ export const INITIAL_RETURNS: ReturnRecord[] = [
     otherReturnCosts: 0,
     inventoryRecoveryValue: 220, // 2 units @ 110 recovered back to stock
     lossAmount: 0, // RTO has 0 return fee and 0 loss
+    claimId: "CLM-304",
     notes: "Package returned unopened in original shipper carton.",
   },
   {
@@ -734,7 +735,7 @@ export const INITIAL_RETURNS: ReturnRecord[] = [
     customerReturnFee: 50, // Customer return: fee always recorded
     otherReturnCosts: 15,
     inventoryRecoveryValue: 100, // Scrap salvage value
-    lossAmount: 825, // (Cost 840 - Scrap 100) + Shipping 85 = net loss
+    lossAmount: 175, // Net loss after ₹650 SAFE-T reimbursement: (840 - 100) + 85 - 650 = 175
     claimId: "CLM-301",
     notes: "Physical damage caused in transit. SAFE-T Claim filed with Amazon.",
   },
@@ -759,6 +760,7 @@ export const INITIAL_RETURNS: ReturnRecord[] = [
     otherReturnCosts: 10,
     inventoryRecoveryValue: 0,
     lossAmount: 495,
+    claimId: "CLM-302",
     notes: "Package sitting in uninspected reverse pallet >18 days. Urgent Flipkart dispute claim needed.",
   },
   {
@@ -1154,86 +1156,7 @@ export const INITIAL_EXPENSES: Expense[] = [
   },
 ];
 
-export const INITIAL_AI_DOCUMENTS: AIStagedDocument[] = [
-  {
-    id: "DOC-AI-001",
-    fileName: "Amazon_Tax_Invoice_402-8392182.pdf",
-    fileType: "INVOICE",
-    uploadDate: "2026-09-07T18:30:00Z",
-    status: "STAGED_NEEDS_REVIEW",
-    rawTextPreview: `TAX INVOICE
-Sold By: VoltTech India Retail Pvt Ltd
-Invoice Number: DEL-2026-09-881
-Order ID: 402-8392182-1928301
-Order Date: 02.09.2026
-Channel: Amazon.in
-Item: Wireless Ergonomic Mouse (Silent Click)
-SKU: B08WEM01-IND
-Qty: 1
-Unit Price: ₹899.00
-Discount: ₹50.00
-IGST 18%: ₹129.50
-Total: ₹849.00`,
-    extractedData: {
-      marketplace: { value: "Amazon India", confidence: 0.98, provenance: "AI_EXTRACTED" },
-      orderId: { value: "402-8392182-1928301", confidence: 0.99, provenance: "AI_EXTRACTED" },
-      invoiceNumber: { value: "DEL-2026-09-881", confidence: 0.95, provenance: "AI_EXTRACTED" },
-      orderDate: { value: "2026-09-02", confidence: 0.94, provenance: "AI_EXTRACTED" },
-      sku: { value: "ELEC-WEM-01", confidence: 0.92, provenance: "AI_EXTRACTED" },
-      productName: { value: "Wireless Ergonomic Mouse (Silent Click)", confidence: 0.97, provenance: "AI_EXTRACTED" },
-      quantity: { value: 1, confidence: 0.99, provenance: "AI_EXTRACTED" },
-      unitPrice: { value: 899, confidence: 0.97, provenance: "AI_EXTRACTED" },
-      discount: { value: 50, confidence: 0.91, provenance: "AI_EXTRACTED" },
-      taxAmount: { value: 129.5, confidence: 0.93, provenance: "AI_EXTRACTED" },
-      totalAmount: { value: 849, confidence: 0.98, provenance: "AI_EXTRACTED" },
-    },
-    arithmeticValidation: validateDocumentArithmetic(1, 899, 50, 0, 849),
-    catalogValidation: {
-      skuMatched: true,
-      matchedSkuId: "ELEC-WEM-01",
-    },
-  },
-  {
-    id: "DOC-AI-002",
-    fileName: "Zenith_Cable_Invoice_Scan_Corrupted.pdf",
-    fileType: "SUPPLIER_BILL",
-    uploadDate: "2026-09-07T19:15:00Z",
-    status: "STAGED_NEEDS_REVIEW",
-    rawTextPreview: `ZENITH CABLE & POWER SUPPLIES
-Bill No: ZPS-9021
-Date: 06-Sep-2026
-Product: Braided 100W Type-C to Type-C Cable
-Quantity: 100
-Rate: ₹110.00
-Subtotal: ₹11,000.00
-Tax GST 18%: ₹1,980.00
-Extracted Grand Total: ₹14,200.00 (Blurred handwritten smudge)`,
-    extractedData: {
-      marketplace: { value: "Personal Website", confidence: 0.75, provenance: "AI_EXTRACTED" },
-      orderId: { value: "PO-ZPS-9021", confidence: 0.82, provenance: "AI_EXTRACTED" },
-      invoiceNumber: { value: "ZPS-9021", confidence: 0.88, provenance: "AI_EXTRACTED" },
-      orderDate: { value: "2026-09-06", confidence: 0.9, provenance: "AI_EXTRACTED" },
-      sku: { value: "ELEC-BRAID-CBL", confidence: 0.86, provenance: "AI_EXTRACTED" },
-      productName: { value: "Braided 100W Type-C to Type-C Cable (2m)", confidence: 0.91, provenance: "AI_EXTRACTED" },
-      quantity: { value: 100, confidence: 0.95, provenance: "AI_EXTRACTED" },
-      unitPrice: { value: 110, confidence: 0.92, provenance: "AI_EXTRACTED" },
-      discount: { value: 0, confidence: 0.9, provenance: "AI_EXTRACTED" },
-      taxAmount: { value: 1980, confidence: 0.89, provenance: "AI_EXTRACTED" },
-      totalAmount: {
-        value: 14200,
-        confidence: 0.62,
-        provenance: "AI_EXTRACTED",
-        isFlaggedAnomaly: true,
-        anomalyMessage: "Mathematical mismatch detected between line items and total.",
-      },
-    },
-    arithmeticValidation: validateDocumentArithmetic(100, 110, 0, 1980, 14200),
-    catalogValidation: {
-      skuMatched: true,
-      matchedSkuId: "ELEC-BRAID-CBL",
-    },
-  },
-];
+export const INITIAL_AI_DOCUMENTS: AIStagedDocument[] = [];
 
 export const INITIAL_AUDIT_LOGS: FinancialAuditLog[] = [
   {
@@ -1328,6 +1251,12 @@ export const DEFAULT_ACCOUNTS: UserAccount[] = [
     gstin: "27AABCV1234F1Z1",
     phone: "+91 98200 99881",
     authenticatedAt: "2026-09-24T08:00:00Z",
+    onboardingPreferences: {
+      role: "FOUNDER",
+      channels: ["AMAZON", "FLIPKART", "SHOPIFY"],
+      volume: "GROWTH",
+      completedAt: "2026-09-24T08:05:00Z",
+    },
   },
   {
     id: "ACC-002",
@@ -1339,6 +1268,12 @@ export const DEFAULT_ACCOUNTS: UserAccount[] = [
     gstin: "27AAACA1234A1Z5",
     phone: "+91 98200 12345",
     authenticatedAt: "2026-09-24T08:30:00Z",
+    onboardingPreferences: {
+      role: "SUPPLIER_MANUFACTURER",
+      channels: ["OFFLINE_B2B", "AMAZON"],
+      volume: "SCALE",
+      completedAt: "2026-09-24T08:35:00Z",
+    },
   },
   {
     id: "ACC-003",
@@ -1349,5 +1284,11 @@ export const DEFAULT_ACCOUNTS: UserAccount[] = [
     gstin: "24AABCM9981K1Z3",
     phone: "+91 99120 44556",
     authenticatedAt: "2026-09-24T09:00:00Z",
+    onboardingPreferences: {
+      role: "AGENCY_CONSULTANT",
+      channels: ["OFFLINE_B2B", "FLIPKART", "AMAZON"],
+      volume: "ENTERPRISE",
+      completedAt: "2026-09-24T09:05:00Z",
+    },
   },
 ];

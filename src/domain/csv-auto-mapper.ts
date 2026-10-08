@@ -1,6 +1,5 @@
 import { Order, OrderItem, Marketplace, OrderStatus, Product } from "@/domain/types";
 import { normalizeMarketplace } from "@/lib/marketplace-config";
-import { evaluateCsvHeaderMatch } from "@/lib/ai/jev-client";
 
 export type MarketplaceSheetFormat =
   | "AMAZON_MTR"
@@ -344,56 +343,6 @@ export function autoMapColumns(
   return mappings;
 }
 
-/**
- * Enhanced Auto-Mapper with Jev System One Resolution:
- * Matches ambiguous or non-standard headers using Jev's Choice primitive
- * after standard fast alias matching.
- */
-export async function autoMapColumnsWithJev(
-  headers: string[],
-  sampleRows: string[][],
-  options?: { jevApiKey?: string; openRouterKey?: string }
-): Promise<AutoMappedColumn[]> {
-  const mappings = autoMapColumns(headers, sampleRows);
-  const mappedTargets = new Set(mappings.map((m) => m.targetField));
-  const mappedIndices = new Set(mappings.map((m) => m.sourceIndex));
-
-  const unmappedTargets = TARGET_FIELDS.filter((tf) => !mappedTargets.has(tf.field));
-  const unmappedHeaders = headers
-    .map((h, idx) => ({ header: h, index: idx }))
-    .filter((h) => !mappedIndices.has(h.index) && h.header.trim() !== "");
-
-  if (unmappedTargets.length === 0 || unmappedHeaders.length === 0) {
-    return mappings;
-  }
-
-  const candidateFieldNames = unmappedTargets.map((tf) => tf.field);
-
-  for (const { header, index } of unmappedHeaders) {
-    try {
-      const match = await evaluateCsvHeaderMatch(header, candidateFieldNames, options);
-      if (match.matchedCandidate && match.confidence > 0.6) {
-        const tf = TARGET_FIELDS.find((t) => t.field === match.matchedCandidate);
-        if (tf && !mappedTargets.has(tf.field)) {
-          mappedTargets.add(tf.field);
-          mappedIndices.add(index);
-          mappings.push({
-            targetField: tf.field,
-            targetLabel: tf.label,
-            sourceHeader: header,
-            sourceIndex: index,
-            confidence: match.confidence,
-            sampleValues: sampleRows.slice(0, 3).map((r) => (r[index] || "").trim()).filter(Boolean),
-          });
-        }
-      }
-    } catch {
-      // Continue gracefully if resolution errors
-    }
-  }
-
-  return mappings;
-}
 
 // Main high-performance Auto-Mapper executor
 export function detectAndMapCsv(
@@ -432,7 +381,7 @@ export function detectAndMapCsv(
   // 2. Format signature detection
   const detectionMeta = detectFormatSignature(rawHeaders);
 
-  // 3. Column auto-mapping (uses custom/Jev mappings if provided, else standard alias matcher)
+  // 3. Column auto-mapping (uses custom mappings if provided, else standard alias matcher)
   const columnMappings = customMappings || autoMapColumns(rawHeaders, dataRows);
 
   // Quick lookup map: targetField -> source column index
@@ -592,21 +541,3 @@ export function detectAndMapCsv(
   };
 }
 
-/**
- * Async wrapper that applies Jev System One header resolution to any unmapped columns
- * before generating the final normalized order list.
- */
-export async function detectAndMapCsvWithJev(
-  rawText: string,
-  products: Product[],
-  options?: { jevApiKey?: string; openRouterKey?: string }
-): Promise<CsvMappingResult> {
-  const rawRows = parseRawCsv(rawText);
-  if (rawRows.length < 2) return detectAndMapCsv(rawText, products);
-
-  const { rowIndex: headerRowIndex, headers: rawHeaders } = findHeaderRow(rawRows);
-  const dataRows = rawRows.slice(headerRowIndex + 1).filter((r) => r.some((c) => c.trim() !== ""));
-
-  const customMappings = await autoMapColumnsWithJev(rawHeaders, dataRows, options);
-  return detectAndMapCsv(rawText, products, customMappings);
-}

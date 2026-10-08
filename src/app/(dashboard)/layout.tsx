@@ -67,18 +67,21 @@ export default function DashboardLayout({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Trigger chart re-dimensioning when sidebar expands/collapses
+  // Trigger chart re-dimensioning once sidebar expands/collapses completely (after 300ms transition finishes)
   useEffect(() => {
-    const timer1 = setTimeout(() => window.dispatchEvent(new Event("resize")), 100);
-    const timer2 = setTimeout(() => window.dispatchEvent(new Event("resize")), 320);
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
+    const timer = setTimeout(() => window.dispatchEvent(new Event("resize")), 320);
+    return () => clearTimeout(timer);
   }, [isWorkspaceOpen]);
 
   const pathname = usePathname();
   const mainRef = useRef<HTMLElement>(null);
+
+  // Scroll main container to top on route navigation for instant, snappy transitions
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [pathname]);
 
   const platform = usePlatform();
   const [disputeReturn, setDisputeReturn] = useState<ReturnRecord | null>(null);

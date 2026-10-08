@@ -365,8 +365,10 @@ export function OrderModal({
 
       // Optional settlement payout in edit mode
       if (parsedSettlementAmount > 0 && onAddSettlement && (!isNowReturned || returnType !== "RTO")) {
+        const existingSettlementId =
+          (initialOrder.settlementIds && initialOrder.settlementIds[0]) || `SETTLE-${updatedOrder.id}`;
         const createdSettlement: Settlement = {
-          id: `SETTLE-${Date.now().toString().slice(-4)}`,
+          id: existingSettlementId,
           settlementBatchId: `BATCH-${Date.now().toString().slice(-4)}`,
           marketplace,
           settlementDate: orderDate,
@@ -437,7 +439,7 @@ export function OrderModal({
     // Optional settlement remittance
     if (parsedSettlementAmount > 0 && onAddSettlement && (!isReturned || returnType !== "RTO")) {
       const createdSettlement: Settlement = {
-        id: `SETTLE-${Date.now().toString().slice(-4)}`,
+        id: `SETTLE-${newOrder.id}`,
         settlementBatchId: `BATCH-${Date.now().toString().slice(-4)}`,
         marketplace,
         settlementDate: orderDate,

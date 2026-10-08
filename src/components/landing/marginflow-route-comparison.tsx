@@ -57,7 +57,61 @@ export function MarginFlowRouteComparison() {
           </div>
 
           {/* ========================================================================= */}
-          {/* LANE 1: WITH MARGINFLOW (Direct Automated Settlement)                      */}
+          {/* LANE 1: THE TRADITIONAL WAY (Spreadsheet Agony)                            */}
+          {/* ========================================================================= */}
+          <div className="p-6 sm:p-8 rounded-2xl bg-[#fafafa] border border-[#e5e5e5] text-neutral-600">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-neutral-200/70 flex items-center justify-center text-neutral-600">
+                  <FileSpreadsheet className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-base font-semibold text-neutral-900 tracking-tight block">The Traditional Way</span>
+                  <span className="text-[11px] text-neutral-400 font-sans">Fragmented manual reporting</span>
+                </div>
+              </div>
+
+              <div className="text-left sm:text-right">
+                <span className="block text-[10px] font-mono text-neutral-400 uppercase tracking-wider font-medium">RECONCILIATION TIME</span>
+                <div className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-800">
+                  Up to 21 <span className="text-lg sm:text-xl font-normal text-neutral-400">Days</span>
+                </div>
+                <span className="block text-[11px] text-neutral-400">Order to uncertain guesswork</span>
+              </div>
+            </div>
+
+            {/* 6 Painful Nodes */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-left font-sans text-xs">
+              {traditionalSteps.map((step) => (
+                <div
+                  key={step.title}
+                  className={`p-3 rounded-xl border transition-all ${
+                    step.isExpired
+                      ? "bg-rose-50/80 border-rose-200/90 shadow-2xs"
+                      : "bg-white border-neutral-200/80 shadow-2xs"
+                  }`}
+                >
+                  <span className={`text-[10px] font-mono font-medium block ${step.isExpired ? "text-rose-500" : "text-neutral-400"}`}>
+                    {step.num}
+                  </span>
+                  <strong className={`text-[11px] font-semibold block mt-0.5 tracking-tight ${step.isExpired ? "text-rose-700" : "text-neutral-800"}`}>
+                    {step.title}
+                  </strong>
+                  <span className={`text-[10px] block mt-0.5 leading-snug ${step.isExpired ? "text-rose-600" : "text-neutral-400"}`}>
+                    {step.note}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-neutral-200 flex items-center gap-2 text-xs font-mono text-neutral-500">
+              <Clock3 className="w-4 h-4 shrink-0 text-neutral-400" />
+              <span>Six manual handoffs. Hidden margin leaks surrendered before anyone notices.</span>
+            </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* LANE 2: WITH MARGINFLOW (Direct Automated Settlement)                      */}
           {/* ========================================================================= */}
           <div className="p-6 sm:p-8 rounded-2xl bg-[#f8faf8] border border-[#dbe6da] shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -118,60 +172,6 @@ export function MarginFlowRouteComparison() {
             <div className="mt-6 pt-4 border-t border-[#dbe6da] flex items-center gap-2 text-xs font-mono text-[#00872e]">
               <Check className="w-4 h-4 shrink-0" />
               <span>One automated engine. Zero manual CSV exports or formula debugging.</span>
-            </div>
-          </div>
-
-          {/* ========================================================================= */}
-          {/* LANE 2: THE TRADITIONAL WAY (Spreadsheet Agony)                            */}
-          {/* ========================================================================= */}
-          <div className="p-6 sm:p-8 rounded-2xl bg-[#fafafa] border border-[#e5e5e5] text-neutral-600">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-neutral-200/70 flex items-center justify-center text-neutral-600">
-                  <FileSpreadsheet className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="text-base font-semibold text-neutral-900 tracking-tight block">The Traditional Way</span>
-                  <span className="text-[11px] text-neutral-400 font-sans">Fragmented manual reporting</span>
-                </div>
-              </div>
-
-              <div className="text-left sm:text-right">
-                <span className="block text-[10px] font-mono text-neutral-400 uppercase tracking-wider font-medium">RECONCILIATION TIME</span>
-                <div className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-800">
-                  Up to 21 <span className="text-lg sm:text-xl font-normal text-neutral-400">Days</span>
-                </div>
-                <span className="block text-[11px] text-neutral-400">Order to uncertain guesswork</span>
-              </div>
-            </div>
-
-            {/* 6 Painful Nodes */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-left font-sans text-xs">
-              {traditionalSteps.map((step) => (
-                <div
-                  key={step.title}
-                  className={`p-3 rounded-xl border transition-all ${
-                    step.isExpired
-                      ? "bg-rose-50/80 border-rose-200/90 shadow-2xs"
-                      : "bg-white border-neutral-200/80 shadow-2xs"
-                  }`}
-                >
-                  <span className={`text-[10px] font-mono font-medium block ${step.isExpired ? "text-rose-500" : "text-neutral-400"}`}>
-                    {step.num}
-                  </span>
-                  <strong className={`text-[11px] font-semibold block mt-0.5 tracking-tight ${step.isExpired ? "text-rose-700" : "text-neutral-800"}`}>
-                    {step.title}
-                  </strong>
-                  <span className={`text-[10px] block mt-0.5 leading-snug ${step.isExpired ? "text-rose-600" : "text-neutral-400"}`}>
-                    {step.note}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-neutral-200 flex items-center gap-2 text-xs font-mono text-neutral-500">
-              <Clock3 className="w-4 h-4 shrink-0 text-neutral-400" />
-              <span>Six manual handoffs. Hidden margin leaks surrendered before anyone notices.</span>
             </div>
           </div>
 

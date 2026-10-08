@@ -8,7 +8,13 @@ import { formatINR, formatDate, formatPercent } from "@/lib/utils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { X, ArrowDownRight, ShieldAlert, Trash2, Pencil } from "lucide-react";
-import { ClaimBreakdownModal, ClaimCardType } from "@/components/modals/claim-breakdown-modal";
+import dynamic from "next/dynamic";
+import type { ClaimCardType } from "@/components/modals/claim-breakdown-modal";
+
+const ClaimBreakdownModal = dynamic(
+  () => import("@/components/modals/claim-breakdown-modal").then((mod) => mod.ClaimBreakdownModal),
+  { ssr: false }
+);
 
 interface ClaimsViewProps {
   selectedMarketplace?: Marketplace | "ALL";

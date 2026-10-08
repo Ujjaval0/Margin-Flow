@@ -400,6 +400,13 @@ export interface CustomerComplaint {
 // Partition 9: User Accounts & Roles
 export type AccountType = "BRAND_OWNER" | "SUPPLIER" | "WHOLESALER";
 
+export interface OnboardingPreferences {
+  role?: string;
+  channels?: string[];
+  volume?: string;
+  completedAt?: string;
+}
+
 export interface UserAccount {
   id: string;
   name: string;
@@ -409,6 +416,9 @@ export interface UserAccount {
   companyName: string;
   gstin?: string;
   phone?: string;
+  avatarUrl?: string;
   authenticatedAt: string;
+  onboardingPreferences?: OnboardingPreferences;
 }
+
 

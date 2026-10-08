@@ -82,13 +82,39 @@ function FormattedMessageText({ text, isUser }: { text?: string; isUser: boolean
           );
         }
 
+        const romanMatch = trimmed.match(/^([IVXLCDM]+)\.\s+(.*)$/i);
+        if (romanMatch) {
+          const numeral = romanMatch[1].toUpperCase();
+          const content = romanMatch[2];
+          const parts = parseInlineFormatting(content);
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-0.5">
+              <span className="text-[#1D1D1F] font-semibold text-[11px] shrink-0 select-none min-w-[20px]">{numeral}.</span>
+              <div className="flex-1">{parts}</div>
+            </div>
+          );
+        }
+
+        const numberMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+        if (numberMatch) {
+          const num = numberMatch[1];
+          const content = numberMatch[2];
+          const parts = parseInlineFormatting(content);
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-0.5">
+              <span className="text-[#1D1D1F] font-semibold text-[11px] shrink-0 select-none min-w-[16px]">{num}.</span>
+              <div className="flex-1">{parts}</div>
+            </div>
+          );
+        }
+
         const isBullet = /^[•\-*]\s+/.test(trimmed);
         const content = isBullet ? trimmed.replace(/^[•\-*]\s+/, "") : line;
         const parts = parseInlineFormatting(content);
 
         if (isBullet) {
           return (
-            <div key={idx} className="flex items-start gap-2 pl-1">
+            <div key={idx} className="flex items-start gap-2 pl-0.5">
               <span className="text-[#86868B] font-bold text-[10px] mt-0.5 select-none shrink-0">•</span>
               <div className="flex-1">{parts}</div>
             </div>
@@ -141,7 +167,6 @@ export function CfoCopilot() {
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inspectingSku, setInspectingSku] = useState<SkuEconomicsItem | null>(null);
-  const [showAnomalyPrompt, setShowAnomalyPrompt] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -157,13 +182,11 @@ export function CfoCopilot() {
   }, [platform.orders, platform.returns, platform.settlements, platform.products, platform.claims]);
 
   const handleGenerateAnomalyRadar = () => {
-    setShowAnomalyPrompt(false);
-
     if (anomalyBriefing.totalAnomaliesCount === 0) {
       const cleanMsg: ChatMessage = {
         id: `msg-asst-${Date.now()}`,
         sender: "assistant",
-        text: "Deterministic Anomaly Radar Scan: Zero operational anomalies detected. Carrier billing, commission deductions, and settlements are within standard benchmarks.",
+        text: "Zero operational anomalies detected. Carrier billing, marketplace fees, and settlements are on schedule.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, cleanMsg]);
@@ -171,7 +194,11 @@ export function CfoCopilot() {
     }
 
     const anomalySummary = anomalyBriefing.items
-      .map((it) => `${it.title} (${it.metricHighlight}):\n${it.description}`)
+      .map((it, idx) => {
+        const numerals = ["I", "II", "III", "IV", "V"];
+        const num = numerals[idx] || "•";
+        return `${num}. ${it.title} (${it.metricHighlight}): ${it.description}`;
+      })
       .join("\n\n");
 
     const chips: AIActionChip[] = anomalyBriefing.items.slice(0, 2).map((it) => ({
@@ -235,28 +262,14 @@ export function CfoCopilot() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  // Initial clean welcome message (Claude-inspired warm store assistant)
+  // Initial clean welcome message (simple 2-line greeting, zero unprompted chips)
   useEffect(() => {
     if (messages.length === 0) {
       setMessages([
         {
           id: "msg-init",
           sender: "assistant",
-          text: `Hello. I'm Flow, your store assistant.\n\nI have direct access to your store's live financial and operational data across all active channels. I'm here to help you examine your sales, analyze net profit margins, investigate return rates, or look into any of your store numbers. What would you like to explore today?`,
-          chips: [
-            {
-              id: "chip-anomaly-radar",
-              label: `⚡ Scan Anomaly Radar (${anomalyBriefing.totalAnomaliesCount})`,
-              type: "NAVIGATE",
-              payload: { query: "Scan operational anomalies" },
-            },
-            {
-              id: "chip-why-profit",
-              label: "Why did my profit drop?",
-              type: "NAVIGATE",
-              payload: { query: "Why did my profit drop?" },
-            },
-          ],
+          text: "Hello! I'm Flow, your store assistant.\nAsk me anything about your sales, profits, returns, or store metrics.",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -367,7 +380,6 @@ export function CfoCopilot() {
           "x-ai-key": activeKey,
           "x-ai-model": aiSettings.model,
           "x-ai-base-url": aiSettings.customBaseUrl || "",
-          "x-jev-key": aiSettings.jevApiKey || "",
         },
         body: JSON.stringify({ prompt: query, context }),
       });
@@ -393,10 +405,7 @@ export function CfoCopilot() {
       } else {
         // Vercel AI SDK text stream
         const assistantMsgId = `msg-asst-${Date.now()}`;
-        const jevTierHeader = res.headers.get("x-jev-tier");
-        const sourceHeader = jevTierHeader
-          ? `${res.headers.get("x-ai-source") || "LLM"} (⚡ ${jevTierHeader})`
-          : (res.headers.get("x-ai-source") || "LLM_PROVIDER");
+        const sourceHeader = res.headers.get("x-ai-source") || "LLM_PROVIDER";
 
         const initialAssistantMsg: ChatMessage = {
           id: assistantMsgId,
@@ -590,33 +599,7 @@ export function CfoCopilot() {
                 </div>
               </div>
 
-              {/* Optional On-Demand Anomaly Radar Prompt (Zero Clutter) */}
-              {showAnomalyPrompt && anomalyBriefing.totalAnomaliesCount > 0 && (
-                <div className="mx-4 mt-3 p-3 bg-amber-500/[0.06] border border-amber-500/20 rounded-2xl flex items-center justify-between text-xs animate-in fade-in duration-150 shrink-0">
-                  <div className="flex items-center gap-2 pr-2">
-                    <span className="w-2 h-2 rounded-full bg-[#B25E00] animate-pulse shrink-0" />
-                    <span className="text-[#1D1D1F] text-[11px] leading-tight">
-                      <strong>{anomalyBriefing.totalAnomaliesCount} operational anomalies</strong> detected ({formatINR(anomalyBriefing.totalExposureAmount)}). View details?
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={handleGenerateAnomalyRadar}
-                      className="px-2.5 py-1 bg-[#1D1D1F] hover:bg-black text-white rounded-lg font-medium text-[11px] transition shadow-apple-sm btn-press cursor-pointer"
-                    >
-                      View
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowAnomalyPrompt(false)}
-                      className="px-2 py-1 text-[#6E6E73] hover:text-[#1D1D1F] rounded-lg hover:bg-black/[0.04] text-[11px] transition cursor-pointer"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              )}
+
 
               {/* Chat Message Stream */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs bg-[#F5F5F7]/40">
@@ -727,6 +710,10 @@ export function CfoCopilot() {
       <SkuDrawer
         skuData={inspectingSku}
         onClose={() => setInspectingSku(null)}
+        isAcknowledgedLossLeader={
+          inspectingSku ? platform.acknowledgedLossLeaderSkus?.includes(inspectingSku.sku) : false
+        }
+        onToggleLossLeader={platform.toggleLossLeaderAcknowledgment}
       />
     </>
   );

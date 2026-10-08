@@ -59,7 +59,6 @@ export function Navbar({
     suppliers: "Wholesale Suppliers & Vendors",
     purchases: "Wholesale Purchases & Inflow",
     expenses: "Operating Expense Ledger",
-    documents: "AI Document Staging Sandbox",
     reports: "Analytics & P&L Statements",
     ledger: "Double-Entry General Ledger & Trial Balance",
     webhooks: "Store Integrations",

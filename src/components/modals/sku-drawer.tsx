@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Copy, Check, TrendingUp, AlertTriangle, ShieldCheck } from "lucide-react";
+import { X, Copy, Check, TrendingUp, AlertTriangle, ShieldCheck, BookmarkCheck } from "lucide-react";
 import { formatINR, formatPercent } from "@/lib/utils";
 
 export interface SkuEconomicsItem {
@@ -23,9 +23,16 @@ export interface SkuEconomicsItem {
 export interface SkuDrawerProps {
   skuData: SkuEconomicsItem | null;
   onClose: () => void;
+  isAcknowledgedLossLeader?: boolean;
+  onToggleLossLeader?: (sku: string) => void;
 }
 
-export function SkuDrawer({ skuData, onClose }: SkuDrawerProps) {
+export function SkuDrawer({
+  skuData,
+  onClose,
+  isAcknowledgedLossLeader = false,
+  onToggleLossLeader,
+}: SkuDrawerProps) {
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -33,6 +40,14 @@ export function SkuDrawer({ skuData, onClose }: SkuDrawerProps) {
     setMounted(true);
     return () => setMounted(false);
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   if (!skuData || !mounted) return null;
 
@@ -113,10 +128,16 @@ export function SkuDrawer({ skuData, onClose }: SkuDrawerProps) {
                 className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
                   skuData.profit >= 0
                     ? "bg-[#288548]/10 text-[#288548] border-[#288548]/20"
+                    : isAcknowledgedLossLeader
+                    ? "bg-amber-500/10 text-amber-800 border-amber-500/20"
                     : "bg-[#D70015]/10 text-[#D70015] border-[#D70015]/20"
                 }`}
               >
-                {skuData.profit >= 0 ? "Profitable" : "Loss-making"}
+                {skuData.profit >= 0
+                  ? "Profitable"
+                  : isAcknowledgedLossLeader
+                  ? "Loss leader (acknowledged)"
+                  : "Loss-making"}
               </span>
             </div>
             <h3 className="text-xl font-bold text-[#1D1D1F] mt-2 font-mono tracking-tight">{skuData.sku}</h3>
@@ -239,35 +260,61 @@ export function SkuDrawer({ skuData, onClose }: SkuDrawerProps) {
         </div>
 
         {/* Action Footer */}
-        <div className="mt-auto pt-4 border-t border-black/[0.06] flex gap-2.5">
-          <button
-            type="button"
-            onClick={handleCopySummary}
-            className={`flex-1 py-2.5 px-4 text-xs font-medium rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-apple-sm btn-press ${
-              copied
-                ? "bg-[#288548]/10 border border-[#288548]/20 text-[#288548]"
-                : "bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06]"
-            }`}
-          >
-            {copied ? (
-              <>
-                <Check className="w-4 h-4 text-[#288548] shrink-0" />
-                <span>Copied to clipboard</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-[#6E6E73] shrink-0" />
-                <span>Copy SKU summary</span>
-              </>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="py-2.5 px-6 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-xl transition shadow-apple-sm btn-press cursor-pointer"
-          >
-            Close
-          </button>
+        <div className="mt-auto pt-4 border-t border-black/[0.06] flex flex-col gap-2.5">
+          {skuData.profit < 0 && onToggleLossLeader && (
+            <button
+              type="button"
+              onClick={() => onToggleLossLeader(skuData.sku)}
+              className={`w-full py-2.5 px-4 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-apple-sm btn-press ${
+                isAcknowledgedLossLeader
+                  ? "bg-amber-500/10 hover:bg-amber-500/15 text-amber-800 border border-amber-500/25"
+                  : "bg-[#1D1D1F] hover:bg-black text-white"
+              }`}
+              title={
+                isAcknowledgedLossLeader
+                  ? "Remove Loss Leader acknowledgment"
+                  : "Acknowledge as Loss Leader to exclude from Margin Erosion Advisory"
+              }
+            >
+              <BookmarkCheck className="w-3.5 h-3.5" />
+              <span>
+                {isAcknowledgedLossLeader
+                  ? "Acknowledged as Loss Leader (Click to Revoke)"
+                  : "Acknowledge / Mark as Loss Leader"}
+              </span>
+            </button>
+          )}
+
+          <div className="flex gap-2.5">
+            <button
+              type="button"
+              onClick={handleCopySummary}
+              className={`flex-1 py-2.5 px-4 text-xs font-medium rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-apple-sm btn-press ${
+                copied
+                  ? "bg-[#288548]/10 border border-[#288548]/20 text-[#288548]"
+                  : "bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06]"
+              }`}
+            >
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 text-[#288548] shrink-0" />
+                  <span>Copied to clipboard</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-[#6E6E73] shrink-0" />
+                  <span>Copy SKU summary</span>
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="py-2.5 px-6 bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] text-xs font-medium rounded-xl transition shadow-apple-sm btn-press cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>,

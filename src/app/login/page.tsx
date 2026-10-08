@@ -1,39 +1,142 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MarginFlowLogo } from "@/components/MarginFlowLogo";
-import { ArrowLeft, ShieldCheck, CheckCircle2, Lock } from "lucide-react";
-import { DEFAULT_ACCOUNTS } from "@/domain/mock-data";
+import {
+  ArrowLeft,
+  ShieldCheck,
+  CheckCircle2,
+  Lock,
+  Mail,
+  User,
+  AlertCircle,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { AccountType } from "@/domain/types";
+
+type AuthMode = "signin" | "signup";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>("signup");
   const [selectedRole, setSelectedRole] = useState<AccountType>("BRAND_OWNER");
 
-  const handleGoogleAuth = () => {
+  // Form fields
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  // UI state
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // 1. Google 1-Click Auth
+  const handleGoogleAuth = async () => {
     setIsLoading(true);
-    // Simulate instantaneous Google OAuth handshake & session initialization
+    setErrorMessage(null);
+
     try {
-      if (typeof window !== "undefined") {
-        const targetAccount =
-          DEFAULT_ACCOUNTS.find((a) => a.accountType === selectedRole) || DEFAULT_ACCOUNTS[0];
-        const sessionUser = {
-          ...targetAccount,
-          authenticatedAt: new Date().toISOString(),
-        };
-        localStorage.setItem("marginflow_session", JSON.stringify(sessionUser));
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim() || "Google User",
+          email: email.trim() || "founder@marginflow.io",
+          accountType: selectedRole,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Google authentication failed");
       }
-    } catch {
-      // storage fallback
+
+      if (typeof window !== "undefined" && data.user) {
+        localStorage.setItem("marginflow_session", JSON.stringify(data.user));
+      }
+
+      setTimeout(() => {
+        if (data.isNewUser) {
+          router.push("/onboarding");
+        } else {
+          router.push("/dashboard");
+        }
+      }, 500);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to authenticate with Google");
+      setIsLoading(false);
+    }
+  };
+
+  // 2. Email Sign In / Sign Up
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (authMode === "signup" && !name.trim()) {
+      setErrorMessage("Please enter your name");
+      return;
     }
 
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 700);
+    if (!email.trim()) {
+      setErrorMessage("Please enter your email address");
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage("Please enter your password");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const endpoint = authMode === "signup" ? "/api/auth/signup" : "/api/auth/login";
+      const payload =
+        authMode === "signup"
+          ? {
+              name: name.trim(),
+              email: email.trim().toLowerCase(),
+              password,
+              accountType: selectedRole,
+            }
+          : {
+              email: email.trim().toLowerCase(),
+              password,
+            };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Authentication failed");
+      }
+
+      if (typeof window !== "undefined" && data.user) {
+        localStorage.setItem("marginflow_session", JSON.stringify(data.user));
+      }
+
+      setTimeout(() => {
+        if (authMode === "signup" || data.isNewUser) {
+          router.push("/onboarding");
+        } else {
+          router.push("/dashboard");
+        }
+      }, 500);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Authentication error occurred");
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -49,87 +152,83 @@ export default function LoginPage() {
         </Link>
         <div className="flex items-center gap-1.5 text-xs text-[#86868B] bg-white px-3 py-1.5 rounded-full border border-black/[0.06] shadow-apple-sm">
           <ShieldCheck className="w-3.5 h-3.5 text-[#288548]" />
-          <span>Secure Google OAuth 2.0</span>
+          <span>Secure Authentication</span>
         </div>
       </div>
 
-      {/* Main Login Card */}
-      <div className="max-w-md w-full mx-auto my-auto py-12">
-        <div className="apple-card bg-white rounded-3xl border border-black/[0.08] shadow-apple-lg p-8 sm:p-10 relative overflow-hidden">
+      {/* Main Login / Signup Card */}
+      <div className="max-w-md w-full mx-auto my-auto py-4 sm:py-6">
+        <div className="apple-card bg-white rounded-3xl border border-black/[0.08] shadow-apple-lg p-6 sm:p-8 relative overflow-hidden">
           {/* Top subtle highlight line */}
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#0071E3] to-transparent opacity-60" />
 
-          {/* Logo */}
+          {/* Logo & Headline */}
           <div className="flex flex-col items-center text-center">
-            <Link href="/" className="mb-6 inline-block">
-              <MarginFlowLogo
-                className="h-9 w-auto text-[#1D1D1F]"
-              />
+            <Link href="/" className="mb-4 inline-block">
+              <MarginFlowLogo className="h-8 w-auto text-[#1D1D1F]" />
             </Link>
 
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#1D1D1F]">
-              Welcome to MarginFlow
+              {authMode === "signup" ? "Create your account" : "Welcome back"}
             </h1>
-            <p className="mt-2 text-sm text-[#86868B] leading-relaxed">
-              Transaction-level multi-channel profit intelligence for Amazon, Flipkart, Meesho, and D2C brands.
-            </p>
           </div>
 
-          {/* Account Role Selector */}
-          <div className="mt-7">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold text-[#86868B] uppercase tracking-wider">
-                Operating Role
-              </span>
-              <span className="text-[11px] text-[#0071E3] font-medium">
-                {selectedRole === "BRAND_OWNER"
-                  ? "D2C Brand"
-                  : selectedRole === "SUPPLIER"
-                  ? "Wholesale Supplier"
-                  : "B2B Wholesaler"}
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#F5F5F7] rounded-2xl border border-black/[0.04]">
-              {(
-                [
-                  { type: "BRAND_OWNER", label: "Brand Owner", sub: "Omnichannel" },
-                  { type: "SUPPLIER", label: "Supplier", sub: "Vendor" },
-                  { type: "WHOLESALER", label: "Wholesaler", sub: "B2B Trade" },
-                ] as const
-              ).map((role) => (
-                <button
-                  key={role.type}
-                  type="button"
-                  onClick={() => setSelectedRole(role.type)}
-                  className={`py-2 px-1 rounded-xl text-center transition-all ${
-                    selectedRole === role.type
-                      ? "bg-white text-[#1D1D1F] font-semibold shadow-apple-sm border border-black/[0.06]"
-                      : "text-[#6E6E73] hover:text-[#1D1D1F] border border-transparent"
-                  }`}
-                >
-                  <div className="text-xs">{role.label}</div>
-                  <div className="text-[10px] text-[#86868B]">{role.sub}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Authentication Action */}
-          <div className="mt-6 space-y-4">
+          {/* Auth Mode Toggle (Sign In vs Sign Up) */}
+          <div className="mt-6 p-1 bg-[#F5F5F7] rounded-xl border border-black/[0.04] grid grid-cols-2 gap-1">
             <button
+              type="button"
+              onClick={() => {
+                setAuthMode("signup");
+                setErrorMessage(null);
+              }}
+              className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                authMode === "signup"
+                  ? "bg-white text-[#1D1D1F] shadow-apple-sm"
+                  : "text-[#86868B] hover:text-[#1D1D1F]"
+              }`}
+            >
+              Sign Up
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode("signin");
+                setErrorMessage(null);
+              }}
+              className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                authMode === "signin"
+                  ? "bg-white text-[#1D1D1F] shadow-apple-sm"
+                  : "text-[#86868B] hover:text-[#1D1D1F]"
+              }`}
+            >
+              Sign In
+            </button>
+          </div>
+
+          {/* Error Message Alert */}
+          {errorMessage && (
+            <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200/60 flex items-start gap-2.5 text-xs text-red-700 animate-in fade-in duration-200">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* 1. Google One-Click Button */}
+          <div className="mt-5">
+            <button
+              type="button"
               onClick={handleGoogleAuth}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl bg-white hover:bg-[#FBFBFD] active:bg-[#F5F5F7] text-[#1D1D1F] font-medium text-sm border border-black/[0.1] shadow-apple-sm btn-press transition-all disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden cursor-pointer"
+              className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl bg-white hover:bg-[#FBFBFD] active:bg-[#F5F5F7] text-[#1D1D1F] font-medium text-xs sm:text-sm border border-black/[0.1] shadow-apple-sm btn-press transition-all disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden cursor-pointer"
             >
               {isLoading ? (
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full border-2 border-[#0071E3] border-t-transparent animate-spin" />
-                  <span className="text-[#1D1D1F]">Authenticating with Google...</span>
+                  <span className="text-[#1D1D1F]">Connecting...</span>
                 </div>
               ) : (
                 <>
-                  {/* Official Google G vector */}
-                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                     <path
                       fill="#4285F4"
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -151,29 +250,113 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+          </div>
 
-            <div className="pt-2 text-center">
-              <p className="text-xs text-[#86868B] leading-normal">
-                Single sign-on: New accounts are automatically created. Existing accounts will be authenticated instantly.
-              </p>
+          {/* Divider */}
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-black/[0.08]" />
+            </div>
+            <div className="relative flex justify-center text-[11px] uppercase tracking-wider text-[#86868B]">
+              <span className="bg-white px-3 font-medium">or continue with email</span>
             </div>
           </div>
 
+          {/* 2. Email & Password Form */}
+          <form onSubmit={handleEmailAuth} className="space-y-3.5">
+            {authMode === "signup" && (
+              <div>
+                <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]" />
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Alex Morgan"
+                    disabled={isLoading}
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-black/[0.1] bg-[#F5F5F7]/40 text-xs sm:text-sm focus:outline-none focus:border-[#0071E3] focus:bg-white transition-all text-[#1D1D1F]"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">
+                Work Email
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="founder@brand.com"
+                  disabled={isLoading}
+                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-black/[0.1] bg-[#F5F5F7]/40 text-xs sm:text-sm focus:outline-none focus:border-[#0071E3] focus:bg-white transition-all text-[#1D1D1F]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-[#86868B] uppercase tracking-wider mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#86868B]" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  disabled={isLoading}
+                  className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-black/[0.1] bg-[#F5F5F7]/40 text-xs sm:text-sm focus:outline-none focus:border-[#0071E3] focus:bg-white transition-all text-[#1D1D1F]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  tabIndex={-1}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#86868B] hover:text-[#1D1D1F] transition-colors p-0.5 rounded cursor-pointer"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full mt-3 py-2.5 px-4 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium text-xs sm:text-sm shadow-apple-sm btn-press transition-all disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  <span>Processing...</span>
+                </div>
+              ) : authMode === "signup" ? (
+                "Create Account & Continue"
+              ) : (
+                "Sign In to Dashboard"
+              )}
+            </button>
+          </form>
+
           {/* Trust Guarantees */}
-          <div className="mt-8 pt-6 border-t border-black/[0.05] space-y-2.5">
-            <div className="flex items-center gap-2 text-xs text-[#86868B]">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#288548] shrink-0" />
-              <span>Direct redirect to your real-time profit dashboard</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-[#86868B]">
-              <Lock className="w-3.5 h-3.5 text-[#0071E3] shrink-0" />
-              <span>Read-only marketplace audit • No customer payment credentials stored</span>
-            </div>
+          <div className="mt-5 pt-4 border-t border-black/[0.05] flex items-center justify-center gap-1.5 text-[11px] text-[#86868B]">
+            <Lock className="w-3 h-3 text-[#0071E3] shrink-0" />
+            <span>Encrypted local session • Zero credentials stored</span>
           </div>
         </div>
 
         {/* Footer Subtext */}
-        <p className="mt-6 text-center text-xs text-[#86868B]">
+        <p className="mt-5 text-center text-xs text-[#86868B]">
           By continuing, you agree to MarginFlow&apos;s Terms of Service and Privacy Policy.
         </p>
       </div>

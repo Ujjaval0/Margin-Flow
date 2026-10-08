@@ -7,7 +7,12 @@ import { formatINR } from "@/lib/utils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
-import { AddPurchaseModal } from "@/components/modals/add-purchase-modal";
+import dynamic from "next/dynamic";
+
+const AddPurchaseModal = dynamic(
+  () => import("@/components/modals/add-purchase-modal").then((mod) => mod.AddPurchaseModal),
+  { ssr: false }
+);
 
 export function PurchasesView() {
   const { suppliers, purchases, products, addPurchase } = usePlatform();

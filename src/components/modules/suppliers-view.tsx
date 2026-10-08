@@ -30,7 +30,12 @@ import {
   ChevronsRight,
   ChevronDown,
 } from "lucide-react";
-import { SupplierModal } from "@/components/modals/supplier-modal";
+import dynamic from "next/dynamic";
+
+const SupplierModal = dynamic(
+  () => import("@/components/modals/supplier-modal").then((mod) => mod.SupplierModal),
+  { ssr: false }
+);
 
 export function SuppliersView() {
   const {
