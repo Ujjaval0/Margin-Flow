@@ -46,8 +46,8 @@ const CHANNELS: ChannelConfig[] = [
     marketplace: "Personal Website",
     category: "Direct Storefront",
     endpoint: "/api/webhooks/shopify",
-    defaultTab: "webhook",
-    supportedModes: ["webhook", "api", "csv"],
+    defaultTab: "api",
+    supportedModes: ["api", "webhook", "csv"],
   },
   {
     id: "woocommerce",
@@ -55,8 +55,8 @@ const CHANNELS: ChannelConfig[] = [
     marketplace: "WooCommerce",
     category: "WordPress Store",
     endpoint: "/api/webhooks/woocommerce",
-    defaultTab: "webhook",
-    supportedModes: ["webhook", "api", "csv"],
+    defaultTab: "api",
+    supportedModes: ["api", "webhook", "csv"],
   },
   {
     id: "amazon",
@@ -64,8 +64,8 @@ const CHANNELS: ChannelConfig[] = [
     marketplace: "Amazon India",
     category: "Online Marketplace",
     endpoint: "/api/webhooks/generic",
-    defaultTab: "csv",
-    supportedModes: ["csv", "api"],
+    defaultTab: "api",
+    supportedModes: ["api", "csv"],
   },
   {
     id: "flipkart",
@@ -73,8 +73,8 @@ const CHANNELS: ChannelConfig[] = [
     marketplace: "Flipkart",
     category: "Online Marketplace",
     endpoint: "/api/webhooks/generic",
-    defaultTab: "csv",
-    supportedModes: ["csv", "api"],
+    defaultTab: "api",
+    supportedModes: ["api", "csv"],
   },
   {
     id: "meesho",
@@ -82,8 +82,8 @@ const CHANNELS: ChannelConfig[] = [
     marketplace: "Meesho",
     category: "Online Marketplace",
     endpoint: "/api/webhooks/generic",
-    defaultTab: "csv",
-    supportedModes: ["csv"],
+    defaultTab: "api",
+    supportedModes: ["api", "csv"],
   },
   {
     id: "generic",
@@ -92,7 +92,7 @@ const CHANNELS: ChannelConfig[] = [
     category: "Custom Ingestion",
     endpoint: "/api/webhooks/generic",
     defaultTab: "webhook",
-    supportedModes: ["webhook"],
+    supportedModes: ["webhook", "api"],
   },
 ];
 
@@ -156,6 +156,13 @@ interface StoredChannelCredentials {
   webhookSecret?: string;
   appId?: string;
   appSecret?: string;
+  clientId?: string;
+  clientSecret?: string;
+  refreshToken?: string;
+  sellerId?: string;
+  supplierId?: string;
+  apiKey?: string;
+  apiUrl?: string;
   connected?: boolean;
   lastSyncedAt?: string;
   totalOrdersInStore?: number;
@@ -294,6 +301,14 @@ export function WebhookSimulatorView() {
   const [webhookSecret, setWebhookSecret] = useState("");
   const [flipkartAppId, setFlipkartAppId] = useState("");
   const [flipkartAppSecret, setFlipkartAppSecret] = useState("");
+  const [amazonClientId, setAmazonClientId] = useState("");
+  const [amazonClientSecret, setAmazonClientSecret] = useState("");
+  const [amazonRefreshToken, setAmazonRefreshToken] = useState("");
+  const [amazonSellerId, setAmazonSellerId] = useState("");
+  const [meeshoSupplierId, setMeeshoSupplierId] = useState("");
+  const [meeshoApiKey, setMeeshoApiKey] = useState("");
+  const [genericApiUrl, setGenericApiUrl] = useState("");
+  const [genericApiKey, setGenericApiKey] = useState("");
 
   // Add Store Catalog Modal
   const [isAddStoreOpen, setIsAddStoreOpen] = useState(false);
@@ -385,7 +400,183 @@ export function WebhookSimulatorView() {
         return;
       }
 
-      // Other channels
+      if (channel.id === "shopify") {
+        const creds = channelCredentials.shopify;
+        if (!creds?.storeUrl || !creds?.consumerKey) {
+          showToast("Setup Required", "Please configure your Shopify Store Domain and Admin API Access Token first.");
+          openConfigForChannel(channel);
+          return;
+        }
+
+        const res = await fetch("/api/integrations/shopify/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "test_connection",
+            shopDomain: creds.storeUrl,
+            accessToken: creds.consumerKey,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          setConnectedChannels((prev) => ({ ...prev, shopify: true }));
+          saveChannelCredentials("shopify", { ...creds, connected: true });
+          showToast("Connected & Active", `Shopify store verified: ${data.storeName || data.domain}`);
+        } else {
+          setConnectedChannels((prev) => ({ ...prev, shopify: false }));
+          saveChannelCredentials("shopify", { ...creds, connected: false });
+          showToast("Verification Failed", data.error || "Could not connect to Shopify.");
+        }
+        return;
+      }
+
+      if (channel.id === "flipkart") {
+        const creds = channelCredentials.flipkart;
+        if (!creds?.appId || !creds?.appSecret) {
+          showToast("Setup Required", "Please configure your Flipkart App ID and Application Secret first.");
+          openConfigForChannel(channel);
+          return;
+        }
+
+        const res = await fetch("/api/integrations/flipkart/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "test_connection",
+            appId: creds.appId,
+            appSecret: creds.appSecret,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          setConnectedChannels((prev) => ({ ...prev, flipkart: true }));
+          saveChannelCredentials("flipkart", { ...creds, connected: true });
+          showToast("Connected & Active", data.message || "Flipkart Seller credentials verified.");
+        } else {
+          setConnectedChannels((prev) => ({ ...prev, flipkart: false }));
+          saveChannelCredentials("flipkart", { ...creds, connected: false });
+          showToast("Verification Failed", data.error || "Could not verify Flipkart credentials.");
+        }
+        return;
+      }
+
+      if (channel.id === "amazon") {
+        const creds = channelCredentials.amazon;
+        if (creds?.clientId && creds?.clientSecret && creds?.refreshToken) {
+          const res = await fetch("/api/integrations/amazon/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "test_connection",
+              clientId: creds.clientId,
+              clientSecret: creds.clientSecret,
+              refreshToken: creds.refreshToken,
+              sellerId: creds.sellerId,
+            }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setConnectedChannels((prev) => ({ ...prev, amazon: true }));
+            saveChannelCredentials("amazon", { ...creds, connected: true });
+            showToast("Connected & Active", data.message || "Amazon SP-API authenticated.");
+          } else {
+            setConnectedChannels((prev) => ({ ...prev, amazon: false }));
+            saveChannelCredentials("amazon", { ...creds, connected: false });
+            showToast("Verification Failed", data.error || "Could not verify Amazon SP-API.");
+          }
+          return;
+        }
+
+        const count = channelMetrics.amazon?.count || 0;
+        if (count > 0 || creds?.connected) {
+          setConnectedChannels((prev) => ({ ...prev, amazon: true }));
+          showToast("Connected & Active", `Amazon India is active with ${count} orders in ledger.`);
+        } else {
+          showToast("Setup Required", "Please configure Amazon SP-API credentials or import reports.");
+          openConfigForChannel(channel);
+        }
+        return;
+      }
+
+      if (channel.id === "meesho") {
+        const creds = channelCredentials.meesho;
+        if (creds?.supplierId && creds?.apiKey) {
+          const res = await fetch("/api/integrations/meesho/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "test_connection",
+              supplierId: creds.supplierId,
+              apiKey: creds.apiKey,
+            }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setConnectedChannels((prev) => ({ ...prev, meesho: true }));
+            saveChannelCredentials("meesho", { ...creds, connected: true });
+            showToast("Connected & Active", data.message || "Meesho Supplier credentials verified.");
+          } else {
+            setConnectedChannels((prev) => ({ ...prev, meesho: false }));
+            saveChannelCredentials("meesho", { ...creds, connected: false });
+            showToast("Verification Failed", data.error || "Could not verify Meesho credentials.");
+          }
+          return;
+        }
+
+        const count = channelMetrics.meesho?.count || 0;
+        if (count > 0 || creds?.connected) {
+          setConnectedChannels((prev) => ({ ...prev, meesho: true }));
+          showToast("Connected & Active", `Meesho is active with ${count} orders in ledger.`);
+        } else {
+          showToast("Setup Required", "Please configure Meesho Supplier credentials or import statements.");
+          openConfigForChannel(channel);
+        }
+        return;
+      }
+
+      if (channel.id === "generic") {
+        const creds = channelCredentials.generic;
+        if (creds?.apiUrl) {
+          const res = await fetch("/api/integrations/generic/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "test_connection",
+              endpointUrl: creds.apiUrl,
+              apiKey: creds.apiKey,
+            }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setConnectedChannels((prev) => ({ ...prev, generic: true }));
+            saveChannelCredentials("generic", { ...creds, connected: true });
+            showToast("Connected & Active", data.message || "Custom API verified.");
+          } else {
+            setConnectedChannels((prev) => ({ ...prev, generic: false }));
+            saveChannelCredentials("generic", { ...creds, connected: false });
+            showToast("Verification Failed", data.error || "Could not verify Custom API endpoint.");
+          }
+          return;
+        }
+
+        const res = await fetch(channel.endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ping: true }),
+        });
+        if (res.status === 200 || res.status === 401) {
+          setConnectedChannels((prev) => ({ ...prev, generic: true }));
+          saveChannelCredentials("generic", { connected: true });
+          showToast("Connected & Active", "Custom API webhook receiver is live and listening.");
+        } else {
+          showToast("Endpoint Error", `Receiver responded with HTTP ${res.status}`);
+        }
+        return;
+      }
+
+      // Fallback
       const creds = channelCredentials[channel.id];
       if (creds?.connected) {
         showToast("Connected & Active", `${channel.name} channel is healthy and active.`);
@@ -556,6 +747,634 @@ export function WebhookSimulatorView() {
     }
   };
 
+  // Shopify Connection Test & Order Sync
+  const handleTestShopifyConnection = async () => {
+    if (!customApiUrl || !customApiKey) {
+      setApiTestResult({
+        success: false,
+        message: "Please enter your Shopify Store Domain and Admin API Access Token.",
+      });
+      return;
+    }
+
+    setIsTestingApi(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/shopify/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "test_connection",
+          shopDomain: customApiUrl,
+          accessToken: customApiKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setApiTestResult({
+          success: true,
+          message: `Connected successfully! Store: ${data.storeName || data.domain}`,
+        });
+        setConnectedChannels((prev) => ({ ...prev, shopify: true }));
+        saveChannelCredentials("shopify", {
+          storeUrl: customApiUrl,
+          consumerKey: customApiKey,
+          connected: true,
+        });
+        showToast("Connected & Active", "Shopify store verified and access token saved.");
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to verify Shopify store.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Network error: ${err.message || "Could not reach sync endpoint."}`,
+      });
+    } finally {
+      setIsTestingApi(false);
+    }
+  };
+
+  const handleSyncShopifyOrders = async () => {
+    if (!customApiUrl || !customApiKey) {
+      setApiTestResult({
+        success: false,
+        message: "Please enter your Store Domain and Admin API Token before syncing.",
+      });
+      return;
+    }
+
+    setIsSyncingOrders(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/shopify/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "fetch_orders",
+          shopDomain: customApiUrl,
+          accessToken: customApiKey,
+          limit: 50,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        const syncResult = syncExternalOrders(data.orders);
+        const nowIso = new Date().toISOString();
+
+        saveChannelCredentials("shopify", {
+          storeUrl: customApiUrl,
+          consumerKey: customApiKey,
+          connected: true,
+          lastSyncedAt: nowIso,
+          totalOrdersInStore: data.orders.length,
+        });
+
+        setConnectedChannels((prev) => ({ ...prev, shopify: true }));
+
+        setApiTestResult({
+          success: true,
+          message: `Sync complete! ${data.orders.length} orders fetched from Shopify (${syncResult.added} new, ${syncResult.updated} updated in ledger).`,
+        });
+
+        showToast(
+          "Shopify Synced",
+          `${data.orders.length} orders fetched (${syncResult.added} new, ${syncResult.updated} updated).`
+        );
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to fetch orders from Shopify.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Sync error: ${err.message || "Failed to fetch orders."}`,
+      });
+    } finally {
+      setIsSyncingOrders(false);
+    }
+  };
+
+  // Flipkart Connection Test & Order Sync
+  const handleTestFlipkartConnection = async () => {
+    if (!flipkartAppId || !flipkartAppSecret) {
+      setApiTestResult({
+        success: false,
+        message: "Please enter your Flipkart Application ID and Application Secret.",
+      });
+      return;
+    }
+
+    setIsTestingApi(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/flipkart/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "test_connection",
+          appId: flipkartAppId,
+          appSecret: flipkartAppSecret,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setApiTestResult({
+          success: true,
+          message: data.message || "Flipkart Seller API authenticated successfully via OAuth 2.0.",
+        });
+        setConnectedChannels((prev) => ({ ...prev, flipkart: true }));
+        saveChannelCredentials("flipkart", {
+          appId: flipkartAppId,
+          appSecret: flipkartAppSecret,
+          connected: true,
+        });
+        showToast("Connected & Active", "Flipkart Seller credentials verified.");
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to verify Flipkart Seller credentials.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Network error: ${err.message || "Could not reach Flipkart gateway."}`,
+      });
+    } finally {
+      setIsTestingApi(false);
+    }
+  };
+
+  const handleSyncFlipkartOrders = async () => {
+    if (!flipkartAppId || !flipkartAppSecret) {
+      setApiTestResult({
+        success: false,
+        message: "Please enter your Flipkart credentials before syncing.",
+      });
+      return;
+    }
+
+    setIsSyncingOrders(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/flipkart/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "fetch_orders",
+          appId: flipkartAppId,
+          appSecret: flipkartAppSecret,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        const syncResult = syncExternalOrders(data.orders);
+        const nowIso = new Date().toISOString();
+
+        saveChannelCredentials("flipkart", {
+          appId: flipkartAppId,
+          appSecret: flipkartAppSecret,
+          connected: true,
+          lastSyncedAt: nowIso,
+          totalOrdersInStore: data.orders.length,
+        });
+
+        setConnectedChannels((prev) => ({ ...prev, flipkart: true }));
+
+        setApiTestResult({
+          success: true,
+          message: `Sync complete! ${data.orders.length} orders fetched from Flipkart (${syncResult.added} new, ${syncResult.updated} updated in ledger).`,
+        });
+
+        showToast(
+          "Flipkart Synced",
+          `${data.orders.length} orders fetched (${syncResult.added} new, ${syncResult.updated} updated).`
+        );
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to fetch orders from Flipkart.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Sync error: ${err.message || "Failed to fetch orders."}`,
+      });
+    } finally {
+      setIsSyncingOrders(false);
+    }
+  };
+
+  // Generic Channel Test Order Ingestion
+  const handleSimulateGenericWebhook = async () => {
+    setIsTestingApi(true);
+    try {
+      const sampleId = `ORD-POS-${Math.floor(1000 + Math.random() * 9000)}`;
+      const domainOrder = {
+        id: `ORD-GEN-${Date.now()}`,
+        channelOrderId: sampleId,
+        marketplace: "Other" as const,
+        orderDate: new Date().toISOString().split("T")[0],
+        status: "CONFIRMED" as const,
+        customerName: "Walk-in Retail Customer",
+        customerCity: "Mumbai",
+        customerState: "Maharashtra",
+        items: [
+          {
+            id: `ITEM-GEN-${Date.now()}-1`,
+            sku: "POS-RETAIL-01",
+            productName: "In-Store Retail Purchase",
+            quantity: 1,
+            sellingPrice: 1299,
+            taxAmount: 233.82,
+            snapshotUnitCost: 550,
+            discount: 0,
+            returnedQuantity: 0,
+          },
+        ],
+        shippingFeeCharged: 0,
+        marketplaceChargesEstimate: 25.98,
+        notes: `POS API Ingested | Order: ${sampleId}`,
+      };
+
+      const syncResult = syncExternalOrders([domainOrder]);
+      setConnectedChannels((prev) => ({ ...prev, generic: true }));
+      saveChannelCredentials("generic", {
+        connected: true,
+        lastSyncedAt: new Date().toISOString(),
+      });
+
+      showToast("Ingestion Successful", `Test order ${sampleId} ingested into ledger.`);
+    } catch (err: any) {
+      showToast("Simulation Error", err.message || "Failed to ingest test order.");
+    } finally {
+      setIsTestingApi(false);
+    }
+  };
+
+  // Amazon SP-API Handlers
+  const handleTestAmazonConnection = async () => {
+    if (!amazonClientId || !amazonClientSecret || !amazonRefreshToken) {
+      setApiTestResult({
+        success: false,
+        message: "Please enter Amazon LWA Client ID, Client Secret, and Refresh Token.",
+      });
+      return;
+    }
+
+    setIsTestingApi(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/amazon/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "test_connection",
+          clientId: amazonClientId,
+          clientSecret: amazonClientSecret,
+          refreshToken: amazonRefreshToken,
+          sellerId: amazonSellerId,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setApiTestResult({
+          success: true,
+          message: data.message || "Amazon SP-API authenticated successfully.",
+        });
+        setConnectedChannels((prev) => ({ ...prev, amazon: true }));
+        saveChannelCredentials("amazon", {
+          clientId: amazonClientId,
+          clientSecret: amazonClientSecret,
+          refreshToken: amazonRefreshToken,
+          sellerId: amazonSellerId,
+          connected: true,
+        });
+        showToast("Connected & Active", "Amazon SP-API credentials verified.");
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to verify Amazon SP-API credentials.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Network error: ${err.message || "Could not reach Amazon gateway."}`,
+      });
+    } finally {
+      setIsTestingApi(false);
+    }
+  };
+
+  const handleSyncAmazonOrders = async () => {
+    if (!amazonClientId || !amazonClientSecret || !amazonRefreshToken) {
+      setApiTestResult({
+        success: false,
+        message: "Please enter your Amazon SP-API credentials before syncing.",
+      });
+      return;
+    }
+
+    setIsSyncingOrders(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/amazon/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "fetch_orders",
+          clientId: amazonClientId,
+          clientSecret: amazonClientSecret,
+          refreshToken: amazonRefreshToken,
+          sellerId: amazonSellerId,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        const syncResult = syncExternalOrders(data.orders);
+        const nowIso = new Date().toISOString();
+
+        saveChannelCredentials("amazon", {
+          clientId: amazonClientId,
+          clientSecret: amazonClientSecret,
+          refreshToken: amazonRefreshToken,
+          sellerId: amazonSellerId,
+          connected: true,
+          lastSyncedAt: nowIso,
+          totalOrdersInStore: data.orders.length,
+        });
+
+        setConnectedChannels((prev) => ({ ...prev, amazon: true }));
+
+        setApiTestResult({
+          success: true,
+          message: `Sync complete! ${data.orders.length} orders fetched from Amazon India (${syncResult.added} new, ${syncResult.updated} updated in ledger).`,
+        });
+
+        showToast(
+          "Amazon Synced",
+          `${data.orders.length} orders fetched (${syncResult.added} new, ${syncResult.updated} updated).`
+        );
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to fetch orders from Amazon.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Sync error: ${err.message || "Failed to fetch orders."}`,
+      });
+    } finally {
+      setIsSyncingOrders(false);
+    }
+  };
+
+  // Meesho Handlers
+  const handleTestMeeshoConnection = async () => {
+    if (!meeshoSupplierId || !meeshoApiKey) {
+      setApiTestResult({
+        success: false,
+        message: "Please enter Meesho Supplier ID and API Key / Panel Token.",
+      });
+      return;
+    }
+
+    setIsTestingApi(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/meesho/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "test_connection",
+          supplierId: meeshoSupplierId,
+          apiKey: meeshoApiKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setApiTestResult({
+          success: true,
+          message: data.message || "Meesho Supplier Panel authenticated successfully.",
+        });
+        setConnectedChannels((prev) => ({ ...prev, meesho: true }));
+        saveChannelCredentials("meesho", {
+          supplierId: meeshoSupplierId,
+          apiKey: meeshoApiKey,
+          connected: true,
+        });
+        showToast("Connected & Active", "Meesho Supplier credentials verified.");
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to verify Meesho credentials.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Network error: ${err.message || "Could not reach Meesho gateway."}`,
+      });
+    } finally {
+      setIsTestingApi(false);
+    }
+  };
+
+  const handleSyncMeeshoOrders = async () => {
+    if (!meeshoSupplierId || !meeshoApiKey) {
+      setApiTestResult({
+        success: false,
+        message: "Please enter your Meesho Supplier credentials before syncing.",
+      });
+      return;
+    }
+
+    setIsSyncingOrders(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/meesho/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "fetch_orders",
+          supplierId: meeshoSupplierId,
+          apiKey: meeshoApiKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        const syncResult = syncExternalOrders(data.orders);
+        const nowIso = new Date().toISOString();
+
+        saveChannelCredentials("meesho", {
+          supplierId: meeshoSupplierId,
+          apiKey: meeshoApiKey,
+          connected: true,
+          lastSyncedAt: nowIso,
+          totalOrdersInStore: data.orders.length,
+        });
+
+        setConnectedChannels((prev) => ({ ...prev, meesho: true }));
+
+        setApiTestResult({
+          success: true,
+          message: `Sync complete! ${data.orders.length} orders fetched from Meesho (${syncResult.added} new, ${syncResult.updated} updated in ledger).`,
+        });
+
+        showToast(
+          "Meesho Synced",
+          `${data.orders.length} orders fetched (${syncResult.added} new, ${syncResult.updated} updated).`
+        );
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to fetch orders from Meesho.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Sync error: ${err.message || "Failed to fetch orders."}`,
+      });
+    } finally {
+      setIsSyncingOrders(false);
+    }
+  };
+
+  // Generic Custom API Handlers
+  const handleTestGenericConnection = async () => {
+    if (!genericApiUrl) {
+      setApiTestResult({
+        success: false,
+        message: "Please enter your Custom API / POS Endpoint URL.",
+      });
+      return;
+    }
+
+    setIsTestingApi(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/generic/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "test_connection",
+          endpointUrl: genericApiUrl,
+          apiKey: genericApiKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setApiTestResult({
+          success: true,
+          message: data.message || "Custom API endpoint verified successfully.",
+        });
+        setConnectedChannels((prev) => ({ ...prev, generic: true }));
+        saveChannelCredentials("generic", {
+          apiUrl: genericApiUrl,
+          apiKey: genericApiKey,
+          connected: true,
+        });
+        showToast("Connected & Active", "Custom API endpoint verified.");
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to reach custom endpoint.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Network error: ${err.message || "Could not contact endpoint."}`,
+      });
+    } finally {
+      setIsTestingApi(false);
+    }
+  };
+
+  const handleSyncGenericOrders = async () => {
+    setIsSyncingOrders(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/generic/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "fetch_orders",
+          endpointUrl: genericApiUrl,
+          apiKey: genericApiKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        const syncResult = syncExternalOrders(data.orders);
+        const nowIso = new Date().toISOString();
+
+        saveChannelCredentials("generic", {
+          apiUrl: genericApiUrl,
+          apiKey: genericApiKey,
+          connected: true,
+          lastSyncedAt: nowIso,
+          totalOrdersInStore: data.orders.length,
+        });
+
+        setConnectedChannels((prev) => ({ ...prev, generic: true }));
+
+        setApiTestResult({
+          success: true,
+          message: `Sync complete! ${data.orders.length} orders ingested into ledger (${syncResult.added} new, ${syncResult.updated} updated).`,
+        });
+
+        showToast(
+          "Custom Orders Ingested",
+          `${data.orders.length} orders synced (${syncResult.added} new, ${syncResult.updated} updated).`
+        );
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to ingest orders.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Sync error: ${err.message || "Failed to sync orders."}`,
+      });
+    } finally {
+      setIsSyncingOrders(false);
+    }
+  };
+
   const handleCopy = (text: string, isCurl: boolean = false) => {
     navigator.clipboard.writeText(text);
     if (isCurl) {
@@ -580,12 +1399,28 @@ export function WebhookSimulatorView() {
       setWebhookSecret(creds.consumerSecret || creds.webhookSecret || "");
       setFlipkartAppId(creds.appId || "");
       setFlipkartAppSecret(creds.appSecret || "");
+      setAmazonClientId(creds.clientId || "");
+      setAmazonClientSecret(creds.clientSecret || "");
+      setAmazonRefreshToken(creds.refreshToken || "");
+      setAmazonSellerId(creds.sellerId || "");
+      setMeeshoSupplierId(creds.supplierId || "");
+      setMeeshoApiKey(creds.apiKey || "");
+      setGenericApiUrl(creds.apiUrl || "");
+      setGenericApiKey(creds.apiKey || "");
     } else {
       setCustomApiUrl("");
       setCustomApiKey("");
       setWebhookSecret("");
       setFlipkartAppId("");
       setFlipkartAppSecret("");
+      setAmazonClientId("");
+      setAmazonClientSecret("");
+      setAmazonRefreshToken("");
+      setAmazonSellerId("");
+      setMeeshoSupplierId("");
+      setMeeshoApiKey("");
+      setGenericApiUrl("");
+      setGenericApiKey("");
     }
   };
 
@@ -948,14 +1783,28 @@ export function WebhookSimulatorView() {
                   )}
 
                   <div className="pt-2 flex items-center justify-between">
-                    <button
-                      onClick={handleTestPing}
-                      disabled={isTestingPing}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] text-xs font-semibold shadow-apple-xs active:scale-[0.98] transition cursor-pointer disabled:opacity-50"
-                    >
-                      <Zap className={`w-3.5 h-3.5 ${isTestingPing ? "animate-spin text-[#1D1D1F]" : ""}`} />
-                      <span>{isTestingPing ? "Checking..." : "Verify Endpoint"}</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleTestPing}
+                        disabled={isTestingPing}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] text-xs font-semibold shadow-apple-xs active:scale-[0.98] transition cursor-pointer disabled:opacity-50"
+                      >
+                        <Zap className={`w-3.5 h-3.5 ${isTestingPing ? "animate-spin text-[#1D1D1F]" : ""}`} />
+                        <span>{isTestingPing ? "Checking..." : "Verify Endpoint"}</span>
+                      </button>
+
+                      {setupModalChannel.id === "generic" && (
+                        <button
+                          type="button"
+                          onClick={handleSimulateGenericWebhook}
+                          disabled={isTestingApi}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#1D1D1F] hover:bg-black text-white text-xs font-semibold shadow-apple-sm active:scale-[0.98] transition cursor-pointer disabled:opacity-50"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isTestingApi ? "animate-spin text-white" : ""}`} />
+                          <span>Simulate Ingestion</span>
+                        </button>
+                      )}
+                    </div>
 
                     {pingSuccess && (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#288548]">
@@ -971,16 +1820,19 @@ export function WebhookSimulatorView() {
               {setupTab === "api" && (
                 <div className="space-y-4">
                   {setupModalChannel.id === "shopify" && (
-                    <div className="space-y-3">
+                    <div className="space-y-3.5">
                       <div>
                         <label className="block text-xs font-medium text-[#6E6E73] mb-1">
-                          Store Domain
+                          Shopify Store Domain
                         </label>
                         <input
                           type="text"
                           placeholder="your-brand.myshopify.com"
                           value={customApiUrl}
-                          onChange={(e) => setCustomApiUrl(e.target.value)}
+                          onChange={(e) => {
+                            setCustomApiUrl(e.target.value);
+                            setApiTestResult(null);
+                          }}
                           className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
                         />
                       </div>
@@ -993,21 +1845,67 @@ export function WebhookSimulatorView() {
                           type="password"
                           placeholder="shpat_xxxxxxxxxxxxxxxxxxxxxxxxx"
                           value={customApiKey}
-                          onChange={(e) => setCustomApiKey(e.target.value)}
+                          onChange={(e) => {
+                            setCustomApiKey(e.target.value);
+                            setApiTestResult(null);
+                          }}
                           className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
                         />
                       </div>
 
-                      <div className="pt-1">
-                        <button
-                          onClick={() => {
-                            setConnectedChannels((prev) => ({ ...prev, [setupModalChannel.id]: true }));
-                            showToast("Saved", "Shopify access token saved. Channel is Active.");
-                            setSetupModalChannel(null);
-                          }}
-                          className="w-full py-2.5 rounded-xl bg-[#1D1D1F] text-white hover:bg-black text-xs font-medium shadow-apple-sm active:scale-[0.98] transition cursor-pointer"
+                      {/* Real Feedback Banner */}
+                      {apiTestResult && (
+                        <div
+                          className={`p-3 rounded-xl text-xs flex items-start gap-2 border ${
+                            apiTestResult.success
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800"
+                              : "bg-red-500/10 border-red-500/20 text-red-800"
+                          }`}
                         >
-                          Save Credentials
+                          {apiTestResult.success ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="leading-relaxed">
+                            <span className="font-semibold">
+                              {apiTestResult.success ? "Connection Verified: " : "Error: "}
+                            </span>
+                            {apiTestResult.message}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Last Synced Info */}
+                      {channelCredentials.shopify?.lastSyncedAt && (
+                        <div className="flex items-center justify-between text-[11px] text-[#86868B] px-1 pt-0.5">
+                          <span>Last synchronized:</span>
+                          <span className="font-medium text-[#1D1D1F] tabular-nums">
+                            {new Date(channelCredentials.shopify.lastSyncedAt).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="pt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleTestShopifyConnection}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] text-xs font-medium shadow-apple-xs active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <Zap className={`w-3.5 h-3.5 ${isTestingApi ? "animate-spin text-[#1D1D1F]" : "text-[#6E6E73]"}`} />
+                          <span>{isTestingApi ? "Testing Connection..." : "Test Connection"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSyncShopifyOrders}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium shadow-apple-sm active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncingOrders ? "animate-spin text-white" : "text-white/80"}`} />
+                          <span>{isSyncingOrders ? "Syncing Orders..." : "Save & Sync Orders"}</span>
                         </button>
                       </div>
                     </div>
@@ -1122,7 +2020,7 @@ export function WebhookSimulatorView() {
                   )}
 
                   {setupModalChannel.id === "flipkart" && (
-                    <div className="space-y-3">
+                    <div className="space-y-3.5">
                       <div>
                         <label className="block text-xs font-medium text-[#6E6E73] mb-1">
                           Application ID (App ID)
@@ -1131,7 +2029,10 @@ export function WebhookSimulatorView() {
                           type="text"
                           placeholder="e.g. 981240a1-xxxx-xxxx-xxxx"
                           value={flipkartAppId}
-                          onChange={(e) => setFlipkartAppId(e.target.value)}
+                          onChange={(e) => {
+                            setFlipkartAppId(e.target.value);
+                            setApiTestResult(null);
+                          }}
                           className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
                         />
                       </div>
@@ -1144,7 +2045,10 @@ export function WebhookSimulatorView() {
                           type="password"
                           placeholder="Enter Application Secret"
                           value={flipkartAppSecret}
-                          onChange={(e) => setFlipkartAppSecret(e.target.value)}
+                          onChange={(e) => {
+                            setFlipkartAppSecret(e.target.value);
+                            setApiTestResult(null);
+                          }}
                           className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
                         />
                       </div>
@@ -1153,42 +2057,403 @@ export function WebhookSimulatorView() {
                         Found in Flipkart Seller Hub under <strong>Manage Profile &gt; Developer Access</strong>.
                       </p>
 
-                      <div className="pt-1">
-                        <button
-                          onClick={() => {
-                            setConnectedChannels((prev) => ({ ...prev, [setupModalChannel.id]: true }));
-                            showToast("Saved", "Flipkart credentials stored. Channel is Active.");
-                            setSetupModalChannel(null);
-                          }}
-                          className="w-full py-2.5 rounded-xl bg-[#1D1D1F] text-white hover:bg-black text-xs font-medium shadow-apple-sm active:scale-[0.98] transition cursor-pointer"
+                      {/* Real Feedback Banner */}
+                      {apiTestResult && (
+                        <div
+                          className={`p-3 rounded-xl text-xs flex items-start gap-2 border ${
+                            apiTestResult.success
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800"
+                              : "bg-red-500/10 border-red-500/20 text-red-800"
+                          }`}
                         >
-                          Save Credentials
+                          {apiTestResult.success ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="leading-relaxed">
+                            <span className="font-semibold">
+                              {apiTestResult.success ? "Connection Verified: " : "Error: "}
+                            </span>
+                            {apiTestResult.message}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Last Synced Info */}
+                      {channelCredentials.flipkart?.lastSyncedAt && (
+                        <div className="flex items-center justify-between text-[11px] text-[#86868B] px-1 pt-0.5">
+                          <span>Last synchronized:</span>
+                          <span className="font-medium text-[#1D1D1F] tabular-nums">
+                            {new Date(channelCredentials.flipkart.lastSyncedAt).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="pt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleTestFlipkartConnection}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] text-xs font-medium shadow-apple-xs active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <Zap className={`w-3.5 h-3.5 ${isTestingApi ? "animate-spin text-[#1D1D1F]" : "text-[#6E6E73]"}`} />
+                          <span>{isTestingApi ? "Testing Connection..." : "Test Connection"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSyncFlipkartOrders}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium shadow-apple-sm active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncingOrders ? "animate-spin text-white" : "text-white/80"}`} />
+                          <span>{isSyncingOrders ? "Syncing Orders..." : "Save & Sync Orders"}</span>
                         </button>
                       </div>
                     </div>
                   )}
 
                   {setupModalChannel.id === "amazon" && (
-                    <div className="space-y-3">
-                      <div className="bg-[#F5F5F7] rounded-2xl p-4 border border-black/[0.04] text-xs text-[#555] space-y-2">
-                        <div className="font-semibold text-[#1D1D1F]">
-                          Amazon Developer Access Note
-                        </div>
-                        <p className="text-[11px] text-[#6E6E73] leading-relaxed">
-                          Amazon SP-API uses AWS IAM and OAuth authorization instead of simple static API keys.
-                        </p>
-                        <p className="text-[11px] text-[#6E6E73] leading-relaxed">
-                          For standard reconciliation, we recommend using the <strong>Upload File</strong> tab with your Date Range Transaction Report.
-                        </p>
+                    <div className="space-y-3.5">
+                      <div>
+                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
+                          LWA Client ID (App ID)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="amzn1.application-oa2-client.xxxx"
+                          value={amazonClientId}
+                          onChange={(e) => {
+                            setAmazonClientId(e.target.value);
+                            setApiTestResult(null);
+                          }}
+                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
+                        />
                       </div>
 
-                      <button
-                        onClick={() => setSetupTab("csv")}
-                        className="w-full py-2.5 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] text-xs font-medium border border-black/[0.06] shadow-apple-xs active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <span>Switch to File Upload</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
+                      <div>
+                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
+                          LWA Client Secret
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="amzn1.oa2-cs.v1.xxxx"
+                          value={amazonClientSecret}
+                          onChange={(e) => {
+                            setAmazonClientSecret(e.target.value);
+                            setApiTestResult(null);
+                          }}
+                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
+                          LWA Refresh Token
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Atzr|IQEBLz49..."
+                          value={amazonRefreshToken}
+                          onChange={(e) => {
+                            setAmazonRefreshToken(e.target.value);
+                            setApiTestResult(null);
+                          }}
+                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
+                          Seller / Merchant ID (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. A21TJRUUN4KGV"
+                          value={amazonSellerId}
+                          onChange={(e) => {
+                            setAmazonSellerId(e.target.value);
+                            setApiTestResult(null);
+                          }}
+                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
+                        />
+                      </div>
+
+                      <p className="text-[11px] text-[#86868B]">
+                        Found under <strong>Amazon Seller Central &gt; Apps &amp; Services &gt; Develop Apps</strong>.
+                      </p>
+
+                      {/* Real Feedback Banner */}
+                      {apiTestResult && (
+                        <div
+                          className={`p-3 rounded-xl text-xs flex items-start gap-2 border ${
+                            apiTestResult.success
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800"
+                              : "bg-red-500/10 border-red-500/20 text-red-800"
+                          }`}
+                        >
+                          {apiTestResult.success ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="leading-relaxed">
+                            <span className="font-semibold">
+                              {apiTestResult.success ? "Connection Verified: " : "Error: "}
+                            </span>
+                            {apiTestResult.message}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Last Synced Info */}
+                      {channelCredentials.amazon?.lastSyncedAt && (
+                        <div className="flex items-center justify-between text-[11px] text-[#86868B] px-1 pt-0.5">
+                          <span>Last synchronized:</span>
+                          <span className="font-medium text-[#1D1D1F] tabular-nums">
+                            {new Date(channelCredentials.amazon.lastSyncedAt).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="pt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleTestAmazonConnection}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] text-xs font-medium shadow-apple-xs active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <Zap className={`w-3.5 h-3.5 ${isTestingApi ? "animate-spin text-[#1D1D1F]" : "text-[#6E6E73]"}`} />
+                          <span>{isTestingApi ? "Testing Connection..." : "Test Connection"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSyncAmazonOrders}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium shadow-apple-sm active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncingOrders ? "animate-spin text-white" : "text-white/80"}`} />
+                          <span>{isSyncingOrders ? "Syncing Orders..." : "Save & Sync Orders"}</span>
+                        </button>
+                      </div>
+
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSetupTab("csv")}
+                          className="w-full py-2 rounded-xl bg-transparent hover:bg-black/[0.03] text-[#86868B] hover:text-[#1D1D1F] text-xs font-medium transition cursor-pointer flex items-center justify-center gap-1"
+                        >
+                          <span>Prefer report upload? Switch to CSV file tab</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {setupModalChannel.id === "meesho" && (
+                    <div className="space-y-3.5">
+                      <div>
+                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
+                          Meesho Supplier ID
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. SUP-89211 or registered seller ID"
+                          value={meeshoSupplierId}
+                          onChange={(e) => {
+                            setMeeshoSupplierId(e.target.value);
+                            setApiTestResult(null);
+                          }}
+                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
+                          API Key / Panel Session Token
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Enter Meesho API Key or Panel Token"
+                          value={meeshoApiKey}
+                          onChange={(e) => {
+                            setMeeshoApiKey(e.target.value);
+                            setApiTestResult(null);
+                          }}
+                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
+                        />
+                      </div>
+
+                      <p className="text-[11px] text-[#86868B]">
+                        Found in Meesho Supplier Panel under <strong>Settings &gt; Developer API</strong>.
+                      </p>
+
+                      {/* Real Feedback Banner */}
+                      {apiTestResult && (
+                        <div
+                          className={`p-3 rounded-xl text-xs flex items-start gap-2 border ${
+                            apiTestResult.success
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800"
+                              : "bg-red-500/10 border-red-500/20 text-red-800"
+                          }`}
+                        >
+                          {apiTestResult.success ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="leading-relaxed">
+                            <span className="font-semibold">
+                              {apiTestResult.success ? "Connection Verified: " : "Error: "}
+                            </span>
+                            {apiTestResult.message}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Last Synced Info */}
+                      {channelCredentials.meesho?.lastSyncedAt && (
+                        <div className="flex items-center justify-between text-[11px] text-[#86868B] px-1 pt-0.5">
+                          <span>Last synchronized:</span>
+                          <span className="font-medium text-[#1D1D1F] tabular-nums">
+                            {new Date(channelCredentials.meesho.lastSyncedAt).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="pt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleTestMeeshoConnection}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] text-xs font-medium shadow-apple-xs active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <Zap className={`w-3.5 h-3.5 ${isTestingApi ? "animate-spin text-[#1D1D1F]" : "text-[#6E6E73]"}`} />
+                          <span>{isTestingApi ? "Testing Connection..." : "Test Connection"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSyncMeeshoOrders}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium shadow-apple-sm active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncingOrders ? "animate-spin text-white" : "text-white/80"}`} />
+                          <span>{isSyncingOrders ? "Syncing Orders..." : "Save & Sync Orders"}</span>
+                        </button>
+                      </div>
+
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSetupTab("csv")}
+                          className="w-full py-2 rounded-xl bg-transparent hover:bg-black/[0.03] text-[#86868B] hover:text-[#1D1D1F] text-xs font-medium transition cursor-pointer flex items-center justify-center gap-1"
+                        >
+                          <span>Prefer statement upload? Switch to CSV file tab</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {setupModalChannel.id === "generic" && (
+                    <div className="space-y-3.5">
+                      <div>
+                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
+                          Custom API / POS Endpoint URL
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="https://pos.mybrand.com/api/orders"
+                          value={genericApiUrl}
+                          onChange={(e) => {
+                            setGenericApiUrl(e.target.value);
+                            setApiTestResult(null);
+                          }}
+                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
+                          Authorization Header / Bearer Token (Optional)
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Bearer tok_xxxxxxxxxxxxxxxxxxxxxxxx"
+                          value={genericApiKey}
+                          onChange={(e) => {
+                            setGenericApiKey(e.target.value);
+                            setApiTestResult(null);
+                          }}
+                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
+                        />
+                      </div>
+
+                      <p className="text-[11px] text-[#86868B]">
+                        Pull or sync orders from any internal ERP, offline POS, or custom commerce engine.
+                      </p>
+
+                      {/* Real Feedback Banner */}
+                      {apiTestResult && (
+                        <div
+                          className={`p-3 rounded-xl text-xs flex items-start gap-2 border ${
+                            apiTestResult.success
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800"
+                              : "bg-red-500/10 border-red-500/20 text-red-800"
+                          }`}
+                        >
+                          {apiTestResult.success ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="leading-relaxed">
+                            <span className="font-semibold">
+                              {apiTestResult.success ? "Connection Verified: " : "Error: "}
+                            </span>
+                            {apiTestResult.message}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Last Synced Info */}
+                      {channelCredentials.generic?.lastSyncedAt && (
+                        <div className="flex items-center justify-between text-[11px] text-[#86868B] px-1 pt-0.5">
+                          <span>Last synchronized:</span>
+                          <span className="font-medium text-[#1D1D1F] tabular-nums">
+                            {new Date(channelCredentials.generic.lastSyncedAt).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="pt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleTestGenericConnection}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] text-xs font-medium shadow-apple-xs active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <Zap className={`w-3.5 h-3.5 ${isTestingApi ? "animate-spin text-[#1D1D1F]" : "text-[#6E6E73]"}`} />
+                          <span>{isTestingApi ? "Testing Connection..." : "Test Connection"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSyncGenericOrders}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium shadow-apple-sm active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncingOrders ? "animate-spin text-white" : "text-white/80"}`} />
+                          <span>{isSyncingOrders ? "Syncing Orders..." : "Save & Sync Orders"}</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

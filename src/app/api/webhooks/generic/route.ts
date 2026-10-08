@@ -39,7 +39,20 @@ export async function POST(req: NextRequest) {
     const channelHeader = req.headers.get("X-MarginFlow-Channel") || "generic";
     const webhookId = req.headers.get("X-Webhook-Id") || `gnw_${Date.now()}`;
 
-    // 4. Verify HMAC Signature
+    // 4. Handle Generic Webhook Ping events immediately
+    const rawString = rawBodyBuffer.toString("utf-8");
+    if (channelHeader.includes("ping") || rawString.includes('"ping":true') || rawString.includes('"ping": true')) {
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Generic webhook receiver verified. Endpoint is live.",
+          webhookId,
+        },
+        { status: 200 }
+      );
+    }
+
+    // 5. Verify HMAC Signature
     const secret = getWebhookSecret("generic");
     const verification = verifyGenericWebhook(rawBodyBuffer, signatureHeader, secret);
 

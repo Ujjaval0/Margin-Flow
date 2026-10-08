@@ -21,7 +21,7 @@ export const ShopifyLineItemSchema = z.object({
 export const ShopifyOrderWebhookSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   name: z.string().default("#1001"), // Order number e.g. #1001
-  created_at: z.string(),
+  created_at: z.string().optional().default(() => new Date().toISOString()),
   financial_status: z.string().default("paid"),
   fulfillment_status: z.string().nullable().optional(),
   currency: z.string().default("INR"),
@@ -45,7 +45,7 @@ export const ShopifyOrderWebhookSchema = z.object({
     })
     .nullable()
     .optional(),
-  line_items: z.array(ShopifyLineItemSchema).min(1),
+  line_items: z.array(ShopifyLineItemSchema).default([]),
 });
 
 export type ShopifyOrderWebhookPayload = z.infer<typeof ShopifyOrderWebhookSchema>;
@@ -64,9 +64,9 @@ export function mapShopifyOrderToDomain(
   const city = payload.shipping_address?.city || "Direct Customer";
   const state = payload.shipping_address?.province || "Direct";
 
-  const orderDate = payload.created_at.split("T")[0];
+  const orderDate = payload.created_at ? payload.created_at.split("T")[0] : new Date().toISOString().split("T")[0];
 
-  const items: OrderItem[] = payload.line_items.map((item, idx) => {
+  const items: OrderItem[] = (payload.line_items || []).map((item, idx) => {
     const unitPrice = item.price;
     const itemTaxes = item.tax_lines.reduce((sum, t) => sum + t.price, 0);
     const unitCost = catalogCostLookup?.[item.sku] || Math.round(unitPrice * 0.45); // Standard 45% default if uncataloged

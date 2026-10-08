@@ -37,7 +37,20 @@ export async function POST(req: NextRequest) {
     const webhookIdHeader = req.headers.get("X-Shopify-Webhook-Id") || `shpw_${Date.now()}`;
     const shopDomain = req.headers.get("X-Shopify-Shop-Domain") || "direct";
 
-    // 4. Verify Cryptographic HMAC Signature
+    // 4. Handle Shopify Ping events immediately
+    const rawString = rawBodyBuffer.toString("utf-8");
+    if (topicHeader.includes("ping") || rawString.includes('"ping":true') || rawString.includes('"ping": true')) {
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Shopify webhook handshake ping verified. Endpoint is live.",
+          webhookId: webhookIdHeader,
+        },
+        { status: 200 }
+      );
+    }
+
+    // 5. Verify Cryptographic HMAC Signature
     const secret = getWebhookSecret("shopify");
     const verification = verifyShopifyWebhook(rawBodyBuffer, hmacHeader, secret);
 
