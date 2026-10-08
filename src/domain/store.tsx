@@ -106,6 +106,7 @@ interface PlatformContextType {
 
   // Actions
   addOrder: (order: Order) => void;
+  syncExternalOrders: (incomingOrders: Order[]) => { added: number; updated: number };
   updateOrder: (order: Order) => void;
   deleteOrder: (orderId: string) => void;
   deleteOrders: (orderIds: string[]) => void;
@@ -573,6 +574,63 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Order created in system and stock deducted",
     };
     setAuditLogs((prev) => [log, ...prev]);
+  }, []);
+
+  const syncExternalOrders = useCallback((incomingOrders: Order[]) => {
+    let addedCount = 0;
+    let updatedCount = 0;
+
+    setOrders((prev) => {
+      const existingMap = new Map<string, number>();
+      prev.forEach((o, idx) => {
+        if (o.channelOrderId) existingMap.set(o.channelOrderId, idx);
+        existingMap.set(o.id, idx);
+      });
+
+      const next = [...prev];
+
+      for (const inc of incomingOrders) {
+        const lookupKey = inc.channelOrderId || inc.id;
+        const existingIdx = existingMap.get(lookupKey);
+
+        if (existingIdx !== undefined) {
+          next[existingIdx] = {
+            ...next[existingIdx],
+            status: inc.status || next[existingIdx].status,
+            customerName: inc.customerName || next[existingIdx].customerName,
+            customerCity: inc.customerCity || next[existingIdx].customerCity,
+            customerState: inc.customerState || next[existingIdx].customerState,
+            items: inc.items && inc.items.length > 0 ? inc.items : next[existingIdx].items,
+            notes: inc.notes || next[existingIdx].notes,
+          };
+          updatedCount++;
+        } else {
+          next.unshift(inc);
+          existingMap.set(inc.id, 0);
+          if (inc.channelOrderId) existingMap.set(inc.channelOrderId, 0);
+          addedCount++;
+        }
+      }
+
+      return next;
+    });
+
+    if (addedCount > 0 || updatedCount > 0) {
+      const log: FinancialAuditLog = {
+        id: `AUD-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        entityType: "ORDER",
+        entityId: `SYNC-${Date.now()}`,
+        fieldName: "status",
+        oldValue: "N/A",
+        newValue: "SYNCED",
+        modifiedBy: "Channel Integration",
+        reason: `Orders synchronized: ${addedCount} added, ${updatedCount} updated`,
+      };
+      setAuditLogs((prev) => [log, ...prev]);
+    }
+
+    return { added: addedCount, updated: updatedCount };
   }, []);
 
   const updateOrderStatus = useCallback((orderId: string, status: Order["status"]) => {
@@ -1910,6 +1968,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       claimsSummary,
       settlementSummary,
       addOrder,
+      syncExternalOrders,
       updateOrder,
       deleteOrder,
       deleteOrders,
@@ -1985,6 +2044,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       claimsSummary,
       settlementSummary,
       addOrder,
+      syncExternalOrders,
       updateOrder,
       deleteOrder,
       deleteOrders,

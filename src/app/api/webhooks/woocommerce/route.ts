@@ -37,13 +37,28 @@ export async function POST(req: NextRequest) {
     const webhookIdHeader = req.headers.get("x-wc-webhook-id") || `wcw_${Date.now()}`;
     const sourceHeader = req.headers.get("x-wc-webhook-source") || "woocommerce";
 
-    // 4. Verify Cryptographic HMAC Signature
+    // 4. Handle WooCommerce Ping events immediately (so WordPress does not disable the webhook)
+    if (topicHeader.includes("ping") || topicHeader === "action.woocommerce_webhook_ping") {
+      return NextResponse.json(
+        {
+          success: true,
+          message: "WooCommerce webhook handshake ping verified. Endpoint is live.",
+          webhookId: webhookIdHeader,
+        },
+        { status: 200 }
+      );
+    }
+
+    // 5. Verify Cryptographic HMAC Signature
     const secret = getWebhookSecret("woocommerce");
     const verification = verifyWooCommerceWebhook(rawBodyBuffer, hmacHeader, secret);
 
     if (!verification.isValid) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized: Invalid WooCommerce HMAC signature." },
+        {
+          success: false,
+          error: "Unauthorized: Invalid WooCommerce HMAC signature. Ensure WOOCOMMERCE_WEBHOOK_SECRET matches the Secret entered in WooCommerce.",
+        },
         { status: 401 }
       );
     }

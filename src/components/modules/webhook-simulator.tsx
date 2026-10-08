@@ -26,6 +26,7 @@ import {
   KeyRound,
   Terminal,
   Info,
+  AlertCircle,
 } from "lucide-react";
 
 interface ChannelConfig {
@@ -148,19 +149,78 @@ const CATALOG_PLATFORMS = [
   },
 ];
 
+interface StoredChannelCredentials {
+  storeUrl?: string;
+  consumerKey?: string;
+  consumerSecret?: string;
+  webhookSecret?: string;
+  appId?: string;
+  appSecret?: string;
+  connected?: boolean;
+  lastSyncedAt?: string;
+  totalOrdersInStore?: number;
+}
+
+const STORAGE_CHANNELS_KEY = "MARGINFLOW_CHANNEL_CONFIGS_V1";
+
 export function WebhookSimulatorView() {
-  const { orders, products, addOrder } = usePlatform();
+  const { orders, products, addOrder, syncExternalOrders } = usePlatform();
 
   // Dynamic connection & active state per channel
   // Green dot = Active / Connected; Black dot = Inactive / Deactivated
+  const [channelCredentials, setChannelCredentials] = useState<Record<string, StoredChannelCredentials>>({});
   const [connectedChannels, setConnectedChannels] = useState<Record<string, boolean>>({
-    shopify: true,
-    woocommerce: true,
-    amazon: true,
-    flipkart: true,
-    meesho: true,
+    shopify: false,
+    woocommerce: false,
+    amazon: false,
+    flipkart: false,
+    meesho: false,
     generic: false,
   });
+
+  const [isTestingApi, setIsTestingApi] = useState(false);
+  const [isSyncingOrders, setIsSyncingOrders] = useState(false);
+  const [apiTestResult, setApiTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Load saved channel credentials and active status on client mount
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(STORAGE_CHANNELS_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object") {
+            setChannelCredentials(parsed);
+            setConnectedChannels((prev) => {
+              const updated = { ...prev };
+              Object.keys(parsed).forEach((key) => {
+                if (parsed[key]?.connected) {
+                  updated[key] = true;
+                }
+              });
+              return updated;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load channel configs:", e);
+    }
+  }, []);
+
+  const saveChannelCredentials = (channelId: string, creds: StoredChannelCredentials) => {
+    setChannelCredentials((prev) => {
+      const next = { ...prev, [channelId]: { ...(prev[channelId] || {}), ...creds } };
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(STORAGE_CHANNELS_KEY, JSON.stringify(next));
+        }
+      } catch (err) {
+        console.error("Failed to save channel credentials:", err);
+      }
+      return next;
+    });
+  };
 
   // Real-time dynamic aggregation based on the actual platform orders
   const channelMetrics = useMemo(() => {
@@ -269,6 +329,7 @@ export function WebhookSimulatorView() {
     setConnectedChannels((prev) => {
       const nextState = !prev[channelId];
       const channelName = CHANNELS.find((c) => c.id === channelId)?.name || "Channel";
+      saveChannelCredentials(channelId, { connected: nextState });
       showToast(
         nextState ? "Channel Active" : "Channel Deactivated",
         `${channelName} is now ${nextState ? "Active (connection enabled)" : "Inactive (black dot indicator)"}.`
@@ -288,32 +349,210 @@ export function WebhookSimulatorView() {
   const handleVerifyChannel = async (channel: ChannelConfig) => {
     setVerifyingChannelId(channel.id);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      setConnectedChannels((prev) => ({ ...prev, [channel.id]: true }));
-      if (channel.id === "shopify" || channel.id === "woocommerce" || channel.id === "generic") {
-        showToast("Connected & Active", `${channel.name} webhook receiver is healthy and verified.`);
-      } else {
-        showToast("Connected & Active", `${channel.name} channel is active. Upload statements to sync.`);
+      if (channel.id === "woocommerce") {
+        const creds = channelCredentials.woocommerce;
+        if (!creds?.storeUrl || !creds?.consumerKey || !creds?.consumerSecret) {
+          showToast("Setup Required", "Please configure your Store URL, Consumer Key, and Consumer Secret first.");
+          openConfigForChannel(channel);
+          return;
+        }
+
+        const res = await fetch("/api/integrations/woocommerce/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "test_connection",
+            storeUrl: creds.storeUrl,
+            consumerKey: creds.consumerKey,
+            consumerSecret: creds.consumerSecret,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          setConnectedChannels((prev) => ({ ...prev, woocommerce: true }));
+          saveChannelCredentials("woocommerce", {
+            ...creds,
+            connected: true,
+            totalOrdersInStore: data.totalOrdersInStore,
+          });
+          showToast("Connected & Active", `WooCommerce store verified. ${data.totalOrdersInStore || 0} orders found in store.`);
+        } else {
+          setConnectedChannels((prev) => ({ ...prev, woocommerce: false }));
+          saveChannelCredentials("woocommerce", { ...creds, connected: false });
+          showToast("Verification Failed", data.error || "Could not connect to WooCommerce store.");
+        }
+        return;
       }
+
+      // Other channels
+      const creds = channelCredentials[channel.id];
+      if (creds?.connected) {
+        showToast("Connected & Active", `${channel.name} channel is healthy and active.`);
+      } else {
+        showToast("Setup Required", `Please configure credentials for ${channel.name} to activate.`);
+        openConfigForChannel(channel);
+      }
+    } catch (err: any) {
+      showToast("Verification Error", err.message || "Failed to reach verification endpoint.");
     } finally {
       setVerifyingChannelId(null);
     }
   };
 
-
   // Webhook ping test
   const handleTestPing = async () => {
+    if (!setupModalChannel) return;
     setIsTestingPing(true);
     setPingSuccess(false);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      setPingSuccess(true);
-      if (setupModalChannel) {
+      const res = await fetch(setupModalChannel.endpoint, {
+        method: "POST",
+        headers: {
+          "x-wc-webhook-topic": "action.woocommerce_webhook_ping",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ webhook_id: 1, ping: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setPingSuccess(true);
         setConnectedChannels((prev) => ({ ...prev, [setupModalChannel.id]: true }));
+        saveChannelCredentials(setupModalChannel.id, {
+          ...(channelCredentials[setupModalChannel.id] || {}),
+          connected: true,
+        });
+        showToast("Handshake Verified", `${setupModalChannel.name} webhook receiver responded with HTTP 200 OK.`);
+      } else {
+        showToast("Ping Failed", data.error || `Endpoint responded with HTTP ${res.status}`);
       }
-      showToast("Handshake Verified", "Webhook responded with HTTP 200. Channel is now Active.");
+    } catch (err: any) {
+      showToast("Endpoint Error", `Could not reach endpoint: ${err.message}`);
     } finally {
       setIsTestingPing(false);
+    }
+  };
+
+  // Test connection in modal
+  const handleTestWooCommerceConnection = async () => {
+    if (!customApiUrl || !customApiKey || !webhookSecret) {
+      setApiTestResult({
+        success: false,
+        message: "Please enter Store URL, Consumer Key, and Consumer Secret.",
+      });
+      return;
+    }
+
+    setIsTestingApi(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/woocommerce/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "test_connection",
+          storeUrl: customApiUrl,
+          consumerKey: customApiKey,
+          consumerSecret: webhookSecret,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setApiTestResult({
+          success: true,
+          message: `Connected successfully! ${data.totalOrdersInStore || 0} orders found in store.`,
+        });
+        setConnectedChannels((prev) => ({ ...prev, woocommerce: true }));
+        saveChannelCredentials("woocommerce", {
+          storeUrl: customApiUrl,
+          consumerKey: customApiKey,
+          consumerSecret: webhookSecret,
+          connected: true,
+          totalOrdersInStore: data.totalOrdersInStore,
+        });
+        showToast("Connected & Active", "WooCommerce connection verified and credentials saved.");
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to verify WooCommerce credentials.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Network error: ${err.message || "Failed to contact proxy route."}`,
+      });
+    } finally {
+      setIsTestingApi(false);
+    }
+  };
+
+  // Save & Sync orders from WooCommerce
+  const handleSyncWooCommerceOrders = async () => {
+    if (!customApiUrl || !customApiKey || !webhookSecret) {
+      setApiTestResult({
+        success: false,
+        message: "Please enter Store URL, Consumer Key, and Consumer Secret before syncing.",
+      });
+      return;
+    }
+
+    setIsSyncingOrders(true);
+    setApiTestResult(null);
+
+    try {
+      const res = await fetch("/api/integrations/woocommerce/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "fetch_orders",
+          storeUrl: customApiUrl,
+          consumerKey: customApiKey,
+          consumerSecret: webhookSecret,
+          perPage: 50,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        const syncResult = syncExternalOrders(data.orders);
+        const nowIso = new Date().toISOString();
+
+        saveChannelCredentials("woocommerce", {
+          storeUrl: customApiUrl,
+          consumerKey: customApiKey,
+          consumerSecret: webhookSecret,
+          connected: true,
+          lastSyncedAt: nowIso,
+          totalOrdersInStore: data.totalInStore || data.orders.length,
+        });
+
+        setConnectedChannels((prev) => ({ ...prev, woocommerce: true }));
+
+        setApiTestResult({
+          success: true,
+          message: `Sync complete! ${data.orders.length} orders fetched from WooCommerce (${syncResult.added} new, ${syncResult.updated} updated in ledger).`,
+        });
+
+        showToast(
+          "WooCommerce Synced",
+          `${data.orders.length} orders fetched (${syncResult.added} new, ${syncResult.updated} updated).`
+        );
+      } else {
+        setApiTestResult({
+          success: false,
+          message: data.error || "Failed to fetch orders from WooCommerce.",
+        });
+      }
+    } catch (err: any) {
+      setApiTestResult({
+        success: false,
+        message: `Sync error: ${err.message || "Failed to fetch orders."}`,
+      });
+    } finally {
+      setIsSyncingOrders(false);
     }
   };
 
@@ -332,6 +571,22 @@ export function WebhookSimulatorView() {
     setSetupModalChannel(channel);
     setSetupTab(channel.defaultTab);
     setPingSuccess(false);
+    setApiTestResult(null);
+
+    const creds = channelCredentials[channel.id];
+    if (creds) {
+      setCustomApiUrl(creds.storeUrl || "");
+      setCustomApiKey(creds.consumerKey || "");
+      setWebhookSecret(creds.consumerSecret || creds.webhookSecret || "");
+      setFlipkartAppId(creds.appId || "");
+      setFlipkartAppSecret(creds.appSecret || "");
+    } else {
+      setCustomApiUrl("");
+      setCustomApiKey("");
+      setWebhookSecret("");
+      setFlipkartAppId("");
+      setFlipkartAppSecret("");
+    }
   };
 
   // Simplistic, lightweight icon renderer
@@ -660,7 +915,11 @@ export function WebhookSimulatorView() {
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="font-semibold text-[#1D1D1F]">3.</span>
-                        <span>Paste the Delivery URL above and save.</span>
+                        <span>Paste the Delivery URL above.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-semibold text-[#1D1D1F]">4.</span>
+                        <span>Secret: enter <code>wc_secret_dev_key_88b19e20a37fc6</code> (or your <code>WOOCOMMERCE_WEBHOOK_SECRET</code>) and click Save.</span>
                       </div>
                     </div>
                   )}
@@ -755,16 +1014,19 @@ export function WebhookSimulatorView() {
                   )}
 
                   {setupModalChannel.id === "woocommerce" && (
-                    <div className="space-y-3">
+                    <div className="space-y-3.5">
                       <div>
                         <label className="block text-xs font-medium text-[#6E6E73] mb-1">
-                          Store URL
+                          WordPress Store URL
                         </label>
                         <input
                           type="text"
                           placeholder="https://yourstore.com"
                           value={customApiUrl}
-                          onChange={(e) => setCustomApiUrl(e.target.value)}
+                          onChange={(e) => {
+                            setCustomApiUrl(e.target.value);
+                            setApiTestResult(null);
+                          }}
                           className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
                         />
                       </div>
@@ -777,7 +1039,10 @@ export function WebhookSimulatorView() {
                           type="text"
                           placeholder="ck_xxxxxxxxxxxxxxxxxxxxxxxx"
                           value={customApiKey}
-                          onChange={(e) => setCustomApiKey(e.target.value)}
+                          onChange={(e) => {
+                            setCustomApiKey(e.target.value);
+                            setApiTestResult(null);
+                          }}
                           className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
                         />
                       </div>
@@ -790,21 +1055,67 @@ export function WebhookSimulatorView() {
                           type="password"
                           placeholder="cs_xxxxxxxxxxxxxxxxxxxxxxxx"
                           value={webhookSecret}
-                          onChange={(e) => setWebhookSecret(e.target.value)}
+                          onChange={(e) => {
+                            setWebhookSecret(e.target.value);
+                            setApiTestResult(null);
+                          }}
                           className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
                         />
                       </div>
 
-                      <div className="pt-1">
-                        <button
-                          onClick={() => {
-                            setConnectedChannels((prev) => ({ ...prev, [setupModalChannel.id]: true }));
-                            showToast("Saved", "WooCommerce credentials saved. Channel is Active.");
-                            setSetupModalChannel(null);
-                          }}
-                          className="w-full py-2.5 rounded-xl bg-[#1D1D1F] text-white hover:bg-black text-xs font-medium shadow-apple-sm active:scale-[0.98] transition cursor-pointer"
+                      {/* Real Feedback Banner */}
+                      {apiTestResult && (
+                        <div
+                          className={`p-3 rounded-xl text-xs flex items-start gap-2 border ${
+                            apiTestResult.success
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800"
+                              : "bg-red-500/10 border-red-500/20 text-red-800"
+                          }`}
                         >
-                          Save Credentials
+                          {apiTestResult.success ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="leading-relaxed">
+                            <span className="font-semibold">
+                              {apiTestResult.success ? "Connection Verified: " : "Error: "}
+                            </span>
+                            {apiTestResult.message}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Last Synced Info */}
+                      {channelCredentials.woocommerce?.lastSyncedAt && (
+                        <div className="flex items-center justify-between text-[11px] text-[#86868B] px-1 pt-0.5">
+                          <span>Last synchronized:</span>
+                          <span className="font-medium text-[#1D1D1F] tabular-nums">
+                            {new Date(channelCredentials.woocommerce.lastSyncedAt).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="pt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleTestWooCommerceConnection}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] text-xs font-medium shadow-apple-xs active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <Zap className={`w-3.5 h-3.5 ${isTestingApi ? "animate-spin text-[#1D1D1F]" : "text-[#6E6E73]"}`} />
+                          <span>{isTestingApi ? "Testing Connection..." : "Test Connection"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSyncWooCommerceOrders}
+                          disabled={isTestingApi || isSyncingOrders}
+                          className="flex-1 py-2.5 rounded-xl bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium shadow-apple-sm active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncingOrders ? "animate-spin text-white" : "text-white/80"}`} />
+                          <span>{isSyncingOrders ? "Syncing Orders..." : "Save & Sync Orders"}</span>
                         </button>
                       </div>
                     </div>
