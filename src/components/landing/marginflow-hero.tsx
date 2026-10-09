@@ -230,7 +230,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
               <button
                 onClick={onSignIn}
                 disabled={isAuthenticating}
-                className="flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-sm font-mono font-semibold transition-all shadow-[0_0_30px_rgba(0,174,59,0.35)] cursor-pointer"
+                className="flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-sm font-semibold transition-all shadow-[0_0_30px_rgba(0,174,59,0.35)] cursor-pointer"
               >
                 <span>{isAuthenticating ? "Connecting..." : "Audit Your Last 90 Days"}</span>
                 <ArrowUpRight className="w-4 h-4" />
@@ -238,7 +238,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
 
               <Link
                 href="#workspace"
-                className="flex items-center justify-center gap-2 px-7 py-4 rounded-full bg-white/[0.08] hover:bg-white/[0.14] active:scale-95 border border-white/[0.15] text-[#eef5e9] text-sm font-mono font-medium transition-all"
+                className="flex items-center justify-center gap-2 px-7 py-4 rounded-full bg-white/[0.08] hover:bg-white/[0.14] active:scale-95 border border-white/[0.15] text-[#eef5e9] text-sm font-medium transition-all"
               >
                 <span>Explore The Cockpit</span>
                 <ArrowUpRight className="w-4 h-4 text-[#8da494]" />
@@ -284,7 +284,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
               </div>
 
               {/* Active Channel Telemetry Card */}
-              <div className="p-5 rounded-2xl bg-[#f8faf7] border border-[#e4eae2] space-y-4 font-mono text-xs">
+              <div className="p-5 rounded-2xl bg-[#f8faf7] border border-[#e4eae2] space-y-4 text-xs font-sans">
                 <div className="flex items-center justify-between text-[#5c7062]">
                   <span>Active Connection</span>
                   <span className="text-[#0d5924] font-bold">{CHANNELS[activeChannel].type}</span>
@@ -293,15 +293,15 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
                 <div className="grid grid-cols-3 gap-2 text-center pt-2">
                   <div className="p-2.5 rounded-lg bg-white border border-[#e2e8e0] shadow-2xs">
                     <span className="block text-[10px] text-[#5c7062] mb-1">INTAKE</span>
-                    <span className="text-xs font-bold text-[#193022]">{CHANNELS[activeChannel].metric}</span>
+                    <span className="text-xs font-bold text-[#193022] tabular-nums">{CHANNELS[activeChannel].metric}</span>
                   </div>
                   <div className="p-2.5 rounded-lg bg-white border border-[#e2e8e0] shadow-2xs">
                     <span className="block text-[10px] text-[#5c7062] mb-1">DEDUCTIONS</span>
-                    <span className="text-xs font-bold text-rose-600">{CHANNELS[activeChannel].fee}</span>
+                    <span className="text-xs font-bold text-rose-600 tabular-nums">{CHANNELS[activeChannel].fee}</span>
                   </div>
                   <div className="p-2.5 rounded-lg bg-[#eef8f0] border border-[#00ae3b]/40 shadow-2xs">
                     <span className="block text-[10px] text-[#00872e] font-semibold mb-1">CLEARED CASH</span>
-                    <span className="text-xs font-bold text-[#0d5924]">{CHANNELS[activeChannel].bank}</span>
+                    <span className="text-xs font-bold text-[#0d5924] tabular-nums">{CHANNELS[activeChannel].bank}</span>
                   </div>
                 </div>
 
@@ -317,18 +317,18 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
               {/* Bottom Metric Bar */}
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="p-3.5 rounded-xl bg-[#f8faf7] border border-[#e4eae2]">
-                  <strong className="block text-2xl font-mono font-light tracking-tight text-[#00872e]">
-                    3.8<span className="text-sm font-sans">%</span>
+                  <strong className="block text-2xl font-bold tracking-tight text-[#00872e] tabular-nums">
+                    3.8%
                   </strong>
-                  <span className="text-[11px] text-[#5c7062] font-mono mt-0.5 block">
+                  <span className="text-[11px] text-[#5c7062] font-medium mt-0.5 block">
                     Gross Payout Recovered
                   </span>
                 </div>
                 <div className="p-3.5 rounded-xl bg-[#f8faf7] border border-[#e4eae2]">
-                  <strong className="block text-2xl font-mono font-light tracking-tight text-[#193022]">
-                    100<span className="text-sm font-sans">%</span>
+                  <strong className="block text-2xl font-bold tracking-tight text-[#193022] tabular-nums">
+                    100%
                   </strong>
-                  <span className="text-[11px] text-[#5c7062] font-mono mt-0.5 block">
+                  <span className="text-[11px] text-[#5c7062] font-medium mt-0.5 block">
                     Zero Expired Claim SLAs
                   </span>
                 </div>
@@ -340,7 +340,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
         </div>
 
         {/* Scroll Indicator */}
-        <div className="pt-16 sm:pt-20 flex items-center justify-between text-xs font-mono text-[#8da494] border-t border-white/[0.08] mt-16 sm:mt-24">
+        <div className="pt-16 sm:pt-20 flex items-center justify-between text-xs font-medium text-[#8da494] border-t border-white/[0.08] mt-16 sm:mt-24">
           <span>ZERO SPREADSHEET VLOOKUPS. COMPLETE RECONCILIATION.</span>
           <a href="#engine" className="flex items-center gap-1.5 text-[#71d78e] hover:text-white transition-colors">
             <span>Discover how it works</span>

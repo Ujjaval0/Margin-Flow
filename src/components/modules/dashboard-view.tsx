@@ -1910,7 +1910,7 @@ export function DashboardView({
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-[#86868B]">Total Analyzed Profit:</span>
             <span
-              className={`font-semibold tabular-nums font-mono text-xs px-3 py-1 rounded-full border shadow-apple-sm ${
+              className={`font-semibold tabular-nums text-xs px-3 py-1 rounded-full border shadow-apple-sm ${
                 profitability.contributionProfit >= 0
                   ? "bg-emerald-500/10 text-emerald-800 border-emerald-500/20"
                   : "bg-rose-500/10 text-rose-800 border-rose-500/20"

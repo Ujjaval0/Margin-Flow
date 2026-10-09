@@ -72,8 +72,8 @@ export function MarginFlowRouteComparison() {
               </div>
 
               <div className="text-left sm:text-right">
-                <span className="block text-[10px] font-mono text-neutral-400 uppercase tracking-wider font-medium">RECONCILIATION TIME</span>
-                <div className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-800">
+                <span className="block text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">RECONCILIATION TIME</span>
+                <div className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-800 tabular-nums">
                   Up to 21 <span className="text-lg sm:text-xl font-normal text-neutral-400">Days</span>
                 </div>
                 <span className="block text-[11px] text-neutral-400">Order to uncertain guesswork</span>
@@ -104,7 +104,7 @@ export function MarginFlowRouteComparison() {
               ))}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-neutral-200 flex items-center gap-2 text-xs font-mono text-neutral-500">
+            <div className="mt-6 pt-4 border-t border-neutral-200 flex items-center gap-2 text-xs text-neutral-500">
               <Clock3 className="w-4 h-4 shrink-0 text-neutral-400" />
               <span>Six manual handoffs. Hidden margin leaks surrendered before anyone notices.</span>
             </div>
@@ -126,7 +126,7 @@ export function MarginFlowRouteComparison() {
               </div>
 
               <div className="text-left sm:text-right">
-                <span className="block text-[10px] font-mono text-[#5c7062] uppercase tracking-wider font-medium">RECONCILIATION SPEED</span>
+                <span className="block text-[10px] font-semibold text-[#5c7062] uppercase tracking-wider">RECONCILIATION SPEED</span>
                 <div className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#193022]">
                   Instant <span className="font-serif italic font-normal text-[#00872e]">Audit</span>
                 </div>
@@ -169,13 +169,13 @@ export function MarginFlowRouteComparison() {
               })}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[#dbe6da] flex items-center gap-2 text-xs font-mono text-[#00872e]">
+            <div className="mt-6 pt-4 border-t border-[#dbe6da] flex items-center gap-2 text-xs font-medium text-[#00872e]">
               <Check className="w-4 h-4 shrink-0" />
               <span>One automated engine. Zero manual CSV exports or formula debugging.</span>
             </div>
           </div>
 
-          <p className="text-[11px] font-mono text-neutral-400 pt-2">
+          <p className="text-[11px] text-neutral-400 pt-2 font-medium">
             *Automated ingestion and 4-way cross checks execute in seconds upon receiving transaction files.
           </p>
         </div>

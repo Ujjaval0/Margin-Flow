@@ -26,7 +26,7 @@ export function MarginFlowWorkspaceShowcase() {
           <div className="mt-6">
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#193022] hover:bg-black text-white text-xs font-mono font-semibold transition-all shadow-sm"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#193022] hover:bg-black text-white text-xs font-semibold transition-all shadow-sm"
             >
               <span>Explore Live Demo</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -38,7 +38,7 @@ export function MarginFlowWorkspaceShowcase() {
         <div className="rounded-3xl bg-white border border-[#cfdfd1] shadow-[0_24px_60px_rgba(25,48,34,0.08)] overflow-hidden">
           
           {/* macOS Title Bar */}
-          <div className="px-6 py-4 bg-[#f1f5ee] border-b border-[#cfdfd1] flex items-center justify-between text-xs font-mono">
+          <div className="px-6 py-4 bg-[#f1f5ee] border-b border-[#cfdfd1] flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <span className="flex gap-1.5">
                 <span className="w-3 h-3 rounded-full bg-[#ff5f56] inline-block" />
@@ -63,33 +63,33 @@ export function MarginFlowWorkspaceShowcase() {
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
                   <div>
-                    <span className="text-xs font-mono font-bold text-[#193022]">ORDER WATERFALL // TRUE CM2 & POAS</span>
+                    <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">ORDER WATERFALL // TRUE CM2 & POAS</span>
                     <p className="text-xs text-[#5c7062]">Gross checkout price verified against locked COGS, courier fees, and return losses.</p>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-emerald-50 text-[#00872e] text-xs font-mono font-bold">
+                  <span className="px-3 py-1 rounded-full bg-emerald-50 text-[#00872e] text-xs font-semibold tabular-nums">
                     +41.3% True Net Margin
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 font-mono text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
                   <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1]">
                     <span className="text-[10px] text-[#5c7062] block">INVOICED PRICE</span>
-                    <strong className="text-xl text-[#193022] block mt-1">₹1,499.00</strong>
+                    <strong className="text-xl text-[#193022] block mt-1 tabular-nums font-semibold">₹1,499.00</strong>
                     <span className="text-[10px] text-[#5c7062]">Gross checkout value</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1]">
                     <span className="text-[10px] text-[#5c7062] block">UNIT COGS</span>
-                    <strong className="text-xl text-rose-700 block mt-1">−₹420.00</strong>
+                    <strong className="text-xl text-rose-700 block mt-1 tabular-nums font-semibold">−₹420.00</strong>
                     <span className="text-[10px] text-[#5c7062]">Locked purchase cost</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1]">
                     <span className="text-[10px] text-[#5c7062] block">COURIER & COMM</span>
-                    <strong className="text-xl text-rose-700 block mt-1">−₹460.00</strong>
+                    <strong className="text-xl text-rose-700 block mt-1 tabular-nums font-semibold">−₹460.00</strong>
                     <span className="text-[10px] text-[#5c7062]">Platform & logistics fees</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-[#193022] text-white">
                     <span className="text-[10px] text-[#71d78e] block">CLEARED BANK CASH</span>
-                    <strong className="text-xl text-[#71d78e] block mt-1">+₹619.00</strong>
+                    <strong className="text-xl text-[#71d78e] block mt-1 tabular-nums font-semibold">+₹619.00</strong>
                     <span className="text-[10px] text-[#8da494]">Deposited in account</span>
                   </div>
                 </div>
@@ -100,28 +100,28 @@ export function MarginFlowWorkspaceShowcase() {
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
                   <div>
-                    <span className="text-xs font-mono font-bold text-[#193022]">COURIER WEIGHT SLAB RADAR</span>
+                    <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">COURIER WEIGHT SLAB RADAR</span>
                     <p className="text-xs text-[#5c7062]">Disparity detection between catalog dimensions and billed courier weight slabs.</p>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-mono font-bold">
+                  <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-semibold tabular-nums">
                     ⚠️ −₹185.00 Flagged Overcharge
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                   <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1]">
                     <span className="text-[10px] text-[#5c7062] block">CATALOG BASELINE</span>
-                    <strong className="text-lg text-[#193022] block mt-1">420 grams (0.5kg Slab)</strong>
-                    <span className="text-[10px] text-[#00872e] mt-1 block">Verified SKU Spec</span>
+                    <strong className="text-lg text-[#193022] block mt-1 tabular-nums font-semibold">420 grams (0.5kg Slab)</strong>
+                    <span className="text-[10px] text-[#00872e] mt-1 block font-medium">Verified SKU Spec</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200">
                     <span className="text-[10px] text-rose-600 block">COURIER BILLED</span>
-                    <strong className="text-lg text-rose-700 block mt-1">1,500 grams (2.0kg Slab)</strong>
-                    <span className="text-[10px] text-rose-600 mt-1 block">Inflated Weight Slab</span>
+                    <strong className="text-lg text-rose-700 block mt-1 tabular-nums font-semibold">1,500 grams (2.0kg Slab)</strong>
+                    <span className="text-[10px] text-rose-600 mt-1 block font-medium">Inflated Weight Slab</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-[#193022] text-white">
                     <span className="text-[10px] text-[#71d78e] block">DISPUTE CLAIM QUEUED</span>
-                    <strong className="text-lg text-[#71d78e] block mt-1">+₹185.00 Refund</strong>
+                    <strong className="text-lg text-[#71d78e] block mt-1 tabular-nums font-semibold">+₹185.00 Refund</strong>
                     <span className="text-[10px] text-[#8da494] mt-1 block">Auto-Filed Before Settlement</span>
                   </div>
                 </div>
@@ -132,24 +132,24 @@ export function MarginFlowWorkspaceShowcase() {
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
                   <div>
-                    <span className="text-xs font-mono font-bold text-[#193022]">DISPUTE RECOVERY & SAFE-T DOCKET</span>
+                    <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">DISPUTE RECOVERY & SAFE-T DOCKET</span>
                     <p className="text-xs text-[#5c7062]">Active SLA countdown timers and pre-compiled SAFE-T/SPF evidence dossiers.</p>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-amber-100 text-[#b67d46] text-xs font-mono font-bold">
+                  <span className="px-3 py-1 rounded-full bg-amber-100 text-[#b67d46] text-xs font-semibold tabular-nums">
                     ⏱ 4 Days Left in SLA
                   </span>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1] flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-mono text-xs">
+                <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1] flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
                   <div className="space-y-1">
-                    <strong className="text-sm text-[#193022] block">Claim #CLM-88392 • Damaged Return</strong>
+                    <strong className="text-sm text-[#193022] block font-semibold">Claim #CLM-88392 • Damaged Return</strong>
                     <span className="text-xs text-[#5c7062]">Amazon SAFE-T dossier compiled with invoice and unboxing telemetry.</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="px-3 py-1.5 rounded-lg bg-emerald-100 text-[#00872e] text-xs font-bold">
                       ✓ Evidence Ready
                     </span>
-                    <span className="px-3 py-1.5 rounded-lg bg-[#193022] text-white text-xs font-bold">
+                    <span className="px-3 py-1.5 rounded-lg bg-[#193022] text-white text-xs font-bold tabular-nums">
                       ₹840.00 Claim Value
                     </span>
                   </div>
@@ -161,28 +161,28 @@ export function MarginFlowWorkspaceShowcase() {
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
                   <div>
-                    <span className="text-xs font-mono font-bold text-[#193022]">BANK SETTLEMENT RECONCILIATION</span>
+                    <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">BANK SETTLEMENT RECONCILIATION</span>
                     <p className="text-xs text-[#5c7062]">One-to-one matching between marketplace UTR remittances, orders, and 1% tax withholdings.</p>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-emerald-50 text-[#00872e] text-xs font-mono font-bold">
+                  <span className="px-3 py-1 rounded-full bg-emerald-50 text-[#00872e] text-xs font-semibold tabular-nums">
                     100% Reconciled
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                   <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1]">
                     <span className="text-[10px] text-[#5c7062] block">REMITTANCE UTR</span>
-                    <strong className="text-base text-[#193022] block mt-1">AXIS-882940124</strong>
+                    <strong className="text-base text-[#193022] block mt-1 font-mono font-medium">AXIS-882940124</strong>
                     <span className="text-[10px] text-[#5c7062]">Direct Bank Deposit</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1]">
                     <span className="text-[10px] text-[#5c7062] block">TAX WITHHELD (TCS & TDS)</span>
-                    <strong className="text-base text-[#00872e] block mt-1">₹30.00 (Isolated)</strong>
+                    <strong className="text-base text-[#00872e] block mt-1 tabular-nums font-semibold">₹30.00 (Isolated)</strong>
                     <span className="text-[10px] text-[#5c7062]">Tax Asset, Not Expense</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-[#193022] text-white">
                     <span className="text-[10px] text-[#71d78e] block">VARIANCE</span>
-                    <strong className="text-base text-[#71d78e] block mt-1">₹0.00 Exact Match</strong>
+                    <strong className="text-base text-[#71d78e] block mt-1 tabular-nums font-semibold">₹0.00 Exact Match</strong>
                     <span className="text-[10px] text-[#8da494]">Audit-Ready</span>
                   </div>
                 </div>

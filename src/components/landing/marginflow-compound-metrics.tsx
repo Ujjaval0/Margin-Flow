@@ -121,30 +121,30 @@ export function MarginFlowCompoundMetrics() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-8 rounded-3xl bg-white border border-[#cfdfd1] shadow-sm">
-              <strong className="text-5xl sm:text-6xl font-mono font-light tracking-tight text-[#00872e] block mb-2">
+              <strong className="text-5xl sm:text-6xl font-bold tracking-tight text-[#00872e] block mb-2 tabular-nums">
                 3.8<span>%</span>
               </strong>
-              <h3 className="text-lg font-bold text-[#193022] font-mono">Gross Revenue Protected</h3>
+              <h3 className="text-lg font-bold text-[#193022]">Gross Revenue Protected</h3>
               <p className="mt-1 text-sm text-[#5c7062] leading-relaxed">
                 Recovered from courier deadweight inflation, unannounced fee hikes, and missed returns.
               </p>
             </div>
 
             <div className="p-8 rounded-3xl bg-white border border-[#cfdfd1] shadow-sm">
-              <strong className="text-5xl sm:text-6xl font-mono font-light tracking-tight text-[#193022] block mb-2">
+              <strong className="text-5xl sm:text-6xl font-bold tracking-tight text-[#193022] block mb-2 tabular-nums">
                 15<span>h</span>
               </strong>
-              <h3 className="text-lg font-bold text-[#193022] font-mono">Saved Every Week</h3>
+              <h3 className="text-lg font-bold text-[#193022]">Saved Every Week</h3>
               <p className="mt-1 text-sm text-[#5c7062] leading-relaxed">
                 Zero manual Excel VLOOKUPs, formula debugging, or messy statement exports.
               </p>
             </div>
 
             <div className="p-8 rounded-3xl bg-white border border-[#cfdfd1] shadow-sm">
-              <strong className="text-5xl sm:text-6xl font-mono font-light tracking-tight text-[#00872e] block mb-2">
+              <strong className="text-5xl sm:text-6xl font-bold tracking-tight text-[#00872e] block mb-2 tabular-nums">
                 100<span>%</span>
               </strong>
-              <h3 className="text-lg font-bold text-[#193022] font-mono">Claim SLA Compliance</h3>
+              <h3 className="text-lg font-bold text-[#193022]">Claim SLA Compliance</h3>
               <p className="mt-1 text-sm text-[#5c7062] leading-relaxed">
                 Evidence dossiers pre-compiled before 7–30 day platform dispute windows close.
               </p>
@@ -161,11 +161,11 @@ export function MarginFlowCompoundMetrics() {
                 THE COMPOUND EFFECT
               </span>
               <div className="flex items-center gap-4">
-                <strong className="text-5xl sm:text-6xl font-mono font-light tracking-tight text-[#b6f5cc]">
+                <strong className="text-5xl sm:text-6xl font-bold tracking-tight text-[#b6f5cc] tabular-nums">
                   3.5<span>×</span>
                 </strong>
                 <div>
-                  <h4 className="text-base font-bold text-white font-mono">First-Month Return on Software</h4>
+                  <h4 className="text-base font-bold text-white">First-Month Return on Software</h4>
                   <p className="text-xs text-[#8da494]">Capital recovered from your past 90 days of unverified settlements often pays for MarginFlow in week one.</p>
                 </div>
               </div>
@@ -176,7 +176,7 @@ export function MarginFlowCompoundMetrics() {
                 setHoverState(null);
                 setAnimKey((k) => k + 1);
               }}
-              className="self-start sm:self-center flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-xs font-mono text-[#b6f5cc] border border-white/[0.1] transition-all cursor-pointer"
+              className="self-start sm:self-center flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-xs font-medium text-[#b6f5cc] border border-white/[0.1] transition-all cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Replay Curve</span>
@@ -358,7 +358,6 @@ export function MarginFlowCompoundMetrics() {
                       fill="#b6f5cc"
                       fontSize="11"
                       fontWeight="bold"
-                      fontFamily="monospace"
                     >
                       {hoverState.monthText} • {hoverState.val}
                     </text>
@@ -367,7 +366,7 @@ export function MarginFlowCompoundMetrics() {
               )}
             </svg>
 
-            <div className="flex justify-between text-[11px] font-mono text-[#8da494] px-8 pt-2">
+            <div className="flex justify-between text-[11px] font-medium text-[#8da494] px-8 pt-2">
               <span>Start</span>
               <span>6 Months</span>
               <span>12 Months</span>
@@ -376,7 +375,7 @@ export function MarginFlowCompoundMetrics() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-white/[0.08] flex items-center justify-between text-xs font-mono text-[#8da494]">
+          <div className="pt-4 border-t border-white/[0.08] flex items-center justify-between text-xs font-medium text-[#8da494]">
             <span>Continuous automated margin audit</span>
             <span className="text-[#b6f5cc]">Verified Across 300+ Merchant Accounts</span>
           </div>

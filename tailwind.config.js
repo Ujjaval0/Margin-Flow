@@ -6,10 +6,10 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-jakarta)", "var(--font-inter)", "-apple-system", "BlinkMacSystemFont", "SF Pro Text", "sans-serif"],
-        display: ["var(--font-jakarta)", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        sans: ["var(--font-inter)", "var(--font-jakarta)", "-apple-system", "BlinkMacSystemFont", "SF Pro Text", "Segoe UI", "Roboto", "sans-serif"],
+        display: ["var(--font-jakarta)", "var(--font-inter)", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
         mono: ["var(--font-geist-mono)", "SF Mono", "Menlo", "Monaco", "Consolas", "monospace"],
-        tech: ["'Space Grotesk'", "sans-serif"],
+        tech: ["var(--font-inter)", "sans-serif"],
       },
       colors: {
         apple: {

@@ -639,7 +639,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         return (
           <div className="max-w-[240px]">
             <div className="flex items-center gap-1.5">
-              <span className="text-[#1D1D1F] font-semibold font-mono text-xs tracking-tight tabular-nums">
+              <span className="text-[#1D1D1F] font-semibold font-mono text-xs tracking-tight">
                 {r.sku}
               </span>
               <span className="bg-black/[0.04] text-[#6E6E73] text-[10px] font-semibold px-2 py-0.5 rounded-md border border-black/[0.06] tabular-nums">

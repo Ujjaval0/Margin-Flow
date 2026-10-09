@@ -145,7 +145,7 @@ export default function LandingPage() {
                 <div key={index} className="py-6">
                   <button
                     onClick={() => setActiveFaq(isOpen ? null : index)}
-                    className="w-full text-left flex items-center justify-between gap-4 font-mono font-bold text-base sm:text-lg text-[#193022] hover:text-[#00872e] transition-colors cursor-pointer"
+                    className="w-full text-left flex items-center justify-between gap-4 font-bold text-base sm:text-lg text-[#193022] hover:text-[#00872e] transition-colors cursor-pointer"
                   >
                     <span>{faq.question}</span>
                     <span className="shrink-0 text-[#5c7062]">
@@ -190,14 +190,14 @@ export default function LandingPage() {
             <button
               onClick={handleGoogleSignIn}
               disabled={isAuthenticating}
-              className="px-8 py-4 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-sm font-mono font-semibold transition-all shadow-[0_0_35px_rgba(0,174,59,0.4)] cursor-pointer flex items-center gap-2"
+              className="px-8 py-4 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-sm font-semibold transition-all shadow-[0_0_35px_rgba(0,174,59,0.4)] cursor-pointer flex items-center gap-2"
             >
               <span>{isAuthenticating ? "Connecting..." : "Audit Your Store Free"}</span>
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
 
-          <p className="text-xs font-mono text-[#8da494] pt-2">
+          <p className="text-xs text-[#8da494] pt-2">
             Bank-grade encryption • 100% read-only access • No card required
           </p>
         </div>

@@ -1735,9 +1735,8 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                   {selectedOrder.items.map((i) => (
                     <div key={i.id} className="p-3.5 flex items-center justify-between text-xs">
                       <div>
-                        <span className="font-semibold text-[#1D1D1F] block">{i.productName}</span>
-                        <span className="text-[#86868B] text-[11px] tabular-nums font-medium font-mono mt-0.5">
-                          {i.sku} • Qty {i.quantity} (Returned: {i.returnedQuantity})
+                        <span className="text-[#86868B] text-[11px] font-medium mt-0.5 block">
+                          <span className="font-mono text-[10px] bg-black/[0.04] px-1.5 py-0.5 rounded">{i.sku}</span> • <span className="tabular-nums">Qty {i.quantity} (Returned: {i.returnedQuantity})</span>
                         </span>
                       </div>
                       <div className="text-right">
