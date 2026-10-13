@@ -114,7 +114,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
   // Form State for Log Return - Direct SKU Mode (Wholesale)
   const [directSku, setDirectSku] = useState(products[0]?.sku || "");
-  const [directChannel, setDirectChannel] = useState<Marketplace>("B2B Wholesale");
+  const [directChannel, setDirectChannel] = useState<Marketplace>("Amazon India");
 
   // Common Form Fields
   const [returnType, setReturnType] = useState<ReturnType>("CUSTOMER_RETURN");
@@ -484,10 +484,11 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     }
 
     const isDamaged = condition === "DAMAGED" || condition === "UNUSABLE";
-    const calculatedCustomerFee = returnType === "RTO" ? 0 : returnShipping;
-    let calculatedLoss = returnType === "RTO" ? 0 : (returnShipping + calculatedCustomerFee);
+    const calculatedCustomerFee = returnType === "RTO" ? 0 : (createMode === "SCAN_ORDER" ? 50 : 0);
+    const returnShippingCost = returnType === "RTO" ? 0 : returnShipping;
+    let calculatedLoss = returnType === "RTO" ? 0 : (returnShippingCost + calculatedCustomerFee);
     if (isDamaged) {
-      calculatedLoss += unitCostBasis * quantity - recoveryValue;
+      calculatedLoss += Math.max(0, unitCostBasis * quantity - recoveryValue);
     }
 
     let claimIdToLink: string | undefined = undefined;
@@ -524,9 +525,9 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       quantity,
       condition,
       restockStatus: condition === "SELLABLE" ? "RESTOCKED" : "PENDING_RESTOCK",
-      returnShippingCost: returnType === "RTO" ? 0 : returnShipping,
+      returnShippingCost,
       customerReturnFee: calculatedCustomerFee,
-      otherReturnCosts: returnType === "RTO" ? 0 : 10,
+      otherReturnCosts: 0,
       inventoryRecoveryValue: recoveryValue,
       lossAmount: calculatedLoss,
       claimId: claimIdToLink,
@@ -982,11 +983,11 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       {/* Header Banner & New Transaction Control */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-1">
         <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-[#1D1D1F]">
-            Returns &amp; Reverse Logistics (RTO)
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
+            Returns &amp; Reverse Logistics
           </h1>
-          <p className="text-xs text-[#86868B] mt-1">
-            Track customer returns, RTO shipments, and inventory recovery.
+          <p className="text-xs sm:text-sm text-[#86868B] mt-1">
+            Customer Returns, Courier RTO &amp; Reverse Freight Tolls
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1348,13 +1349,11 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                         onChange={(e) => setDirectChannel(e.target.value as Marketplace)}
                         className="w-full p-2.5 bg-white border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] font-semibold shadow-apple-sm"
                       >
-                        <option value="B2B Wholesale">B2B Wholesale / Consignment</option>
                         <option value="Amazon India">Amazon India</option>
                         <option value="Flipkart">Flipkart</option>
                         <option value="Meesho">Meesho</option>
                         <option value="Personal Website">Personal Website</option>
                         <option value="Myntra">Myntra</option>
-                        <option value="Other">Other</option>
                       </select>
                     </div>
                   </div>

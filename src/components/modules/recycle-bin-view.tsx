@@ -223,17 +223,17 @@ export function RecycleBinView() {
   return (
     <div className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 py-6 space-y-6">
       {/* Page Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 pb-2">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-black/[0.04] border border-black/[0.06] flex items-center justify-center shrink-0">
-            <Trash2 className="w-4 h-4 text-[#1D1D1F]" strokeWidth={1.8} />
+          <div className="w-10 h-10 rounded-2xl bg-black/[0.04] border border-black/[0.06] flex items-center justify-center shrink-0">
+            <Trash2 className="w-5 h-5 text-[#1D1D1F]" strokeWidth={1.8} />
           </div>
           <div>
-            <h1 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">Recycle Bin</h1>
-            <p className="text-[11px] text-[#86868B] mt-0.5">
-              {totalDeleted === 0
-                ? "No deleted records. All clear."
-                : `${totalDeleted} deleted record${totalDeleted > 1 ? "s" : ""} · Permanent deletion after 30 days`}
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
+              Recycle Bin
+            </h1>
+            <p className="text-xs sm:text-sm text-[#86868B] mt-1">
+              Restorable Archival Ledger &amp; Soft-Deleted Records
             </p>
           </div>
         </div>

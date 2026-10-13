@@ -48,7 +48,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   useEffect(() => {
     if (!isOpen) return;
 
-    let initialName = currentUser?.name || "Ujjaval";
+    let initialName = currentUser?.name || "E-Commerce";
     let initialAvatar = currentUser?.avatarUrl || null;
 
     if (typeof window !== "undefined") {
@@ -189,7 +189,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       onClick={onClose}
     >
       <div
-        className="apple-card bg-white text-[#1D1D1F] rounded-3xl shadow-apple-lg border border-black/[0.08] overflow-hidden animate-in zoom-in-95 duration-150 w-full max-w-[390px] flex flex-col"
+        className="apple-card bg-white text-[#1D1D1F] rounded-3xl shadow-apple-lg border border-black/[0.08] overflow-hidden animate-in zoom-in-95 duration-150 w-full max-w-[390px] max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -208,7 +208,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         </div>
 
         {/* Profile Avatar & Name Section */}
-        <div className="pt-6 pb-5 px-6 flex flex-col items-center">
+        <div className="pt-6 pb-5 px-6 flex flex-col items-center flex-1 overflow-y-auto">
           {/* Avatar with Camera Trigger */}
           <div className="relative group mb-2.5">
             <input

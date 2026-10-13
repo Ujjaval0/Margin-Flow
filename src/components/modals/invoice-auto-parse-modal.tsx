@@ -143,10 +143,9 @@ function createOrderFromExtractedData(
     else if (mkt.includes("meesho") || txt.includes("meesho") || txt.includes("fashnear")) matchedMarketplace = "Meesho";
     else if (mkt.includes("myntra") || txt.includes("myntra")) matchedMarketplace = "Myntra";
     else if (mkt.includes("woo") || txt.includes("woocommerce")) matchedMarketplace = "WooCommerce";
-    else if (mkt.includes("b2b") || mkt.includes("wholesale") || txt.includes("wholesale")) matchedMarketplace = "B2B Wholesale";
-    else if (mkt.includes("website") || mkt.includes("shopify") || mkt.includes("d2c") || txt.includes("shopify")) matchedMarketplace = "Personal Website";
+    else if (mkt.includes("website") || mkt.includes("shopify") || mkt.includes("d2c") || txt.includes("shopify") || mkt.includes("b2b") || mkt.includes("wholesale") || txt.includes("wholesale")) matchedMarketplace = "Personal Website";
     else if (mkt.includes("amazon") || txt.includes("amazon") || txt.includes("amzn")) matchedMarketplace = "Amazon India";
-    else if (mkt.includes("other")) matchedMarketplace = "Other";
+    else matchedMarketplace = "Personal Website";
 
     // Order ID / Reference
     const extractedOrderId =

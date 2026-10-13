@@ -50,7 +50,7 @@ export function CardLogicModal({ data, onClose }: CardLogicModalProps) {
       onClick={onClose}
     >
       <div
-        className="apple-card w-full max-w-lg rounded-3xl shadow-apple-lg border border-black/[0.08] p-6 flex flex-col gap-4 animate-in zoom-in-95 duration-200"
+        className="apple-card w-full max-w-lg rounded-3xl shadow-apple-lg border border-black/[0.08] p-4 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}

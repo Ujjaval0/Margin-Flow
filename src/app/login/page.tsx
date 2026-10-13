@@ -219,7 +219,7 @@ export default function LoginPage() {
               type="button"
               onClick={handleGoogleAuth}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl bg-white hover:bg-[#FBFBFD] active:bg-[#F5F5F7] text-[#1D1D1F] font-medium text-xs sm:text-sm border border-black/[0.1] shadow-apple-sm btn-press transition-all disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden cursor-pointer"
+              className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl bg-white hover:bg-[#FBFBFD] active:bg-[#F5F5F7] text-[#1D1D1F] font-medium text-xs sm:text-sm border border-black/[0.1] shadow-apple-sm btn-press transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden"
             >
               {isLoading ? (
                 <div className="flex items-center gap-2">
@@ -333,7 +333,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-3 py-2.5 px-4 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium text-xs sm:text-sm shadow-apple-sm btn-press transition-all disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full mt-3 py-2.5 px-4 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium text-xs sm:text-sm shadow-apple-sm btn-press transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center gap-2">

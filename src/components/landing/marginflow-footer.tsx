@@ -11,7 +11,7 @@ export interface MarginFlowFooterProps {
 
 export function MarginFlowFooter({ onSignIn, isAuthenticating }: MarginFlowFooterProps) {
   return (
-    <footer className="relative bg-[#050a07] text-[#eef5e9] overflow-hidden select-none border-t border-white/[0.08]">
+    <footer className="relative bg-[#050a07] text-[#eef5e9] overflow-hidden border-t border-white/[0.08]">
       {/* Subtle Atmospheric Horizon Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[1px] bg-gradient-to-r from-transparent via-[#00ae3b]/25 to-transparent pointer-events-none" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[120px] bg-[#00ae3b]/[0.05] blur-[80px] rounded-full pointer-events-none" />

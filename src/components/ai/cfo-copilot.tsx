@@ -556,7 +556,7 @@ export function CfoCopilot() {
             className="absolute inset-0 bg-black/30 backdrop-blur-xs transition-opacity animate-in fade-in duration-150"
           />
 
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
             <div className="w-screen max-w-md bg-white/95 backdrop-blur-xl shadow-apple-lg border-l border-black/[0.08] flex flex-col animate-in slide-in-from-right duration-250">
               {/* Apple-Inspired Minimalist Header */}
               <div className="px-5 py-3.5 border-b border-black/[0.06] flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-md">

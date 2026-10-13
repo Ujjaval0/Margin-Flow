@@ -203,8 +203,8 @@ export function SuppliersView() {
 
         return sum + itemsCogs;
       }, 0);
-
-      const totalSourced = purchaseTotal + orderCogs + (sup.openingBalance || 0);
+      const sourcedFromPurchases = purchaseTotal > 0 ? purchaseTotal : orderCogs;
+      const totalSourced = sourcedFromPurchases + (sup.openingBalance || 0);
 
       // Total paid from purchase bills marked PAID + supplier.totalPaid
       const purchasesPaid = supPurchases
@@ -324,11 +324,11 @@ export function SuppliersView() {
       {/* --------------------------------------------------------------------------------- */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-1">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
-            Wholesale Supplier Cost & Payables
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
+            Wholesale Suppliers
           </h1>
-          <p className="text-xs text-[#86868B] mt-1 leading-relaxed">
-            Manage supplier contact details, edit payment terms, track total balance paid till date, and record payout logs.
+          <p className="text-xs sm:text-sm text-[#86868B] mt-1">
+            Vendor Directory, Cost Trends &amp; Accounts Payable
           </p>
         </div>
 

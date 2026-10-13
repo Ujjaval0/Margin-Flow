@@ -24,8 +24,17 @@ export function RecordReturnModal({
 
   useEffect(() => {
     setMounted(true);
-    return () => setMounted(false);
-  }, []);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      setMounted(false);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   const [returnOrderId, setReturnOrderId] = useState(orders[0]?.id || "");
   const [returnType, setReturnType] = useState<ReturnType>("CUSTOMER_RETURN");
@@ -55,7 +64,12 @@ export function RecordReturnModal({
 
     const retId = `RET-${Date.now().toString().slice(-5)}`;
     const fee = returnType === "RTO" ? 0 : Number(customerReturnFee);
-    const calculatedLoss = returnType === "RTO" ? 0 : fee;
+    const shipCost = returnType === "RTO" ? 0 : Number(returnShipping);
+    const recovery = Number(returnRecovery) || 0;
+    const isLoss = returnCondition === "DAMAGED" || returnCondition === "UNUSABLE" || returnCondition === "MISSING" || returnType === "LOST_RETURN";
+    const unitCostBasis = item.snapshotUnitCost || 0;
+    const inventoryLoss = isLoss ? Math.max(0, unitCostBasis * Number(returnQty) - recovery) : 0;
+    const calculatedLoss = returnType === "RTO" ? 0 : (fee + shipCost + inventoryLoss);
 
     const newRet: ReturnRecord = {
       id: retId,
@@ -68,10 +82,10 @@ export function RecordReturnModal({
       sku: item.sku,
       quantity: Number(returnQty),
       condition: returnCondition,
-      returnShippingCost: Number(returnShipping),
+      returnShippingCost: shipCost,
       customerReturnFee: fee,
       otherReturnCosts: 0,
-      inventoryRecoveryValue: Number(returnRecovery),
+      inventoryRecoveryValue: recovery,
       lossAmount: calculatedLoss,
     };
 
@@ -86,7 +100,7 @@ export function RecordReturnModal({
         marketplace: order.marketplace,
         claimType: returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
         claimDate: new Date().toISOString().split("T")[0],
-        amountClaimed: calculatedLoss,
+        amountClaimed: calculatedLoss > 0 ? calculatedLoss : Math.max(0, unitCostBasis * Number(returnQty) + fee),
         amountRecovered: 0,
         status: "FILED",
         notes: `Auto-generated dispute claim from Quick Return (${returnCondition}).`,
@@ -103,7 +117,7 @@ export function RecordReturnModal({
       onClick={onClose}
     >
       <div
-        className="apple-card w-full max-w-lg rounded-3xl shadow-apple-lg border border-black/[0.08] p-6 flex flex-col gap-4 animate-in zoom-in-95 duration-200"
+        className="apple-card w-full max-w-lg rounded-3xl shadow-apple-lg border border-black/[0.08] p-4 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between pb-3 border-b border-black/[0.06]">

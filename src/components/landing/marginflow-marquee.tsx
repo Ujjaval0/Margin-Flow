@@ -59,7 +59,7 @@ export function MarginFlowBrandMarquee() {
   ];
 
   return (
-    <section className="py-14 bg-[#060c09] border-y border-white/[0.08] overflow-hidden select-none">
+    <section className="py-14 bg-[#060c09] border-y border-white/[0.08] overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <p className="text-center text-[10px] font-mono tracking-widest text-[#71d78e] uppercase font-semibold mb-8">
           IN GOOD COMPANY. AUDITING MULTI-CHANNEL TRANSACTIONS ACROSS INDIA.

@@ -17,6 +17,7 @@ import {
   PlugZap,
   Trash2,
   ChevronRight,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -67,7 +68,7 @@ export function Sidebar({
   const pathname = usePathname();
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
 
-  const userName = currentUser?.name || "Ujjaval";
+  const userName = currentUser?.name || "E-Commerce";
   const userSubtitle = currentUser?.companyName || currentUser?.email || "Brand Owner";
   const userInitials = React.useMemo(() => {
     return (
@@ -77,7 +78,7 @@ export function Sidebar({
         .filter(Boolean)
         .join("")
         .slice(0, 2)
-        .toUpperCase() || "U"
+        .toUpperCase() || "EC"
     );
   }, [userName]);
 
@@ -217,35 +218,60 @@ export function Sidebar({
   }), [currentUser?.accountType]);
 
   return (
-    <aside
-      className={`bg-[#FBFBFD] flex flex-col h-full border-r border-black/[0.06] select-none text-[#1D1D1F] transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width] overflow-hidden shrink-0 relative z-30 ${
-        isOpen ? "w-64" : "w-[72px]"
-      }`}
-    >
-      {/* Brand Header */}
-      <div className="h-16 px-4 flex items-center border-b border-black/[0.04] shrink-0 overflow-hidden">
-        {isOpen ? (
-          <Link
-            href="/dashboard"
-            onClick={() => handleNavClick("dashboard")}
-            className="flex items-center gap-2.5 min-w-0 group hover:opacity-90 transition-opacity"
-            title="MarginFlow Home"
-          >
-            <MarginFlowLogo className="h-9 w-auto text-[#1D1D1F] shrink-0" />
-          </Link>
-        ) : (
-          <div className="w-full flex items-center justify-center">
-            <Link
-              href="/dashboard"
-              onClick={() => handleNavClick("dashboard")}
-              className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-black/[0.04] transition-colors"
-              title="MarginFlow Home"
-            >
-              <MarginFlowLogo variant="mark" className="w-5 h-5 text-[#1D1D1F] shrink-0" />
-            </Link>
-          </div>
-        )}
-      </div>
+    <>
+      {/* Mobile Backdrop when drawer is open */}
+      {isOpen && (
+        <div
+          onClick={onToggle}
+          className="fixed inset-0 bg-black/30 backdrop-blur-xs z-40 md:hidden animate-in fade-in duration-200"
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`bg-[#FBFBFD] flex flex-col h-full border-r border-black/[0.06] select-none text-[#1D1D1F] transition-[width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,transform] overflow-hidden shrink-0 ${
+          isOpen
+            ? "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-64 max-md:shadow-apple-xl w-64 md:relative"
+            : "max-md:w-0 max-md:border-r-0 max-md:overflow-hidden w-[72px] relative z-30"
+        }`}
+      >
+        {/* Brand Header */}
+        <div className="h-16 px-4 flex items-center justify-between border-b border-black/[0.04] shrink-0 overflow-hidden">
+          {isOpen ? (
+            <>
+              <Link
+                href="/dashboard"
+                onClick={() => handleNavClick("dashboard")}
+                className="flex items-center gap-2.5 min-w-0 group hover:opacity-90 transition-opacity"
+                title="MarginFlow Home"
+              >
+                <MarginFlowLogo className="h-9 w-auto text-[#1D1D1F] shrink-0" />
+              </Link>
+              {onToggle && (
+                <button
+                  type="button"
+                  onClick={onToggle}
+                  className="md:hidden p-1.5 rounded-lg hover:bg-black/[0.05] text-[#6E6E73] hover:text-[#1D1D1F] transition cursor-pointer"
+                  aria-label="Close sidebar"
+                  title="Close sidebar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="w-full flex items-center justify-center">
+              <Link
+                href="/dashboard"
+                onClick={() => handleNavClick("dashboard")}
+                className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-black/[0.04] transition-colors"
+                title="MarginFlow Home"
+              >
+                <MarginFlowLogo variant="mark" className="w-5 h-5 text-[#1D1D1F] shrink-0" />
+              </Link>
+            </div>
+          )}
+        </div>
 
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-1 no-scrollbar">
@@ -372,5 +398,6 @@ export function Sidebar({
         onClose={() => setIsProfileOpen(false)}
       />
     </aside>
+  </>
   );
 }

@@ -222,7 +222,7 @@ export function computeAnomalyRadar(params: {
 
   let unsettledGrossAmount = 0;
   let unsettledOrderCount = 0;
-  const nowTime = new Date("2026-09-22T00:00:00Z").getTime();
+  const nowTime = Math.max(Date.now(), new Date("2026-09-22T00:00:00Z").getTime());
 
   orders.forEach((ord) => {
     if (ord.status === "DELIVERED" && !settledOrderIds.has(ord.id) && !settledOrderIds.has(ord.channelOrderId)) {

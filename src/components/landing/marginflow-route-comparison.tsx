@@ -31,7 +31,7 @@ export function MarginFlowRouteComparison() {
   ];
 
   return (
-    <section id="routes" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#fafbfa] text-[#193022] border-t border-[#e2e8e0] select-none">
+    <section id="routes" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#fafbfa] text-[#193022] border-t border-[#e2e8e0]">
       <div className="max-w-7xl mx-auto">
         
         {/* Section Heading */}
@@ -81,11 +81,11 @@ export function MarginFlowRouteComparison() {
             </div>
 
             {/* 6 Painful Nodes */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-left font-sans text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-left font-sans text-xs">
               {traditionalSteps.map((step) => (
                 <div
                   key={step.title}
-                  className={`p-3 rounded-xl border transition-all ${
+                  className={`p-3 rounded-xl border flex flex-col justify-between h-full transition-all ${
                     step.isExpired
                       ? "bg-rose-50/80 border-rose-200/90 shadow-2xs"
                       : "bg-white border-neutral-200/80 shadow-2xs"
@@ -142,9 +142,9 @@ export function MarginFlowRouteComparison() {
                   <div
                     key={node.title}
                     onClick={() => setActiveStep(idx)}
-                    className={`p-4 rounded-xl border text-left cursor-pointer transition-all duration-300 ${
+                    className={`p-4 rounded-xl border-2 text-left cursor-pointer transition-all duration-300 ${
                       isCurrent
-                        ? "bg-white border-2 border-[#00ae3b] shadow-[0_4px_16px_rgba(0,174,59,0.12)] -translate-y-0.5"
+                        ? "bg-white border-[#00ae3b] shadow-[0_4px_16px_rgba(0,174,59,0.12)]"
                         : "bg-white/90 border-[#e2ece0] hover:border-[#b8ccb5] hover:bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
                     }`}
                   >

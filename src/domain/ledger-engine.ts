@@ -58,10 +58,10 @@ export const CHART_OF_ACCOUNTS: Record<string, AccountDefinition> = {
   },
   "2030": {
     code: "2030",
-    name: "Statutory Withholdings (TCS/TDS)",
-    type: "LIABILITY",
-    normalBalance: "CREDIT",
-    description: "Tax collected at source by e-commerce operators under Section 52 CGST.",
+    name: "Statutory Withholdings (TCS/TDS Receivable)",
+    type: "ASSET",
+    normalBalance: "DEBIT",
+    description: "Advance tax credits withheld at source under Sec 52 CGST & Sec 194-O Income Tax available to offset tax liabilities.",
   },
 
   // 4000: Revenue
@@ -333,7 +333,7 @@ export function generateGeneralLedger(
 
     if (ret.restockStatus === "RESTOCKED" || ret.condition === "SELLABLE") {
       // Re-enter inventory, credit COGS
-      const unitCost = Math.round((ret.lossAmount > 0 ? ret.lossAmount : 0) * 100) / 100;
+      const unitCost = Math.round(((ret.inventoryRecoveryValue && ret.inventoryRecoveryValue > 0) ? ret.inventoryRecoveryValue : (ret.lossAmount > 0 ? ret.lossAmount : 0)) * 100) / 100;
       if (unitCost > 0) {
         lines.push(
           {
@@ -353,7 +353,9 @@ export function generateGeneralLedger(
         );
       }
     } else {
-      // Damaged/Liquidated write-off
+      // Damaged/Liquidated write-off:
+      // Inventory was already de-recognized upon shipment (Credit 1030, Debit 5010).
+      // On damaged return, reclassify from Delivered COGS (5010) to Damage Loss (5020).
       const damageLoss = Math.round((ret.lossAmount || 0) * 100) / 100;
       if (damageLoss > 0) {
         lines.push(
@@ -365,11 +367,11 @@ export function generateGeneralLedger(
             memo: `Inventory damage write-off (${ret.returnReason})`,
           },
           {
-            accountCode: "1030",
-            accountName: CHART_OF_ACCOUNTS["1030"].name,
+            accountCode: "5010",
+            accountName: CHART_OF_ACCOUNTS["5010"].name,
             debit: 0,
             credit: damageLoss,
-            memo: "De-recognition of scrapped inventory",
+            memo: "Reclassification from delivered COGS to damage loss",
           }
         );
       }
@@ -413,9 +415,11 @@ export function generateGeneralLedger(
 
   // 4. Purchase Bills (Wholesale Inventory Intake)
   purchases.forEach((purch) => {
-    const subtotal = Math.round(purch.quantity * purch.unitCost * 100) / 100;
+    const rawSubtotal = Math.round(purch.quantity * purch.unitCost * 100) / 100;
     const tax = Math.round((purch.taxes || 0) * 100) / 100;
-    const totalPayable = Math.round(purch.totalAmount * 100) / 100;
+    const declaredTotal = Math.round(purch.totalAmount * 100) / 100;
+    const totalPayable = declaredTotal > 0 ? declaredTotal : Math.round((rawSubtotal + tax) * 100) / 100;
+    const subtotal = declaredTotal > 0 ? Math.round((totalPayable - tax) * 100) / 100 : rawSubtotal;
 
     const lines: JournalPostingLine[] = [
       {

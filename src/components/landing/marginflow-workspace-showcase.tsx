@@ -8,7 +8,7 @@ export function MarginFlowWorkspaceShowcase() {
   const [activeTab, setActiveTab] = useState<"orders" | "weight" | "claims" | "settlements">("orders");
 
   return (
-    <section id="workspace" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#f6f9f5] text-[#193022] border-t border-[#cfdfd1] select-none">
+    <section id="workspace" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#f6f9f5] text-[#193022] border-t border-[#cfdfd1]">
       <div className="max-w-7xl mx-auto">
         
         {/* Section Heading */}
@@ -61,7 +61,7 @@ export function MarginFlowWorkspaceShowcase() {
           <div className="p-6 sm:p-10 bg-gradient-to-b from-white to-[#f7faf5]">
             {activeTab === "orders" && (
               <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#e5ebe3]">
                   <div>
                     <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">ORDER WATERFALL // TRUE CM2 & POAS</span>
                     <p className="text-xs text-[#5c7062]">Gross checkout price verified against locked COGS, courier fees, and return losses.</p>
@@ -98,7 +98,7 @@ export function MarginFlowWorkspaceShowcase() {
 
             {activeTab === "weight" && (
               <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#e5ebe3]">
                   <div>
                     <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">COURIER WEIGHT SLAB RADAR</span>
                     <p className="text-xs text-[#5c7062]">Disparity detection between catalog dimensions and billed courier weight slabs.</p>
@@ -130,7 +130,7 @@ export function MarginFlowWorkspaceShowcase() {
 
             {activeTab === "claims" && (
               <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#e5ebe3]">
                   <div>
                     <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">DISPUTE RECOVERY & SAFE-T DOCKET</span>
                     <p className="text-xs text-[#5c7062]">Active SLA countdown timers and pre-compiled SAFE-T/SPF evidence dossiers.</p>
@@ -159,7 +159,7 @@ export function MarginFlowWorkspaceShowcase() {
 
             {activeTab === "settlements" && (
               <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="flex items-center justify-between pb-3 border-b border-[#e5ebe3]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#e5ebe3]">
                   <div>
                     <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">BANK SETTLEMENT RECONCILIATION</span>
                     <p className="text-xs text-[#5c7062]">One-to-one matching between marketplace UTR remittances, orders, and 1% tax withholdings.</p>

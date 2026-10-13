@@ -88,11 +88,11 @@ export function PurchasesView() {
     <div className="space-y-6 w-full max-w-[1536px] min-w-0 mx-auto animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
-            Purchases & Inbound Bills
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
+            Purchases &amp; Inbound Bills
           </h1>
-          <p className="text-xs text-[#86868B] mt-0.5">
-            Procurement records, inbound supplier purchase bills, and input tax credit (ITC) tracking.
+          <p className="text-xs sm:text-sm text-[#86868B] mt-1">
+            Inbound Wholesale Invoices, Landed Costs &amp; Inventory Restock
           </p>
         </div>
         <button

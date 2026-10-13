@@ -22,8 +22,6 @@ export const GenericOrderWebhookSchema = z.object({
     "Personal Website",
     "Myntra",
     "WooCommerce",
-    "B2B Wholesale",
-    "Other",
   ]),
   customerName: z.string().default("Retail Customer"),
   customerCity: z.string().default("Direct"),

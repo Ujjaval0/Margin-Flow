@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
           return {
             id: `ORD-GEN-${channelOrderId}`,
             channelOrderId: String(channelOrderId),
-            marketplace: "Other" as const,
+            marketplace: "Personal Website" as const,
             orderDate: o.orderDate || new Date().toISOString().split("T")[0],
             status: "CONFIRMED" as const,
             customerName: o.customerName || "Retail POS Customer",
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
           {
             id: `ORD-GEN-${Date.now()}`,
             channelOrderId: sampleId,
-            marketplace: "Other" as const,
+            marketplace: "Personal Website" as const,
             orderDate: new Date().toISOString().split("T")[0],
             status: "CONFIRMED" as const,
             customerName: "Walk-in Retail Customer",

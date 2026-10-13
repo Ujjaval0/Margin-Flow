@@ -143,7 +143,7 @@ export function ReportsView() {
         revenue: m.revenue,
         cogs: m.cogs,
         fees: m.fees,
-        margin: Number(m.margin.toFixed(1)),
+        margin: Number((m.margin * 100).toFixed(1)),
         ordersCount: mOrders.length,
       };
     });
@@ -293,7 +293,7 @@ export function ReportsView() {
         p.orders,
         p.revenue.toFixed(2),
         p.profit.toFixed(2),
-        `${p.margin.toFixed(1)}%`,
+        `${(p.margin * 100).toFixed(1)}%`,
         p.returnsCount,
       ]);
       const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -333,13 +333,11 @@ export function ReportsView() {
       {/* ─── Top Header & Controls Strip ─── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
-            {activeTab === "analytics" ? "Analytics & Insights" : "Statement of Profit & Loss (P&L)"}
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
+            Analytics &amp; Financial Reports
           </h1>
-          <p className="text-xs text-[#86868B] mt-0.5">
-            {activeTab === "analytics"
-              ? "Deep-dive into platform performance, product profitability, and return trends."
-              : "Audit-grade multi-dimensional profitability statements and accounting ledger."}
+          <p className="text-xs sm:text-sm text-[#86868B] mt-1">
+            Contribution Margin P&amp;L, SKU Breakdown &amp; Growth Trends
           </p>
         </div>
 
@@ -531,7 +529,7 @@ export function ReportsView() {
                                   : "bg-rose-500/10 text-rose-800 border border-rose-500/20"
                               }`}
                             >
-                              {p.margin.toFixed(1)}%
+                              {(p.margin * 100).toFixed(1)}%
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right text-xs font-medium tabular-nums text-[#6E6E73]">
@@ -831,7 +829,7 @@ export function ReportsView() {
                                   : "bg-rose-500/10 text-rose-800 border border-rose-500/20"
                               }`}
                             >
-                              {row.margin.toFixed(1)}%
+                              {(row.margin * 100).toFixed(1)}%
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right text-xs font-medium tabular-nums text-[#6E6E73]">

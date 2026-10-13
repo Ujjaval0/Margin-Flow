@@ -310,15 +310,15 @@ export function AIStagingView() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-black/[0.06]">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-[22px] font-semibold tracking-tight text-[#1D1D1F]">
-              Document verification
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
+              Document Verification &amp; Staging
             </h1>
             <span className="px-2.5 py-0.5 rounded-full bg-[#F5F5F7] text-[#6E6E73] text-[11px] font-medium border border-black/[0.06]">
               {aiDocuments.length} Documents
             </span>
           </div>
-          <p className="text-xs text-[#6E6E73] mt-0.5 font-normal">
-            Review auto-extracted bills and invoices, adjust numbers, and post confirmed entries to your books.
+          <p className="text-xs sm:text-sm text-[#86868B] mt-1 font-normal">
+            Intelligent Document Processing &amp; Multi-Model Ingestion
           </p>
         </div>
 
@@ -905,7 +905,7 @@ export function AIStagingView() {
                     <button
                       onClick={() => approveStagedDocument(selectedDoc.id)}
                       disabled={!selectedDoc.arithmeticValidation.passed}
-                      className="px-5 py-2 bg-[#1D1D1F] hover:bg-black disabled:opacity-35 disabled:cursor-not-allowed text-white rounded-full text-xs font-medium shadow-apple-sm transition flex items-center gap-1.5 active:scale-[0.98] btn-press cursor-pointer"
+                      className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-full text-xs font-medium shadow-apple-sm transition flex items-center gap-1.5 active:scale-[0.98] btn-press cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>Commit to books</span>
@@ -1115,7 +1115,7 @@ export function AIStagingView() {
                 type="button"
                 disabled={selectedFiles.length === 0 || isUploading}
                 onClick={() => processUploadedFiles(selectedFiles)}
-                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black disabled:opacity-35 disabled:cursor-not-allowed text-white text-xs font-medium rounded-full shadow-apple-sm transition flex items-center gap-1.5 active:scale-[0.98] btn-press cursor-pointer"
+                className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium rounded-full shadow-apple-sm transition flex items-center gap-1.5 active:scale-[0.98] btn-press cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
               >
                 <FileCheck className="w-3.5 h-3.5" />
                 <span>

@@ -20,7 +20,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
   ];
 
   return (
-    <section className="relative pt-32 pb-24 sm:pt-40 sm:pb-32 px-4 sm:px-6 lg:px-8 bg-[#060c09] text-[#eef5e9] overflow-hidden select-none">
+    <section className="relative pt-32 pb-24 sm:pt-40 sm:pb-32 px-4 sm:px-6 lg:px-8 bg-[#060c09] text-[#eef5e9] overflow-hidden">
       
       {/* Scoped CSS for living organic background motion */}
       <style dangerouslySetInnerHTML={{ __html: `
@@ -267,10 +267,10 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
                   <button
                     key={ch.name}
                     onClick={() => setActiveChannel(idx)}
-                    className={`p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                    className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border-2 ${
                       activeChannel === idx
-                        ? "bg-[#eef8f0] border-2 border-[#00ae3b] text-[#0d5924] shadow-xs"
-                        : "bg-[#f8faf8] hover:bg-[#f0f4ef] border border-[#e2e8e0] text-[#5c7062]"
+                        ? "bg-[#eef8f0] border-[#00ae3b] text-[#0d5924] shadow-xs"
+                        : "bg-[#f8faf8] hover:bg-[#f0f4ef] border-[#e2e8e0]/60 text-[#5c7062]"
                     }`}
                   >
                     <span className={`block text-[10px] font-mono ${activeChannel === idx ? "text-[#00872e] font-semibold" : "text-[#7a8f80]"}`}>
@@ -290,7 +290,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
                   <span className="text-[#0d5924] font-bold">{CHANNELS[activeChannel].type}</span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-center pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center pt-2">
                   <div className="p-2.5 rounded-lg bg-white border border-[#e2e8e0] shadow-2xs">
                     <span className="block text-[10px] text-[#5c7062] mb-1">INTAKE</span>
                     <span className="text-xs font-bold text-[#193022] tabular-nums">{CHANNELS[activeChannel].metric}</span>

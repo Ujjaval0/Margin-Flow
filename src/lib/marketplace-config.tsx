@@ -185,7 +185,6 @@ export const ALL_MARKETPLACES: Marketplace[] = [
   "Meesho",
   "WooCommerce",
   "Personal Website",
-  "B2B Wholesale",
 ];
 
 export const MARKETPLACE_LIST: MarketplaceConfigItem[] = ALL_MARKETPLACES.map(
@@ -207,8 +206,7 @@ export function normalizeMarketplace(raw: string): Marketplace {
     clean.includes("shopify")
   )
     return "Personal Website";
-  if (clean.includes("b2b") || clean.includes("wholesale")) return "B2B Wholesale";
-  return "Other";
+  return "Personal Website";
 }
 
 export function getMarketplaceBadge(marketplace: Marketplace): MarketplaceConfigItem {

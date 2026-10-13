@@ -117,14 +117,14 @@ export function parseRawCsv(text: string): string[][] {
   return rows;
 }
 
-// Cleans currency values like "₹ 1,499.50", "₹1499", "(50.00)" -> -50
+// Cleans currency values like "₹ 1,499.50", "₹1499", "(50.00)" -> -50, "-₹100" -> -100
 export function cleanCurrency(val: unknown): number {
   if (typeof val === "number") return isNaN(val) ? 0 : val;
   if (!val) return 0;
   let s = String(val).trim();
 
-  // Negative accounting format e.g. "(120.50)"
-  const isNegative = s.startsWith("(") && s.endsWith(")") || s.startsWith("-");
+  // Negative accounting format e.g. "(120.50)", "(₹120.50)", "-₹120.50", "- 120.50"
+  const isNegative = /[-–—]/.test(s) || (s.includes("(") && s.includes(")"));
   s = s.replace(/[^0-9.]/g, "");
   const num = parseFloat(s);
   if (isNaN(num)) return 0;

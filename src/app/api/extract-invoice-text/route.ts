@@ -91,7 +91,7 @@ Return strict JSON matching this exact structure:
   "orderId": "string (Channel order ID or invoice number, e.g. Amazon 408-1234567-8901234, Flipkart OD..., Meesho MSH..., or Invoice Number)",
   "invoiceNumber": "string",
   "orderDate": "YYYY-MM-DD",
-  "marketplace": "Amazon India | Flipkart | Meesho | Myntra | WooCommerce | Personal Website | Other",
+  "marketplace": "Amazon India | Flipkart | Meesho | Myntra | WooCommerce | Personal Website",
   "customerName": "string (Buyer or customer name)",
   "customerCity": "string",
   "customerState": "string (Indian state if available)",

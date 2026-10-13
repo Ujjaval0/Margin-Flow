@@ -180,8 +180,6 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
     "Personal Website",
     "Myntra",
     "WooCommerce",
-    "B2B Wholesale",
-    "Other",
   ];
 
   const claimTypeOptions: { value: Claim["claimType"]; label: string }[] = [
@@ -347,11 +345,11 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
     <div className="space-y-6 w-full max-w-[1536px] min-w-0 mx-auto animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
-            Claims & Dispute Recoveries
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
+            Claims &amp; Dispute Recoveries
           </h1>
-          <p className="text-xs text-[#86868B] mt-0.5">
-            Marketplace claims lifecycle: Amazon SAFE-T, lost transit cases, and reimbursement matching.
+          <p className="text-xs sm:text-sm text-[#86868B] mt-1">
+            Automated SAFE-T Claims, SPF Filing &amp; Capital Recovery
           </p>
         </div>
 

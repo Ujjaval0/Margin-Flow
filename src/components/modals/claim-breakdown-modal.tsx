@@ -134,7 +134,8 @@ export function ClaimBreakdownModal({ cardType, onClose, claims, onSelectFilter 
   // ── Global metrics ────────────────────────────────────────────────────────
   const totalClaimed   = claims.reduce((s, c) => s + c.amountClaimed, 0);
   const totalRecovered = claims.reduce((s, c) => s + c.amountRecovered, 0);
-  const outstanding    = Math.max(0, totalClaimed - totalRecovered);
+  const activeClaims   = claims.filter((c) => c.status !== "REJECTED" && c.status !== "CLOSED");
+  const outstanding    = activeClaims.reduce((s, c) => s + Math.max(0, c.amountClaimed - c.amountRecovered), 0);
   const rate           = totalClaimed > 0 ? totalRecovered / totalClaimed : 0;
 
   // ── Card-specific data ────────────────────────────────────────────────────
@@ -142,7 +143,7 @@ export function ClaimBreakdownModal({ cardType, onClose, claims, onSelectFilter 
   const allOrderRows = groupByOrder(claims);
   const typeGroups   = new Map<string, { count: number; total: number }>();
   for (const c of claims) {
-    const key = c.claimType.replace(/_/g, " ");
+    const key = (c.claimType || "OTHER").replace(/_/g, " ");
     const e   = typeGroups.get(key) ?? { count: 0, total: 0 };
     e.count++; e.total += c.amountClaimed;
     typeGroups.set(key, e);
@@ -152,8 +153,8 @@ export function ClaimBreakdownModal({ cardType, onClose, claims, onSelectFilter 
   const creditedClaims    = claims.filter((c) => c.amountRecovered > 0);
   const creditedOrderRows = groupByOrder(creditedClaims);
 
-  // Card 3 – only claims with remaining outstanding
-  const pendingClaims    = claims.filter((c) => c.amountClaimed > c.amountRecovered);
+  // Card 3 – only active claims with remaining outstanding
+  const pendingClaims    = activeClaims.filter((c) => c.amountClaimed > c.amountRecovered);
   const pendingOrderRows = groupByOrder(pendingClaims);
 
   // Card 4 – channel rates & status funnel

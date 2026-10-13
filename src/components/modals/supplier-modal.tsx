@@ -24,8 +24,17 @@ export function SupplierModal({
 
   useEffect(() => {
     setMounted(true);
-    return () => setMounted(false);
-  }, []);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      setMounted(false);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   const [name, setName] = useState("");
   const [contactPerson, setContactPerson] = useState("");

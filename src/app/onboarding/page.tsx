@@ -148,7 +148,6 @@ export default function OnboardingPage() {
     { id: "MEESHO", name: "Meesho", badge: "Zero Commission" },
     { id: "SHOPIFY", name: "Shopify / D2C", badge: "Web Store" },
     { id: "QUICK_COMMERCE", name: "Quick Commerce", badge: "Blinkit / Zepto / Instamart" },
-    { id: "OFFLINE_B2B", name: "Offline Wholesale", badge: "B2B Trade" },
   ];
 
   const volumes = [

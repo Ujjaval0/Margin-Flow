@@ -38,9 +38,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  Plus,
-  RotateCcw,
-  Truck,
   Check,
   Package,
   AlertTriangle,
@@ -50,18 +47,6 @@ import { DateRangePreset } from "@/domain/profitability-engine";
 import { getCardLogicDefinitions } from "@/components/modals/card-logic-modal";
 import type { CardLogicModalData } from "@/components/modals/card-logic-modal";
 
-const OrderModal = dynamic(
-  () => import("@/components/modals/order-modal").then((mod) => mod.OrderModal),
-  { ssr: false }
-);
-const RecordReturnModal = dynamic(
-  () => import("@/components/modals/record-return-modal").then((mod) => mod.RecordReturnModal),
-  { ssr: false }
-);
-const AddPurchaseModal = dynamic(
-  () => import("@/components/modals/add-purchase-modal").then((mod) => mod.AddPurchaseModal),
-  { ssr: false }
-);
 const CardLogicModal = dynamic(
   () => import("@/components/modals/card-logic-modal").then((mod) => mod.CardLogicModal),
   { ssr: false }
@@ -94,9 +79,7 @@ export function DashboardView({
     orders,
     returns,
     claims,
-    products,
     settlements,
-    suppliers,
     purchases,
     inventoryMetrics,
     feesBreakdown,
@@ -104,11 +87,6 @@ export function DashboardView({
     settlementSummary,
     acknowledgedLossLeaderSkus,
     toggleLossLeaderAcknowledgment,
-    addOrder,
-    addReturn,
-    addPurchase,
-    addClaim,
-    addSettlement,
   } = usePlatform();
 
   const selectedMarketplace = propMarketplace ?? contextMarketplace;
@@ -130,7 +108,7 @@ export function DashboardView({
     day: "numeric",
     year: "numeric",
   }).format(currentTime).toUpperCase();
-  const userName = currentUser?.name?.split(" ")[0] || "Ujjaval";
+  const userName = currentUser?.name?.split(" ")[0] || "E-Commerce";
 
   // Dual-Mode Financial View State: "OPERATOR" (Cash & Payouts) vs "CFO" (GAAP Hierarchy)
   const [viewMode, setViewMode] = useState<"OPERATOR" | "CFO">("OPERATOR");
@@ -156,10 +134,6 @@ export function DashboardView({
     setActiveLogicKey(foundKey || null);
   }, [cardLogicDefinitions]);
 
-  // Quick Action Dialog States
-  const [isAddOrderOpen, setIsAddOrderOpen] = useState(false);
-  const [isRecordReturnOpen, setIsRecordReturnOpen] = useState(false);
-  const [isAddPurchaseOpen, setIsAddPurchaseOpen] = useState(false);
 
   // SKU Table Search, Sort & Slide-Over Drawer State
   const [skuSearch, setSkuSearch] = useState("");
@@ -224,6 +198,7 @@ export function DashboardView({
   ];
 
   const sortedMarketplaceBreakdown = [...marketplaceBreakdown]
+    .filter((m) => m.marketplace !== "Other" && m.marketplace !== "B2B Wholesale")
     .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
     .map((item, index) => ({
       ...item,
@@ -236,16 +211,18 @@ export function DashboardView({
       ? activeChannels
       : [{ marketplace: "No Revenue", revenue: 1, color: "#E5E5EA" }];
 
-  const totalChannelRevenue = marketplaceBreakdown.reduce((sum, m) => sum + (m.revenue || 0), 0);
+  const totalChannelRevenue = sortedMarketplaceBreakdown.reduce((sum, m) => sum + (m.revenue || 0), 0);
 
   const channelChartData = useMemo(() => {
-    return marketplaceBreakdown.map((m) => ({
-      name: m.marketplace.replace(" India", "").replace("Personal ", ""),
-      Revenue: m.revenue,
-      COGS: m.cogs,
-      Fees: m.fees + m.logistics,
-      Profit: m.contributionProfit,
-    }));
+    return marketplaceBreakdown
+      .filter((m) => m.marketplace !== "Other" && m.marketplace !== "B2B Wholesale")
+      .map((m) => ({
+        name: m.marketplace.replace(" India", "").replace("Personal ", ""),
+        Revenue: m.revenue,
+        COGS: m.cogs,
+        Fees: m.fees + m.logistics,
+        Profit: m.contributionProfit,
+      }));
   }, [marketplaceBreakdown]);
 
   // Session dismissal state for Margin Erosion Advisory banner
@@ -1293,40 +1270,6 @@ export function DashboardView({
         </div>
       )}
 
-      {/* ─── QUICK RECORD ACTIONS DOCKED TOOLBAR ─── */}
-      <div className="bg-white p-3.5 rounded-2xl border border-black/[0.06] shadow-apple-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-[#1D1D1F] tracking-tight">Quick Actions</span>
-          <span className="text-black/20">·</span>
-          <span className="text-xs text-[#86868B]">Instant entries to platform ledger</span>
-        </div>
-
-        {/* Pill Segmented Control matching Navbar options */}
-        <div className="bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] inline-flex items-center gap-0.5 text-xs w-full sm:w-auto">
-          <button
-            onClick={() => setIsAddOrderOpen(true)}
-            className="flex-1 sm:flex-initial px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 bg-white text-[#1D1D1F] shadow-apple-sm active:scale-95 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5 text-[#1D1D1F]" />
-            <span>Add Order</span>
-          </button>
-          <button
-            onClick={() => setIsRecordReturnOpen(true)}
-            className="flex-1 sm:flex-initial px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-white active:scale-95 cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-[#86868B]" />
-            <span>Record Return</span>
-          </button>
-          <button
-            onClick={() => setIsAddPurchaseOpen(true)}
-            className="flex-1 sm:flex-initial px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1.5 text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-white active:scale-95 cursor-pointer"
-          >
-            <Truck className="w-3.5 h-3.5 text-[#86868B]" />
-            <span>Add Supplier Payment</span>
-          </button>
-        </div>
-      </div>
-
       {/* Visual Analytics with Color-Coded Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Channel Economics Bar Chart */}
@@ -1935,36 +1878,6 @@ export function DashboardView({
       <CardLogicModal
         data={activeLogicModal}
         onClose={() => setActiveLogicModal(null)}
-      />
-
-      {/* ─── QUICK ACTION: ADD ORDER MODAL ─── */}
-      <OrderModal
-        mode="create"
-        isOpen={isAddOrderOpen}
-        onClose={() => setIsAddOrderOpen(false)}
-        products={products}
-        suppliers={suppliers}
-        onAddOrder={addOrder}
-        onAddSettlement={addSettlement}
-        onAddReturn={addReturn}
-        onAddClaim={addClaim}
-      />
-
-      {/* ─── QUICK ACTION: RECORD RETURN MODAL ─── */}
-      <RecordReturnModal
-        isOpen={isRecordReturnOpen}
-        onClose={() => setIsRecordReturnOpen(false)}
-        orders={orders}
-        onAddReturn={(ret) => addReturn(ret)}
-      />
-
-      {/* ─── QUICK ACTION: ADD SUPPLIER PAYMENT MODAL ─── */}
-      <AddPurchaseModal
-        isOpen={isAddPurchaseOpen}
-        onClose={() => setIsAddPurchaseOpen(false)}
-        suppliers={suppliers}
-        products={products}
-        onAddPurchase={(purchase) => addPurchase(purchase)}
       />
     </div>
   );

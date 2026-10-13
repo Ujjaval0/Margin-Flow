@@ -34,7 +34,7 @@ export function MarginFlowCompoundMetrics() {
   };
 
   return (
-    <section id="metrics" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#f6f9f5] text-[#193022] border-t border-[#cfdfd1] select-none">
+    <section id="metrics" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#f6f9f5] text-[#193022] border-t border-[#cfdfd1]">
       {/* Scoped CSS for Chart Animations */}
       <style
         dangerouslySetInnerHTML={{
@@ -187,7 +187,7 @@ export function MarginFlowCompoundMetrics() {
           <div key={animKey} className="py-8 relative">
             <svg
               viewBox="0 0 600 200"
-              className="w-full h-48 sm:h-56 overflow-visible select-none cursor-crosshair"
+              className="w-full h-48 sm:h-56 overflow-visible select-none cursor-pointer"
               fill="none"
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}

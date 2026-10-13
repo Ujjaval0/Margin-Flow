@@ -203,19 +203,53 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             if (Array.isArray(parsed.data.orders)) {
               const seenOrderIds = new Set<string>();
               const sanitizedOrders = parsed.data.orders.map((o: Order, idx: number) => {
+                const marketplace =
+                  o.marketplace === "Other" || o.marketplace === "B2B Wholesale"
+                    ? "Personal Website"
+                    : o.marketplace;
                 if (seenOrderIds.has(o.id)) {
                   const uniqueId = `${o.id}_${idx}_${Math.floor(Math.random() * 1000)}`;
                   seenOrderIds.add(uniqueId);
-                  return { ...o, id: uniqueId };
+                  return { ...o, id: uniqueId, marketplace };
                 }
                 seenOrderIds.add(o.id);
-                return o;
+                return { ...o, marketplace };
               });
               setOrders(sanitizedOrders);
             }
-            if (Array.isArray(parsed.data.returns)) setReturns(parsed.data.returns);
-            if (Array.isArray(parsed.data.settlements)) setSettlements(parsed.data.settlements);
-            if (Array.isArray(parsed.data.claims)) setClaims(parsed.data.claims);
+            if (Array.isArray(parsed.data.returns)) {
+              setReturns(
+                parsed.data.returns.map((r: ReturnRecord) => ({
+                  ...r,
+                  marketplace:
+                    r.marketplace === "Other" || r.marketplace === "B2B Wholesale"
+                      ? "Personal Website"
+                      : r.marketplace,
+                }))
+              );
+            }
+            if (Array.isArray(parsed.data.settlements)) {
+              setSettlements(
+                parsed.data.settlements.map((s: Settlement) => ({
+                  ...s,
+                  marketplace:
+                    s.marketplace === "Other" || s.marketplace === "B2B Wholesale"
+                      ? "Personal Website"
+                      : s.marketplace,
+                }))
+              );
+            }
+            if (Array.isArray(parsed.data.claims)) {
+              setClaims(
+                parsed.data.claims.map((c: Claim) => ({
+                  ...c,
+                  marketplace:
+                    c.marketplace === "Other" || c.marketplace === "B2B Wholesale"
+                      ? "Personal Website"
+                      : c.marketplace,
+                }))
+              );
+            }
             if (Array.isArray(parsed.data.suppliers)) setSuppliers(parsed.data.suppliers);
             if (Array.isArray(parsed.data.purchases)) setPurchases(parsed.data.purchases);
             if (Array.isArray(parsed.data.expenses)) setExpenses(parsed.data.expenses);
@@ -850,9 +884,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setReturns((prev) => [enrichedRecord, ...prev]);
 
     // Inventory Engine:
-    // Good/Undamaged return = inventory + quantity
-    // Damaged return = no inventory addition (written off)
-    if (!isDamaged) {
+    // Good/Undamaged return with RESTOCKED status = inventory + quantity
+    // If PENDING_RESTOCK, inventory will be incremented when restockReturn is called to avoid double-counting
+    if (!isDamaged && enrichedRecord.restockStatus === "RESTOCKED") {
       setProducts((prev) =>
         prev.map((p) =>
           p.sku === enrichedRecord.sku
@@ -1081,6 +1115,18 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       if (returnToDelete) {
         linkedClaimId = returnToDelete.claimId;
         targetOrderId = returnToDelete.orderId;
+
+        // Inventory Rollback: if this return was restocked, reverse the addition
+        const wasRestocked = returnToDelete.restockStatus === "RESTOCKED";
+        if (wasRestocked && returnToDelete.returnType !== "DAMAGED_RETURN" && returnToDelete.condition !== "DAMAGED" && returnToDelete.condition !== "UNUSABLE") {
+          setProducts((prevProds) =>
+            prevProds.map((p) =>
+              p.sku === returnToDelete.sku
+                ? { ...p, stockQuantity: Math.max(0, (p.stockQuantity ?? 0) - returnToDelete.quantity) }
+                : p
+            )
+          );
+        }
 
         setOrders((prevOrders) =>
           prevOrders.map((o) => {

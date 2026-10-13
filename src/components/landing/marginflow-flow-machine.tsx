@@ -14,7 +14,7 @@ export function MarginFlowFlowMachine() {
   return (
     <section
       id="engine"
-      className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#fafbfa] text-[#193022] select-none border-t border-[#e2e8e0]"
+      className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#fafbfa] text-[#193022] border-t border-[#e2e8e0]"
     >
       {/* Scoped CSS for continuous flowing light streams */}
       <style
@@ -46,7 +46,7 @@ export function MarginFlowFlowMachine() {
         <div className="rounded-[28px] sm:rounded-[36px] bg-white border border-[#e2e8e0] p-5 sm:p-8 lg:p-10 shadow-[0_12px_36px_rgba(0,0,0,0.03)]">
           {/* Inner Dotted Canvas Arena (Clean Neutral with Subtle Accents) */}
           <div
-            className="relative rounded-2xl sm:rounded-3xl border border-[#e8ece6] bg-[#fbfcfb] overflow-hidden p-5 sm:p-8 min-h-[220px] sm:min-h-[250px] flex items-center justify-between"
+            className="relative rounded-2xl sm:rounded-3xl border border-[#e8ece6] bg-[#fbfcfb] p-4 sm:p-8 min-h-[220px] sm:min-h-[250px] flex items-center justify-between overflow-x-auto sm:overflow-visible no-scrollbar gap-2 sm:gap-4"
             style={{
               backgroundImage: "radial-gradient(#d1dbd0 1.2px, transparent 1.2px)",
               backgroundSize: "22px 22px",
@@ -149,78 +149,78 @@ export function MarginFlowFlowMachine() {
               </g>
             </svg>
 
-            {/* Left Column: 3 Compact Cards with Decreased Gaps */}
-            <div className="relative z-10 flex flex-col gap-2.5 sm:gap-3 shrink-0 w-38 sm:w-46 lg:w-50">
+            {/* Left Column: 3 Compact Cards */}
+            <div className="relative z-10 flex flex-col gap-2 sm:gap-3 flex-1 min-w-[125px] max-w-[210px]">
               {/* Card 1 */}
-              <div className="bg-white rounded-xl border border-[#e2e8e0] px-3 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
+              <div className="bg-white rounded-xl border border-[#e2e8e0] px-2.5 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2 sm:gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
                 <div className="w-6 h-6 rounded-md bg-[#f4f6f4] flex items-center justify-center text-[#193022] shrink-0">
                   <ShoppingCart className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs sm:text-[13px] font-medium text-[#193022] tracking-tight whitespace-nowrap">
+                <span className="text-[11px] sm:text-xs lg:text-[13px] font-medium text-[#193022] tracking-tight truncate">
                   Marketplace orders
                 </span>
               </div>
 
               {/* Card 2 */}
-              <div className="bg-white rounded-xl border border-[#e2e8e0] px-3 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
+              <div className="bg-white rounded-xl border border-[#e2e8e0] px-2.5 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2 sm:gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
                 <div className="w-6 h-6 rounded-md bg-[#f4f6f4] flex items-center justify-center text-[#193022] shrink-0">
                   <Truck className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs sm:text-[13px] font-medium text-[#193022] tracking-tight whitespace-nowrap">
+                <span className="text-[11px] sm:text-xs lg:text-[13px] font-medium text-[#193022] tracking-tight truncate">
                   Courier telemetry
                 </span>
               </div>
 
               {/* Card 3 */}
-              <div className="bg-white rounded-xl border border-[#e2e8e0] px-3 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
+              <div className="bg-white rounded-xl border border-[#e2e8e0] px-2.5 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2 sm:gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
                 <div className="w-6 h-6 rounded-md bg-[#f4f6f4] flex items-center justify-center text-[#193022] shrink-0">
                   <Receipt className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs sm:text-[13px] font-medium text-[#193022] tracking-tight whitespace-nowrap">
-                  Bank UTR & bills
+                <span className="text-[11px] sm:text-xs lg:text-[13px] font-medium text-[#193022] tracking-tight truncate">
+                  Bank UTR &amp; bills
                 </span>
               </div>
             </div>
 
-            {/* Center Column: Signature "m." Circular Logo Emblem matching Image 2 */}
-            <div className="relative z-10 flex items-center justify-center shrink-0 mx-2 sm:mx-6">
-              <div className="relative flex items-center justify-center w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#111813] border border-[#233829] shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
+            {/* Center Column: Signature "m." Circular Logo Emblem */}
+            <div className="relative z-10 flex items-center justify-center shrink-0 mx-1 sm:mx-4 lg:mx-6">
+              <div className="relative flex items-center justify-center w-10 h-10 sm:w-13 sm:h-13 rounded-full bg-[#111813] border border-[#233829] shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
                 {/* Subtle inner highlight ring */}
                 <div className="absolute inset-0.5 rounded-full border border-white/10 pointer-events-none" />
-                <span className="font-serif italic text-base sm:text-lg font-medium text-[#52c47a] select-none pl-0.5 pb-0.5">
+                <span className="font-serif italic text-sm sm:text-lg font-medium text-[#52c47a] select-none pl-0.5 pb-0.5">
                   m.
                 </span>
               </div>
             </div>
 
-            {/* Right Column: 3 Compact Output Cards with Decreased Gaps */}
-            <div className="relative z-10 flex flex-col gap-2.5 sm:gap-3 shrink-0 w-38 sm:w-46 lg:w-50">
+            {/* Right Column: 3 Compact Output Cards */}
+            <div className="relative z-10 flex flex-col gap-2 sm:gap-3 flex-1 min-w-[125px] max-w-[210px]">
               {/* Card 1 */}
-              <div className="bg-white rounded-xl border border-[#e2e8e0] px-3 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
+              <div className="bg-white rounded-xl border border-[#e2e8e0] px-2.5 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2 sm:gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
                 <div className="w-6 h-6 rounded-md bg-[#f4f6f4] flex items-center justify-center text-[#193022] shrink-0">
                   <Landmark className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs sm:text-[13px] font-medium text-[#193022] tracking-tight whitespace-nowrap">
+                <span className="text-[11px] sm:text-xs lg:text-[13px] font-medium text-[#193022] tracking-tight truncate">
                   Cleared bank cash
                 </span>
               </div>
 
               {/* Card 2 */}
-              <div className="bg-white rounded-xl border border-[#e2e8e0] px-3 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
+              <div className="bg-white rounded-xl border border-[#e2e8e0] px-2.5 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2 sm:gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
                 <div className="w-6 h-6 rounded-md bg-[#f4f6f4] flex items-center justify-center text-[#193022] shrink-0">
                   <ShieldCheck className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs sm:text-[13px] font-medium text-[#193022] tracking-tight whitespace-nowrap">
+                <span className="text-[11px] sm:text-xs lg:text-[13px] font-medium text-[#193022] tracking-tight truncate">
                   Dispute recoveries
                 </span>
               </div>
 
               {/* Card 3 */}
-              <div className="bg-white rounded-xl border border-[#e2e8e0] px-3 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
+              <div className="bg-white rounded-xl border border-[#e2e8e0] px-2.5 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2 sm:gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
                 <div className="w-6 h-6 rounded-md bg-[#f4f6f4] flex items-center justify-center text-[#193022] shrink-0">
                   <TrendingUp className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs sm:text-[13px] font-medium text-[#193022] tracking-tight whitespace-nowrap">
+                <span className="text-[11px] sm:text-xs lg:text-[13px] font-medium text-[#193022] tracking-tight truncate">
                   True net margin
                 </span>
               </div>

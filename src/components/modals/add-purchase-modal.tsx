@@ -25,8 +25,17 @@ export function AddPurchaseModal({
 
   useEffect(() => {
     setMounted(true);
-    return () => setMounted(false);
-  }, []);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      setMounted(false);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   const [purchaseSupplierId, setPurchaseSupplierId] = useState(suppliers[0]?.id || "");
   const [purchaseInvoiceNo, setPurchaseInvoiceNo] = useState("INV-2026-901");
@@ -69,7 +78,7 @@ export function AddPurchaseModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] p-6 flex flex-col gap-4 animate-in zoom-in-95 duration-200"
+        className="w-full max-w-lg apple-card rounded-3xl shadow-apple-lg border border-black/[0.08] p-4 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between pb-3 border-b border-black/[0.05]">
@@ -156,7 +165,7 @@ export function AddPurchaseModal({
                 type="number"
                 min="1"
                 value={purchaseUnitCost}
-                onChange={(e) => setPurchaseUnitCost(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setPurchaseUnitCost(Math.max(0.01, parseFloat(e.target.value) || 1))}
                 className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] tabular-nums focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
               />
             </div>

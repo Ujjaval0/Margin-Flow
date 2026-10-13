@@ -571,7 +571,7 @@ export function ProductBulkUploadModal({
               type="button"
               disabled={validCount === 0}
               onClick={handleConfirmImport}
-              className="px-5 py-2 bg-[#1D1D1F] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-medium shadow-apple-sm btn-press transition flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-apple-sm btn-press transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Import {validCount} products</span>

@@ -77,7 +77,7 @@ export function LedgerView() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-black/[0.06]">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
               Double-Entry General Ledger
             </h1>
             <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">
@@ -85,8 +85,8 @@ export function LedgerView() {
               {trialBalance.isBalanced ? "Balanced (Debits = Credits)" : "Imbalance Flagged"}
             </span>
           </div>
-          <p className="text-xs text-[#86868B] mt-0.5">
-            Statutory double-entry accounting: Every fulfillment, settlement, return, and purchase is posted as an immutable balanced journal entry.
+          <p className="text-xs sm:text-sm text-[#86868B] mt-1">
+            Immutable Financial Transaction Journal &amp; Trial Balance
           </p>
         </div>
 

@@ -277,11 +277,11 @@ export function ProductsView() {
     <div className="space-y-6 w-full max-w-[1536px] min-w-0 mx-auto animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
-            Product Catalog & Cost Basis
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
+            Product Catalog &amp; Cost Basis
           </h1>
-          <p className="text-xs text-[#86868B] mt-0.5">
-            Point-in-time historical cost basis preservation. Price changes create versioned windows without rewriting past margins.
+          <p className="text-xs sm:text-sm text-[#86868B] mt-1">
+            Catalog SKUs, Landed COGS &amp; Courier Weight Slabs
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

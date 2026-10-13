@@ -2,11 +2,12 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft, ChevronDown } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Marketplace } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
 import { AssistantEmblem } from "@/components/ai/assistant-emblem";
+import { getModuleNavMeta } from "@/lib/navigation-config";
 
 const NotificationBell = dynamic(
   () => import("@/components/layout/notification-bell").then((m) => m.NotificationBell),
@@ -49,21 +50,7 @@ export function Navbar({
     { id: "Meesho", label: "Meesho" },
   ];
 
-  const moduleTitles: Record<string, string> = {
-    dashboard: "Home",
-    orders: "Order Lifecycle & Cost Snapshots",
-    returns: "Returns & Reverse Logistics",
-    claims: "SAFE-T Claims & Dispute Recoveries",
-    products: "Product Catalog & Cost Basis",
-    settlements: "Marketplace Settlement Reconciliation",
-    suppliers: "Wholesale Suppliers & Vendors",
-    purchases: "Wholesale Purchases & Inflow",
-    expenses: "Operating Expense Ledger",
-    reports: "Analytics & P&L Statements",
-    ledger: "Double-Entry General Ledger & Trial Balance",
-    webhooks: "Store Integrations",
-    trash: "Recycle Bin",
-  };
+  const navMeta = getModuleNavMeta(activeModule);
 
   return (
     <header className="shrink-0 h-16 w-full bg-white/85 backdrop-blur-xl border-b border-black/[0.06] px-4 sm:px-6 md:px-8 flex items-center justify-between z-20 sticky top-0 transition-all select-none">
@@ -83,15 +70,32 @@ export function Navbar({
             <PanelLeft className="w-4 h-4" />
           </div>
         )}
-        <span className="text-sm font-medium text-[#1D1D1F] tracking-tight whitespace-nowrap">
-          {moduleTitles[activeModule] || activeModule}
+        <span className="text-sm font-medium text-[#1D1D1F] tracking-tight whitespace-nowrap truncate max-w-[120px] sm:max-w-none">
+          {navMeta.navbarTitle}
         </span>
       </div>
 
       {/* Center/Right Controls */}
-      <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 py-1 overflow-visible">
-        {/* Pill Segmented Control (Apple style) */}
-        <div className="bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] inline-flex items-center gap-0.5 text-xs shrink-0 max-w-full overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 py-1 overflow-visible">
+        {/* Mobile Marketplace Dropdown (< 640px) */}
+        <div className="sm:hidden relative shrink-0">
+          <select
+            value={selectedMarketplace}
+            onChange={(e) => onSelectMarketplace(e.target.value as any)}
+            className="h-[34px] pl-3 pr-7 py-1 rounded-full bg-[#F1F3F5] border border-black/[0.06] text-xs font-semibold text-[#1D1D1F] appearance-none focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 cursor-pointer"
+            aria-label="Filter by marketplace"
+          >
+            {marketplaces.map((mp) => (
+              <option key={mp.id} value={mp.id}>
+                {mp.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="w-3.5 h-3.5 text-[#6E6E73] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+        </div>
+
+        {/* Tablet & Desktop Segmented Control (>= 640px) */}
+        <div className="hidden sm:inline-flex bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] items-center gap-0.5 text-xs shrink-0 max-w-full overflow-x-auto no-scrollbar">
           {marketplaces.map((mp) => {
             const isSelected = selectedMarketplace === mp.id;
             return (
@@ -116,13 +120,13 @@ export function Navbar({
         {/* Flow Assistant Quick Trigger */}
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("marginflow_open_copilot"))}
-          className="h-[34px] px-3.5 rounded-full bg-white hover:bg-[#F5F5F7] active:scale-[0.98] border border-black/[0.08] text-xs font-medium text-[#1D1D1F] flex items-center gap-1.5 shadow-apple-sm transition-all cursor-pointer shrink-0"
+          className="h-[34px] px-2.5 sm:px-3.5 rounded-full bg-white hover:bg-[#F5F5F7] active:scale-[0.98] border border-black/[0.08] text-xs font-medium text-[#1D1D1F] flex items-center gap-1.5 shadow-apple-sm transition-all cursor-pointer shrink-0"
           title="Open Flow Assistant (Ctrl+J)"
           aria-label="Open Flow Assistant"
         >
           <AssistantEmblem className="w-4 h-4 text-[#1D1D1F] shrink-0" />
-          <span className="font-semibold tracking-tight">Flow</span>
-          <kbd className="text-[10px] text-[#86868B] bg-black/[0.04] px-1.5 py-0.5 rounded font-mono hidden sm:inline ml-0.5">
+          <span className="font-semibold tracking-tight hidden sm:inline">Flow</span>
+          <kbd className="text-[10px] text-[#86868B] bg-black/[0.04] px-1.5 py-0.5 rounded font-mono hidden md:inline ml-0.5">
             ⌘J
           </kbd>
         </button>

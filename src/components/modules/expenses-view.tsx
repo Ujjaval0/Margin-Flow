@@ -271,11 +271,11 @@ export function ExpensesView() {
     <div className="space-y-6 w-full max-w-[1536px] min-w-0 mx-auto animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#1D1D1F]">
-            Operating Expenses (OPEX)
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
+            Operating Expenses
           </h1>
-          <p className="text-xs text-[#86868B] mt-0.5">
-            Operational overhead: Advertising, warehouse leases, and software licenses tracked separately from COGS.
+          <p className="text-xs sm:text-sm text-[#86868B] mt-1">
+            Business Overheads, Subscriptions &amp; Operational OPEX Ledger
           </p>
         </div>
         <div className="flex items-center gap-3">

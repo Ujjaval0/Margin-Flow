@@ -48,8 +48,17 @@ export function OrderModal({
 
   useEffect(() => {
     setMounted(true);
-    return () => setMounted(false);
-  }, []);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      setMounted(false);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
   // Determine starting marketplace
   const startingMarketplace: Marketplace =
     initialOrder?.marketplace ||
@@ -103,13 +112,13 @@ export function OrderModal({
       setSellingPrice(String(sPrice));
       const gSales = sPrice * sQty;
 
-      let initSettlement = initialOrder.settlementAmount || 0;
+      const isReturnedOrder = initialOrder.status === "CUSTOMER_RETURN" || initialOrder.status === "RETURNED" || initialOrder.status === "RTO";
+      let initSettlement = (initialOrder.settlementAmount !== undefined && initialOrder.settlementAmount !== null)
+        ? initialOrder.settlementAmount
+        : (isReturnedOrder ? 0 : Math.round(gSales * 0.8));
       let initCommPercent = initialOrder.commissionPercent ?? (initialOrder.settlementPercent ? Math.max(0, 100 - initialOrder.settlementPercent) : 20);
-      if (!initSettlement && initialOrder.marketplaceChargesEstimate) {
+      if (initialOrder.settlementAmount === undefined && !isReturnedOrder && initialOrder.marketplaceChargesEstimate) {
         initSettlement = Math.max(0, gSales - initialOrder.marketplaceChargesEstimate);
-      }
-      if (!initSettlement && gSales > 0) {
-        initSettlement = Math.round(gSales * 0.8);
       }
       if (gSales > 0 && !initialOrder.commissionPercent && !initialOrder.settlementPercent) {
         initCommPercent = Math.max(0, Math.round(((gSales - initSettlement) / gSales) * 100 * 10) / 10);
@@ -201,7 +210,9 @@ export function OrderModal({
   const grossSales = parsedQty * parsedSellingPrice;
   const parsedCommissionPercent = parseFloat(commissionPercent) || 0;
   const parsedSettlementPercent = Math.max(0, 100 - parsedCommissionPercent);
-  const parsedSettlementAmount = parseFloat(settlementAmount) || Math.round(grossSales * (1 - parsedCommissionPercent / 100));
+  const parsedSettlementAmount = !isNaN(parseFloat(settlementAmount))
+    ? parseFloat(settlementAmount)
+    : Math.round(grossSales * (1 - parsedCommissionPercent / 100));
   const totalWholesaleCost = parsedQty * parsedUnitCost;
   const commissionDeduction = Math.max(0, grossSales - parsedSettlementAmount);
   const expectedSettlement = parsedSettlementAmount;
@@ -357,14 +368,14 @@ export function OrderModal({
           customerReturnFee: returnType === "RTO" ? 0 : parsedFee,
           otherReturnCosts: 0,
           inventoryRecoveryValue: parsedReimbursement,
-          lossAmount: returnType === "RTO" ? 0 : isDamagedClaim ? parsedFee : parsedFee,
+          lossAmount: returnType === "RTO" ? 0 : isDamagedClaim ? Math.max(0, parsedUnitCost * parsedQty - parsedReimbursement + parsedFee) : parsedFee,
         };
 
         onAddReturn(newReturnRecord);
       }
 
       // Optional settlement payout in edit mode
-      if (parsedSettlementAmount > 0 && onAddSettlement && (!isNowReturned || returnType !== "RTO")) {
+      if (parsedSettlementAmount > 0 && onAddSettlement && !isNowReturned) {
         const existingSettlementId =
           (initialOrder.settlementIds && initialOrder.settlementIds[0]) || `SETTLE-${updatedOrder.id}`;
         const createdSettlement: Settlement = {
@@ -437,7 +448,7 @@ export function OrderModal({
     onAddOrder?.(newOrder);
 
     // Optional settlement remittance
-    if (parsedSettlementAmount > 0 && onAddSettlement && (!isReturned || returnType !== "RTO")) {
+    if (parsedSettlementAmount > 0 && onAddSettlement && !isReturned) {
       const createdSettlement: Settlement = {
         id: `SETTLE-${newOrder.id}`,
         settlementBatchId: `BATCH-${Date.now().toString().slice(-4)}`,

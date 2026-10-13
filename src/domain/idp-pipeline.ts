@@ -35,8 +35,6 @@ export const InvoiceExtractionSchema = z.object({
       "Personal Website",
       "Myntra",
       "WooCommerce",
-      "B2B Wholesale",
-      "Other",
     ])
     .optional(),
   currency: z.string().default("INR"),
@@ -197,7 +195,11 @@ export async function executeIDPPipeline(
     invoiceNumber: fallbackDoc.extractedData.invoiceNumber?.value || "INV-UNKNOWN",
     invoiceDate: fallbackDoc.extractedData.orderDate?.value || new Date().toISOString().split("T")[0],
     vendorName: "Detected Vendor",
-    marketplace: fallbackDoc.extractedData.marketplace?.value,
+    marketplace:
+      fallbackDoc.extractedData.marketplace?.value === "B2B Wholesale" ||
+      fallbackDoc.extractedData.marketplace?.value === "Other"
+        ? "Personal Website"
+        : fallbackDoc.extractedData.marketplace?.value,
     currency: "INR",
     lineItems: [
       {

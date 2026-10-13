@@ -898,8 +898,6 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
       Meesho: 0,
       WooCommerce: 0,
       "Personal Website": 0,
-      "B2B Wholesale": 0,
-      Other: 0,
     };
 
     const sCounts: Record<string, number> = {
@@ -917,7 +915,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
       if (pCounts[order.marketplace] !== undefined) {
         pCounts[order.marketplace]++;
       } else {
-        pCounts.Other = (pCounts.Other || 0) + 1;
+        pCounts["Personal Website"] = (pCounts["Personal Website"] || 0) + 1;
       }
 
       // Filter status counts if platformFilter or globalMarketplace is active
@@ -1105,7 +1103,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
         pnl.settledAmount.toFixed(2),
         `"${synthStatus.label}"`,
         pnl.contributionProfit.toFixed(2),
-        pnl.contributionMargin.toFixed(2),
+        (pnl.contributionMargin * 100).toFixed(2),
       ].join(",");
     });
 
@@ -1138,10 +1136,10 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-1">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1D1D1F]">
-            Manage your orders
+            Orders
           </h1>
           <p className="text-xs sm:text-sm text-[#86868B] mt-1">
-            Effortlessly track and manage every order with real-time status updates and detailed insights.
+            Order Lifecycle, Unit Economics &amp; Settlement Status
           </p>
         </div>
 

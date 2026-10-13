@@ -154,9 +154,18 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
             <button
               onClick={onSignIn}
               disabled={isAuthenticating}
-              className="flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-xs sm:text-[13px] font-sans font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(0,174,59,0.3)] cursor-pointer shrink-0 whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3 sm:px-5 py-2 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-xs sm:text-[13px] font-sans font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(0,174,59,0.3)] cursor-pointer shrink-0 whitespace-nowrap"
             >
-              <span>{isAuthenticating ? "Connecting..." : "Audit Your Store Free"}</span>
+              <span>
+                {isAuthenticating ? (
+                  "Connecting..."
+                ) : (
+                  <>
+                    <span className="sm:hidden">Audit Free</span>
+                    <span className="hidden sm:inline">Audit Your Store Free</span>
+                  </>
+                )}
+              </span>
               <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
             </button>
 

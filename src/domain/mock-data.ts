@@ -211,7 +211,7 @@ export const INITIAL_ORDERS: Order[] = [
   {
     id: "ORD-WHL-501",
     channelOrderId: "CHALLAN-BLR-882",
-    marketplace: "B2B Wholesale",
+    marketplace: "Personal Website",
     orderDate: "2026-09-10",
     status: "CUSTOMER_RETURN",
     customerName: "Metro Retail Distribution",
@@ -767,7 +767,7 @@ export const INITIAL_RETURNS: ReturnRecord[] = [
     id: "RET-204",
     orderId: "ORD-WHL-501",
     channelOrderId: "CHALLAN-BLR-882",
-    marketplace: "B2B Wholesale",
+    marketplace: "Personal Website",
     returnDate: "2026-09-12",
     receivedDate: "2026-09-14",
     awbNumber: "VRL-LOG-77218",
@@ -1244,8 +1244,8 @@ export const INITIAL_COMPLAINTS: CustomerComplaint[] = [
 export const DEFAULT_ACCOUNTS: UserAccount[] = [
   {
     id: "ACC-001",
-    name: "Ujjaval",
-    email: "ujjaval@brand.in",
+    name: "E-Commerce",
+    email: "founder@brand.in",
     accountType: "BRAND_OWNER",
     companyName: "VoltTech Consumer Electronics",
     gstin: "27AABCV1234F1Z1",

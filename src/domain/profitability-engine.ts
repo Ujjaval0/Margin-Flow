@@ -159,7 +159,7 @@ export function buildFinancialMaps(
       if (list) list.push(r);
       else returnsByOrderMap.set(r.orderId, [r]);
     }
-    if (r.channelOrderId) {
+    if (r.channelOrderId && r.channelOrderId !== r.orderId) {
       const uKey = `${r.channelOrderId}:${r.sku}`;
       returnUnitsMap.set(uKey, (returnUnitsMap.get(uKey) || 0) + r.quantity);
       condMap.set(uKey, (condMap.get(uKey) || 0) + r.quantity);
@@ -285,6 +285,7 @@ export function calculateBusinessProfitability(
   const maps = buildFinancialMaps(returns, settlements, claims);
 
   let grossSales = 0;
+  let deliveredGrossSales = 0;
   let totalOrders = 0;
   let totalUnitsSold = 0;
   let settlementReceived = 0;
@@ -313,28 +314,40 @@ export function calculateBusinessProfitability(
     totalUnitsSold += orderUnits;
 
     // Check linked returns and claims
-    const orderReturns = [
+    const rawOrderReturns = [
       ...(maps.returnsByOrderMap.get(order.id) || []),
-      ...(order.channelOrderId ? maps.returnsByOrderMap.get(order.channelOrderId) || [] : []),
+      ...(order.channelOrderId && order.channelOrderId !== order.id ? maps.returnsByOrderMap.get(order.channelOrderId) || [] : []),
     ];
+    const rSeenOrder = new Set<string>();
+    const orderReturns: ReturnRecord[] = [];
+    for (const r of rawOrderReturns) {
+      if (!rSeenOrder.has(r.id)) {
+        rSeenOrder.add(r.id);
+        orderReturns.push(r);
+      }
+    }
     const orderClaims = maps.claimsByOrderMap.get(order.id) || [];
 
+    const isPartialReturn = order.status === "PARTIALLY_RETURNED";
+
     const isRto =
-      order.status === "RTO" ||
-      orderReturns.some((r) => r.returnType === "RTO");
+      !isPartialReturn &&
+      (order.status === "RTO" || orderReturns.some((r) => r.returnType === "RTO"));
 
     const isDamaged =
-      order.status === "DAMAGED_RETURN" ||
+      !isPartialReturn &&
+      (order.status === "DAMAGED_RETURN" ||
       order.status === "CLAIM_PENDING" ||
       order.status === "CLAIM_APPROVED" ||
       orderReturns.some(
         (r) => r.returnType === "DAMAGED_RETURN" || r.condition === "DAMAGED" || r.condition === "UNUSABLE"
-      );
+      ));
 
     const isCustomerReturn =
-      order.status === "CUSTOMER_RETURN" ||
+      !isPartialReturn &&
+      (order.status === "CUSTOMER_RETURN" ||
       order.status === "RETURNED" ||
-      orderReturns.some((r) => r.returnType === "CUSTOMER_RETURN");
+      orderReturns.some((r) => r.returnType === "CUSTOMER_RETURN"));
 
     if (isRto && !isDamaged) {
       rtoCount += orderUnits;
@@ -353,11 +366,28 @@ export function calculateBusinessProfitability(
       customerReturnCount += orderUnits;
       // COGS is inactive (0), Settlement is 0 (Points 4 & 15)
     } else {
-      // DELIVERED Order (Point 3 & 15):
-      // COGS is active!
+      // DELIVERED Order or PARTIALLY_RETURNED Order:
+      if (isPartialReturn) {
+        const retUnits = orderReturns.reduce((sum, r) => sum + r.quantity, 0);
+        const dmgUnits = orderReturns.filter((r) => r.condition === "DAMAGED" || r.condition === "UNUSABLE" || r.returnType === "DAMAGED_RETURN").reduce((sum, r) => sum + r.quantity, 0);
+        const rtoUnits = orderReturns.filter((r) => r.returnType === "RTO").reduce((sum, r) => sum + r.quantity, 0);
+        customerReturnCount += (retUnits - rtoUnits);
+        rtoCount += rtoUnits;
+        damagedUnitsCount += dmgUnits;
+
+        const returnedGross = orderReturns.reduce((sum, r) => {
+          const it = order.items.find((i) => i.sku === r.sku);
+          return sum + (it ? it.sellingPrice * r.quantity : 0);
+        }, 0);
+        deliveredGrossSales += Math.max(0, orderGross - returnedGross);
+      } else {
+        deliveredGrossSales += orderGross;
+      }
+
+      // COGS is active for delivered items
       activeCogs += orderCogs;
 
-      // Settlement is counted ONLY for DELIVERED orders (Point 15)
+      // Settlement is counted for DELIVERED and PARTIALLY_RETURNED orders (Point 15)
       const rawSettlements = [
         ...(maps.settlementsByOrderMap.get(order.id) || []),
         ...(order.channelOrderId && order.channelOrderId !== order.id
@@ -451,7 +481,8 @@ export function calculateBusinessProfitability(
   const roas = totalAdSpend > 0 ? Math.round((grossSales / totalAdSpend) * 100) / 100 : 0;
   const poas = totalAdSpend > 0 ? Math.round((netProfit / totalAdSpend) * 100) / 100 : 0;
 
-  const totalFees = Math.round(customerReturnFees * 100) / 100;
+  const marketplaceCharges = Math.max(0, Math.round((deliveredGrossSales - settlementReceived) * 100) / 100);
+  const totalFees = Math.round((marketplaceCharges + customerReturnFees) * 100) / 100;
 
   return {
     grossSales: Math.round(grossSales * 100) / 100,
@@ -461,7 +492,7 @@ export function calculateBusinessProfitability(
     cogs: Math.round(activeCogs * 100) / 100,
     grossProfit: Math.round((grossSales - activeCogs) * 100) / 100,
     grossMargin: grossSales > 0 ? (grossSales - activeCogs) / grossSales : 0,
-    marketplaceCharges: Math.max(0, Math.round((grossSales - settlementReceived) * 100) / 100),
+    marketplaceCharges,
     shippingLogisticsCosts: 0,
     customerReturnFees: Math.round(customerReturnFees * 100) / 100,
     returnLosses: customerReturnFees,
@@ -547,14 +578,25 @@ export function calculateOrderProfitability(
     settledAmount = Math.round(grossSales * 0.75 * 100) / 100;
   }
 
-  // Linked returns with O(1) indexed lookup if available
-  const linkedReturns = indexedMaps
-    ? indexedMaps.returnsByOrderMap.get(order.id) ||
-      (order.channelOrderId ? indexedMaps.returnsByOrderMap.get(order.channelOrderId) : undefined) ||
-      []
+  // Linked returns with O(1) indexed lookup if available & duplicate prevention
+  const rawReturns = indexedMaps
+    ? [
+        ...(indexedMaps.returnsByOrderMap.get(order.id) || []),
+        ...(order.channelOrderId && order.channelOrderId !== order.id
+          ? indexedMaps.returnsByOrderMap.get(order.channelOrderId) || []
+          : []),
+      ]
     : returns.filter(
         (r) => r.orderId === order.id || (order.channelOrderId && r.channelOrderId === order.channelOrderId)
       );
+  const rSeen = new Set<string>();
+  const linkedReturns: ReturnRecord[] = [];
+  for (const r of rawReturns) {
+    if (!rSeen.has(r.id)) {
+      rSeen.add(r.id);
+      linkedReturns.push(r);
+    }
+  }
 
   // Linked claims with O(1) indexed lookup if available
   const linkedClaims = indexedMaps
@@ -568,26 +610,31 @@ export function calculateOrderProfitability(
   const claimRecovery = approvedClaims.reduce((sum, c) => sum + c.amountRecovered, 0);
 
   // Determine return characteristics
+  const isPartialReturn = order.status === "PARTIALLY_RETURNED";
+
   const isRto =
-    order.status === "RTO" ||
-    linkedReturns.some((r) => r.returnType === "RTO");
+    !isPartialReturn &&
+    (order.status === "RTO" ||
+    linkedReturns.some((r) => r.returnType === "RTO"));
 
   const isDamaged =
-    order.status === "DAMAGED_RETURN" ||
+    !isPartialReturn &&
+    (order.status === "DAMAGED_RETURN" ||
     order.status === "CLAIM_PENDING" ||
     order.status === "CLAIM_APPROVED" ||
     linkedReturns.some(
       (r) => r.returnType === "DAMAGED_RETURN" || r.condition === "DAMAGED" || r.condition === "UNUSABLE"
-    );
+    ));
 
   const isCustomerReturn =
-    order.status === "CUSTOMER_RETURN" ||
+    !isPartialReturn &&
+    (order.status === "CUSTOMER_RETURN" ||
     order.status === "RETURNED" ||
-    linkedReturns.some((r) => r.returnType === "CUSTOMER_RETURN");
+    linkedReturns.some((r) => r.returnType === "CUSTOMER_RETURN"));
 
   // Return fee (for RTO, fee is always 0 per Points 6 & 9)
   let returnFee = 0;
-  if (!isRto && (isCustomerReturn || isDamaged)) {
+  if (!isRto && (isCustomerReturn || isDamaged || isPartialReturn)) {
     returnFee = linkedReturns.reduce((sum, r) => sum + (r.returnType === "RTO" ? 0 : (r.customerReturnFee || 0)), 0);
   }
 
@@ -606,32 +653,45 @@ export function calculateOrderProfitability(
     contributionProfit = Math.round((claimRecovery - activeCogs - returnFee) * 100) / 100;
     chargesDeducted = grossSales;
   } else if (isRto) {
-    // Point 6: Undamaged RTO -> Settlement = 0, COGS = 0, Return Fee = 0, Profit = 0
+    // Point 6: Undamaged RTO -> Settlement = 0, COGS = 0, Return Fee = 0, Profit = Claim Recovery
     effectiveSettlement = 0;
     activeCogs = 0;
     returnFee = 0;
-    contributionProfit = 0;
+    contributionProfit = Math.round(claimRecovery * 100) / 100;
     chargesDeducted = grossSales;
   } else if (isCustomerReturn) {
     // Point 4: Customer Return + Good:
     // Settlement = 0, COGS = 0, Return Fee = Yes
-    // Profit = − Return Fee
+    // Profit = Claim Recovery − Return Fee
     effectiveSettlement = 0;
     activeCogs = 0;
-    contributionProfit = Math.round(-returnFee * 100) / 100;
+    contributionProfit = Math.round((claimRecovery - returnFee) * 100) / 100;
     chargesDeducted = grossSales;
+  } else if (isPartialReturn) {
+    // Partially Delivered Order:
+    // Effective Settlement = Actual settlement received for delivered items
+    // Effective COGS = Active COGS for delivered items + damaged items
+    // Profit = Settlement − Active COGS − Return Fee + Claim Recovery
+    effectiveSettlement = settledAmount;
+    activeCogs = totalOrderCogs;
+    contributionProfit = Math.round((effectiveSettlement - activeCogs - returnFee + claimRecovery) * 100) / 100;
+    chargesDeducted = Math.max(0, grossSales - effectiveSettlement);
   } else {
     // Point 3: Delivered Order:
     // Effective Settlement = Settlement Amount, Effective COGS = Active COGS, Return Fee = 0
-    // Profit = Settlement − COGS
+    // Profit = Settlement − COGS + Claim Recovery
     effectiveSettlement = settledAmount;
     activeCogs = totalOrderCogs;
     returnFee = 0;
-    contributionProfit = Math.round((effectiveSettlement - activeCogs) * 100) / 100;
+    contributionProfit = Math.round((effectiveSettlement - activeCogs + claimRecovery) * 100) / 100;
     chargesDeducted = Math.max(0, grossSales - effectiveSettlement);
   }
 
-  const netSales = (isRto || isCustomerReturn || isDamaged) ? 0 : grossSales;
+  const returnedGross = linkedReturns.reduce((sum, r) => {
+    const it = order.items.find((i) => i.sku === r.sku);
+    return sum + (it ? it.sellingPrice * r.quantity : 0);
+  }, 0);
+  const netSales = (isRto || isCustomerReturn || isDamaged) ? 0 : Math.max(0, grossSales - (isPartialReturn ? returnedGross : 0));
   const contributionMargin = grossSales > 0 ? contributionProfit / grossSales : 0;
 
   return {
@@ -663,13 +723,21 @@ export function calculateMarketplaceProfitability(
   claims: Claim[],
   expenses: Expense[] = []
 ): MarketplaceProfitability[] {
-  const marketplaces: Marketplace[] = [
+  const defaultMarketplaces: Marketplace[] = [
     "Amazon India",
     "Flipkart",
     "Myntra",
     "Meesho",
     "Personal Website",
   ];
+  const orderMarketplaces = orders
+    .map((o) => o.marketplace)
+    .filter((mp): mp is Marketplace => Boolean(mp) && mp !== "Other" && mp !== "B2B Wholesale");
+  const returnMarketplaces = returns
+    .map((r) => r.marketplace)
+    .filter((mp): mp is Marketplace => Boolean(mp) && mp !== "Other" && mp !== "B2B Wholesale");
+  const marketplaces = Array.from(new Set([...defaultMarketplaces, ...orderMarketplaces, ...returnMarketplaces]))
+    .filter((mp) => mp !== "Other" && mp !== "B2B Wholesale") as Marketplace[];
 
   const maps = buildFinancialMaps(returns, settlements, claims);
 
@@ -686,6 +754,7 @@ export function calculateMarketplaceProfitability(
     let totalProfit = 0;
     let totalClaimRecoveries = 0;
     let totalReturnFees = 0;
+    let totalMarketplaceCharges = 0;
 
     mpOrders.forEach((o) => {
       const pnl = calculateOrderProfitability(o, returns, settlements, claims, maps);
@@ -694,6 +763,7 @@ export function calculateMarketplaceProfitability(
       totalProfit += pnl.contributionProfit;
       totalClaimRecoveries += pnl.claimRecovery;
       totalReturnFees += pnl.returnLoss;
+      totalMarketplaceCharges += pnl.chargesDeducted;
       o.items.forEach((i) => {
         unitsSold += i.quantity;
       });
@@ -710,7 +780,7 @@ export function calculateMarketplaceProfitability(
       unitsSold,
       revenue: Math.round(grossRevenue * 100) / 100,
       cogs: Math.round(totalCogs * 100) / 100,
-      fees: Math.round(totalReturnFees * 100) / 100,
+      fees: Math.round(totalMarketplaceCharges * 100) / 100,
       logistics: 0,
       returnLosses: Math.round(totalReturnFees * 100) / 100,
       claimRecoveries: Math.round(totalClaimRecoveries * 100) / 100,
@@ -744,7 +814,7 @@ export function calculateSkuProfitability(
         goodReturnUnitsMap.set(uKey, (goodReturnUnitsMap.get(uKey) || 0) + r.quantity);
       }
     }
-    if (r.channelOrderId) {
+    if (r.channelOrderId && r.channelOrderId !== r.orderId) {
       const uKey = `${r.channelOrderId}:${r.sku}`;
       returnUnitsMap.set(uKey, (returnUnitsMap.get(uKey) || 0) + r.quantity);
       if (!isDamaged(r.condition)) {
@@ -812,26 +882,86 @@ export function calculateSkuProfitability(
     });
   });
 
+  // Build lookup of active order IDs to prevent orphaned return fees or disconnected claim recoveries
+  const activeOrderIds = new Set<string>();
+  orders.forEach((o) => {
+    if (o.status !== "CANCELLED") {
+      activeOrderIds.add(o.id);
+      if (o.channelOrderId) activeOrderIds.add(o.channelOrderId);
+    }
+  });
+
   returns.forEach((ret) => {
-    const existing = skuMap.get(ret.sku);
-    if (existing) {
-      existing.returnedUnits += ret.quantity;
-      existing.returnLosses += ret.returnType === "RTO" ? 0 : (ret.customerReturnFee || 0);
+    const isLinkedToActiveOrder =
+      (ret.orderId && activeOrderIds.has(ret.orderId)) ||
+      (ret.channelOrderId && activeOrderIds.has(ret.channelOrderId));
+    if (isLinkedToActiveOrder) {
+      const existing = skuMap.get(ret.sku);
+      if (existing) {
+        existing.returnedUnits += ret.quantity;
+        existing.returnLosses += ret.returnType === "RTO" ? 0 : (ret.customerReturnFee || 0);
+      }
     }
   });
 
   claims.forEach((claim) => {
     if (claim.amountRecovered > 0) {
+      const isLinkedToActiveOrder =
+        (claim.orderId && activeOrderIds.has(claim.orderId)) ||
+        (claim.returnId && returns.some((r) => r.id === claim.returnId && activeOrderIds.has(r.orderId)));
+      if (!isLinkedToActiveOrder) return;
+
       const matchedOrder = ordersById.get(claim.orderId);
-      if (matchedOrder && matchedOrder.items.length > 0) {
-        const itemShare = claim.amountRecovered / matchedOrder.items.length;
-        matchedOrder.items.forEach((i) => {
-          const existing = skuMap.get(i.sku);
-          if (existing) {
-            existing.claimRecoveries += itemShare;
-          }
-        });
+      if (!matchedOrder || matchedOrder.items.length === 0) return;
+
+      const orderItemSkus = new Set(matchedOrder.items.map((i) => i.sku));
+
+      // 1. If claim explicitly links to a return record whose SKU is in this order:
+      if (claim.returnId) {
+        const matchedReturn = returns.find((r) => r.id === claim.returnId);
+        if (matchedReturn && orderItemSkus.has(matchedReturn.sku) && skuMap.has(matchedReturn.sku)) {
+          skuMap.get(matchedReturn.sku)!.claimRecoveries += claim.amountRecovered;
+          return;
+        }
       }
+
+      // 2. If the order has only 1 item line, claim belongs 100% to that SKU:
+      if (matchedOrder.items.length === 1) {
+        const singleSku = matchedOrder.items[0].sku;
+        if (skuMap.has(singleSku)) {
+          skuMap.get(singleSku)!.claimRecoveries += claim.amountRecovered;
+          return;
+        }
+      }
+
+      // 3. If multi-item order, check if returns for this order identify an item ordered in this order:
+      const orderReturns = returns.filter(
+        (r) => (r.orderId === claim.orderId || (claim.orderId && r.channelOrderId === claim.orderId)) && orderItemSkus.has(r.sku)
+      );
+      if (orderReturns.length > 0) {
+        const uniqueReturnSkus = Array.from(new Set(orderReturns.map((r) => r.sku)));
+        if (uniqueReturnSkus.length === 1 && skuMap.has(uniqueReturnSkus[0])) {
+          skuMap.get(uniqueReturnSkus[0])!.claimRecoveries += claim.amountRecovered;
+          return;
+        }
+      }
+
+      // 4. Check if any items in this order had returnedQuantity > 0:
+      const returnedItems = matchedOrder.items.filter((i) => (i.returnedQuantity || 0) > 0);
+      if (returnedItems.length === 1 && skuMap.has(returnedItems[0].sku)) {
+        skuMap.get(returnedItems[0].sku)!.claimRecoveries += claim.amountRecovered;
+        return;
+      }
+
+      // 5. Fallback for multi-item orders without return identification: Pro-rata allocation based on item revenue contribution
+      const orderGross = matchedOrder.items.reduce((sum, it) => sum + it.sellingPrice * it.quantity, 0);
+      matchedOrder.items.forEach((i) => {
+        const existing = skuMap.get(i.sku);
+        if (existing) {
+          const ratio = orderGross > 0 ? (i.sellingPrice * i.quantity) / orderGross : 1 / matchedOrder.items.length;
+          existing.claimRecoveries += claim.amountRecovered * ratio;
+        }
+      });
     }
   });
 
@@ -1165,7 +1295,7 @@ export function filterDatasetByDateRange(
  * Calculates percentage trend (+14.2% or -5.1%) between current and prior period
  */
 export function calculatePercentageChange(current: number, previous: number): number {
-  if (previous === 0) return current > 0 ? 100 : 0;
+  if (previous === 0) return current > 0 ? 100 : (current < 0 ? -100 : 0);
   const change = ((current - previous) / Math.abs(previous)) * 100;
   return Math.round(change * 10) / 10;
 }
@@ -1213,6 +1343,9 @@ export function calculateSettlementAging(
   const unsettled = orders.filter(
     (o) =>
       o.status !== "CANCELLED" &&
+      o.status !== "RTO" &&
+      o.status !== "CUSTOMER_RETURN" &&
+      o.status !== "RETURNED" &&
       !settledOrderIds.has(o.id) &&
       (!o.channelOrderId || !settledOrderIds.has(o.channelOrderId))
   );

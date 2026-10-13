@@ -126,8 +126,8 @@ export function analyzeFinancialQuery(
     }
 
     const answer = isDown
-      ? `Net Operating Profit is down ${changeText}% to ${formatINR(waterfall.netOperatingProfit)} (${waterfall.netMarginPercent.toFixed(1)}% margin).\n\nKey drivers:\nI. Return & Courier Drag: ${formatINR(waterfall.returnAndRtoLoss)}\nII. Top Drag Product: ${worstSku ? `${worstSku.sku} (-${formatINR(Math.abs(worstSku.netProfit))})` : "None"}\nIII. Net Revenue: ${formatINR(waterfall.netRevenue)}`
-      : `Net Operating Profit is up ${changeText}% to ${formatINR(waterfall.netOperatingProfit)} (${waterfall.netMarginPercent.toFixed(1)}% margin).\n\nKey drivers:\nI. Net Revenue: ${formatINR(waterfall.netRevenue)}\nII. Top Performer: ${heroSkus[0]?.sku || "Hero Products"} (${waterfall.blendedPoas.toFixed(2)}x POAS)`;
+      ? `Net Operating Profit is down ${changeText}% to ${formatINR(waterfall.netOperatingProfit)} (${formatPercent(waterfall.netMarginPercent)} margin).\n\nKey drivers:\nI. Return & Courier Drag: ${formatINR(waterfall.returnAndRtoLoss)}\nII. Top Drag Product: ${worstSku ? `${worstSku.sku} (-${formatINR(Math.abs(worstSku.netProfit))})` : "None"}\nIII. Net Revenue: ${formatINR(waterfall.netRevenue)}`
+      : `Net Operating Profit is up ${changeText}% to ${formatINR(waterfall.netOperatingProfit)} (${formatPercent(waterfall.netMarginPercent)} margin).\n\nKey drivers:\nI. Net Revenue: ${formatINR(waterfall.netRevenue)}\nII. Top Performer: ${heroSkus[0]?.sku || "Hero Products"} (${waterfall.blendedPoas.toFixed(2)}x POAS)`;
 
     return { answer, chips: chips.slice(0, 2) };
   }
@@ -154,7 +154,7 @@ export function analyzeFinancialQuery(
     });
 
     const answer = targetSku
-      ? `Blended POAS is ${waterfall.blendedPoas.toFixed(2)}x on ${formatINR(waterfall.totalAdSpend)} ad spend.\n\nI. Drag Product: ${targetSku.sku}\nII. Ad Spend: ${formatINR(targetSku.adSpend)} (${targetSku.returnRate.toFixed(1)}% return rate)\nIII. Product POAS: ${targetSku.poas.toFixed(2)}x`
+      ? `Blended POAS is ${waterfall.blendedPoas.toFixed(2)}x on ${formatINR(waterfall.totalAdSpend)} ad spend.\n\nI. Drag Product: ${targetSku.sku}\nII. Ad Spend: ${formatINR(targetSku.adSpend)} (${formatPercent(targetSku.returnRate)} return rate)\nIII. Product POAS: ${targetSku.poas.toFixed(2)}x`
       : `Ad spend efficiency is stable on ${formatINR(waterfall.totalAdSpend)} marketing investments.\n\nI. Blended POAS: ${waterfall.blendedPoas.toFixed(2)}x\nII. Blended ROAS: ${waterfall.blendedRoas.toFixed(2)}x\nIII. Status: Active campaigns are generating positive net contribution`;
 
     return { answer, chips: chips.slice(0, 2) };
@@ -244,7 +244,7 @@ export function analyzeFinancialQuery(
     });
   }
 
-  const answer = `Store Overview:\n\nI. Net Sales: ${formatINR(waterfall.netRevenue)}\nII. Net Operating Profit: ${formatINR(waterfall.netOperatingProfit)} (${waterfall.netMarginPercent.toFixed(1)}% margin)\nIII. Ad Spend: ${formatINR(waterfall.totalAdSpend)} (${waterfall.blendedPoas.toFixed(2)}x POAS)${topHero ? `\nIV. Top Product: ${topHero.sku} (${formatINR(topHero.netProfit)} profit)` : ""}`;
+  const answer = `Store Overview:\n\nI. Net Sales: ${formatINR(waterfall.netRevenue)}\nII. Net Operating Profit: ${formatINR(waterfall.netOperatingProfit)} (${formatPercent(waterfall.netMarginPercent)} margin)\nIII. Ad Spend: ${formatINR(waterfall.totalAdSpend)} (${waterfall.blendedPoas.toFixed(2)}x POAS)${topHero ? `\nIV. Top Product: ${topHero.sku} (${formatINR(topHero.netProfit)} profit)` : ""}`;
 
   return { answer, chips: chips.slice(0, 2) };
 }

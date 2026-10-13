@@ -114,7 +114,7 @@ export function SkuDrawer({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white/95 backdrop-blur-xl h-full shadow-apple-lg border-l border-black/[0.08] flex flex-col p-6 overflow-y-auto animate-in slide-in-from-right duration-300"
+        className="w-full max-w-lg bg-white h-full shadow-apple-lg border-l border-black/[0.08] flex flex-col p-6 overflow-y-auto animate-in slide-in-from-right duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drawer Header */}

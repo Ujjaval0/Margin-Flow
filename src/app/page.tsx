@@ -121,7 +121,7 @@ export default function LandingPage() {
       <MarginFlowCompoundMetrics />
 
       {/* 8. FAQ: GOOD QUESTIONS. CLEAR ANSWERS. */}
-      <section id="faq" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-white border-t border-[#cfdfd1] select-none">
+      <section id="faq" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-white border-t border-[#cfdfd1]">
         <div className="max-w-4xl mx-auto">
           <div className="mb-14">
             <span className="text-[11px] font-mono tracking-widest text-[#00872e] uppercase font-semibold block mb-3">
@@ -166,7 +166,7 @@ export default function LandingPage() {
       </section>
 
       {/* 9. FINAL HIGH-EMOTION CTA (Exact MarginFlow .final-cta styling) */}
-      <section className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#060c09] text-white relative overflow-hidden select-none border-t border-white/[0.08]">
+      <section className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#060c09] text-white relative overflow-hidden border-t border-white/[0.08]">
         {/* Ambient Glowing Orb */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[#00ae3b]/15 blur-[120px] rounded-full pointer-events-none" />
 
