@@ -1,26 +1,38 @@
 import { NextResponse } from "next/server";
+import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
+import { checkAuthBudget } from "@/lib/security/api-guard";
 import { query } from "@/lib/db";
 import { hashPassword } from "@/lib/auth-crypto";
+import { issueSessionToken, getSessionCookieOptions } from "@/lib/security/session";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = await readJsonBody(request, 16 * 1024);
     const { name, email, password, accountType } = body;
+    const budgetError = checkAuthBudget(request, email);
+    if (budgetError) return budgetError;
 
-    if (!name || !name.trim()) {
+    if (typeof name !== "string" || !name.trim() || name.length > 200) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    if (!email || !email.trim()) {
+    if (typeof email !== "string" || !email.trim() || email.length > 254) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    if (typeof password !== "string" || password.length < 12 || password.length > 1024) {
+      return NextResponse.json(
+        { error: "Password must contain between 12 and 1024 characters" },
+        { status: 400 }
+      );
     }
 
     const trimmedName = name.trim();
     const cleanEmail = email.trim().toLowerCase();
     const validAccountType = accountType || "BRAND_OWNER";
 
-    // Hash password if provided
-    const hashedPassword = password ? hashPassword(password) : null;
+    // Hash password with salt
+    const hashedPassword = await hashPassword(password);
 
     try {
       // 1. Check if user already exists in PostgreSQL
@@ -36,7 +48,7 @@ export async function POST(request: Request) {
         );
       }
 
-      // 2. Insert into PostgreSQL user_accounts (storing name, email, and password_hash)
+      // 2. Insert into PostgreSQL user_accounts
       const insertRes = await query(
         `INSERT INTO user_accounts (name, email, password_hash, account_type)
          VALUES ($1, $2, $3, $4)
@@ -46,40 +58,42 @@ export async function POST(request: Request) {
 
       const dbUser = insertRes.rows[0];
 
-      return NextResponse.json({
-        success: true,
-        isNewUser: true,
-        user: {
-          id: dbUser.id,
-          name: dbUser.name,
-          email: dbUser.email,
-          accountType: dbUser.account_type,
-          companyName: dbUser.company_name || "My Brand",
-          authenticatedAt: new Date().toISOString(),
-        },
-      });
-    } catch (dbErr: any) {
-      console.warn("[Auth Signup] Database query warning, falling back:", dbErr.message);
+      const newUser = {
+        id: dbUser.id,
+        name: dbUser.name,
+        email: dbUser.email,
+        accountType: dbUser.account_type,
+        companyName: dbUser.company_name || "My Brand",
+        authenticatedAt: new Date().toISOString(),
+      };
 
-      // Graceful fallback for offline dev environment
-      return NextResponse.json({
+      // Sign cryptographic session token
+      const sessionToken = await issueSessionToken(newUser);
+
+      const response = NextResponse.json({
         success: true,
         isNewUser: true,
-        fallback: true,
-        user: {
-          id: `usr_${Date.now()}`,
-          name: trimmedName,
-          email: cleanEmail,
-          accountType: validAccountType,
-          companyName: "My Brand",
-          authenticatedAt: new Date().toISOString(),
-        },
+        user: newUser,
       });
+
+      // Set cryptographically signed, HTTP-only session cookie
+      const cookieOpts = getSessionCookieOptions();
+      response.cookies.set(cookieOpts.name, sessionToken, cookieOpts);
+
+      return response;
+    } catch (dbErr: any) {
+      console.error("[Auth Signup Database Error]:", dbErr.message);
+
+      return NextResponse.json(
+        { error: "Registration service is temporarily unavailable. Please try again shortly." },
+        { status: 503 }
+      );
     }
   } catch (error: any) {
+    if (error instanceof RequestBodyError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("[Auth Signup Error]:", error);
     return NextResponse.json(
-      { error: error?.message || "Failed to process sign up" },
+      { error: "Failed to process sign up" },
       { status: 500 }
     );
   }

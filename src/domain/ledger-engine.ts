@@ -198,15 +198,22 @@ export function generateGeneralLedger(
 
   // 1. Order Fulfillments
   orders.forEach((order) => {
+    if (["CANCELLED", "PENDING", "CONFIRMED", "SHIPPED"].includes(order.status)) return;
     const grossSales = Math.round(
-      order.items.reduce((sum, it) => sum + it.sellingPrice * it.quantity, 0) * 100
+      order.items.reduce((sum, it) => sum + Math.max(0, it.sellingPrice * it.quantity - (it.discount || 0)), 0) * 100
     ) / 100;
     const cogs = Math.round(
       order.items.reduce((sum, it) => sum + it.snapshotUnitCost * it.quantity, 0) * 100
     ) / 100;
-    const totalFees = Math.round((order.marketplaceChargesEstimate || 0) * 100) / 100;
-    const commFee = Math.round(totalFees * 0.65 * 100) / 100;
-    const shippingFee = Math.round((totalFees - commFee) * 100) / 100;
+    // Only recorded deductions support ledger fee entries; estimates are not journal evidence.
+    const receipts = Array.from(new Map(settlements.filter(settlement => settlement.marketplace === order.marketplace &&
+      (settlement.orderId === order.id || settlement.orderId === order.channelOrderId)).map(settlement => [settlement.id, settlement])).values());
+    const deductions = receipts.flatMap(settlement => settlement.deductions || []);
+    const shippingFee = Math.round(deductions.filter(deduction => ["LOGISTICS", "RETURN_SHIPPING"].includes(deduction.category))
+      .reduce((sum, deduction) => sum + deduction.amount, 0) * 100) / 100;
+    const commFee = Math.round(deductions.filter(deduction => !["TAX_TCS", "TAX_TDS", "LOGISTICS", "RETURN_SHIPPING"].includes(deduction.category))
+      .reduce((sum, deduction) => sum + deduction.amount, 0) * 100) / 100;
+    const totalFees = Math.round((commFee + shippingFee) * 100) / 100;
     const netReceivable = Math.round((grossSales - totalFees) * 100) / 100;
 
     const skuSummary = order.items.map((it) => `${it.sku} (x${it.quantity})`).join(", ");

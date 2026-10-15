@@ -16,3 +16,6 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Private merchant documents and runtime data must never be deployed from Git.
+/data/

@@ -28,7 +28,7 @@ export interface InvoiceAutoParseModalProps {
   products: Product[];
   suppliers: Supplier[];
   existingOrders?: Order[];
-  onImportOrders: (orders: Order[]) => void;
+  onImportOrders: (orders: Order[]) => void | Promise<void>;
 }
 
 interface ParsedInvoiceItem {
@@ -628,19 +628,21 @@ export function InvoiceAutoParseModal({
     setParsedItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     if (parsedItems.length === 0) return;
     const seen = new Set<string>();
     const ordersToImport: Order[] = [];
     for (const item of parsedItems) {
-      const key = item.order.channelOrderId || item.order.id;
+      const key = JSON.stringify([item.order.marketplace, item.order.channelOrderId || item.order.id]);
       if (!seen.has(key)) {
         seen.add(key);
         ordersToImport.push(item.order);
       }
     }
-    onImportOrders(ordersToImport);
-    handleClose();
+    try {
+      await onImportOrders(ordersToImport);
+      handleClose();
+    } catch (error) { alert(error instanceof Error ? error.message : "Import failed. Please retry."); }
   };
 
   if (!isOpen || !mounted) return null;

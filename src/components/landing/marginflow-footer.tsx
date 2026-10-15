@@ -24,7 +24,7 @@ export function MarginFlowFooter({ onSignIn, isAuthenticating }: MarginFlowFoote
           {/* Brand Anchor */}
           <div className="max-w-sm space-y-3.5 shrink-0">
             <Link href="/" className="inline-flex items-center">
-              <MarginFlowLogo className="h-7 w-auto text-white" />
+              <MarginFlowLogo className="h-[22px] sm:h-6 w-auto text-white" />
             </Link>
             <p className="text-sm text-[#9ab1a1] leading-relaxed font-sans">
               Financial truth for marketplace commerce. Continuous transaction-level reconciliation down to the exact rupee.
@@ -73,7 +73,7 @@ export function MarginFlowFooter({ onSignIn, isAuthenticating }: MarginFlowFoote
                   <span className="text-[#8da494] block">Amazon India • Flipkart</span>
                 </li>
                 <li>
-                  <span className="text-[#8da494] block">Meesho • Shopify D2C</span>
+                  <span className="text-[#8da494] block">Shopify • WooCommerce • Meesho</span>
                 </li>
                 <li>
                   <a href="#faq" className="hover:text-white transition-colors block">

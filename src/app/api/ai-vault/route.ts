@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
+import { checkProcessingBudget } from "@/lib/security/api-guard";
+import { getSessionUserId } from "@/lib/security/session";
+import { safeOutboundFetch } from "@/lib/security/ssrf-guard";
 import { AIProvider, PROVIDER_REGISTRY } from "@/lib/security/ai-vault";
 
 export interface NormalizedModel {
@@ -100,7 +104,11 @@ export async function POST(req: NextRequest) {
   let provider: AIProvider = "gemini";
 
   try {
-    const body = await req.json().catch(() => ({}));
+    const userId = await getSessionUserId(req);
+    if (!userId) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    const budgetError = checkProcessingBudget(req, userId);
+    if (budgetError) return budgetError;
+    const body = await readJsonBody(req, 16 * 1024);
     const action: "verify" | "models" = body.action || req.headers.get("x-vault-action") || "verify";
     provider = (body.provider || req.headers.get("x-ai-provider") || "gemini") as AIProvider;
     const apiKey = (body.apiKey || req.headers.get("x-ai-key") || "").trim();
@@ -201,7 +209,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const response = await fetch(modelsEndpoint, {
+      const response = await safeOutboundFetch(modelsEndpoint, {
         method: "GET",
         headers: {
           Accept: "application/json",
@@ -324,6 +332,7 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (error: any) {
+    if (error instanceof RequestBodyError) return NextResponse.json({ success: false, error: error.message }, { status: error.status });
     const latencyMs = Date.now() - startTime;
     return NextResponse.json<VaultResponse>(
       {

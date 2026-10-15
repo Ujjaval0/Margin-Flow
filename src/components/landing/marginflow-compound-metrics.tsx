@@ -126,7 +126,7 @@ export function MarginFlowCompoundMetrics() {
               </strong>
               <h3 className="text-lg font-bold text-[#193022]">Gross Revenue Protected</h3>
               <p className="mt-1 text-sm text-[#5c7062] leading-relaxed">
-                Recovered from courier deadweight inflation, unannounced fee hikes, and missed returns.
+                Protected from hidden commission hikes, unclaimed return damages, and unverified fee deductions.
               </p>
             </div>
 
@@ -377,7 +377,7 @@ export function MarginFlowCompoundMetrics() {
 
           <div className="pt-4 border-t border-white/[0.08] flex items-center justify-between text-xs font-medium text-[#8da494]">
             <span>Continuous automated margin audit</span>
-            <span className="text-[#b6f5cc]">Verified Across 300+ Merchant Accounts</span>
+            <span className="text-[#b6f5cc]">Protected By 7 Deterministic Accounting Invariants (P1–P7) & Double-Entry Math</span>
           </div>
 
         </div>

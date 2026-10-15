@@ -69,7 +69,7 @@ export function mapShopifyOrderToDomain(
   const items: OrderItem[] = (payload.line_items || []).map((item, idx) => {
     const unitPrice = item.price;
     const itemTaxes = item.tax_lines.reduce((sum, t) => sum + t.price, 0);
-    const unitCost = catalogCostLookup?.[item.sku] || Math.round(unitPrice * 0.45); // Standard 45% default if uncataloged
+    const unitCost = catalogCostLookup?.[item.sku] ?? 0;
 
     return {
       id: `ITEM-SHP-${payload.id}-${idx + 1}`,

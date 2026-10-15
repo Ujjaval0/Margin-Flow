@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test tests/ui-ux-analyst.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:security": "node --test tests/remediation-security.test.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.76",
@@ -16,15 +17,16 @@
     "ai": "^7.0.109",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
-    "next": "^15.1.7",
+    "next": "^15.5.28",
     "pdf-parse": "^2.4.5",
     "pg": "^8.23.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.15.1",
+    "sharp": "^0.35.5",
     "tailwind-merge": "^3.0.1",
     "tesseract.js": "^7.0.0",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -34,9 +36,13 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "autoprefixer": "^10.4.20",
-    "postcss": "^8.5.2",
-    "potrace": "^2.1.8",
+    "postcss": "^8.5.30",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3"
+  },
+  "overrides": {
+    "postcss-selector-parser": "7.1.6",
+    "source-map-js": "1.2.2",
+    "postcss": "$postcss"
   }
 }

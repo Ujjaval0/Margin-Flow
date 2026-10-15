@@ -19,8 +19,7 @@ export interface WebhookSecrets {
   genericSecret: string;
 }
 
-// Development default fallback tokens used ONLY when process.env variables are not configured.
-// In production, these should be supplied via secure environment variables.
+// Development default fallback tokens used ONLY in local development
 const DEV_FALLBACK_SECRETS: WebhookSecrets = {
   shopifySecret: "shpss_dev_test_secret_39f018a7c2b4e891",
   woocommerceSecret: "wc_secret_dev_key_88b19e20a37fc6",
@@ -30,21 +29,39 @@ const DEV_FALLBACK_SECRETS: WebhookSecrets = {
 
 /**
  * Retrieve configured webhook signing secret with strict boundary protection.
- * Never exposes the raw environment variable map.
+ * In production, strictly returns configured environment variables and never leaks dev tokens.
  */
 export function getWebhookSecret(
   channel: "shopify" | "woocommerce" | "amazon" | "generic"
 ): string {
+  let envSecret = "";
   switch (channel) {
     case "shopify":
-      return process.env.SHOPIFY_WEBHOOK_SECRET || DEV_FALLBACK_SECRETS.shopifySecret;
+      envSecret = process.env.SHOPIFY_WEBHOOK_SECRET || "";
+      break;
     case "woocommerce":
-      return process.env.WOOCOMMERCE_WEBHOOK_SECRET || DEV_FALLBACK_SECRETS.woocommerceSecret;
+      envSecret = process.env.WOOCOMMERCE_WEBHOOK_SECRET || "";
+      break;
     case "amazon":
-      return process.env.AMAZON_WEBHOOK_SECRET || DEV_FALLBACK_SECRETS.amazonSecret;
+      envSecret = process.env.AMAZON_WEBHOOK_SECRET || "";
+      break;
     case "generic":
-      return process.env.GENERIC_WEBHOOK_SECRET || DEV_FALLBACK_SECRETS.genericSecret;
+      envSecret = process.env.GENERIC_WEBHOOK_SECRET || "";
+      break;
     default:
       throw new Error(`Unknown webhook channel requested: ${channel}`);
   }
+
+  if (envSecret && envSecret.trim()) {
+    return envSecret.trim();
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    console.error(
+      `[Security Alert] Webhook secret for ${channel} is not configured in production environment. Webhook signature verification will safely reject incoming events.`
+    );
+    return "";
+  }
+
+  return DEV_FALLBACK_SECRETS[`${channel}Secret` as keyof WebhookSecrets];
 }

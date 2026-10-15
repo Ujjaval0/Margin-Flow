@@ -25,56 +25,26 @@ export default function LandingPage() {
   const router = useRouter();
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [contactSubmitted, setContactSubmitted] = useState(false);
-  const [contactForm, setContactForm] = useState({
-    name: "",
-    email: "",
-    monthlyGmv: "₹25L - ₹1 Crore",
-    channel: "Amazon + Flipkart",
-    message: "",
-  });
-
   const handleGoogleSignIn = () => {
     setIsAuthenticating(true);
-    try {
-      if (typeof window !== "undefined") {
-        const dummyUser = {
-          name: "E-Commerce Founder",
-          email: "founder@brand.in",
-          provider: "google",
-          authenticatedAt: new Date().toISOString(),
-        };
-        localStorage.setItem("marginflow_session", JSON.stringify(dummyUser));
-      }
-    } catch {
-      // storage fallback
-    }
-
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 600);
-  };
-
-  const handleContactSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setContactSubmitted(true);
+    router.push("/login");
   };
 
   const faqs = [
     {
       question: "How far back can MarginFlow audit past settlements?",
       answer:
-        "MarginFlow scans your past 90 days of transactions immediately upon onboarding, auto-flagging historical courier deadweight overcharges, unannounced commission tier increases, and unfiled claim opportunities.",
+        "MarginFlow scans your past 90 days of transactions immediately upon statement upload or channel connection, auto-flagging historical return damage leakage, unannounced commission tier increases, and unfiled claim opportunities.",
     },
     {
       question: "Does MarginFlow replace Tally, Zoho Books, or my Chartered Accountant?",
       answer:
-        "No. MarginFlow feeds verified, transaction-level net cash and isolated tax withholdings (1% TCS & TDS) directly into your accounting workflows, giving your CA audit-ready, balanced books.",
+        "No. MarginFlow feeds verified, transaction-level net cash, isolated tax withholdings (1% TCS & TDS), and exportable balanced double-entry ledger summaries directly into your accounting workflows, giving your CA audit-ready, balanced books.",
     },
     {
-      question: "How does automated courier weight reconciliation work?",
+      question: "How does MarginFlow capture product cost basis (COGS) and supplier bills?",
       answer:
-        "Couriers frequently bump 400g products into 1.5kg or 2kg deadweight slabs. MarginFlow compares billed courier weights against your catalog dimensions, auto-flagging overcharges for reimbursement before payouts lock.",
+        "MarginFlow allows you to upload supplier tax invoices into the AI Document Vault. It extracts line items, quantities, and GST using multimodal OCR, verifies arithmetic, and locks historical purchase costs (P1 Guardrail) so supplier price changes never corrupt past order margins.",
     },
     {
       question: "How do you handle Return to Origin (RTO) vs Customer Returns?",
@@ -84,7 +54,12 @@ export default function LandingPage() {
     {
       question: "Which marketplaces and sales channels are supported?",
       answer:
-        "Native support for Amazon India (SP-API), Flipkart, Meesho (smart statement auto-mapper), Shopify D2C, WooCommerce, and Shiprocket courier telemetry.",
+        "Native support for Shopify D2C (live webhooks & REST API), WooCommerce, Amazon India (SP-API & MTR statement auto-mapping), Flipkart (SPF & settlement sync), and Meesho (smart statement auto-mapper).",
+    },
+    {
+      question: "Do you automatically file dispute claims with marketplaces?",
+      answer:
+        "Amazon and Flipkart do not provide public APIs to file SAFE-T or SPF claims directly. MarginFlow automatically compiles policy-compliant dispute dossiers with tracking AWBs, unboxing inspection evidence, and calculated loss breakdowns so you can copy the complete narrative or download the evidence packet to submit in Seller Central in under 30 seconds.",
     },
     {
       question: "Is my seller central data secure and read-only?",

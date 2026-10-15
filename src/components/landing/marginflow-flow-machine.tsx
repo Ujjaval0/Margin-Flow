@@ -3,7 +3,7 @@
 import React from "react";
 import {
   ShoppingCart,
-  Truck,
+  FileText,
   Receipt,
   Landmark,
   ShieldCheck,
@@ -32,13 +32,13 @@ export function MarginFlowFlowMachine() {
         {/* Section Heading */}
         <div className="max-w-2xl mb-10 sm:mb-12">
           <h2 className="text-3xl sm:text-5xl font-bold tracking-[-0.04em] text-[#193022] leading-[1.05]">
-            Four sources of data.<br />
+            Fragmented commerce data.<br />
             <span className="font-serif italic font-normal text-[#00872e]">
               One unquestionable financial truth.
             </span>
           </h2>
           <p className="mt-4 text-base sm:text-lg text-[#5c7062] leading-relaxed">
-            Marketplaces, couriers, and suppliers bill in silos. MarginFlow continuously cross-references orders, courier bills, bank UTRs, and purchase invoices to catch leaks before they hit your P&L.
+            Automatically reconcile orders, supplier bills, and bank settlements to catch profit leaks before they hit your P&L.
           </p>
         </div>
 
@@ -164,10 +164,10 @@ export function MarginFlowFlowMachine() {
               {/* Card 2 */}
               <div className="bg-white rounded-xl border border-[#e2e8e0] px-2.5 py-2 sm:px-3.5 sm:py-2.5 flex items-center gap-2 sm:gap-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] hover:border-[#cbd5e1] transition-all">
                 <div className="w-6 h-6 rounded-md bg-[#f4f6f4] flex items-center justify-center text-[#193022] shrink-0">
-                  <Truck className="w-3.5 h-3.5" />
+                  <FileText className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-[11px] sm:text-xs lg:text-[13px] font-medium text-[#193022] tracking-tight truncate">
-                  Courier telemetry
+                  Supplier purchase bills
                 </span>
               </div>
 
@@ -211,7 +211,7 @@ export function MarginFlowFlowMachine() {
                   <ShieldCheck className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-[11px] sm:text-xs lg:text-[13px] font-medium text-[#193022] tracking-tight truncate">
-                  Dispute recoveries
+                  Dispute claim dossiers
                 </span>
               </div>
 
@@ -221,7 +221,7 @@ export function MarginFlowFlowMachine() {
                   <TrendingUp className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-[11px] sm:text-xs lg:text-[13px] font-medium text-[#193022] tracking-tight truncate">
-                  True net margin
+                  True net margin &amp; ledger
                 </span>
               </div>
             </div>
@@ -234,23 +234,23 @@ export function MarginFlowFlowMachine() {
                 A single audit ledger
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-[#5c7062] leading-relaxed">
-                Orders, courier deadweights, and bank settlements reconciled in one workspace.
+                Orders, supplier purchase costs, and bank settlements reconciled in one workspace.
               </p>
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-bold text-[#193022] tracking-tight">
-                Coordinated recoveries
+                Audit-ready dispute dossiers
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-[#5c7062] leading-relaxed">
-                Courier deadweight overcharges and dispute dossiers auto-compiled before SLA.
+                Pre-compiled SAFE-T and SPF dispute dossiers with unboxing evidence and calculated loss breakdowns.
               </p>
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-bold text-[#193022] tracking-tight">
-                Zero surprise deductions
+                Statutory double-entry math
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-[#5c7062] leading-relaxed">
-                MarginFlow tracks true contribution profit and isolates 1% TCS/TDS withholdings.
+                MarginFlow tracks true contribution profit, isolates 1% TCS/TDS withholdings, and balances your general ledger.
               </p>
             </div>
           </div>

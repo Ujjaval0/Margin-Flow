@@ -1,0 +1,155 @@
+TAP version 13
+# Subtest: F48: inserts do not shift indexes for subsequent updates or repeated batch identities
+ok 1 - F48: inserts do not shift indexes for subsequent updates or repeated batch identities
+  ---
+  duration_ms: 3.2446
+  ...
+# Subtest: F48: marketplace scopes external identities and immutable line costs survive updates
+ok 2 - F48: marketplace scopes external identities and immutable line costs survive updates
+  ---
+  duration_ms: 0.3341
+  ...
+# Subtest: F48: separate receipts on an order remain distinct; a later update targets only its receipt
+ok 3 - F48: separate receipts on an order remain distinct; a later update targets only its receipt
+  ---
+  duration_ms: 0.446
+  ...
+# Subtest: F49: absent and malformed unit prices, quantities and dates fail without invented financials
+ok 4 - F49: absent and malformed unit prices, quantities and dates fail without invented financials
+  ---
+  duration_ms: 5.895
+  ...
+# Subtest: F49: a legitimate zero price and zero tax survive; dates and IDs are repeatable
+ok 5 - F49: a legitimate zero price and zero tax survive; dates and IDs are repeatable
+  ---
+  duration_ms: 2.0213
+  ...
+# Subtest: F49: multi-line orders group; repeated rows do not duplicate units; explicit same-SKU line IDs remain separate
+ok 6 - F49: multi-line orders group; repeated rows do not duplicate units; explicit same-SKU line IDs remain separate
+  ---
+  duration_ms: 0.7672
+  ...
+# Subtest: F49: conflicting duplicate lines and settlement payouts are rejected as sales
+ok 7 - F49: conflicting duplicate lines and settlement payouts are rejected as sales
+  ---
+  duration_ms: 0.8633
+  ...
+# Subtest: F49: historical imports use the cost valid on the order date
+ok 8 - F49: historical imports use the cost valid on the order date
+  ---
+  duration_ms: 0.6817
+  ...
+# Subtest: F49: multiple files consolidate lines but reject contradictory prices and quantities
+ok 9 - F49: multiple files consolidate lines but reject contradictory prices and quantities
+  ---
+  duration_ms: 1.9641
+  ...
+# Subtest: F52: aging includes partial balances, honors marketplace and recognizes no guessed fees
+ok 10 - F52: aging includes partial balances, honors marketplace and recognizes no guessed fees
+  ---
+  duration_ms: 2.3517
+  ...
+# Subtest: F52: aging uses return units and excludes future orders
+ok 11 - F52: aging uses return units and excludes future orders
+  ---
+  duration_ms: 0.8369
+  ...
+# Subtest: F52: business date observes India midnight and report channel matching is exact
+ok 12 - F52: business date observes India midnight and report channel matching is exact
+  ---
+  duration_ms: 119.845
+  ...
+# Subtest: F54: valid snapshots pass; foreign, partial, wrong-version and malformed domain data fail atomically
+ok 13 - F54: valid snapshots pass; foreign, partial, wrong-version and malformed domain data fail atomically
+  ---
+  duration_ms: 31.1887
+  ...
+# Subtest: F54: prototype keys, numeric strings and oversized snapshots are rejected
+ok 14 - F54: prototype keys, numeric strings and oversized snapshots are rejected
+  ---
+  duration_ms: 1.4153
+  ...
+# Subtest: F55: CSV round-trips commas, quotes, CR/LF and formula-like text safely
+ok 15 - F55: CSV round-trips commas, quotes, CR/LF and formula-like text safely
+  ---
+  duration_ms: 14.4241
+  ...
+# Subtest: F47: order archival recovers cascade records and exact inventory, including repeated-SKU lines
+ok 16 - F47: order archival recovers cascade records and exact inventory, including repeated-SKU lines
+  ---
+  duration_ms: 9.8995
+  ...
+# Subtest: F47: return archival removes only linked claims; restock reversal is exact and cannot silently clamp stock
+ok 17 - F47: return archival removes only linked claims; restock reversal is exact and cannot silently clamp stock
+  ---
+  duration_ms: 6.8645
+  ...
+# Subtest: F47: later edits and SKU collisions prevent recovery from overwriting newer state
+ok 18 - F47: later edits and SKU collisions prevent recovery from overwriting newer state
+  ---
+  duration_ms: 3.5266
+  ...
+# Subtest: F47: SQL scope, expiry, row lock and failed recovery keep receipt unconsumed
+ok 19 - F47: SQL scope, expiry, row lock and failed recovery keep receipt unconsumed
+  ---
+  duration_ms: 372.2904
+  ...
+# Subtest: F47: archive write failure rolls back relational changes and never reports success
+ok 20 - F47: archive write failure rolls back relational changes and never reports success
+  ---
+  duration_ms: 146.0164
+  ...
+# Subtest: F47/F49: unauthenticated routes reject before database or parser work
+ok 21 - F47/F49: unauthenticated routes reject before database or parser work
+  ---
+  duration_ms: 1166.0126
+  ...
+# Subtest: F49: actual upload ignores caller counts, commits orders and audit on the same connection
+ok 22 - F49: actual upload ignores caller counts, commits orders and audit on the same connection
+  ---
+  duration_ms: 766.3985
+  ...
+# Subtest: F57: landing acquisition routes to real login without a fabricated session or contact success
+ok 23 - F57: landing acquisition routes to real login without a fabricated session or contact success
+  ---
+  duration_ms: 7.8224
+  ...
+# Subtest: F54: actual provider leaves every collection untouched on a rejected snapshot and exports owner binding
+ok 24 - F54: actual provider leaves every collection untouched on a rejected snapshot and exports owner binding
+  ---
+  duration_ms: 1382.6475
+  ...
+# Subtest: F48/F49: actual provider rejects failed saves, uses canonical IDs and deduplicates consecutive imports
+ok 25 - F48/F49: actual provider rejects failed saves, uses canonical IDs and deduplicates consecutive imports
+  ---
+  duration_ms: 5508.3238
+  ...
+# Subtest: F47: failed archival leaves actual provider inventory and records untouched
+ok 26 - F47: failed archival leaves actual provider inventory and records untouched
+  ---
+  duration_ms: 1613.851
+  ...
+# Subtest: F47: canonical recovered records retain tenant-scoped identities and numeric amounts
+ok 27 - F47: canonical recovered records retain tenant-scoped identities and numeric amounts
+  ---
+  duration_ms: 50.9412
+  ...
+# Subtest: F47: actual relational recovery refuses a conflicting stock balance before any write
+ok 28 - F47: actual relational recovery refuses a conflicting stock balance before any write
+  ---
+  duration_ms: 173.9843
+  ...
+# Subtest: F52/F55: actual Reports view and both export tabs use only the scoped dataset
+ok 29 - F52/F55: actual Reports view and both export tabs use only the scoped dataset
+  ---
+  duration_ms: 1090.9401
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14460.1409

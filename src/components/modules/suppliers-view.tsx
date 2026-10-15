@@ -192,7 +192,7 @@ export function SuppliersView() {
           const isMatch =
             o.supplierId === sup.id ||
             (o.supplierName && o.supplierName.toLowerCase() === supNameLower) ||
-            (prod && (prod.supplierId === sup.id || prod.supplierId.toLowerCase() === supNameLower)) ||
+            (prod && (prod.supplierId === sup.id || prod.supplierId?.toLowerCase() === supNameLower)) ||
             (o.notes && o.notes.toLowerCase().includes(supNameLower)) ||
             // Fallback for initial mock SKUs if unmapped
             (!prod && sup.id === "SUP-001" && (item.sku.startsWith("ELEC-WEM") || item.sku.startsWith("ELEC-ANC"))) ||

@@ -13,6 +13,7 @@ export type JobStatus =
 
 export interface Job<T = any, R = any> {
   id: string;
+  ownerId?: string;
   type: JobType;
   payload: T;
   status: JobStatus;
@@ -24,6 +25,7 @@ export interface Job<T = any, R = any> {
 }
 
 export interface EnqueueJobOptions {
+  ownerId?: string;
   priority?: number;
   delayMs?: number;
 }

@@ -3,7 +3,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatPercent } from "@/lib/utils";
-import { calculateOrderProfitability } from "@/domain/profitability-engine";
+import { scopeReport } from "@/domain/report-scope";
+import { downloadCsv } from "@/lib/csv";
+import { calculateBusinessProfitability, calculateMarketplaceProfitability, calculateSkuProfitability, calculateOrderProfitability } from "@/domain/profitability-engine";
 import {
   Package,
   AlertTriangle,
@@ -38,49 +40,25 @@ import {
 } from "recharts";
 
 export function ReportsView() {
-  const {
-    orders,
-    products,
-    returns,
-    settlements,
-    claims,
-    profitability,
-    marketplaceBreakdown,
-    skuBreakdown,
-    selectedMarketplace,
-  } = usePlatform();
+  const { reportDataset, products, selectedMarketplace } = usePlatform();
 
-  // Top-level Navigation: "analytics" (Analytics & Insights) vs "pnl" (P&L Ledger Statement)
+  // All projections and exports share the same channel and global date scope.
   const [activeTab, setActiveTab] = useState<"analytics" | "pnl">("analytics");
   const [selectedChannel, setSelectedChannel] = useState<string>("All Channels");
-
-  // Sync selectedChannel when global marketplace filter changes
   useEffect(() => {
-    if (!selectedMarketplace || selectedMarketplace === "ALL") {
-      setSelectedChannel("All Channels");
-    } else if (selectedMarketplace === "Amazon India") {
-      setSelectedChannel("Amazon");
-    } else if (selectedMarketplace === "Personal Website") {
-      setSelectedChannel("Website");
-    } else {
-      setSelectedChannel(selectedMarketplace);
-    }
+    setSelectedChannel(selectedMarketplace === "ALL" ? "All Channels" : selectedMarketplace === "Amazon India" ? "Amazon" : selectedMarketplace === "Personal Website" ? "Website" : selectedMarketplace);
   }, [selectedMarketplace]);
-
-  const channelFilteredOrders = useMemo(() => {
-    if (selectedChannel === "All Channels") return orders;
-    return orders.filter((o) => o.marketplace.toLowerCase().includes(selectedChannel.toLowerCase()));
-  }, [orders, selectedChannel]);
-
-  const channelFilteredReturns = useMemo(() => {
-    if (selectedChannel === "All Channels") return returns;
-    return returns.filter((r) => r.marketplace.toLowerCase().includes(selectedChannel.toLowerCase()));
-  }, [returns, selectedChannel]);
+  const { orders, returns, settlements, claims, expenses } = useMemo(() => scopeReport(reportDataset, selectedChannel), [reportDataset, selectedChannel]);
+  const channelFilteredOrders = orders;
+  const channelFilteredReturns = returns;
+  const profitability = useMemo(() => calculateBusinessProfitability(orders, returns, settlements, claims, expenses), [orders, returns, settlements, claims, expenses]);
+  const marketplaceBreakdown = useMemo(() => calculateMarketplaceProfitability(orders, returns, settlements, claims, expenses), [orders, returns, settlements, claims, expenses]);
+  const skuBreakdown = useMemo(() => calculateSkuProfitability(orders, returns, settlements, claims, expenses), [orders, returns, settlements, claims, expenses]);
 
   // ─── 1. Top Executive KPI Metrics ───
   const uniqueProductsCount = useMemo(() => {
     const activeOrderSkus = new Set(channelFilteredOrders.flatMap((o) => o.items.map((i) => i.sku)));
-    return activeOrderSkus.size || (selectedChannel === "All Channels" ? products.length : 0);
+    return activeOrderSkus.size;
   }, [channelFilteredOrders, products, selectedChannel]);
 
   const overallReturnMetrics = useMemo(() => {
@@ -120,7 +98,7 @@ export function ReportsView() {
           rank: idx + 1,
           sku: item.sku,
           productName: item.productName,
-          platforms: platforms.length > 0 ? platforms : ["Amazon India"],
+          platforms,
           orders: itemOrders.length || item.unitsSold,
           unitsSold: item.unitsSold,
           revenue: item.revenue,
@@ -224,10 +202,10 @@ export function ReportsView() {
         platform: m.marketplace,
         ordersCount: mOrders.length,
         grossSales,
-        settlement: actualSettled || m.contributionProfit,
+        settlement: actualSettled,
         cogs,
         profit: m.contributionProfit,
-        margin: m.margin,
+        margin: m.margin * 100,
         returnsCount,
         returnRate,
       };
@@ -269,6 +247,9 @@ export function ReportsView() {
     if (name.includes("zepto")) {
       return { bg: "bg-purple-50 text-purple-800 border-purple-200/80", dot: "bg-purple-600" };
     }
+    if (name.includes("woocommerce")) {
+      return { bg: "bg-purple-50 text-purple-800 border-purple-200/80", dot: "bg-[#7F54B3]" };
+    }
     return { bg: "bg-emerald-50 text-emerald-800 border-emerald-200/80", dot: "bg-emerald-600" };
   };
 
@@ -279,6 +260,7 @@ export function ReportsView() {
     if (name.includes("meesho")) return "#EC4899";
     if (name.includes("blinkit")) return "#EAB308";
     if (name.includes("zepto")) return "#8B5CF6";
+    if (name.includes("woocommerce")) return "#7F54B3";
     return "#10B981";
   };
 
@@ -288,21 +270,15 @@ export function ReportsView() {
       const headers = ["Rank", "SKU", "Product", "Orders", "Revenue", "Profit", "Margin", "Returns"];
       const rows = topProducts.map((p) => [
         p.rank,
-        `"${p.sku}"`,
-        `"${p.productName.replace(/"/g, '""')}"`,
+        p.sku,
+        p.productName,
         p.orders,
         p.revenue.toFixed(2),
         p.profit.toFixed(2),
         `${(p.margin * 100).toFixed(1)}%`,
         p.returnsCount,
       ]);
-      const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `analytics-top-products-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
+      downloadCsv([headers, ...rows], "analytics-top-products-" + new Date().toISOString().slice(0, 10) + ".csv");
     } else {
       const headers = ["Metric", "Accounting Treatment", "Amount", "% Net Sales"];
       const rows = [
@@ -318,13 +294,7 @@ export function ReportsView() {
         ["Operating Overhead", "Advertising, Software, Fixed Overhead", (-profitability.operatingExpenses).toFixed(2), formatPercent(profitability.operatingExpenses / Math.max(1, profitability.netSales))],
         ["Net Operating Profit", "Contribution Profit - Operating Overhead", profitability.netOperatingProfit.toFixed(2), formatPercent(profitability.netOperatingMargin)],
       ];
-      const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `pnl-statement-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
+      downloadCsv([headers, ...rows], "pnl-statement-" + new Date().toISOString().slice(0, 10) + ".csv");
     }
   };
 

@@ -6,33 +6,38 @@ export type MarketplaceSheetFormat =
   | "FLIPKART_ORDERS"
   | "FLIPKART_SETTLEMENT"
   | "MEESHO_ORDERS"
+  | "MEESHO_GST"
+  | "MEESHO_SETTLEMENT"
+  | "MYNTRA_ORDERS"
+  | "MYNTRA_SETTLEMENT"
   | "SHOPIFY_ORDERS"
   | "GENERIC_CSV";
 
 export interface TargetFieldDef {
-  field: keyof Order | "sku" | "productName" | "quantity" | "sellingPrice" | "discount" | "taxAmount" | "cogs";
+  field: keyof Order | "sku" | "productName" | "quantity" | "sellingPrice" | "discount" | "taxAmount" | "cogs" | "lineItemId";
   label: string;
   required: boolean;
   aliases: string[];
 }
 
 export const TARGET_FIELDS: TargetFieldDef[] = [
-  { field: "id", label: "Order ID", required: true, aliases: ["orderid", "ordernumber", "order_id", "order id", "sub order no", "suborderno", "order item id", "invoice number", "invoice no", "invoiceno", "order no", "orderno", "order ref", "ref no"] },
-  { field: "channelOrderId", label: "Channel Ref", required: false, aliases: ["channelorderid", "channelref", "channel order id", "sub_order_id", "external id", "asin", "fsn"] },
+  { field: "lineItemId", label: "Line Item ID", required: false, aliases: ["line item id", "order item id", "lineitem id", "order_item_id"] },
+  { field: "id", label: "Order ID", required: true, aliases: ["orderid", "ordernumber", "order_id", "order id", "sub order no", "suborderno", "sub_order_no", "invoice number", "invoice no", "invoiceno", "packet id", "packet_id", "order release id", "order_release_id", "order no", "orderno", "order ref", "ref no"] },
+  { field: "channelOrderId", label: "Channel Ref", required: false, aliases: ["channelorderid", "channelref", "channel order id", "sub_order_id", "packet_id", "order_release_id", "external id"] },
   { field: "marketplace", label: "Marketplace / Channel", required: false, aliases: ["marketplace", "platform", "channel", "source", "sales channel"] },
-  { field: "orderDate", label: "Order Date", required: true, aliases: ["date", "orderdate", "purchasedate", "order date", "created at", "order_date", "invoice date"] },
+  { field: "orderDate", label: "Order Date", required: true, aliases: ["date", "orderdate", "purchasedate", "order date", "created at", "order_date", "invoice date", "order_release_date"] },
   { field: "status", label: "Order Status", required: false, aliases: ["status", "orderstatus", "order status", "deliverystatus", "delivery status", "order_state", "financial status"] },
-  { field: "sku", label: "SKU", required: true, aliases: ["sku", "itemsku", "item_sku", "sellersku", "seller_sku", "product sku", "product_sku", "lineitem sku", "lineitem_sku", "fsn", "asin", "msku", "item code", "itemcode", "item_code", "product code", "productcode", "product_code", "article", "articleno", "article_no", "model", "modelno", "style", "style_id", "barcode"] },
-  { field: "productName", label: "Product Title", required: false, aliases: ["productname", "product_name", "itemname", "item_name", "product", "title", "product title", "lineitem name", "description", "item description", "item_description", "item"] },
-  { field: "quantity", label: "Quantity", required: false, aliases: ["qty", "quantity", "units", "item qty", "item_quantity", "lineitem quantity", "pieces", "count"] },
-  { field: "sellingPrice", label: "Selling Price / Gross", required: true, aliases: ["sellingprice", "selling_price", "grosssale", "gross_sale", "price", "unitprice", "unit_price", "itemprice", "item-price", "selling price", "final sale amount", "supplier discounted price", "total price", "amount", "total", "net amount", "invoice amount"] },
+  { field: "sku", label: "SKU", required: true, aliases: ["sku", "itemsku", "item_sku", "sellersku", "seller_sku", "product sku", "product_sku", "lineitem sku", "lineitem_sku", "fsn", "asin", "msku", "style_id", "styleid", "article_id", "articleid", "sku_code", "skucode", "vendor_sku", "vendorsku", "vendor_article_name", "item code", "itemcode", "item_code", "product code", "productcode", "product_code", "article", "articleno", "article_no", "model", "modelno", "style", "barcode"] },
+  { field: "productName", label: "Product Title", required: false, aliases: ["productname", "product_name", "itemname", "item_name", "product", "title", "product title", "lineitem name", "description", "item description", "item_description", "vendor_article_name", "item"] },
+  { field: "quantity", label: "Quantity", required: true, aliases: ["qty", "quantity", "units", "item qty", "item_quantity", "lineitem quantity", "pieces", "count"] },
+  { field: "sellingPrice", label: "Selling Price / Gross", required: true, aliases: ["sellingprice", "selling_price", "price", "unitprice", "unit_price", "itemprice", "item-price", "selling price", "supplier discounted price", "supplier_discounted_price", "supplierdiscountedprice"] },
   { field: "discount", label: "Discount", required: false, aliases: ["discount", "discounts", "promodiscount", "item discount", "coupon discount"] },
-  { field: "taxAmount", label: "GST / Taxes", required: false, aliases: ["tax", "taxamount", "gst", "total tax", "igst", "cgst", "sgst", "tax rate"] },
-  { field: "shippingFeeCharged", label: "Shipping Fee Charged", required: false, aliases: ["shippingfee", "shipping", "shippingfeecharged", "shipping charge", "delivery charge"] },
-  { field: "marketplaceChargesEstimate", label: "Marketplace Deductions", required: false, aliases: ["commission", "marketplace fee", "platform fee", "deductions", "fee", "referral fee"] },
+  { field: "taxAmount", label: "GST / Taxes", required: false, aliases: ["tax", "taxamount", "gst", "total tax", "total_tax", "totaltax", "igst", "cgst", "sgst", "igst_amount", "cgst_amount", "sgst_amount"] },
+  { field: "shippingFeeCharged", label: "Shipping Fee Charged", required: false, aliases: ["shippingfee", "shipping", "shippingfeecharged", "shipping charge", "delivery charge", "forward_delivery_charge"] },
+  { field: "marketplaceChargesEstimate", label: "Marketplace Deductions", required: false, aliases: ["commission", "marketplace fee", "platform fee", "deductions", "fee", "referral fee", "meesho_commission", "meeshocommission", "myntra_commission", "myntracommission"] },
   { field: "customerName", label: "Customer Name", required: false, aliases: ["customername", "customer", "buyer", "buyername", "buyer name", "billing name", "recipient"] },
-  { field: "customerCity", label: "Customer City", required: false, aliases: ["city", "customercity", "shipcity", "ship-city", "shipping city", "destination city"] },
-  { field: "customerState", label: "Customer State", required: false, aliases: ["state", "customerstate", "shipstate", "ship-state", "shipping state", "destination state", "place of supply"] },
+  { field: "customerCity", label: "Customer City", required: false, aliases: ["city", "customercity", "shipcity", "ship-city", "shipping city", "destination city", "delivery_city"] },
+  { field: "customerState", label: "Customer State", required: false, aliases: ["state", "customerstate", "shipstate", "ship-state", "shipping state", "destination state", "place of supply", "end_customer_state", "endcustomerstate"] },
 ];
 
 export interface AutoMappedColumn {
@@ -64,12 +69,29 @@ export interface CsvMappingResult {
   warnings: string[];
 }
 
+/** Multiple source files may repeat an order, but must agree on the same source line. */
+export function consolidateCsvOrders(incoming: Order[]): Order[] {
+  const orders: Order[] = [];
+  for (const order of incoming) {
+    const previous = orders.find(row => row.marketplace === order.marketplace && row.channelOrderId === order.channelOrderId);
+    if (!previous) { orders.push({ ...order, items: [...order.items] }); continue; }
+    if (previous.orderDate !== order.orderDate || previous.status !== order.status || previous.shippingFeeCharged !== order.shippingFeeCharged || previous.marketplaceChargesEstimate !== order.marketplaceChargesEstimate) throw new Error("Files contain conflicting values for the same order.");
+    for (const item of order.items) {
+      const existing = previous.items.find(line => line.id === item.id);
+      if (!existing) previous.items.push(item);
+      else if (existing.sku !== item.sku || existing.quantity !== item.quantity || existing.sellingPrice !== item.sellingPrice || existing.discount !== item.discount || existing.taxAmount !== item.taxAmount) throw new Error("Files contain conflicting values for the same source line.");
+    }
+  }
+  return orders;
+}
+
 // RFC 4180 compliant CSV parser that handles quotes, multiline values, and escaping
 export function parseRawCsv(text: string): string[][] {
   const rows: string[][] = [];
   let currentRow: string[] = [];
   let currentVal = "";
   let inQuotes = false;
+  let closedQuote = false;
 
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
@@ -82,16 +104,20 @@ export function parseRawCsv(text: string): string[][] {
           i++;
         } else {
           inQuotes = false;
+          closedQuote = true;
         }
       } else {
         currentVal += char;
       }
     } else {
+      if (closedQuote && !/[,\r\n\s]/.test(char)) throw new Error("Invalid characters after a quoted CSV cell.");
       if (char === '"') {
+        if (currentVal.trim() || closedQuote) throw new Error("Invalid CSV quoting.");
         inQuotes = true;
       } else if (char === ",") {
         currentRow.push(currentVal.trim());
         currentVal = "";
+        closedQuote = false;
       } else if (char === "\r") {
         // ignore CR
       } else if (char === "\n") {
@@ -101,12 +127,14 @@ export function parseRawCsv(text: string): string[][] {
         }
         currentRow = [];
         currentVal = "";
+        closedQuote = false;
       } else {
         currentVal += char;
       }
     }
   }
 
+  if (inQuotes) throw new Error("Unclosed CSV quote.");
   if (currentVal || currentRow.length > 0) {
     currentRow.push(currentVal.trim());
     if (currentRow.some((field) => field !== "")) {
@@ -133,42 +161,46 @@ export function cleanCurrency(val: unknown): number {
 
 // Standardizes diverse date formats to YYYY-MM-DD
 export function cleanDate(val: string): string {
-  if (!val) return new Date().toISOString().split("T")[0];
+  if (!val) return "";
   const s = val.trim();
 
   // Direct ISO: 2026-09-15 or 2026-09-15T12:00:00
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-    return s.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(s) && Number.isFinite(Date.parse(s))) {
+    const day = s.slice(0, 10);
+    return Number.isFinite(Date.parse(day)) && new Date(day).toISOString().slice(0, 10) === day ? day : "";
   }
 
   // DD/MM/YYYY or DD-MM-YYYY
-  const ddmmyyyy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  const ddmmyyyy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (ddmmyyyy) {
     const day = ddmmyyyy[1].padStart(2, "0");
     const month = ddmmyyyy[2].padStart(2, "0");
     const year = ddmmyyyy[3];
-    return `${year}-${month}-${day}`;
+    const iso = `${year}-${month}-${day}`;
+    return Number.isFinite(Date.parse(iso)) && new Date(iso).toISOString().slice(0, 10) === iso ? iso : "";
   }
 
-  // Fallback to Date parser
+  // Named months with a four-digit year are explicit; ambiguous short numeric dates reject.
+  if (!/[a-z]/i.test(s) || !/\b\d{4}\b/.test(s)) return "";
   const parsed = new Date(s);
   if (!isNaN(parsed.getTime())) {
     return parsed.toISOString().split("T")[0];
   }
 
-  return new Date().toISOString().split("T")[0];
+  return "";
 }
 
 // Standardizes raw status string to OrderStatus
 export function normalizeOrderStatus(rawStatus: string): OrderStatus {
   const s = (rawStatus || "").toLowerCase().trim();
-  if (s.includes("deliv") || s.includes("completed")) return "DELIVERED";
+  if (s.includes("undelivered")) return "SHIPPED";
+  if (s === "delivered" || s === "completed") return "DELIVERED";
   if (s.includes("rto") || s.includes("return to origin") || s.includes("courier return")) return "RTO";
   if (s.includes("return") || s.includes("refund")) return "RETURNED";
   if (s.includes("cancel")) return "CANCELLED";
   if (s.includes("ship") || s.includes("dispatched") || s.includes("in transit")) return "SHIPPED";
   if (s.includes("pend") || s.includes("unfulfilled")) return "PENDING";
-  return "CONFIRMED";
+  return "PENDING";
 }
 
 // Finds the most probable header row in the first 8 rows
@@ -252,17 +284,56 @@ export function detectFormatSignature(headers: string[]): {
     };
   }
 
-  // Meesho Orders signature
-  const isMeesho =
+  // Meesho Payment Settlement Report signature (TASK-5.1)
+  const isMeeshoSettlement =
+    (joined.includes("suborderno") || joined.includes("meesho")) &&
+    (joined.includes("bankutr") || joined.includes("finalsettlementamount") || joined.includes("netamount") || joined.includes("settlementamount"));
+  if (isMeeshoSettlement) {
+    return {
+      format: "MEESHO_SETTLEMENT",
+      formatLabel: "Meesho Payment Settlement Report",
+      defaultMarketplace: "Meesho",
+      confidence: 0.98,
+    };
+  }
+
+  // Meesho GST Tax Invoice / Orders Report signature (TASK-5.1)
+  const isMeeshoOrders =
     joined.includes("suborderno") ||
     joined.includes("supplierdiscountedprice") ||
-    (joined.includes("meesho") && joined.includes("producttitle"));
-  if (isMeesho) {
+    (joined.includes("meesho") && (joined.includes("producttitle") || joined.includes("gstin")));
+  if (isMeeshoOrders) {
     return {
       format: "MEESHO_ORDERS",
-      formatLabel: "Meesho Supplier Orders Sheet",
+      formatLabel: "Meesho GST Tax Invoice / Orders Report",
       defaultMarketplace: "Meesho",
-      confidence: 0.95,
+      confidence: 0.96,
+    };
+  }
+
+  // Myntra Vendor Settlement Sheet signature (TASK-5.2)
+  const isMyntraSettlement =
+    (joined.includes("myntra") || joined.includes("styleid") || joined.includes("articleid") || joined.includes("skucode")) &&
+    (joined.includes("settlementvalue") || joined.includes("myntracommission") || joined.includes("forwarddeliverycharge") || joined.includes("netpayable"));
+  if (isMyntraSettlement) {
+    return {
+      format: "MYNTRA_SETTLEMENT",
+      formatLabel: "Myntra Vendor Settlement Sheet",
+      defaultMarketplace: "Myntra",
+      confidence: 0.98,
+    };
+  }
+
+  // Myntra Vendor Orders Report signature (TASK-5.2)
+  const isMyntraOrders =
+    (joined.includes("myntra") || joined.includes("orderreleaseid") || joined.includes("packetid")) &&
+    (joined.includes("vendorarticlename") || joined.includes("stylecode") || joined.includes("storeid"));
+  if (isMyntraOrders) {
+    return {
+      format: "MYNTRA_ORDERS",
+      formatLabel: "Myntra Vendor Orders Report",
+      defaultMarketplace: "Myntra",
+      confidence: 0.96,
     };
   }
 
@@ -282,7 +353,7 @@ export function detectFormatSignature(headers: string[]): {
   return {
     format: "GENERIC_CSV",
     formatLabel: "Generic Multi-Channel CSV",
-    defaultMarketplace: "Amazon India",
+    defaultMarketplace: "Other",
     confidence: 0.82,
   };
 }
@@ -308,14 +379,6 @@ export function autoMapColumns(
         if (cleanH === cleanAlias) {
           if (highestScore < 1.0) {
             highestScore = 1.0;
-            bestIndex = colIdx;
-          }
-        } else if (
-          (cleanAlias.length >= 3 && cleanH.length >= 3 && cleanH.includes(cleanAlias)) ||
-          (cleanAlias.length >= 4 && cleanH.length >= 4 && cleanAlias.includes(cleanH))
-        ) {
-          if (highestScore < 0.8) {
-            highestScore = 0.8;
             bestIndex = colIdx;
           }
         }
@@ -353,7 +416,8 @@ export function detectAndMapCsv(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  const rawRows = parseRawCsv(rawText);
+  let rawRows: string[][] = [];
+  try { rawRows = parseRawCsv(rawText); } catch { errors.push("Invalid CSV quoting."); }
   if (rawRows.length < 2) {
     return {
       detection: {
@@ -369,7 +433,7 @@ export function detectAndMapCsv(
         detectedMarketplace: "Amazon India",
       },
       orders: [],
-      errors: ["The CSV file must contain a valid header row and at least one order record."],
+      errors: [...errors, "The CSV file must contain a valid header row and at least one order record."],
       warnings: [],
     };
   }
@@ -388,20 +452,17 @@ export function detectAndMapCsv(
   const fieldToCol = new Map<string, number>();
   columnMappings.forEach((m) => fieldToCol.set(m.targetField, m.sourceIndex));
 
-  // Build product lookup map: support master SKU, channel aliases, and clean SKUs
-  const productLookup = new Map<string, Product>();
-  products.forEach((p) => {
-    productLookup.set(p.sku.toLowerCase().trim(), p);
-    productLookup.set(p.sku.toLowerCase().replace(/[^a-z0-9]/g, ""), p);
-
-    if (p.channelAliases) {
-      Object.entries(p.channelAliases).forEach(([, aliasSku]) => {
-        if (aliasSku) {
-          productLookup.set(aliasSku.toLowerCase().trim(), p);
-          productLookup.set(aliasSku.toLowerCase().replace(/[^a-z0-9]/g, ""), p);
-        }
-      });
-    }
+  // Exact master SKUs and marketplace-specific aliases; ambiguous matches stay unresolved.
+  const productLookup = new Map<string, Product | null>();
+  const aliasLookup = new Map<string, Product | null>();
+  const add = (map: Map<string, Product | null>, key: string, product: Product) => {
+    map.set(key, map.has(key) && map.get(key)?.sku !== product.sku ? null : product);
+  };
+  products.forEach(product => {
+    add(productLookup, product.sku.toLowerCase().trim(), product);
+    Object.entries(product.channelAliases || {}).forEach(([marketplace, alias]) => {
+      if (alias) add(aliasLookup, JSON.stringify([marketplace, alias.toLowerCase().trim()]), product);
+    });
   });
 
   const orders: Order[] = [];
@@ -418,30 +479,37 @@ export function detectAndMapCsv(
       return idx !== undefined && row[idx] !== undefined ? row[idx].trim() : "";
     };
 
-    let rawSku = getVal("sku");
-    if (!rawSku) {
-      // Robust fallbacks: Channel ref, ASIN/FSN, product title match, or order reference
-      const chRef = getVal("channelOrderId");
-      const pTitle = getVal("productName");
-      const ordId = getVal("id");
-
-      if (chRef && chRef.length >= 3) {
-        rawSku = chRef;
-      } else if (pTitle) {
-        const matched = products.find((p) =>
-          p.name.toLowerCase().includes(pTitle.toLowerCase().slice(0, 15))
-        );
-        rawSku = matched?.sku || `SKU-${pTitle.replace(/[^a-zA-Z0-9]/g, "").slice(0, 10).toUpperCase()}`;
-      } else if (ordId) {
-        rawSku = `SKU-${ordId.replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase()}`;
-      } else {
-        rawSku = `SKU-${i + 1}`;
-      }
+    const rawSku = getVal("sku");
+    const sourceId = getVal("channelOrderId") || getVal("id");
+    const sourceDate = cleanDate(getVal("orderDate"));
+    const numeric = (field: string, fallback?: number) => {
+      const value = getVal(field);
+      if (!value) return fallback;
+      if (!/^(?:[₹$€£]\s*)?-?\d[\d,]*(?:\.\d+)?$/.test(value)) return undefined;
+      const parsed = cleanCurrency(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const quantity = numeric("quantity");
+    const sellingPrice = numeric("sellingPrice");
+    const discount = numeric("discount", 0);
+    const taxAmount = numeric("taxAmount", 0);
+    const shippingFeeCharged = numeric("shippingFeeCharged", 0);
+    const marketplaceChargesEstimate = numeric("marketplaceChargesEstimate", 0);
+    if (!rawSku || !sourceId || !sourceDate || quantity === undefined || !Number.isSafeInteger(quantity) || quantity <= 0 ||
+        sellingPrice === undefined || sellingPrice < 0 || discount === undefined || discount < 0 || discount > sellingPrice * quantity ||
+        taxAmount === undefined || taxAmount < 0 || shippingFeeCharged === undefined || shippingFeeCharged < 0 ||
+        marketplaceChargesEstimate === undefined || marketplaceChargesEstimate < 0) {
+      errors.push("Row " + rowNumber + ": requires an order reference, SKU, valid date, nonnegative unit price/amounts and positive whole quantity.");
+      continue;
+    }
+    if (detectionMeta.format.includes("SETTLEMENT")) {
+      errors.push("Row " + rowNumber + ": a settlement report cannot be imported as sales orders. Supply an order export with unit prices.");
+      continue;
     }
 
-    // Match product catalog
-    const cleanRawSku = rawSku.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const matchedProduct = productLookup.get(rawSku.toLowerCase().trim()) || productLookup.get(cleanRawSku);
+    const rawMarketplace = getVal("marketplace");
+    const marketplace: Marketplace = rawMarketplace ? normalizeMarketplace(rawMarketplace) : detectionMeta.defaultMarketplace;
+    const matchedProduct = productLookup.get(rawSku.toLowerCase().trim()) || aliasLookup.get(JSON.stringify([marketplace, rawSku.toLowerCase().trim()]));
 
     if (matchedProduct) {
       matchedSkuCount++;
@@ -452,43 +520,23 @@ export function detectAndMapCsv(
     const sku = matchedProduct ? matchedProduct.sku : rawSku.trim();
     const productName = getVal("productName") || matchedProduct?.name || `Product (${sku})`;
 
-    const quantity = Math.max(1, parseInt(getVal("quantity"), 10) || 1);
-    const rawPrice = cleanCurrency(getVal("sellingPrice"));
-    const sellingPrice = rawPrice > 0 ? rawPrice : 999;
-    const discount = Math.max(0, cleanCurrency(getVal("discount")));
-    const rawTax = cleanCurrency(getVal("taxAmount"));
-    const taxAmount = rawTax > 0 ? rawTax : Math.round(sellingPrice * 0.18 * 100) / 100;
-    const shippingFeeCharged = cleanCurrency(getVal("shippingFeeCharged"));
-
-    // Marketplace deduction estimate
-    let marketplaceChargesEstimate = cleanCurrency(getVal("marketplaceChargesEstimate"));
-    const rawMarketplace = getVal("marketplace");
-    const marketplace: Marketplace = rawMarketplace
-      ? normalizeMarketplace(rawMarketplace)
-      : detectionMeta.defaultMarketplace;
-
-    if (marketplaceChargesEstimate === 0) {
-      const feeRate =
-        marketplace === "Amazon India" ? 0.15 :
-        marketplace === "Flipkart" ? 0.15 :
-        marketplace === "Meesho" ? 0.03 :
-        marketplace === "Myntra" ? 0.22 : 0.03;
-      marketplaceChargesEstimate = Math.round(sellingPrice * quantity * feeRate * 100) / 100;
-    }
-
-    const orderId = getVal("id") || `ORD-${Date.now().toString().slice(-4)}-${i + 1}`;
-    const channelOrderId = getVal("channelOrderId") || `${marketplace.slice(0, 2).toUpperCase()}-${orderId}`;
-    const orderDate = cleanDate(getVal("orderDate"));
+    // Zero financial guesswork: retain actual sheet deductions or 0 (no synthetic percentages)
+    const channelOrderId = sourceId;
+    const orderId = "CSV-" + encodeURIComponent(marketplace) + "-" + encodeURIComponent(channelOrderId);
+    const orderDate = sourceDate;
     const status = normalizeOrderStatus(getVal("status"));
-    const customerName = getVal("customerName") || "Direct Customer";
-    const customerCity = getVal("customerCity") || "Mumbai";
-    const customerState = getVal("customerState") || "Maharashtra";
-
-    // Locked historical cost basis (COGS snapshot)
-    const snapshotUnitCost = matchedProduct?.currentCostPrice ?? Math.round(sellingPrice * 0.4);
+    const customerName = getVal("customerName");
+    const customerCity = getVal("customerCity");
+    const customerState = getVal("customerState");
+    const historicalCost = matchedProduct?.costHistory?.find(cost => cost.validFrom.slice(0, 10) <= orderDate && (!cost.validTo || cost.validTo.slice(0, 10) >= orderDate));
+    const snapshotUnitCost = historicalCost?.costPrice ?? 0;
+    if (!historicalCost) warnings.push("Row " + rowNumber + ": historical cost is unknown for " + sku + "; no cost was invented.");
+    if (!getVal("taxAmount")) warnings.push("Row " + rowNumber + ": tax was not supplied; recorded as 0, not inferred.");
+    const signature = JSON.stringify([sku, getVal("lineItemId")]);
+    const lineId = "LINE-" + encodeURIComponent(signature);
 
     const item: OrderItem = {
-      id: `ITEM-INGEST-${Date.now().toString().slice(-5)}-${i + 1}`,
+      id: lineId,
       sku,
       productName,
       quantity,
@@ -513,7 +561,14 @@ export function detectAndMapCsv(
       items: [item],
     };
 
-    orders.push(order);
+    const existing = orders.find(row => row.marketplace === marketplace && row.channelOrderId === channelOrderId);
+    if (existing) {
+      if (existing.orderDate !== orderDate || existing.status !== status || existing.shippingFeeCharged !== shippingFeeCharged || existing.marketplaceChargesEstimate !== marketplaceChargesEstimate) {
+        errors.push("Row " + rowNumber + ": conflicting order-level fields for " + channelOrderId + ".");
+      } else if (!existing.items.some(line => line.id === lineId)) existing.items.push(item);
+      else if (JSON.stringify(existing.items.find(line => line.id === lineId)) !== JSON.stringify(item)) errors.push("Row " + rowNumber + ": ambiguous same-SKU lines; provide unique line item IDs.");
+      else warnings.push("Row " + rowNumber + ": repeated identical line ignored for " + channelOrderId + ".");
+    } else orders.push(order);
   }
 
   if (orders.length === 0 && errors.length === 0) {
@@ -535,7 +590,7 @@ export function detectAndMapCsv(
 
   return {
     detection,
-    orders,
+    orders: errors.length ? [] : orders,
     errors,
     warnings,
   };

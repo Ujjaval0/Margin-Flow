@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getWebhookSecret } from "@/lib/security/secret-vault";
+import { readRequestBytes, RequestBodyError } from "@/lib/security/request-body";
+import { resolveWebhookConnection } from "@/lib/security/webhook-connection";
 import { verifyGenericWebhook } from "@/lib/security/webhook-verifier";
-import { checkAndMarkEventIdempotency } from "@/lib/security/idempotency";
+import { persistWebhookOrder } from "@/lib/integrations/webhook-persistence";
 import { formatSafeErrorResponse, redactSensitiveData } from "@/lib/security/redactor";
 import { GenericOrderWebhookSchema, mapGenericOrderToDomain } from "@/lib/webhooks/schemas/generic-schema";
-import { queueManager } from "@/lib/queue/queue-manager";
 
 const MAX_WEBHOOK_SIZE_BYTES = 1024 * 1024; // 1MB
 
@@ -12,6 +12,8 @@ export async function POST(req: NextRequest) {
   const startTime = performance.now();
 
   try {
+    const connection = await resolveWebhookConnection(req, "generic");
+    if (!connection) return NextResponse.json({ success: false, error: "A registered webhook connection is required." }, { status: 401 });
     // 1. Size Limit
     const contentLength = Number(req.headers.get("content-length")) || 0;
     if (contentLength > MAX_WEBHOOK_SIZE_BYTES) {
@@ -22,7 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Read Raw Buffer
-    const arrayBuffer = await req.arrayBuffer();
+    const arrayBuffer = await readRequestBytes(req, MAX_WEBHOOK_SIZE_BYTES);
     if (arrayBuffer.byteLength > MAX_WEBHOOK_SIZE_BYTES) {
       return NextResponse.json(
         { success: false, error: "Payload exceeds 1MB threshold." },
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
       req.headers.get("x-signature-sha256") ||
       req.headers.get("x-amz-signature");
     const channelHeader = req.headers.get("X-MarginFlow-Channel") || "generic";
-    const webhookId = req.headers.get("X-Webhook-Id") || `gnw_${Date.now()}`;
+    const webhookId = req.headers.get("X-Webhook-Id") || "";
 
     // 4. Handle Generic Webhook Ping events immediately
     const rawString = rawBodyBuffer.toString("utf-8");
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Verify HMAC Signature
-    const secret = getWebhookSecret("generic");
+    const secret = connection.secret;
     const verification = verifyGenericWebhook(rawBodyBuffer, signatureHeader, secret);
 
     if (!verification.isValid) {
@@ -63,20 +65,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. Check Idempotency
-    const idempotency = checkAndMarkEventIdempotency(channelHeader, webhookId);
-    if (idempotency.isDuplicate) {
-      return NextResponse.json(
-        {
-          success: true,
-          deduplicated: true,
-          message: "Event already ingested into ledger.",
-          recordedAt: idempotency.recordedAt,
-        },
-        { status: 200 }
-      );
-    }
-
+    // Replay detection is committed atomically with the ledger below.
     // 6. Parse Schema
     const rawJson = JSON.parse(rawBodyBuffer.toString("utf-8"));
     const parseResult = GenericOrderWebhookSchema.safeParse(rawJson);
@@ -94,20 +83,17 @@ export async function POST(req: NextRequest) {
 
     // 7. Convert to Domain Order
     const domainOrder = mapGenericOrderToDomain(parseResult.data);
+    if (!webhookId) return NextResponse.json({ success: false, error: "Missing webhook delivery ID." }, { status: 400 });
+    const receipt = await persistWebhookOrder(connection, webhookId, rawBodyBuffer, domainOrder);
 
-    // 8. Enqueue Task
-    await queueManager.enqueue("BULK_CSV_IMPORT", {
-      type: "GENERIC_WEBHOOK_ORDER",
-      channel: channelHeader,
-      order: domainOrder,
-      webhookId,
-    });
+    // Acknowledge only after durable ingestion.
 
     const latency = Math.round((performance.now() - startTime) * 100) / 100;
 
     return NextResponse.json(
       {
         success: true,
+        deduplicated: receipt.isDuplicate,
         eventId: webhookId,
         orderId: domainOrder.id,
         channel: domainOrder.marketplace,
@@ -116,6 +102,7 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (err: any) {
+    if (err instanceof RequestBodyError) return NextResponse.json({ success: false, error: err.message }, { status: err.status });
     return NextResponse.json(formatSafeErrorResponse(err, "Webhook processing error."), {
       status: 500,
     });

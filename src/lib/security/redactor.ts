@@ -68,8 +68,8 @@ export function redactSensitiveData<T>(input: T): T {
  * Format a safe error response for public HTTP endpoints
  */
 export function formatSafeErrorResponse(error: any, fallbackMessage: string = "Request processing error") {
-  const message = typeof error?.message === "string" ? error.message : fallbackMessage;
-  const sanitizedMessage = redactSensitiveData(message);
+  // Unknown exception messages can contain SQL, file paths or arbitrary credentials.
+  const sanitizedMessage = fallbackMessage;
 
   return {
     success: false,

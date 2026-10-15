@@ -22,6 +22,7 @@ import { getMarketplaceBadge } from "@/lib/marketplace-config";
 import { formatINR } from "@/lib/utils";
 import {
   detectAndMapCsv,
+  consolidateCsvOrders,
   CsvMappingResult,
   TARGET_FIELDS,
 } from "@/domain/csv-auto-mapper";
@@ -30,7 +31,7 @@ export interface CsvImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   products: Product[];
-  onImportOrders: (orders: Order[]) => void;
+  onImportOrders: (orders: Order[]) => void | Promise<void>;
 }
 
 export function CsvImportModal({
@@ -75,11 +76,17 @@ export function CsvImportModal({
   }, [isOpen, handleClose]);
 
   const processFiles = async (uploadedFiles: FileList | File[]) => {
-    if (!uploadedFiles || uploadedFiles.length === 0) return;
+    if (!uploadedFiles || uploadedFiles.length === 0 || isProcessing) return;
     const fileArray = Array.from(uploadedFiles).filter((f) => {
       const ext = f.name.split(".").pop()?.toLowerCase();
       return ext === "csv" || ext === "xlsx" || ext === "xls";
     });
+
+    const combinedFiles = [...files, ...fileArray];
+    if (combinedFiles.length > 10 || combinedFiles.some(file => file.size > 5 * 1024 * 1024) || combinedFiles.reduce((size, file) => size + file.size, 0) > 10 * 1024 * 1024) {
+      alert("Select at most 10 files, each no larger than 5 MB and no more than 10 MB in total.");
+      return;
+    }
 
     if (fileArray.length === 0) {
       alert("Please select valid CSV or Excel files (.csv, .xlsx, .xls).");
@@ -120,7 +127,8 @@ export function CsvImportModal({
           combinedDetection.unmatchedSkuCount += result.detection.unmatchedSkuCount;
         }
 
-        allOrders.push(...result.orders);
+        const consolidated = consolidateCsvOrders([...allOrders, ...result.orders]);
+        allOrders.splice(0, allOrders.length, ...consolidated);
         allErrors.push(...result.errors);
         allWarnings.push(...result.warnings);
       } catch (err: any) {
@@ -166,11 +174,20 @@ export function CsvImportModal({
     }
   };
 
-  const handleConfirmImport = () => {
-    if (mappingResult && mappingResult.orders.length > 0) {
-      onImportOrders(mappingResult.orders);
+  const handleConfirmImport = async () => {
+    if (!mappingResult?.orders.length || mappingResult.errors.length || isProcessing) return;
+    setIsProcessing(true);
+    try {
+      const formData = new FormData();
+      for (const file of files) formData.append("file", file);
+      const response = await fetch("/api/integrations/reports/upload", { method: "POST", credentials: "same-origin", body: formData });
+      const result = await response.json();
+      if (!response.ok || result.success !== true || !Array.isArray(result.orders)) throw new Error("Import could not be saved. Please retry.");
+      await onImportOrders(result.orders);
       handleClose();
-    }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Import failed. Please retry.");
+    } finally { setIsProcessing(false); }
   };
 
   if (!isOpen || !mounted) return null;
@@ -507,7 +524,7 @@ export function CsvImportModal({
         {/* Footer Actions */}
         <div className="px-6 py-4 bg-[#FBFBFD] border-t border-black/[0.06] flex items-center justify-between">
           <div className="text-xs text-[#86868B]">
-            {orders.length > 0 ? (
+            {orders.length > 0 && errors.length === 0 ? (
               <span className="font-medium text-[#1D1D1F]">
                 {orders.length} order{orders.length > 1 ? "s" : ""} parsed &amp; verified
               </span>
@@ -526,7 +543,7 @@ export function CsvImportModal({
             </button>
             <button
               type="button"
-              disabled={orders.length === 0}
+              disabled={orders.length === 0 || errors.length > 0 || isProcessing}
               onClick={handleConfirmImport}
               className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-apple-sm btn-press transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >

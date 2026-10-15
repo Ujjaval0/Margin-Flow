@@ -245,7 +245,7 @@ export function Sidebar({
                 className="flex items-center gap-2.5 min-w-0 group hover:opacity-90 transition-opacity"
                 title="MarginFlow Home"
               >
-                <MarginFlowLogo className="h-9 w-auto text-[#1D1D1F] shrink-0" />
+                <MarginFlowLogo className="h-[22px] w-auto text-[#1D1D1F] shrink-0" />
               </Link>
               {onToggle && (
                 <button

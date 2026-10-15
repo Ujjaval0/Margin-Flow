@@ -1,5 +1,6 @@
 "use client";
 
+import { downloadCsv } from "@/lib/csv";
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatPercent } from "@/lib/utils";
@@ -37,6 +38,9 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
   Info,
   Check,
   Package,
@@ -165,8 +169,8 @@ export function DashboardView({
       "Return Rate %",
     ];
     const rows = processedSkus.map((s) => [
-      `"${s.sku}"`,
-      `"${s.productName.replace(/"/g, '""')}"`,
+      s.sku,
+      s.productName,
       s.unitsSold,
       s.revenue,
       s.cogs,
@@ -178,16 +182,8 @@ export function DashboardView({
       s.poas !== undefined ? s.poas + "x" : "N/A",
       (s.returnRate * 100).toFixed(1) + "%",
     ]);
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `sku_economics_${datePreset.toLowerCase()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv([headers, ...rows], "sku_economics_" + datePreset.toLowerCase() + ".csv");
   };
-
   // Tonal Green Monochrome Palette (matching user reference specification)
   const TONAL_GREEN_SCALE = [
     "#0B4D1F", // Dominant / Forest Green
@@ -259,19 +255,26 @@ export function DashboardView({
       });
   }, [skuBreakdown, skuSearch, skuFilter, skuSortBy, skuSortOrder]);
 
-  // SKU Table Pagination (Max 10 records per chapter/page)
+  // SKU Table Pagination & Rows Per Page State
   const [skuPage, setSkuPage] = useState(1);
-  const SKU_PAGE_SIZE = 10;
+  const [skuPageSize, setSkuPageSize] = useState(25);
 
   useEffect(() => {
     setSkuPage(1);
   }, [skuSearch, skuFilter]);
 
-  const totalSkuPages = Math.max(1, Math.ceil(processedSkus.length / SKU_PAGE_SIZE));
+  const totalSkuPages = Math.max(1, Math.ceil(processedSkus.length / skuPageSize));
+
+  useEffect(() => {
+    if (skuPage > totalSkuPages) {
+      setSkuPage(totalSkuPages);
+    }
+  }, [skuPage, totalSkuPages]);
+
   const paginatedSkus = useMemo(() => {
-    const start = (skuPage - 1) * SKU_PAGE_SIZE;
-    return processedSkus.slice(start, start + SKU_PAGE_SIZE);
-  }, [processedSkus, skuPage, SKU_PAGE_SIZE]);
+    const start = (skuPage - 1) * skuPageSize;
+    return processedSkus.slice(start, start + skuPageSize);
+  }, [processedSkus, skuPage, skuPageSize]);
 
   const handleSort = (field: typeof skuSortBy) => {
     if (skuSortBy === field) {
@@ -1785,82 +1788,112 @@ export function DashboardView({
           </table>
         </div>
 
-        {/* Table Summary & 10-Record Chapter Pagination Footer */}
-        <div className="px-5 py-3.5 border-t border-black/[0.06] bg-[#FBFBFD] flex flex-col md:flex-row items-center justify-between text-xs text-[#86868B] gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-[#86868B]">
-              {processedSkus.length === 0 ? (
-                "0 SKUs found"
+        {/* Minimalist Apple Pagination Footer */}
+        <div className="px-4 sm:px-6 py-3.5 bg-[#FAFAFC] border-t border-black/[0.06] flex flex-col md:flex-row items-center justify-between text-xs text-[#86868B] gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="text-xs text-[#64748B]">
+              {processedSkus.length === skuBreakdown.length ? (
+                <span>
+                  <strong className="font-semibold text-[#1D1D1F] tabular-nums">{skuBreakdown.length}</strong> total rows
+                </span>
               ) : (
-                <>
-                  Showing <span className="font-semibold text-[#1D1D1F] tabular-nums">{(skuPage - 1) * SKU_PAGE_SIZE + 1}</span>–<span className="font-semibold text-[#1D1D1F] tabular-nums">{Math.min(skuPage * SKU_PAGE_SIZE, processedSkus.length)}</span> of <span className="font-semibold text-[#1D1D1F] tabular-nums">{processedSkus.length}</span> SKUs
-                </>
+                <span>
+                  <strong className="font-semibold text-[#1D1D1F] tabular-nums">{processedSkus.length}</strong> of{" "}
+                  <strong className="font-semibold text-[#1D1D1F] tabular-nums">{skuBreakdown.length}</strong> total rows
+                </span>
               )}
-            </span>
+            </div>
+
+            <div className="h-3.5 w-px bg-black/[0.08] hidden sm:block" />
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#86868B]">Total Analyzed Profit:</span>
+              <span
+                className={`font-semibold tabular-nums text-xs px-2.5 py-0.5 rounded-full border shadow-apple-sm ${
+                  profitability.contributionProfit >= 0
+                    ? "bg-emerald-500/10 text-emerald-800 border-emerald-500/20"
+                    : "bg-rose-500/10 text-rose-800 border-rose-500/20"
+                }`}
+              >
+                {formatINR(profitability.contributionProfit)}
+              </span>
+            </div>
           </div>
 
-          {/* Chapter / Pagination Controls */}
-          {totalSkuPages > 1 && (
-            <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-full border border-black/[0.08] shadow-apple-sm">
-              <button
-                type="button"
-                disabled={skuPage === 1}
-                onClick={() => setSkuPage((p) => Math.max(1, p - 1))}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-[#1D1D1F] hover:bg-black/[0.04] disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer active:scale-95"
-                title="Previous 10 SKUs"
-                aria-label="Previous 10 SKUs"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Prev</span>
-              </button>
-
-              <div className="flex items-center gap-1 px-1">
-                {Array.from({ length: totalSkuPages }).map((_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <button
-                      key={pageNum}
-                      type="button"
-                      onClick={() => setSkuPage(pageNum)}
-                      className={`w-7 h-7 rounded-full text-xs font-semibold transition cursor-pointer flex items-center justify-center active:scale-95 ${
-                        skuPage === pageNum
-                          ? "bg-[#1D1D1F] text-white shadow-apple-sm"
-                          : "text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-black/[0.04]"
-                      }`}
-                      aria-label={`Go to page ${pageNum}`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
+          <div className="flex items-center gap-4 sm:gap-6 flex-wrap justify-end">
+            {/* Rows per page selector */}
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs text-[#1D1D1F] font-normal whitespace-nowrap">
+                Rows per page
+              </span>
+              <div className="relative inline-flex items-center">
+                <select
+                  value={skuPageSize}
+                  onChange={(e) => {
+                    setSkuPageSize(Number(e.target.value));
+                    setSkuPage(1);
+                  }}
+                  aria-label="Rows per page"
+                  className="appearance-none bg-white border border-black/[0.1] hover:border-black/[0.2] text-xs font-semibold text-[#1D1D1F] pl-3 pr-7 py-1 rounded-lg shadow-apple-sm focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-[#86868B] absolute right-2 pointer-events-none stroke-[2]" />
               </div>
+            </div>
 
+            {/* Page X of Y */}
+            <div className="text-xs text-[#1D1D1F] font-normal whitespace-nowrap">
+              Page <span className="font-semibold tabular-nums">{skuPage}</span> of{" "}
+              <span className="font-semibold tabular-nums">{totalSkuPages}</span>
+            </div>
+
+            {/* Four navigation buttons */}
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                disabled={skuPage === totalSkuPages}
-                onClick={() => setSkuPage((p) => Math.min(totalSkuPages, p + 1))}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-[#1D1D1F] hover:bg-black/[0.04] disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer active:scale-95"
-                title="Next 10 SKUs"
-                aria-label="Next 10 SKUs"
+                onClick={() => setSkuPage(1)}
+                disabled={skuPage <= 1}
+                aria-label="First page"
+                title="First page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
               >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronsLeft className="w-4 h-4 stroke-[1.75]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSkuPage((p) => Math.max(1, p - 1))}
+                disabled={skuPage <= 1}
+                aria-label="Previous page"
+                title="Previous page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4 stroke-[1.75]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSkuPage((p) => Math.min(totalSkuPages, p + 1))}
+                disabled={skuPage >= totalSkuPages}
+                aria-label="Next page"
+                title="Next page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4 stroke-[1.75]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSkuPage(totalSkuPages)}
+                disabled={skuPage >= totalSkuPages}
+                aria-label="Last page"
+                title="Last page"
+                className="w-8 h-8 rounded-lg border border-black/[0.08] bg-white hover:bg-black/[0.03] text-[#1D1D1F] disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center shadow-apple-sm transition active:scale-95 cursor-pointer"
+              >
+                <ChevronsRight className="w-4 h-4 stroke-[1.75]" />
               </button>
             </div>
-          )}
-
-          {/* Total Contribution Pill */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-[#86868B]">Total Analyzed Profit:</span>
-            <span
-              className={`font-semibold tabular-nums text-xs px-3 py-1 rounded-full border shadow-apple-sm ${
-                profitability.contributionProfit >= 0
-                  ? "bg-emerald-500/10 text-emerald-800 border-emerald-500/20"
-                  : "bg-rose-500/10 text-rose-800 border-rose-500/20"
-              }`}
-            >
-              {formatINR(profitability.contributionProfit)}
-            </span>
           </div>
         </div>
       </div>

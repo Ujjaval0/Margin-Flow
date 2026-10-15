@@ -1,6 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from "react";
+import { archiveRecords, applyArchivePatch, RecycleType } from "./recycle-bin";
+import type { LedgerData } from "./snapshot-validation";
+import { mergeOrders, mergeSettlements } from "./sync-merge";
+import { parseLedgerSnapshot } from "./snapshot-validation";
+import { businessDate } from "./report-scope";
+import { allocateSupplierPayment } from "./purchase-accounting";
+
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Product,
   Order,
@@ -53,9 +60,11 @@ import {
   SettlementAgingSummary,
 } from "./profitability-engine";
 
-export const LEDGER_STORAGE_KEY = "MARGINFLOW_PERSISTENT_LEDGER_V2";
+import { LEDGER_STORAGE_KEY, tenantLedgerKey, readTenantSnapshot } from "./tenant-cache";
+export { LEDGER_STORAGE_KEY } from "./tenant-cache";
 
 interface PlatformContextType {
+  reportDataset: { orders: Order[]; returns: ReturnRecord[]; settlements: Settlement[]; claims: Claim[]; expenses: Expense[] };
   products: Product[];
   orders: Order[];
   returns: ReturnRecord[];
@@ -100,13 +109,16 @@ interface PlatformContextType {
 
   // Persistent Ledger Management
   isHydrated: boolean;
+  isSyncingWithDb: boolean;
+  refreshFromDatabase: () => Promise<void>;
   resetLedgerToDefaults: () => void;
   exportLedgerSnapshot: () => string;
   importLedgerSnapshot: (jsonString: string) => boolean;
+  restoreArchivedRecord: (id: string) => Promise<void>;
 
   // Actions
   addOrder: (order: Order) => void;
-  syncExternalOrders: (incomingOrders: Order[]) => { added: number; updated: number };
+  syncExternalOrders: (incomingOrders: Order[]) => Promise<{ added: number; updated: number }>;
   updateOrder: (order: Order) => void;
   deleteOrder: (orderId: string) => void;
   deleteOrders: (orderIds: string[]) => void;
@@ -129,6 +141,7 @@ interface PlatformContextType {
   updateComplaintStatus: (ticketId: string, status: CustomerComplaint["status"], resolutionNotes?: string) => void;
   deleteComplaint: (ticketId: string) => void;
   addSettlement: (settlement: Settlement) => void;
+  syncExternalSettlements: (incomingSettlements: Settlement[]) => Promise<{ added: number; updated: number }>;
   addExpense: (expense: Expense) => void;
   updateExpense: (expense: Expense) => void;
   deleteExpense: (expenseId: string) => void;
@@ -161,120 +174,185 @@ const PlatformContext = createContext<PlatformContextType | null>(null);
 
 export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
-  const [returns, setReturns] = useState<ReturnRecord[]>(INITIAL_RETURNS);
-  const [settlements, setSettlements] = useState<Settlement[]>(INITIAL_SETTLEMENTS);
-  const [claims, setClaims] = useState<Claim[]>(INITIAL_CLAIMS);
-  const [suppliers, setSuppliers] = useState<Supplier[]>(INITIAL_SUPPLIERS);
-  const [purchases, setPurchases] = useState<PurchaseBill[]>(INITIAL_PURCHASES);
-  const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
-  const [aiDocuments, setAiDocuments] = useState<AIStagedDocument[]>(INITIAL_AI_DOCUMENTS);
-  const [auditLogs, setAuditLogs] = useState<FinancialAuditLog[]>(INITIAL_AUDIT_LOGS);
-  const [complaints, setComplaints] = useState<CustomerComplaint[]>(INITIAL_COMPLAINTS);
+  const [isSyncingWithDb, setIsSyncingWithDb] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [returns, setReturns] = useState<ReturnRecord[]>([]);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [purchases, setPurchases] = useState<PurchaseBill[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [aiDocuments, setAiDocuments] = useState<AIStagedDocument[]>([]);
+  const [auditLogs, setAuditLogs] = useState<FinancialAuditLog[]>([]);
+  const [complaints, setComplaints] = useState<CustomerComplaint[]>([]);
   const [currentUser, setCurrentUser] = useState<UserAccount>(DEFAULT_ACCOUNTS[0]);
   const [acknowledgedLossLeaderSkus, setAcknowledgedLossLeaderSkus] = useState<string[]>([]);
   const [datePreset, setDatePreset] = useState<DateRangePreset>("ALL");
   const [customDateRange, setCustomDateRange] = useState<DateFilterRange | null>(null);
   const [selectedMarketplace, setSelectedMarketplace] = useState<Marketplace | "ALL">("ALL");
 
-  // Rehydrate persistent ledger and user session from localStorage on client mount
-  useEffect(() => {
-    try {
-      if (typeof window !== "undefined") {
-        const savedSession = localStorage.getItem("marginflow_session");
-        if (savedSession) {
-            const parsedUser = JSON.parse(savedSession);
-            if (parsedUser) {
-              setCurrentUser((prev) => ({
-                ...prev,
-                ...parsedUser,
-                accountType: parsedUser.accountType || prev.accountType,
-                onboardingPreferences: parsedUser.onboardingPreferences || prev.onboardingPreferences,
-              }));
-            }
-        }
+  const verifiedOwner = useRef<string | null>(null);
+  const refreshGeneration = useRef(0);
+  const postedPurchases = useRef(new Set<string>());
+  const [cacheOwner, setCacheOwner] = useState<string | null>(null);
 
-        const saved = localStorage.getItem(LEDGER_STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed && parsed.data) {
-            if (Array.isArray(parsed.data.products)) setProducts(parsed.data.products);
-            if (Array.isArray(parsed.data.orders)) {
-              const seenOrderIds = new Set<string>();
-              const sanitizedOrders = parsed.data.orders.map((o: Order, idx: number) => {
-                const marketplace =
-                  o.marketplace === "Other" || o.marketplace === "B2B Wholesale"
-                    ? "Personal Website"
-                    : o.marketplace;
-                if (seenOrderIds.has(o.id)) {
-                  const uniqueId = `${o.id}_${idx}_${Math.floor(Math.random() * 1000)}`;
-                  seenOrderIds.add(uniqueId);
-                  return { ...o, id: uniqueId, marketplace };
-                }
-                seenOrderIds.add(o.id);
-                return { ...o, marketplace };
-              });
-              setOrders(sanitizedOrders);
-            }
-            if (Array.isArray(parsed.data.returns)) {
-              setReturns(
-                parsed.data.returns.map((r: ReturnRecord) => ({
-                  ...r,
-                  marketplace:
-                    r.marketplace === "Other" || r.marketplace === "B2B Wholesale"
-                      ? "Personal Website"
-                      : r.marketplace,
-                }))
-              );
-            }
-            if (Array.isArray(parsed.data.settlements)) {
-              setSettlements(
-                parsed.data.settlements.map((s: Settlement) => ({
-                  ...s,
-                  marketplace:
-                    s.marketplace === "Other" || s.marketplace === "B2B Wholesale"
-                      ? "Personal Website"
-                      : s.marketplace,
-                }))
-              );
-            }
-            if (Array.isArray(parsed.data.claims)) {
-              setClaims(
-                parsed.data.claims.map((c: Claim) => ({
-                  ...c,
-                  marketplace:
-                    c.marketplace === "Other" || c.marketplace === "B2B Wholesale"
-                      ? "Personal Website"
-                      : c.marketplace,
-                }))
-              );
-            }
-            if (Array.isArray(parsed.data.suppliers)) setSuppliers(parsed.data.suppliers);
-            if (Array.isArray(parsed.data.purchases)) setPurchases(parsed.data.purchases);
-            if (Array.isArray(parsed.data.expenses)) setExpenses(parsed.data.expenses);
-            if (Array.isArray(parsed.data.aiDocuments)) setAiDocuments(parsed.data.aiDocuments);
-            if (Array.isArray(parsed.data.auditLogs)) setAuditLogs(parsed.data.auditLogs);
-            if (Array.isArray(parsed.data.complaints)) setComplaints(parsed.data.complaints);
-            if (Array.isArray(parsed.data.acknowledgedLossLeaderSkus)) setAcknowledgedLossLeaderSkus(parsed.data.acknowledgedLossLeaderSkus);
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Failed to rehydrate persistent ledger from storage:", e);
-    } finally {
-      setIsHydrated(true);
-    }
+  const liveLedger = useRef<LedgerData>({ products, orders, returns, settlements, claims, suppliers, purchases, expenses, aiDocuments, auditLogs, complaints, acknowledgedLossLeaderSkus });
+  liveLedger.current = { products, orders, returns, settlements, claims, suppliers, purchases, expenses, aiDocuments, auditLogs, complaints, acknowledgedLossLeaderSkus };
+  const archiveBusy = useRef(false);
+  const applyLedgerChange = useCallback((data: LedgerData) => {
+    liveLedger.current = data;
+    setProducts(data.products); setOrders(data.orders); setReturns(data.returns);
+    setSettlements(data.settlements); setClaims(data.claims); setExpenses(data.expenses);
+  }, []);
+  const archiveSelection = useCallback(async (type: RecycleType, ids: string[]) => {
+    if (archiveBusy.current) { alert("Another archive operation is in progress. Please retry shortly."); return; }
+    const owner = verifiedOwner.current;
+    if (!owner) { alert("Sign in before deleting records."); return; }
+    archiveBusy.current = true;
+    try {
+      const patch = archiveRecords(liveLedger.current, type, ids);
+      const response = await fetch("/api/recycle-bin", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ action: "archive", type, ids, patch }) });
+      const result = await response.json();
+      if (!response.ok || result.success !== true) throw new Error(result.error || "Deletion could not be saved.");
+      if (verifiedOwner.current !== owner) return;
+      applyLedgerChange(applyArchivePatch(liveLedger.current, patch));
+    } catch (error) { alert(error instanceof Error ? error.message : "Deletion failed. Please retry."); }
+    finally { archiveBusy.current = false; }
+  }, [applyLedgerChange]);
+  const restoreArchivedRecord = useCallback(async (id: string) => {
+    if (archiveBusy.current) throw new Error("Another archive operation is in progress.");
+    const owner = verifiedOwner.current;
+    if (!owner) throw new Error("Sign in before restoring records.");
+    archiveBusy.current = true;
+    try {
+      const response = await fetch("/api/recycle-bin?id=" + encodeURIComponent(id), { credentials: "same-origin", cache: "no-store" });
+      const record = await response.json();
+      if (!response.ok || !record.patch) throw new Error("Archive unavailable or expired.");
+      if (verifiedOwner.current !== owner) throw new Error("Account changed during recovery.");
+      applyArchivePatch(liveLedger.current, record.patch, true);
+      const saved = await fetch("/api/recycle-bin", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restore", id }) });
+      const result = await saved.json();
+      if (!saved.ok || result.success !== true) throw new Error(result.error || "Recovery could not be saved.");
+      if (verifiedOwner.current !== owner) throw new Error("Account changed during recovery.");
+      applyLedgerChange(applyArchivePatch(liveLedger.current, record.patch, true));
+    } finally { archiveBusy.current = false; }
+  }, [applyLedgerChange]);
+
+  const clearTenantData = useCallback(() => {
+    postedPurchases.current.clear();
+    setProducts([]); setOrders([]); setReturns([]); setSettlements([]);
+    setClaims([]); setSuppliers([]); setPurchases([]); setExpenses([]);
+    setAiDocuments([]); setAuditLogs([]); setComplaints([]);
+    setAcknowledgedLossLeaderSkus([]);
+    setSelectedMarketplace("ALL"); setDatePreset("ALL"); setCustomDateRange(null);
   }, []);
 
+  // Only the server session may select a tenant cache; browser identity is display metadata.
+  const refreshFromDatabase = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    const generation = ++refreshGeneration.current;
+    let identityConfirmed = false;
+    setIsSyncingWithDb(true);
+    try {
+      const meRes = await fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
+      if (generation !== refreshGeneration.current) return;
+      if (!meRes.ok) {
+        verifiedOwner.current = null; setCacheOwner(null); clearTenantData();
+        return;
+      }
+      const meData = await meRes.json();
+      if (generation !== refreshGeneration.current) return;
+      const ownerId = meData?.user?.id;
+      if (typeof ownerId !== "string" || !ownerId) {
+        verifiedOwner.current = null; setCacheOwner(null); clearTenantData();
+        return;
+      }
+      identityConfirmed = true;
+      if (verifiedOwner.current !== ownerId) {
+        clearTenantData();
+        verifiedOwner.current = ownerId;
+        setCacheOwner(ownerId);
+        const data = readTenantSnapshot(localStorage, ownerId);
+        if (data) {
+          if (Array.isArray(data.products)) setProducts(data.products);
+          if (Array.isArray(data.orders)) setOrders(data.orders);
+          if (Array.isArray(data.returns)) setReturns(data.returns);
+          if (Array.isArray(data.settlements)) setSettlements(data.settlements);
+          if (Array.isArray(data.claims)) setClaims(data.claims);
+          if (Array.isArray(data.suppliers)) setSuppliers(data.suppliers);
+          if (Array.isArray(data.purchases)) setPurchases(data.purchases);
+          if (Array.isArray(data.expenses)) setExpenses(data.expenses);
+          if (Array.isArray(data.aiDocuments)) setAiDocuments(data.aiDocuments);
+          if (Array.isArray(data.auditLogs)) setAuditLogs(data.auditLogs);
+          if (Array.isArray(data.complaints)) setComplaints(data.complaints);
+          if (Array.isArray(data.acknowledgedLossLeaderSkus)) setAcknowledgedLossLeaderSkus(data.acknowledgedLossLeaderSkus);
+        }
+      }
+      setCurrentUser(previous => ({ ...previous, ...meData.user }));
+      const responses = await Promise.all([
+        fetch("/api/orders?limit=2000", { credentials: "same-origin", cache: "no-store" }),
+        fetch("/api/settlements?limit=2000", { credentials: "same-origin", cache: "no-store" }),
+        fetch("/api/products?limit=2000", { credentials: "same-origin", cache: "no-store" }),
+      ]);
+      if (responses.some(response => !response.ok)) throw new Error("Ledger synchronization unavailable.");
+      const [ordersJson, settlementsJson, productsJson] = await Promise.all(responses.map(response => response.json()));
+      if (generation !== refreshGeneration.current || verifiedOwner.current !== ownerId) return;
+      if (!Array.isArray(ordersJson.orders) || !Array.isArray(settlementsJson.settlements) || !Array.isArray(productsJson.products)) {
+        throw new Error("Invalid ledger response.");
+      }
+      // Empty authoritative responses must remove stale cached rows too.
+      setOrders(ordersJson.orders);
+      setSettlements(settlementsJson.settlements);
+      setProducts(productsJson.products);
+      const recoveredResponse = await fetch("/api/recycle-bin?recovered=true", { credentials: "same-origin", cache: "no-store" });
+      if (recoveredResponse.ok) {
+        const recoveredData = (await recoveredResponse.json()).recovered;
+        if (generation === refreshGeneration.current && verifiedOwner.current === ownerId && recoveredData) {
+          const mergeRecovered = <T extends { id: string }>(current: T[], recovered: T[]) => [...current, ...recovered.filter(row => !current.some(existing => existing.id === row.id))];
+          if (Array.isArray(recoveredData.returns)) setReturns(previous => mergeRecovered(previous, recoveredData.returns));
+          if (Array.isArray(recoveredData.claims)) setClaims(previous => mergeRecovered(previous, recoveredData.claims));
+          if (Array.isArray(recoveredData.expenses)) setExpenses(previous => mergeRecovered(previous, recoveredData.expenses));
+        }
+      }
+
+    } catch {
+      if (generation === refreshGeneration.current) {
+        // Fail closed if identity has not been confirmed; never hydrate the unowned legacy cache.
+        if (!identityConfirmed) { verifiedOwner.current = null; setCacheOwner(null); clearTenantData(); }
+        console.warn("[PlatformStore] Ledger synchronization unavailable.");
+      }
+    } finally {
+      if (generation === refreshGeneration.current) { setIsSyncingWithDb(false); setIsHydrated(true); }
+    }
+  }, [clearTenantData]);
+
+  useEffect(() => {
+    void refreshFromDatabase();
+    const onFocus = () => { void refreshFromDatabase(); };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("pageshow", onFocus);
+    window.addEventListener("storage", onFocus);
+    window.addEventListener("marginflow:session-changed", onFocus);
+    return () => {
+      ++refreshGeneration.current;
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("pageshow", onFocus);
+      window.removeEventListener("storage", onFocus);
+      window.removeEventListener("marginflow:session-changed", onFocus);
+    };
+  }, [refreshFromDatabase]);
   // Debounced synchronization of state mutations to local ledger storage (prevents UI thread freezing)
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated || !cacheOwner || verifiedOwner.current !== cacheOwner) return;
+    const ownerId = cacheOwner;
+    const storageKey = tenantLedgerKey(ownerId);
     const timer = setTimeout(() => {
       try {
         if (typeof window !== "undefined") {
           const snapshot = {
             version: 1,
+            ownerId,
             timestamp: new Date().toISOString(),
             data: {
               products,
@@ -295,13 +373,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           if ("requestIdleCallback" in window) {
             (window as any).requestIdleCallback(() => {
               try {
-                localStorage.setItem(LEDGER_STORAGE_KEY, serialized);
+                if (verifiedOwner.current === ownerId) localStorage.setItem(storageKey, serialized);
               } catch (err) {
                 console.error("Failed to save ledger to localStorage:", err);
               }
             });
           } else {
-            localStorage.setItem(LEDGER_STORAGE_KEY, serialized);
+            if (verifiedOwner.current === ownerId) localStorage.setItem(storageKey, serialized);
           }
         }
       } catch (e) {
@@ -311,6 +389,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
     return () => clearTimeout(timer);
   }, [
+    cacheOwner,
     isHydrated,
     products,
     orders,
@@ -326,11 +405,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     acknowledgedLossLeaderSkus,
   ]);
 
-  // Derive dynamic anchor date from latest order in dataset
-  const effectiveAnchorDate = useMemo(() => {
-    if (orders.length === 0) return "2026-09-07";
-    return orders.reduce((max, o) => (o.orderDate > max ? o.orderDate : max), orders[0].orderDate);
-  }, [orders]);
+  // Reports and aging use the current business day, even when imports are old.
+  const effectiveAnchorDate = businessDate();
 
   // Filter datasets by date preset & prior period for trend comparisons
   const dateRanges = useMemo(() => {
@@ -431,14 +507,15 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     return calculateSkuProfitability(
       currentDataset.orders,
       currentDataset.returns,
+      currentDataset.settlements,
       currentDataset.claims,
       currentDataset.expenses
     );
   }, [currentDataset]);
 
   const settlementAging = useMemo(() => {
-    return calculateSettlementAging(currentDataset.orders, currentDataset.settlements, effectiveAnchorDate);
-  }, [currentDataset.orders, currentDataset.settlements, effectiveAnchorDate]);
+    return calculateSettlementAging(currentDataset.orders, settlements, effectiveAnchorDate, returns, claims);
+  }, [currentDataset.orders, settlements, returns, claims, effectiveAnchorDate]);
 
   const guardrailStatus = useMemo(() => {
     return runSystemGuardrailDiagnostics(
@@ -608,46 +685,34 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Order created in system and stock deducted",
     };
     setAuditLogs((prev) => [log, ...prev]);
+
+    // Persist to multi-tenant backend PostgreSQL
+    if (typeof window !== "undefined") {
+      fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ orders: [{ ...order, id: assignedId }] }),
+      }).catch((e) => console.warn("[PlatformStore] Async order persistence deferred:", e));
+    }
   }, []);
 
-  const syncExternalOrders = useCallback((incomingOrders: Order[]) => {
-    let addedCount = 0;
-    let updatedCount = 0;
-
-    setOrders((prev) => {
-      const existingMap = new Map<string, number>();
-      prev.forEach((o, idx) => {
-        if (o.channelOrderId) existingMap.set(o.channelOrderId, idx);
-        existingMap.set(o.id, idx);
-      });
-
-      const next = [...prev];
-
-      for (const inc of incomingOrders) {
-        const lookupKey = inc.channelOrderId || inc.id;
-        const existingIdx = existingMap.get(lookupKey);
-
-        if (existingIdx !== undefined) {
-          next[existingIdx] = {
-            ...next[existingIdx],
-            status: inc.status || next[existingIdx].status,
-            customerName: inc.customerName || next[existingIdx].customerName,
-            customerCity: inc.customerCity || next[existingIdx].customerCity,
-            customerState: inc.customerState || next[existingIdx].customerState,
-            items: inc.items && inc.items.length > 0 ? inc.items : next[existingIdx].items,
-            notes: inc.notes || next[existingIdx].notes,
-          };
-          updatedCount++;
-        } else {
-          next.unshift(inc);
-          existingMap.set(inc.id, 0);
-          if (inc.channelOrderId) existingMap.set(inc.channelOrderId, 0);
-          addedCount++;
-        }
-      }
-
-      return next;
+  const syncExternalOrders = useCallback(async (incomingOrders: Order[]) => {
+    if (!incomingOrders.length) return { added: 0, updated: 0 };
+    const owner = verifiedOwner.current;
+    if (!owner) throw new Error("Authentication required to synchronize records.");
+    const response = await fetch("/api/orders", {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
+      body: JSON.stringify({ orders: incomingOrders }),
     });
+    const saved = await response.json();
+    if (!response.ok || saved.success !== true) throw new Error("Records could not be saved. Please retry.");
+    if (verifiedOwner.current !== owner) throw new Error("Account changed during synchronization.");
+    const canonicalIncoming = incomingOrders.map((order, index) => ({ ...order, id: saved.orderIds?.[index] || order.id }));
+    const result = mergeOrders(liveLedger.current.orders, canonicalIncoming);
+    const { added: addedCount, updated: updatedCount } = result;
+    liveLedger.current = { ...liveLedger.current, orders: result.rows };
+    setOrders(result.rows);
 
     if (addedCount > 0 || updatedCount > 0) {
       const log: FinancialAuditLog = {
@@ -664,8 +729,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       setAuditLogs((prev) => [log, ...prev]);
     }
 
+
     return { added: addedCount, updated: updatedCount };
-  }, []);
+  }, [orders]);
 
   const updateOrderStatus = useCallback((orderId: string, status: Order["status"]) => {
     setOrders((prev) =>
@@ -731,96 +797,12 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteOrder = useCallback((orderId: string) => {
-    let targetChannelOrderId: string | undefined;
-    setOrders((prev) => {
-      const orderToDelete = prev.find((o) => o.id === orderId);
-      if (orderToDelete) {
-        targetChannelOrderId = orderToDelete.channelOrderId;
-        // Restore inventory for items sold in this order that were not returned
-        setProducts((pList) =>
-          pList.map((p) => {
-            const item = orderToDelete.items.find((i) => i.sku === p.sku);
-            if (item) {
-              const activeSoldQty = Math.max(0, item.quantity - (item.returnedQuantity || 0));
-              return {
-                ...p,
-                stockQuantity: (p.stockQuantity ?? 0) + activeSoldQty,
-              };
-            }
-            return p;
-          })
-        );
-      }
-      return prev.filter((o) => o.id !== orderId);
-    });
-    setReturns((prev) =>
-      prev.filter(
-        (r) => r.orderId !== orderId && (!targetChannelOrderId || r.channelOrderId !== targetChannelOrderId)
-      )
-    );
-    setSettlements((prev) =>
-      prev.filter(
-        (s) => s.orderId !== orderId && (!targetChannelOrderId || s.orderId !== targetChannelOrderId)
-      )
-    );
-    setClaims((prev) =>
-      prev.filter(
-        (c) => c.orderId !== orderId && (!targetChannelOrderId || c.orderId !== targetChannelOrderId)
-      )
-    );
-    const log: FinancialAuditLog = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      entityType: "ORDER",
-      entityId: orderId,
-      fieldName: "status",
-      oldValue: "Active",
-      newValue: "DELETED",
-      modifiedBy: "Operator",
-      reason: "Order and associated returns, settlements, and claims deleted",
-    };
-    setAuditLogs((prev) => [log, ...prev]);
-  }, []);
+    void archiveSelection("orders", [orderId]);
+  }, [archiveSelection]);
 
   const deleteOrders = useCallback((orderIds: string[]) => {
-    const idSet = new Set(orderIds);
-    setOrders((prev) => {
-      const ordersToDelete = prev.filter((o) => idSet.has(o.id));
-      if (ordersToDelete.length > 0) {
-        setProducts((pList) =>
-          pList.map((p) => {
-            let restored = 0;
-            ordersToDelete.forEach((o) => {
-              const item = o.items.find((i) => i.sku === p.sku);
-              if (item) {
-                restored += Math.max(0, item.quantity - (item.returnedQuantity || 0));
-              }
-            });
-            return restored > 0 ? { ...p, stockQuantity: (p.stockQuantity ?? 0) + restored } : p;
-          })
-        );
-        ordersToDelete.forEach((o) => {
-          if (o.channelOrderId) idSet.add(o.channelOrderId);
-        });
-      }
-      return prev.filter((o) => !idSet.has(o.id));
-    });
-    setReturns((prev) => prev.filter((r) => !idSet.has(r.orderId) && (!r.channelOrderId || !idSet.has(r.channelOrderId))));
-    setSettlements((prev) => prev.filter((s) => !idSet.has(s.orderId)));
-    setClaims((prev) => prev.filter((c) => !idSet.has(c.orderId)));
-    const log: FinancialAuditLog = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      entityType: "ORDER",
-      entityId: orderIds.slice(0, 3).join(", ") + (orderIds.length > 3 ? "..." : ""),
-      fieldName: "bulk_deletion",
-      oldValue: `${orderIds.length} orders`,
-      newValue: "DELETED",
-      modifiedBy: "Operator",
-      reason: `Bulk deleted ${orderIds.length} orders and linked records from ledger`,
-    };
-    setAuditLogs((prev) => [log, ...prev]);
-  }, []);
+    void archiveSelection("orders", orderIds);
+  }, [archiveSelection]);
 
   const bulkUpdateOrderStatus = useCallback((orderIds: string[], status: Order["status"]) => {
     const idSet = new Set(orderIds);
@@ -929,11 +911,14 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           (enrichedRecord.channelOrderId && o.channelOrderId === enrichedRecord.channelOrderId)
         ) {
           const currentReturns = o.returnIds || [];
+          let remainingReturned = enrichedRecord.quantity;
           const updatedItems = o.items.map((item) => {
             if (item.sku === enrichedRecord.sku) {
+              const applied = Math.min(remainingReturned, Math.max(0, item.quantity - (item.returnedQuantity || 0)));
+              remainingReturned -= applied;
               return {
                 ...item,
-                returnedQuantity: (item.returnedQuantity || 0) + enrichedRecord.quantity,
+                returnedQuantity: (item.returnedQuantity || 0) + applied,
               };
             }
             return item;
@@ -941,7 +926,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
           // Point 8: Automatic order status transition
           const newStatus: Order["status"] =
-            enrichedRecord.returnType === "RTO"
+            updatedItems.reduce((sum, item) => sum + (item.returnedQuantity || 0), 0) < updatedItems.reduce((sum, item) => sum + item.quantity, 0)
+              ? "PARTIALLY_RETURNED"
+              : enrichedRecord.returnType === "RTO"
               ? "RTO"
               : isDamaged
               ? "CLAIM_PENDING"
@@ -1107,94 +1094,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteReturn = useCallback((returnId: string) => {
-    let linkedClaimId: string | undefined;
-    let targetOrderId: string | undefined;
-
-    setReturns((prevReturns) => {
-      const returnToDelete = prevReturns.find((r) => r.id === returnId);
-      if (returnToDelete) {
-        linkedClaimId = returnToDelete.claimId;
-        targetOrderId = returnToDelete.orderId;
-
-        // Inventory Rollback: if this return was restocked, reverse the addition
-        const wasRestocked = returnToDelete.restockStatus === "RESTOCKED";
-        if (wasRestocked && returnToDelete.returnType !== "DAMAGED_RETURN" && returnToDelete.condition !== "DAMAGED" && returnToDelete.condition !== "UNUSABLE") {
-          setProducts((prevProds) =>
-            prevProds.map((p) =>
-              p.sku === returnToDelete.sku
-                ? { ...p, stockQuantity: Math.max(0, (p.stockQuantity ?? 0) - returnToDelete.quantity) }
-                : p
-            )
-          );
-        }
-
-        setOrders((prevOrders) =>
-          prevOrders.map((o) => {
-            if (
-              o.id === returnToDelete.orderId ||
-              (returnToDelete.channelOrderId && o.channelOrderId === returnToDelete.channelOrderId)
-            ) {
-              const updatedReturnIds = o.returnIds?.filter((id) => id !== returnId) || [];
-              const updatedClaimIds = linkedClaimId
-                ? o.claimIds?.filter((id) => id !== linkedClaimId) || []
-                : o.claimIds;
-              const updatedItems = o.items.map((item) => {
-                if (item.sku === returnToDelete.sku) {
-                  return {
-                    ...item,
-                    returnedQuantity: Math.max(0, (item.returnedQuantity || 0) - returnToDelete.quantity),
-                  };
-                }
-                return item;
-              });
-              const totalReturned = updatedItems.reduce((acc, it) => acc + (it.returnedQuantity || 0), 0);
-              const totalOrdered = updatedItems.reduce((acc, it) => acc + it.quantity, 0);
-
-              let newStatus = o.status;
-              if (updatedReturnIds.length === 0 || totalReturned === 0) {
-                newStatus = "DELIVERED";
-              } else if (totalReturned < totalOrdered) {
-                newStatus = "PARTIALLY_RETURNED";
-              }
-
-              return {
-                ...o,
-                status: newStatus,
-                items: updatedItems,
-                returnIds: updatedReturnIds,
-                claimIds: updatedClaimIds,
-              };
-            }
-            return o;
-          })
-        );
-      }
-      return prevReturns.filter((r) => r.id !== returnId);
-    });
-
-    // Cascade delete any claims linked to this return
-    setClaims((prevClaims) =>
-      prevClaims.filter(
-        (c) =>
-          c.returnId !== returnId &&
-          (!linkedClaimId || c.id !== linkedClaimId) &&
-          (!targetOrderId || c.orderId !== targetOrderId)
-      )
-    );
-
-    const log: FinancialAuditLog = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      entityType: "ORDER",
-      entityId: returnId,
-      fieldName: "status",
-      oldValue: "Active",
-      newValue: "DELETED",
-      modifiedBy: "Operator",
-      reason: "Return record and associated claims deleted",
-    };
-    setAuditLogs((prev) => [log, ...prev]);
-  }, []);
+    void archiveSelection("returns", [returnId]);
+  }, [archiveSelection]);
 
   const addClaim = useCallback((claim: Claim) => {
     setClaims((prev) => [claim, ...prev]);
@@ -1270,71 +1171,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteClaim = useCallback((claimId: string) => {
-    let targetOrderId: string | undefined;
-    let targetReturnId: string | undefined;
-
-    setClaims((prevClaims) => {
-      const claimToDelete = prevClaims.find((c) => c.id === claimId);
-      if (claimToDelete) {
-        targetOrderId = claimToDelete.orderId;
-        targetReturnId = claimToDelete.returnId;
-      }
-      return prevClaims.filter((c) => c.id !== claimId);
-    });
-
-    // Unlink from returns and clear claimId
-    setReturns((prevReturns) =>
-      prevReturns.map((r) => {
-        if (r.claimId === claimId || (targetReturnId && r.id === targetReturnId)) {
-          const updated = { ...r };
-          delete updated.claimId;
-          return updated;
-        }
-        return r;
-      })
-    );
-
-    // Revert linked order's status if needed
-    setOrders((prevOrders) =>
-      prevOrders.map((o) => {
-        if (
-          (targetOrderId && (o.id === targetOrderId || o.channelOrderId === targetOrderId)) ||
-          o.claimIds?.includes(claimId)
-        ) {
-          const updatedClaimIds = o.claimIds?.filter((id) => id !== claimId) || [];
-          let newStatus: Order["status"] = o.status;
-          if (o.status === "CLAIM_APPROVED" || o.status === "CLAIM_PENDING") {
-            // If order still has returns, transition to DAMAGED_RETURN
-            if (o.returnIds && o.returnIds.length > 0) {
-              newStatus = "DAMAGED_RETURN";
-            } else {
-              newStatus = "DELIVERED";
-            }
-          }
-
-          return {
-            ...o,
-            status: newStatus,
-            claimIds: updatedClaimIds,
-          };
-        }
-        return o;
-      })
-    );
-
-    const log: FinancialAuditLog = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      entityType: "CLAIM",
-      entityId: claimId,
-      fieldName: "status",
-      oldValue: "Active",
-      newValue: "DELETED",
-      modifiedBy: "Operator",
-      reason: "Claim deleted from claims ledger",
-    };
-    setAuditLogs((prev) => [log, ...prev]);
-  }, []);
+    void archiveSelection("claims", [claimId]);
+  }, [archiveSelection]);
 
   const editClaim = useCallback((
     claimId: string,
@@ -1361,8 +1199,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteClaims = useCallback((claimIds: string[]) => {
-    claimIds.forEach((id) => deleteClaim(id));
-  }, [deleteClaim]);
+    void archiveSelection("claims", claimIds);
+  }, [archiveSelection]);
 
   const updateProductCost = useCallback((sku: string, newCost: number, reason: string) => {
     setProducts((prev) =>
@@ -1420,35 +1258,79 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "New catalog product created",
     };
     setAuditLogs((prev) => [log, ...prev]);
+
+    // Persist to multi-tenant backend PostgreSQL
+    if (typeof window !== "undefined") {
+      fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ product }),
+      }).catch((e) => console.warn("[PlatformStore] Async product persistence deferred:", e));
+    }
   }, []);
 
   const deleteProduct = useCallback((sku: string) => {
-    setProducts((prev) => prev.filter((p) => p.sku !== sku));
-    const log: FinancialAuditLog = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      entityType: "ORDER",
-      entityId: sku,
-      fieldName: "status",
-      oldValue: "Active",
-      newValue: "DELETED",
-      modifiedBy: "Operator",
-      reason: "Product removed from catalog",
-    };
-    setAuditLogs((prev) => [log, ...prev]);
-  }, []);
+    void archiveSelection("products", products.filter(product => product.sku === sku).map(product => product.id));
+  }, [archiveSelection, products]);
 
   const addSettlement = useCallback((settlement: Settlement) => {
     setSettlements((prev) => {
       const existingIdx = prev.findIndex(
-        (s) => s.id === settlement.id || (settlement.orderId && s.orderId === settlement.orderId)
+        (s) => s.marketplace === settlement.marketplace && s.id === settlement.id
       );
       if (existingIdx >= 0) {
         return prev.map((s, idx) => (idx === existingIdx ? settlement : s));
       }
       return [settlement, ...prev];
     });
+
+    // Persist to multi-tenant backend PostgreSQL
+    if (typeof window !== "undefined") {
+      fetch("/api/settlements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ settlements: [settlement] }),
+      }).catch((e) => console.warn("[PlatformStore] Async settlement persistence deferred:", e));
+    }
   }, []);
+
+  const syncExternalSettlements = useCallback(async (incomingSettlements: Settlement[]) => {
+    if (!incomingSettlements.length) return { added: 0, updated: 0 };
+    const owner = verifiedOwner.current;
+    if (!owner) throw new Error("Authentication required to synchronize records.");
+    const response = await fetch("/api/settlements", {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
+      body: JSON.stringify({ settlements: incomingSettlements }),
+    });
+    const saved = await response.json();
+    if (!response.ok || saved.success !== true) throw new Error("Records could not be saved. Please retry.");
+    if (verifiedOwner.current !== owner) throw new Error("Account changed during synchronization.");
+    const canonicalIncoming = incomingSettlements.map((settlement, index) => ({ ...settlement, id: saved.settlementIds?.[index] || settlement.id }));
+    const result = mergeSettlements(liveLedger.current.settlements, canonicalIncoming);
+    const { added: addedCount, updated: updatedCount } = result;
+    liveLedger.current = { ...liveLedger.current, settlements: result.rows };
+    setSettlements(result.rows);
+
+    if (addedCount > 0 || updatedCount > 0) {
+      const log: FinancialAuditLog = {
+        id: `AUD-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        entityType: "SETTLEMENT",
+        entityId: `SYNC-SET-${Date.now()}`,
+        fieldName: "netSettlement",
+        oldValue: "N/A",
+        newValue: "SYNCED",
+        modifiedBy: "Channel Integration",
+        reason: `Settlements synchronized: ${addedCount} added, ${updatedCount} updated`,
+      };
+      setAuditLogs((prev) => [log, ...prev]);
+    }
+
+
+    return { added: addedCount, updated: updatedCount };
+  }, [settlements]);
 
   const addExpense = useCallback((expense: Expense) => {
     setExpenses((prev) => [expense, ...prev]);
@@ -1473,58 +1355,29 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteExpense = useCallback((expenseId: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
-    const log: FinancialAuditLog = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      entityType: "EXPENSE" as any,
-      entityId: expenseId,
-      fieldName: "status",
-      oldValue: "Active",
-      newValue: "DELETED",
-      modifiedBy: "Operator",
-      reason: "Operating expense deleted",
-    };
-    setAuditLogs((prev) => [log, ...prev]);
-  }, []);
+    void archiveSelection("expenses", [expenseId]);
+  }, [archiveSelection]);
 
   const deleteExpenses = useCallback((expenseIds: string[]) => {
-    const idSet = new Set(expenseIds);
-    setExpenses((prev) => prev.filter((e) => !idSet.has(e.id)));
-    const log: FinancialAuditLog = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      entityType: "EXPENSE" as any,
-      entityId: expenseIds.join(", "),
-      fieldName: "status",
-      oldValue: "Active",
-      newValue: "DELETED",
-      modifiedBy: "Operator",
-      reason: `Bulk deleted ${expenseIds.length} operating expenses`,
-    };
-    setAuditLogs((prev) => [log, ...prev]);
-  }, []);
+    void archiveSelection("expenses", expenseIds);
+  }, [archiveSelection]);
 
   const addPurchase = useCallback((purchase: PurchaseBill) => {
-    setPurchases((prev) => [purchase, ...prev]);
-    if (purchase.paymentStatus === "PAID") {
-      setSuppliers((prev) =>
-        prev.map((s) => {
-          if (
-            s.id === purchase.supplierId ||
-            s.name.toLowerCase() === purchase.supplierName.toLowerCase()
-          ) {
-            return {
-              ...s,
-              totalPaid: (s.totalPaid || 0) + purchase.totalAmount,
-            };
-          }
-          return s;
-        })
-      );
+    if (postedPurchases.current.has(purchase.id) || purchases.some(bill => bill.id === purchase.id)) return;
+    if (!Number.isSafeInteger(purchase.quantity) || purchase.quantity <= 0 || !Number.isFinite(purchase.unitCost) || purchase.unitCost < 0 ||
+        !Number.isFinite(purchase.totalAmount) || purchase.totalAmount < 0 || !products.some(product => product.sku === purchase.sku)) {
+      throw new Error("Purchase requires a catalog item and valid quantity and amounts.");
     }
-  }, []);
-
+    postedPurchases.current.add(purchase.id);
+    const paidAmount = purchase.paidAmount ?? (purchase.paymentStatus === "PAID" ? purchase.totalAmount : 0);
+    setPurchases(previous => [{ ...purchase, paidAmount }, ...previous]);
+    setProducts(previous => previous.map(product => product.sku === purchase.sku ? {
+      ...product, stockQuantity: (product.stockQuantity || 0) + purchase.quantity,
+    } : product));
+    if (paidAmount > 0) setSuppliers(previous => previous.map(supplier => supplier.id === purchase.supplierId ? {
+      ...supplier, totalPaid: Math.round(((supplier.totalPaid || 0) + paidAmount) * 100) / 100,
+    } : supplier));
+  }, [purchases, products]);
   const addSupplier = useCallback((supplier: Supplier) => {
     setSuppliers((prev) => [supplier, ...prev]);
     const log: FinancialAuditLog = {
@@ -1582,6 +1435,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     ref: string,
     notes?: string
   ) => {
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error("Payment must be a positive amount.");
+    // Validate legacy partial allocations before committing either side of the payment.
+    allocateSupplierPayment(purchases, supplierId, amount);
     setSuppliers((prev) =>
       prev.map((s) => {
         if (s.id === supplierId) {
@@ -1595,26 +1451,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    // Reconcile open purchase bills for this supplier FIFO
-    setPurchases((prev) => {
-      let remainingPayment = amount;
-      return prev.map((bill) => {
-        if (
-          bill.supplierId === supplierId &&
-          bill.paymentStatus !== "PAID" &&
-          remainingPayment > 0
-        ) {
-          if (remainingPayment >= bill.totalAmount) {
-            remainingPayment -= bill.totalAmount;
-            return { ...bill, paymentStatus: "PAID" as const };
-          } else {
-            remainingPayment = 0;
-            return { ...bill, paymentStatus: "PARTIAL" as const };
-          }
-        }
-        return bill;
-      });
-    });
+    // Reconcile remaining invoice balances oldest-first; retain allocated amounts.
+    setPurchases(previous => allocateSupplierPayment(previous, supplierId, amount));
 
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
@@ -1628,7 +1466,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: notes || "Supplier balance payout recorded",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  }, []);
+  }, [purchases]);
 
   const updateStagedDocumentField = useCallback((
     docId: string,
@@ -1809,22 +1647,22 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const resetLedgerToDefaults = useCallback(() => {
     try {
       if (typeof window !== "undefined") {
-        localStorage.removeItem(LEDGER_STORAGE_KEY);
+        if (verifiedOwner.current) localStorage.removeItem(tenantLedgerKey(verifiedOwner.current));
       }
     } catch (e) {
       console.error("Failed to clear persistent ledger:", e);
     }
-    setProducts(INITIAL_PRODUCTS);
-    setOrders(INITIAL_ORDERS);
-    setReturns(INITIAL_RETURNS);
-    setSettlements(INITIAL_SETTLEMENTS);
-    setClaims(INITIAL_CLAIMS);
-    setSuppliers(INITIAL_SUPPLIERS);
-    setPurchases(INITIAL_PURCHASES);
-    setExpenses(INITIAL_EXPENSES);
-    setAiDocuments(INITIAL_AI_DOCUMENTS);
-    setAuditLogs(INITIAL_AUDIT_LOGS);
-    setComplaints(INITIAL_COMPLAINTS);
+    setProducts([]);
+    setOrders([]);
+    setReturns([]);
+    setSettlements([]);
+    setClaims([]);
+    setSuppliers([]);
+    setPurchases([]);
+    setExpenses([]);
+    setAiDocuments([]);
+    setAuditLogs([]);
+    setComplaints([]);
     setAcknowledgedLossLeaderSkus([]);
     setDatePreset("ALL");
     setCustomDateRange(null);
@@ -1833,6 +1671,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const exportLedgerSnapshot = useCallback((): string => {
     const snapshot = {
       version: 1,
+      ownerId: verifiedOwner.current,
       exportedAt: new Date().toISOString(),
       data: {
         products,
@@ -1867,22 +1706,21 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   const importLedgerSnapshot = useCallback((jsonString: string): boolean => {
     try {
-      const parsed = JSON.parse(jsonString);
-      const data = parsed?.data || parsed;
-      if (!data || typeof data !== "object") return false;
-
-      if (Array.isArray(data.products)) setProducts(data.products);
-      if (Array.isArray(data.orders)) setOrders(data.orders);
-      if (Array.isArray(data.returns)) setReturns(data.returns);
-      if (Array.isArray(data.settlements)) setSettlements(data.settlements);
-      if (Array.isArray(data.claims)) setClaims(data.claims);
-      if (Array.isArray(data.suppliers)) setSuppliers(data.suppliers);
-      if (Array.isArray(data.purchases)) setPurchases(data.purchases);
-      if (Array.isArray(data.expenses)) setExpenses(data.expenses);
-      if (Array.isArray(data.aiDocuments)) setAiDocuments(data.aiDocuments);
-      if (Array.isArray(data.auditLogs)) setAuditLogs(data.auditLogs);
-      if (Array.isArray(data.complaints)) setComplaints(data.complaints);
-      if (Array.isArray(data.acknowledgedLossLeaderSkus)) setAcknowledgedLossLeaderSkus(data.acknowledgedLossLeaderSkus);
+      if (!verifiedOwner.current) return false;
+      const data = parseLedgerSnapshot(jsonString, verifiedOwner.current);
+      if (!data) return false;
+      setProducts(data.products);
+      setOrders(data.orders);
+      setReturns(data.returns);
+      setSettlements(data.settlements);
+      setClaims(data.claims);
+      setSuppliers(data.suppliers);
+      setPurchases(data.purchases);
+      setExpenses(data.expenses);
+      setAiDocuments(data.aiDocuments);
+      setAuditLogs(data.auditLogs);
+      setComplaints(data.complaints);
+      setAcknowledgedLossLeaderSkus(data.acknowledgedLossLeaderSkus);
       return true;
     } catch (e) {
       console.error("Failed to parse imported ledger snapshot:", e);
@@ -1924,6 +1762,16 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Bulk catalog SKU ingestion",
     };
     setAuditLogs((prev) => [log, ...prev]);
+
+    // Persist to multi-tenant backend PostgreSQL
+    if (typeof window !== "undefined" && newProducts.length > 0) {
+      fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ products: newProducts }),
+      }).catch((e) => console.warn("[PlatformStore] Async bulk products persistence deferred:", e));
+    }
   }, []);
 
   const addComplaint = useCallback((complaint: CustomerComplaint) => {
@@ -1991,9 +1839,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser,
       switchAccountType,
       isHydrated,
+      isSyncingWithDb,
+      refreshFromDatabase,
       resetLedgerToDefaults,
+      reportDataset: currentDataset,
       exportLedgerSnapshot,
       importLedgerSnapshot,
+      restoreArchivedRecord,
       selectedMarketplace,
       setSelectedMarketplace,
       datePreset,
@@ -2037,6 +1889,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       updateComplaintStatus,
       deleteComplaint,
       addSettlement,
+      syncExternalSettlements,
       addExpense,
       updateExpense,
       deleteExpense,
@@ -2055,6 +1908,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       deleteStagedDocument,
     }),
     [
+      currentDataset,
       products,
       orders,
       returns,
@@ -2070,6 +1924,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser,
       switchAccountType,
       isHydrated,
+      isSyncingWithDb,
+      refreshFromDatabase,
       resetLedgerToDefaults,
       exportLedgerSnapshot,
       importLedgerSnapshot,
@@ -2113,6 +1969,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       updateComplaintStatus,
       deleteComplaint,
       addSettlement,
+      syncExternalSettlements,
       addExpense,
       updateExpense,
       deleteExpense,

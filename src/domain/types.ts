@@ -239,6 +239,7 @@ export interface PurchaseBill {
   taxes: number;
   totalAmount: number;
   paymentStatus: "PAID" | "PENDING" | "PARTIAL";
+  paidAmount?: number; // Recorded allocation against this bill, preserved across partial payments.
   documentUrl?: string;
 }
 
@@ -421,4 +422,22 @@ export interface UserAccount {
   onboardingPreferences?: OnboardingPreferences;
 }
 
+// Partition 10: Marketplace Synchronization Contract (Task 6.1)
+export type SyncStatus = "pending" | "running" | "succeeded" | "partial" | "failed";
 
+export interface SyncErrorItem {
+  code: string;
+  message: string;
+}
+
+export interface MarketplaceSyncResult {
+  marketplace: Marketplace;
+  status: SyncStatus;
+  fetchedCount: number;
+  importedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  lastSyncedAt: string;
+  nextCursor?: string;
+  errors: SyncErrorItem[];
+}

@@ -83,8 +83,8 @@ const CHANNELS: ChannelConfig[] = [
     marketplace: "Meesho",
     category: "Online Marketplace",
     endpoint: "/api/webhooks/generic",
-    defaultTab: "api",
-    supportedModes: ["api", "csv"],
+    defaultTab: "csv",
+    supportedModes: ["csv", "api"],
   },
   {
     id: "myntra",
@@ -92,8 +92,8 @@ const CHANNELS: ChannelConfig[] = [
     marketplace: "Myntra",
     category: "Online Marketplace",
     endpoint: "/api/webhooks/generic",
-    defaultTab: "api",
-    supportedModes: ["api", "csv"],
+    defaultTab: "csv",
+    supportedModes: ["csv", "api"],
   },
 ];
 
@@ -125,13 +125,13 @@ const CATALOG_PLATFORMS = [
   {
     id: "meesho",
     name: "Meesho",
-    description: "Supplier panel statement and payment reconciliation parser.",
+    description: "Upload Official Supplier Report (Payment Settlement & GST Tax Invoice).",
     icon: Globe,
   },
   {
     id: "myntra",
     name: "Myntra",
-    description: "Partner Portal integration for fashion apparel & catalog sync.",
+    description: "Upload Vendor Settlement Sheet (PPMP/Omni API available).",
     icon: ShoppingBag,
   },
   {
@@ -151,6 +151,8 @@ const CATALOG_PLATFORMS = [
 ];
 
 interface StoredChannelCredentials {
+  webhookPath?: string;
+  vaulted?: boolean;
   storeUrl?: string;
   consumerKey?: string;
   consumerSecret?: string;
@@ -171,6 +173,7 @@ interface StoredChannelCredentials {
 
 function channelHasValidCredentials(channelId: string, creds?: StoredChannelCredentials): boolean {
   if (!creds) return false;
+  if (creds.vaulted) return true;
   switch (channelId) {
     case "shopify":
       return Boolean(creds.storeUrl?.trim() && creds.consumerKey?.trim());
@@ -210,47 +213,137 @@ export function WebhookSimulatorView() {
   const [isSyncingOrders, setIsSyncingOrders] = useState(false);
   const [apiTestResult, setApiTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  // Load saved channel credentials and active status on client mount
-  // Strictly only activate if credentials actually exist and passed connection verification
+  // Load saved channel connections from server vault on client mount
+  // Enforces Zero Client-Side Master Secrets (TASK-2.3)
   useEffect(() => {
-    try {
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(STORAGE_CHANNELS_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed && typeof parsed === "object") {
-            setChannelCredentials(parsed);
-            setConnectedChannels((prev) => {
-              const updated = { ...prev };
-              Object.keys(parsed).forEach((key) => {
-                if (parsed[key]?.connected && channelHasValidCredentials(key, parsed[key])) {
-                  updated[key] = true;
-                } else {
-                  updated[key] = false;
-                }
-              });
-              return updated;
+    async function initVaultConnections() {
+      // 1. Fetch live vaulted connections from server
+      try {
+        const res = await fetch("/api/integrations/connections");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.connections)) {
+            const serverConnected: Record<string, boolean> = {
+              shopify: false,
+              woocommerce: false,
+              amazon: false,
+              flipkart: false,
+              meesho: false,
+              myntra: false,
+            };
+            const serverMeta: Record<string, StoredChannelCredentials> = {};
+
+            data.connections.forEach((conn: any) => {
+              const ch = CHANNELS.find(
+                (c) =>
+                  c.name.toLowerCase() === conn.marketplace.toLowerCase() ||
+                  c.id === conn.marketplace.toLowerCase() ||
+                  (conn.marketplace === "Amazon India" && c.id === "amazon")
+              );
+              if (ch && conn.isActive) {
+                serverConnected[ch.id] = true;
+                serverMeta[ch.id] = {
+                  webhookPath: conn.webhookPath,
+                  vaulted: true,
+                  connected: true,
+                  sellerId: conn.sellerId,
+                  lastSyncedAt: conn.lastSyncedAt,
+                };
+              }
             });
+
+            setConnectedChannels((prev) => ({ ...prev, ...serverConnected }));
+            setChannelCredentials((prev) => ({ ...prev, ...serverMeta }));
           }
         }
+      } catch (err) {
+        console.warn("Failed to load server vaulted connections:", err);
       }
-    } catch (e) {
-      console.error("Failed to load channel configs:", e);
+
+      // 2. Cleanse any legacy secrets from browser localStorage
+      if (typeof window !== "undefined") {
+        try {
+          const saved = localStorage.getItem(STORAGE_CHANNELS_KEY);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && typeof parsed === "object") {
+              const sanitized: Record<string, any> = {};
+              Object.keys(parsed).forEach((k) => {
+                const item = parsed[k];
+                if (item) {
+                  sanitized[k] = {
+                    storeUrl: item.storeUrl,
+                    sellerId: item.sellerId || item.supplierId,
+                    connected: Boolean(item.connected),
+                    lastSyncedAt: item.lastSyncedAt,
+                    totalOrdersInStore: item.totalOrdersInStore,
+                  };
+                }
+              });
+              localStorage.setItem(STORAGE_CHANNELS_KEY, JSON.stringify(sanitized));
+            }
+          }
+        } catch (e) {
+          console.error("Failed to sanitize local storage channel configs:", e);
+        }
+      }
     }
+
+    initVaultConnections();
   }, []);
 
   const saveChannelCredentials = (channelId: string, creds: StoredChannelCredentials) => {
+    // Zero Client-Side Master Secrets: Strip sensitive tokens before saving to state or localStorage
+    const safeMetadata: StoredChannelCredentials = {
+      storeUrl: creds.storeUrl,
+      sellerId: creds.sellerId || creds.supplierId,
+      connected: creds.connected,
+      lastSyncedAt: creds.lastSyncedAt,
+      totalOrdersInStore: creds.totalOrdersInStore,
+    };
+
     setChannelCredentials((prev) => {
-      const next = { ...prev, [channelId]: { ...(prev[channelId] || {}), ...creds } };
+      const next = { ...prev, [channelId]: { ...(prev[channelId] || {}), ...safeMetadata } };
       try {
         if (typeof window !== "undefined") {
           localStorage.setItem(STORAGE_CHANNELS_KEY, JSON.stringify(next));
         }
       } catch (err) {
-        console.error("Failed to save channel credentials:", err);
+        console.error("Failed to save channel metadata:", err);
       }
       return next;
     });
+  };
+
+  const vaultCredentialsOnServer = async (
+    marketplace: string,
+    credentials: Record<string, any>,
+    sellerId?: string
+  ) => {
+    try {
+      const response = await fetch("/api/integrations/connections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marketplace,
+          sellerId,
+          credentials,
+        }),
+      });
+      if (!response.ok) throw new Error("Could not save marketplace connection.");
+      const result = await response.json();
+      if (!result.success || !result.connection) throw new Error(result.error || "Could not save marketplace connection.");
+      const channel = CHANNELS.find((candidate) => candidate.name === marketplace ||
+        (candidate.id === "amazon" && marketplace === "Amazon India"));
+      if (channel) {
+        setChannelCredentials((previous) => ({ ...previous, [channel.id]: {
+          ...previous[channel.id], vaulted: true, webhookPath: result.connection.webhookPath,
+        } }));
+      }
+    } catch (err) {
+      console.warn("Failed to vault credentials on server:", err);
+      throw err;
+    }
   };
 
   // Real-time dynamic aggregation based on the actual platform orders
@@ -381,16 +474,33 @@ export function WebhookSimulatorView() {
     openConfigForChannel(channel);
   };
 
-  const handleDisconnectChannel = (channelId: string) => {
-    setConnectedChannels((prev) => ({ ...prev, [channelId]: false }));
-    saveChannelCredentials(channelId, { connected: false });
-    const channelName = CHANNELS.find((c) => c.id === channelId)?.name || "Channel";
+  const handleDisconnectChannel = async (channelId: string) => {
+    const channel = CHANNELS.find((c) => c.id === channelId);
+    const channelName = channel?.name || "Channel";
+    const marketplace = channelId === "amazon" ? "Amazon India" : channelName;
+
+    try {
+      const response = await fetch("/api/integrations/connections", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ marketplace }),
+      });
+      if (!response.ok || !(await response.json()).success) throw new Error("Could not disconnect channel.");
+      setConnectedChannels((prev) => ({ ...prev, [channelId]: false }));
+      setChannelCredentials((prev) => ({ ...prev, [channelId]: { connected: false } }));
+    } catch (e) {
+      showToast("Disconnection Failed", "Could not disconnect channel. Please retry.");
+      return;
+    }
+
     showToast("Channel Disconnected", `${channelName} has been disconnected and is now Inactive.`);
   };
 
   const getFullWebhookUrl = (endpoint: string) => {
+    const channel = CHANNELS.find((candidate) => candidate.endpoint === endpoint);
+    const ownedPath = channel ? channelCredentials[channel.id]?.webhookPath : undefined;
     if (typeof window !== "undefined") {
-      return `${window.location.origin}${endpoint}`;
+      return `${window.location.origin}${ownedPath || endpoint}`;
     }
     return `https://your-domain.com${endpoint}`;
   };
@@ -401,7 +511,7 @@ export function WebhookSimulatorView() {
     try {
       if (channel.id === "woocommerce") {
         const creds = channelCredentials.woocommerce;
-        if (!creds?.storeUrl || !creds?.consumerKey || !creds?.consumerSecret) {
+        if (!creds?.vaulted && (!creds?.storeUrl || !creds?.consumerKey || !creds?.consumerSecret)) {
           showToast("Setup Required", "Please configure your Store URL, Consumer Key, and Consumer Secret first.");
           openConfigForChannel(channel);
           return;
@@ -437,7 +547,7 @@ export function WebhookSimulatorView() {
 
       if (channel.id === "shopify") {
         const creds = channelCredentials.shopify;
-        if (!creds?.storeUrl || !creds?.consumerKey) {
+        if (!creds?.vaulted && (!creds?.storeUrl || !creds?.consumerKey)) {
           showToast("Setup Required", "Please configure your Shopify Store Domain and Admin API Access Token first.");
           openConfigForChannel(channel);
           return;
@@ -468,7 +578,7 @@ export function WebhookSimulatorView() {
 
       if (channel.id === "flipkart") {
         const creds = channelCredentials.flipkart;
-        if (!creds?.appId || !creds?.appSecret) {
+        if (!creds?.vaulted && (!creds?.appId || !creds?.appSecret)) {
           showToast("Setup Required", "Please configure your Flipkart App ID and Application Secret first.");
           openConfigForChannel(channel);
           return;
@@ -499,7 +609,7 @@ export function WebhookSimulatorView() {
 
       if (channel.id === "amazon") {
         const creds = channelCredentials.amazon;
-        if (!creds?.clientId || !creds?.clientSecret || !creds?.refreshToken) {
+        if (!creds?.vaulted && (!creds?.clientId || !creds?.clientSecret || !creds?.refreshToken)) {
           showToast("Setup Required", "Please configure Amazon SP-API Client ID, Secret, and Refresh Token first.");
           openConfigForChannel(channel);
           return;
@@ -632,7 +742,7 @@ export function WebhookSimulatorView() {
 
   // Test connection in modal
   const handleTestWooCommerceConnection = async () => {
-    if (!customApiUrl || !customApiKey || !webhookSecret) {
+    if (!channelCredentials.woocommerce?.vaulted && (!customApiUrl || !customApiKey || !webhookSecret)) {
       setApiTestResult({
         success: false,
         message: "Please enter Store URL, Consumer Key, and Consumer Secret.",
@@ -656,7 +766,14 @@ export function WebhookSimulatorView() {
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
+        if (customApiKey && webhookSecret) {
+          await vaultCredentialsOnServer("WooCommerce", {
+            storeUrl: customApiUrl,
+            consumerKey: customApiKey,
+            consumerSecret: webhookSecret,
+          });
+        }
         setApiTestResult({
           success: true,
           message: `Connected successfully! ${data.totalOrdersInStore || 0} orders found in store.`,
@@ -664,12 +781,11 @@ export function WebhookSimulatorView() {
         setConnectedChannels((prev) => ({ ...prev, woocommerce: true }));
         saveChannelCredentials("woocommerce", {
           storeUrl: customApiUrl,
-          consumerKey: customApiKey,
-          consumerSecret: webhookSecret,
           connected: true,
           totalOrdersInStore: data.totalOrdersInStore,
         });
-        showToast("Connected & Active", "WooCommerce connection verified and credentials saved.");
+
+        showToast("Connected & Active", "WooCommerce connection verified and credentials vaulted.");
       } else {
         setApiTestResult({
           success: false,
@@ -688,7 +804,7 @@ export function WebhookSimulatorView() {
 
   // Save & Sync orders from WooCommerce
   const handleSyncWooCommerceOrders = async () => {
-    if (!customApiUrl || !customApiKey || !webhookSecret) {
+    if (!channelCredentials.woocommerce?.vaulted && (!customApiUrl || !customApiKey || !webhookSecret)) {
       setApiTestResult({
         success: false,
         message: "Please enter Store URL, Consumer Key, and Consumer Secret before syncing.",
@@ -714,7 +830,7 @@ export function WebhookSimulatorView() {
 
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
-        const syncResult = syncExternalOrders(data.orders);
+        const syncResult = await syncExternalOrders(data.orders);
         const nowIso = new Date().toISOString();
 
         saveChannelCredentials("woocommerce", {
@@ -755,7 +871,7 @@ export function WebhookSimulatorView() {
 
   // Shopify Connection Test & Order Sync
   const handleTestShopifyConnection = async () => {
-    if (!customApiUrl || !customApiKey) {
+    if (!channelCredentials.shopify?.vaulted && (!customApiUrl || !customApiKey)) {
       setApiTestResult({
         success: false,
         message: "Please enter your Shopify Store Domain and Admin API Access Token.",
@@ -778,7 +894,13 @@ export function WebhookSimulatorView() {
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
+        if (customApiKey) {
+          await vaultCredentialsOnServer("Shopify", {
+            shopDomain: customApiUrl,
+            accessToken: customApiKey,
+          });
+        }
         setApiTestResult({
           success: true,
           message: `Connected successfully! Store: ${data.storeName || data.domain}`,
@@ -786,10 +908,10 @@ export function WebhookSimulatorView() {
         setConnectedChannels((prev) => ({ ...prev, shopify: true }));
         saveChannelCredentials("shopify", {
           storeUrl: customApiUrl,
-          consumerKey: customApiKey,
           connected: true,
         });
-        showToast("Connected & Active", "Shopify store verified and access token saved.");
+
+        showToast("Connected & Active", "Shopify store verified and access token vaulted.");
       } else {
         setApiTestResult({
           success: false,
@@ -807,7 +929,7 @@ export function WebhookSimulatorView() {
   };
 
   const handleSyncShopifyOrders = async () => {
-    if (!customApiUrl || !customApiKey) {
+    if (!channelCredentials.shopify?.vaulted && (!customApiUrl || !customApiKey)) {
       setApiTestResult({
         success: false,
         message: "Please enter your Store Domain and Admin API Token before syncing.",
@@ -832,7 +954,7 @@ export function WebhookSimulatorView() {
 
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
-        const syncResult = syncExternalOrders(data.orders);
+        const syncResult = await syncExternalOrders(data.orders);
         const nowIso = new Date().toISOString();
 
         saveChannelCredentials("shopify", {
@@ -872,7 +994,7 @@ export function WebhookSimulatorView() {
 
   // Flipkart Connection Test & Order Sync
   const handleTestFlipkartConnection = async () => {
-    if (!flipkartAppId || !flipkartAppSecret) {
+    if (!channelCredentials.flipkart?.vaulted && (!flipkartAppId || !flipkartAppSecret)) {
       setApiTestResult({
         success: false,
         message: "Please enter your Flipkart Application ID and Application Secret.",
@@ -895,18 +1017,23 @@ export function WebhookSimulatorView() {
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
+        if (flipkartAppId && flipkartAppSecret) {
+          await vaultCredentialsOnServer("Flipkart", {
+            appId: flipkartAppId,
+            appSecret: flipkartAppSecret,
+          });
+        }
         setApiTestResult({
           success: true,
           message: data.message || "Flipkart Seller API authenticated successfully via OAuth 2.0.",
         });
         setConnectedChannels((prev) => ({ ...prev, flipkart: true }));
         saveChannelCredentials("flipkart", {
-          appId: flipkartAppId,
-          appSecret: flipkartAppSecret,
           connected: true,
         });
-        showToast("Connected & Active", "Flipkart Seller credentials verified.");
+
+        showToast("Connected & Active", "Flipkart Seller credentials verified and vaulted.");
       } else {
         setApiTestResult({
           success: false,
@@ -924,7 +1051,7 @@ export function WebhookSimulatorView() {
   };
 
   const handleSyncFlipkartOrders = async () => {
-    if (!flipkartAppId || !flipkartAppSecret) {
+    if (!channelCredentials.flipkart?.vaulted && (!flipkartAppId || !flipkartAppSecret)) {
       setApiTestResult({
         success: false,
         message: "Please enter your Flipkart credentials before syncing.",
@@ -948,7 +1075,7 @@ export function WebhookSimulatorView() {
 
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
-        const syncResult = syncExternalOrders(data.orders);
+        const syncResult = await syncExternalOrders(data.orders);
         const nowIso = new Date().toISOString();
 
         saveChannelCredentials("flipkart", {
@@ -989,7 +1116,7 @@ export function WebhookSimulatorView() {
 
   // Amazon SP-API Handlers
   const handleTestAmazonConnection = async () => {
-    if (!amazonClientId || !amazonClientSecret || !amazonRefreshToken) {
+    if (!channelCredentials.amazon?.vaulted && (!amazonClientId || !amazonClientSecret || !amazonRefreshToken)) {
       setApiTestResult({
         success: false,
         message: "Please enter Amazon LWA Client ID, Client Secret, and Refresh Token.",
@@ -1014,20 +1141,30 @@ export function WebhookSimulatorView() {
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
+        if (amazonClientId && amazonClientSecret && amazonRefreshToken) {
+          await vaultCredentialsOnServer(
+            "Amazon India",
+            {
+              clientId: amazonClientId,
+              clientSecret: amazonClientSecret,
+              refreshToken: amazonRefreshToken,
+              sellerId: amazonSellerId,
+            },
+            amazonSellerId
+          );
+        }
         setApiTestResult({
           success: true,
           message: data.message || "Amazon SP-API authenticated successfully.",
         });
         setConnectedChannels((prev) => ({ ...prev, amazon: true }));
         saveChannelCredentials("amazon", {
-          clientId: amazonClientId,
-          clientSecret: amazonClientSecret,
-          refreshToken: amazonRefreshToken,
           sellerId: amazonSellerId,
           connected: true,
         });
-        showToast("Connected & Active", "Amazon SP-API credentials verified.");
+
+        showToast("Connected & Active", "Amazon SP-API credentials verified and vaulted.");
       } else {
         setApiTestResult({
           success: false,
@@ -1045,7 +1182,7 @@ export function WebhookSimulatorView() {
   };
 
   const handleSyncAmazonOrders = async () => {
-    if (!amazonClientId || !amazonClientSecret || !amazonRefreshToken) {
+    if (!channelCredentials.amazon?.vaulted && (!amazonClientId || !amazonClientSecret || !amazonRefreshToken)) {
       setApiTestResult({
         success: false,
         message: "Please enter your Amazon SP-API credentials before syncing.",
@@ -1071,7 +1208,7 @@ export function WebhookSimulatorView() {
 
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
-        const syncResult = syncExternalOrders(data.orders);
+        const syncResult = await syncExternalOrders(data.orders);
         const nowIso = new Date().toISOString();
 
         saveChannelCredentials("amazon", {
@@ -1189,7 +1326,7 @@ export function WebhookSimulatorView() {
 
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
-        const syncResult = syncExternalOrders(data.orders);
+        const syncResult = await syncExternalOrders(data.orders);
         const nowIso = new Date().toISOString();
 
         saveChannelCredentials("meesho", {
@@ -1305,7 +1442,7 @@ export function WebhookSimulatorView() {
 
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
-        const syncResult = syncExternalOrders(data.orders);
+        const syncResult = await syncExternalOrders(data.orders);
         const nowIso = new Date().toISOString();
 
         saveChannelCredentials("myntra", {
@@ -2637,11 +2774,11 @@ export function WebhookSimulatorView() {
         isOpen={isCsvModalOpen}
         onClose={() => setIsCsvModalOpen(false)}
         products={products}
-        onImportOrders={(importedOrders) => {
-          importedOrders.forEach((o) => addOrder(o));
+        onImportOrders={async (importedOrders) => {
+          const syncResult = await syncExternalOrders(importedOrders);
           showToast(
             "Imported",
-            `${importedOrders.length} orders added to your active ledger.`
+            `${importedOrders.length} orders processed (${syncResult.added} new, ${syncResult.updated} updated in ledger).`
           );
         }}
       />

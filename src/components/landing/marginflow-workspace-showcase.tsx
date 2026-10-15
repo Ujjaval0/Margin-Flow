@@ -2,10 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, CheckCircle2, Clock, Layers, Scale, ShieldCheck, FileCheck, DollarSign } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, Clock, Layers, RotateCcw, ShieldCheck, FileCheck, DollarSign } from "lucide-react";
 
 export function MarginFlowWorkspaceShowcase() {
-  const [activeTab, setActiveTab] = useState<"orders" | "weight" | "claims" | "settlements">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "returns" | "claims" | "settlements">("orders");
 
   return (
     <section id="workspace" className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 bg-[#f6f9f5] text-[#193022] border-t border-[#cfdfd1]">
@@ -20,7 +20,7 @@ export function MarginFlowWorkspaceShowcase() {
             </span>
           </h2>
           <p className="mt-4 text-base sm:text-lg text-[#5c7062] leading-relaxed">
-            Real unit economics, courier deadweight detection, and automated dispute dossiers in one cockpit.
+            Real unit economics, reverse logistics RTO tracking, and audit-ready dispute dossiers in one cockpit.
           </p>
 
           <div className="mt-6">
@@ -96,33 +96,33 @@ export function MarginFlowWorkspaceShowcase() {
               </div>
             )}
 
-            {activeTab === "weight" && (
+            {activeTab === "returns" && (
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#e5ebe3]">
                   <div>
-                    <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">COURIER WEIGHT SLAB RADAR</span>
-                    <p className="text-xs text-[#5c7062]">Disparity detection between catalog dimensions and billed courier weight slabs.</p>
+                    <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">REVERSE LOGISTICS &amp; RTO TOLL RADAR</span>
+                    <p className="text-xs text-[#5c7062]">Isolates non-refundable two-way shipping freight from customer return damage losses.</p>
                   </div>
                   <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-semibold tabular-nums">
-                    ⚠️ −₹185.00 Flagged Overcharge
+                    ⚠️ −₹205.00 RTO Cash Bleed Isolated
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                  <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1]">
-                    <span className="text-[10px] text-[#5c7062] block">CATALOG BASELINE</span>
-                    <strong className="text-lg text-[#193022] block mt-1 tabular-nums font-semibold">420 grams (0.5kg Slab)</strong>
-                    <span className="text-[10px] text-[#00872e] mt-1 block font-medium">Verified SKU Spec</span>
-                  </div>
                   <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200">
-                    <span className="text-[10px] text-rose-600 block">COURIER BILLED</span>
-                    <strong className="text-lg text-rose-700 block mt-1 tabular-nums font-semibold">1,500 grams (2.0kg Slab)</strong>
-                    <span className="text-[10px] text-rose-600 mt-1 block font-medium">Inflated Weight Slab</span>
+                    <span className="text-[10px] text-rose-600 block">RTO COD BOUNCE</span>
+                    <strong className="text-lg text-rose-700 block mt-1 tabular-nums font-semibold">−₹205.00 Two-Way Freight</strong>
+                    <span className="text-[10px] text-rose-600 mt-1 block font-medium">₹95 Forward + ₹110 Reverse Toll</span>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1]">
+                    <span className="text-[10px] text-[#5c7062] block">DAMAGED RETURN QC</span>
+                    <strong className="text-lg text-[#193022] block mt-1 tabular-nums font-semibold">₹420.00 COGS Loss</strong>
+                    <span className="text-[10px] text-amber-700 mt-1 block font-medium">Salvage: ₹100 • Claim Queued</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-[#193022] text-white">
-                    <span className="text-[10px] text-[#71d78e] block">DISPUTE CLAIM QUEUED</span>
-                    <strong className="text-lg text-[#71d78e] block mt-1 tabular-nums font-semibold">+₹185.00 Refund</strong>
-                    <span className="text-[10px] text-[#8da494] mt-1 block">Auto-Filed Before Settlement</span>
+                    <span className="text-[10px] text-[#71d78e] block">SELLABLE PUTAWAY</span>
+                    <strong className="text-lg text-[#71d78e] block mt-1 tabular-nums font-semibold">1-Click Restock</strong>
+                    <span className="text-[10px] text-[#8da494] mt-1 block">Stock Replenished (+1 Unit)</span>
                   </div>
                 </div>
               </div>
@@ -143,7 +143,7 @@ export function MarginFlowWorkspaceShowcase() {
                 <div className="p-4 rounded-2xl bg-[#f6f9f5] border border-[#cfdfd1] flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
                   <div className="space-y-1">
                     <strong className="text-sm text-[#193022] block font-semibold">Claim #CLM-88392 • Damaged Return</strong>
-                    <span className="text-xs text-[#5c7062]">Amazon SAFE-T dossier compiled with invoice and unboxing telemetry.</span>
+                    <span className="text-xs text-[#5c7062]">Amazon SAFE-T dossier compiled with invoice, unboxing QC, and loss calculation.</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="px-3 py-1.5 rounded-lg bg-emerald-100 text-[#00872e] text-xs font-bold">
@@ -161,7 +161,7 @@ export function MarginFlowWorkspaceShowcase() {
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#e5ebe3]">
                   <div>
-                    <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">BANK SETTLEMENT RECONCILIATION</span>
+                    <span className="text-xs font-bold text-[#193022] tracking-wider uppercase">BANK SETTLEMENT &amp; GENERAL LEDGER</span>
                     <p className="text-xs text-[#5c7062]">One-to-one matching between marketplace UTR remittances, orders, and 1% tax withholdings.</p>
                   </div>
                   <span className="px-3 py-1 rounded-full bg-emerald-50 text-[#00872e] text-xs font-semibold tabular-nums">
@@ -194,8 +194,8 @@ export function MarginFlowWorkspaceShowcase() {
           <div className="grid grid-cols-2 md:grid-cols-4 border-t border-[#cfdfd1] divide-x divide-[#cfdfd1] bg-[#f1f5ee]">
             {[
               { id: "orders", label: "Orders & CM2", sub: "True net profit per SKU", icon: Layers },
-              { id: "weight", label: "Weight Radar", sub: "Courier overcharge alerts", icon: Scale },
-              { id: "claims", label: "Claims Docket", sub: "7-30 day dispute countdown", icon: FileCheck },
+              { id: "returns", label: "Returns & RTO", sub: "Isolate reverse freight tolls", icon: RotateCcw },
+              { id: "claims", label: "Claims Docket", sub: "Pre-compiled SLA dossiers", icon: FileCheck },
               { id: "settlements", label: "Settlements", sub: "UTR bank remittance match", icon: ShieldCheck },
             ].map((tab) => {
               const Icon = tab.icon;

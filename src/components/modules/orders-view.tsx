@@ -1,5 +1,6 @@
 "use client";
 
+import { downloadCsv } from "@/lib/csv";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -738,6 +739,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
     claims,
     suppliers,
     addOrder,
+    syncExternalOrders,
     updateOrder,
     deleteOrder,
     deleteOrders,
@@ -1090,38 +1092,30 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
       const platformBadge = getMarketplaceBadge(o.marketplace);
 
       return [
-        `"${platformBadge.label}"`,
-        `"${o.orderDate}"`,
-        `"${o.id}"`,
-        `"${o.channelOrderId}"`,
-        `"${item?.sku || ""}"`,
-        `"${(item?.productName || "").replace(/"/g, '""')}"`,
+        platformBadge.label,
+        o.orderDate,
+        o.id,
+        o.channelOrderId,
+        item?.sku || "",
+        (item?.productName || ""),
         item?.quantity || 1,
         grossSale.toFixed(2),
         cogs.toFixed(2),
-        `"${pnl.isSettled ? "Settled" : "Pending"}"`,
+        pnl.isSettled ? "Settled" : "Pending",
         pnl.settledAmount.toFixed(2),
-        `"${synthStatus.label}"`,
+        synthStatus.label,
         pnl.contributionProfit.toFixed(2),
         (pnl.contributionMargin * 100).toFixed(2),
-      ].join(",");
+      ];
     });
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `orders_ledger_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv([headers, ...rows], "orders_ledger_" + new Date().toISOString().split("T")[0] + ".csv");
   };
 
 
-
   // Batch CSV Ingestion Handler
-  const handleBatchImportOrders = (importedOrders: Order[]) => {
-    importedOrders.forEach((o) => addOrder(o));
+  const handleBatchImportOrders = async (importedOrders: Order[]) => {
+    await syncExternalOrders(importedOrders);
   };
 
   const isAnyFilterActive =

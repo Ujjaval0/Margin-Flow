@@ -1,0 +1,83 @@
+
+> unified-platform@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.28
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 68s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/53) ...
+   Generating static pages (13/53) 
+   Generating static pages (26/53) 
+   Generating static pages (39/53) 
+ ✓ Generating static pages (53/53)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    26.4 kB         133 kB
+├ ○ /_not-found                             1 kB         104 kB
+├ ƒ /api/ai-copilot                        223 B         103 kB
+├ ƒ /api/ai-dispute                        223 B         103 kB
+├ ƒ /api/ai-vault                          223 B         103 kB
+├ ƒ /api/auth/google                       223 B         103 kB
+├ ƒ /api/auth/login                        223 B         103 kB
+├ ƒ /api/auth/logout                       223 B         103 kB
+├ ƒ /api/auth/me                           223 B         103 kB
+├ ƒ /api/auth/signup                       223 B         103 kB
+├ ƒ /api/documents/stream                  223 B         103 kB
+├ ƒ /api/extract-invoice-text              223 B         103 kB
+├ ƒ /api/health/db                         223 B         103 kB
+├ ƒ /api/idp-extract                       223 B         103 kB
+├ ƒ /api/integrations/amazon/finances      223 B         103 kB
+├ ƒ /api/integrations/amazon/sync          223 B         103 kB
+├ ƒ /api/integrations/connections          223 B         103 kB
+├ ƒ /api/integrations/flipkart/callback    223 B         103 kB
+├ ƒ /api/integrations/flipkart/connect     223 B         103 kB
+├ ƒ /api/integrations/flipkart/sync        223 B         103 kB
+├ ƒ /api/integrations/generic/sync         223 B         103 kB
+├ ƒ /api/integrations/meesho/sync          223 B         103 kB
+├ ƒ /api/integrations/myntra/sync          223 B         103 kB
+├ ƒ /api/integrations/reports/upload     1.47 kB         104 kB
+├ ƒ /api/integrations/shopify/sync         223 B         103 kB
+├ ƒ /api/integrations/woocommerce/sync     223 B         103 kB
+├ ƒ /api/jobs                              223 B         103 kB
+├ ƒ /api/jobs/[id]                         223 B         103 kB
+├ ƒ /api/orders                            223 B         103 kB
+├ ƒ /api/products                          223 B         103 kB
+├ ƒ /api/recycle-bin                       223 B         103 kB
+├ ƒ /api/settlements                       223 B         103 kB
+├ ƒ /api/upload-bill                       223 B         103 kB
+├ ƒ /api/webhooks/generic                  223 B         103 kB
+├ ƒ /api/webhooks/shopify                  223 B         103 kB
+├ ƒ /api/webhooks/woocommerce              223 B         103 kB
+├ ○ /claims                              6.16 kB         180 kB
+├ ○ /dashboard                           22.8 kB         281 kB
+├ ○ /documents                             223 B         103 kB
+├ ○ /expenses                            4.51 kB         178 kB
+├ ○ /ledger                              7.01 kB         164 kB
+├ ○ /login                               13.1 kB         119 kB
+├ ○ /onboarding                          5.93 kB         112 kB
+├ ○ /orders                                14 kB         176 kB
+├ ○ /products                            6.09 kB         180 kB
+├ ○ /purchases                           2.41 kB         176 kB
+├ ○ /reports                             11.6 kB         270 kB
+├ ○ /returns                             11.7 kB         190 kB
+├ ○ /settlements                         4.95 kB         183 kB
+├ ○ /suppliers                           8.23 kB         166 kB
+├ ○ /trash                               5.33 kB         153 kB
+└ ○ /webhooks                             145 kB         303 kB
++ First Load JS shared by all             103 kB
+  ├ chunks/1255-57b3179b3a4339f3.js      46.1 kB
+  ├ chunks/4bd1b696-182b6b13bdad92e3.js  54.2 kB
+  └ other shared chunks (total)          2.36 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

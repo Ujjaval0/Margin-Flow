@@ -1,5 +1,7 @@
 "use client";
 
+import { businessDate } from "@/domain/report-scope";
+import { downloadCsv } from "@/lib/csv";
 import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -126,21 +128,21 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
   const [recoveryValue, setRecoveryValue] = useState(0);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Reference date for aging computation (Simulated live platform time: 2026-09-17)
-  const CURRENT_SIM_DATE = new Date("2026-09-17");
+  // Aging follows the current business date.
+  const currentBusinessDate = new Date(businessDate());
 
   // Helper: check if a return is considered "Old & Aging" (> 14 days old, or pending inspection > 7 days, or deadline near)
   const isOldReturn = (r: ReturnRecord): boolean => {
     const returnDate = new Date(r.receivedDate || r.returnDate);
     const diffDays = Math.floor(
-      (CURRENT_SIM_DATE.getTime() - returnDate.getTime()) / (1000 * 60 * 60 * 24)
+      (currentBusinessDate.getTime() - returnDate.getTime()) / (1000 * 60 * 60 * 24)
     );
     if (diffDays >= 14) return true;
     if (r.condition === "UNDER_INSPECTION" && diffDays >= 7) return true;
     if (r.claimDeadline) {
       const deadline = new Date(r.claimDeadline);
       const daysUntilDeadline = Math.floor(
-        (deadline.getTime() - CURRENT_SIM_DATE.getTime()) / (1000 * 60 * 60 * 24)
+        (deadline.getTime() - currentBusinessDate.getTime()) / (1000 * 60 * 60 * 24)
       );
       if (daysUntilDeadline <= 4) return true;
     }
@@ -152,7 +154,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     const d = new Date(dateStr);
     return Math.max(
       0,
-      Math.floor((CURRENT_SIM_DATE.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
+      Math.floor((currentBusinessDate.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
     );
   };
 
@@ -244,7 +246,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     const expiringSoon = channelFilteredReturns.filter((r) => {
       if (!r.claimDeadline) return false;
       const days = Math.floor(
-        (new Date(r.claimDeadline).getTime() - CURRENT_SIM_DATE.getTime()) /
+        (new Date(r.claimDeadline).getTime() - currentBusinessDate.getTime()) /
           (1000 * 60 * 60 * 24)
       );
       return days >= 0 && days <= 5;
@@ -257,7 +259,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       totalDamagedCount: damagedReturns.length,
       expiringSoon,
     };
-  }, [channelFilteredReturns, orders, products, claims, CURRENT_SIM_DATE]);
+  }, [channelFilteredReturns, orders, products, claims, currentBusinessDate]);
 
   // Tab and Search Filtering
   const displayedReturns = useMemo(() => {
@@ -342,33 +344,19 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         r.condition,
         r.restockStatus || "PENDING_RESTOCK",
         r.sku,
-        `"${(r.productName || "").replace(/"/g, '""')}"`,
+        (r.productName || ""),
         r.quantity,
         r.returnShippingCost,
         r.inventoryRecoveryValue,
         fin.netLoss,
         fin.claim?.id || r.claimId || "",
         r.claimDeadline || "",
-        `"${(r.notes || r.returnReason).replace(/"/g, '""')}"`,
+        (r.notes || r.returnReason),
       ];
     });
 
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `MarginFlow_Returns_Export_${new Date().toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv([headers, ...rows], "MarginFlow_Returns_Export_" + new Date().toISOString().split("T")[0] + ".csv");
   };
-
   // Handler: Fast Restock Action
   const handleFastRestock = (returnId: string) => {
     restockReturn(returnId);
@@ -380,7 +368,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     newCondition: ProductCondition
   ) => {
     const product = products.find((p) => p.sku === ret.sku);
-    const unitCost = product ? product.currentCostPrice : 350;
+    const unitCost = product ? product.currentCostPrice : 0;
     const isLoss = newCondition === "DAMAGED" || newCondition === "UNUSABLE" || newCondition === "MISSING";
     const isRto = ret.returnType === "RTO";
     const fees = isRto ? 0 : (ret.returnShippingCost + (ret.customerReturnFee ?? 0));
@@ -441,7 +429,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     let finalMarketplace: Marketplace = "Amazon India";
     let skuToSave = "";
     let productNameToSave = "";
-    let unitCostBasis = 350;
+    let unitCostBasis = 0;
 
     if (createMode === "SCAN_ORDER") {
       const order = orders.find((o) => o.id === selectedOrderId);
@@ -544,7 +532,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     if (!editingReturn) return;
 
     const product = products.find((p) => p.sku === editingReturn.sku);
-    const unitCost = product ? product.currentCostPrice : 350;
+    const unitCost = product ? product.currentCostPrice : 0;
 
     const isRto = editingReturn.returnType === "RTO";
     const isDamaged =
@@ -866,7 +854,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         const isExpiring =
           r.claimDeadline &&
           Math.floor(
-            (new Date(r.claimDeadline).getTime() - CURRENT_SIM_DATE.getTime()) /
+            (new Date(r.claimDeadline).getTime() - currentBusinessDate.getTime()) /
               (1000 * 60 * 60 * 24)
           ) <= 4;
 

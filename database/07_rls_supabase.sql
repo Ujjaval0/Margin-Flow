@@ -1,12 +1,10 @@
 -- ============================================================
 -- MarginFlow — Step 07: Supabase RLS Policies
--- Run AFTER 06_seed.sql — FOR SUPABASE PRODUCTION ONLY.
+-- Run AFTER migrations through 15 — FOR SUPABASE PRODUCTION ONLY.
 -- Skip this file for local PostgreSQL testing.
 -- ============================================================
 
--- NOTE: These policies assume single-tenant (one user = one company).
--- For multi-tenant SaaS, add a company_id column to each table and
--- replace the auth.uid() check with a company membership check.
+-- Business data is private by default. Tenant-aware direct access requires verified ownership policies.
 
 -- ============================================================
 -- ENABLE RLS ON ALL TABLES
@@ -57,109 +55,15 @@ CREATE POLICY "user_accounts_update_own"
 -- The trigger fn_handle_new_user() inserts the row on auth signup — no INSERT policy needed.
 
 -- ============================================================
--- ALL OTHER TABLES: Authenticated users have full access
--- (single-tenant model — all data belongs to the authenticated user)
--- ============================================================
-
--- SUPPLIERS
-CREATE POLICY "suppliers_all_authenticated" ON suppliers
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- SUPPLIER PAYMENTS
-CREATE POLICY "supplier_payments_all_authenticated" ON supplier_payments
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- PRODUCTS
-CREATE POLICY "products_all_authenticated" ON products
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- PRODUCT COST HISTORY
-CREATE POLICY "product_cost_history_all_authenticated" ON product_cost_history
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- PRODUCT CHANNEL ALIASES
-CREATE POLICY "product_channel_aliases_all_authenticated" ON product_channel_aliases
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- ORDERS
-CREATE POLICY "orders_all_authenticated" ON orders
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- ORDER ITEMS
-CREATE POLICY "order_items_all_authenticated" ON order_items
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- RETURN RECORDS
-CREATE POLICY "return_records_all_authenticated" ON return_records
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- SETTLEMENTS
-CREATE POLICY "settlements_all_authenticated" ON settlements
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- SETTLEMENT DEDUCTIONS
-CREATE POLICY "settlement_deductions_all_authenticated" ON settlement_deductions
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- CLAIMS
-CREATE POLICY "claims_all_authenticated" ON claims
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- CLAIM DOCUMENTS
-CREATE POLICY "claim_documents_all_authenticated" ON claim_documents
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- PURCHASE BILLS
-CREATE POLICY "purchase_bills_all_authenticated" ON purchase_bills
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- EXPENSES
-CREATE POLICY "expenses_all_authenticated" ON expenses
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- AI STAGED DOCUMENTS
-CREATE POLICY "ai_staged_documents_all_authenticated" ON ai_staged_documents
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- AI STAGED FIELDS
-CREATE POLICY "ai_staged_fields_all_authenticated" ON ai_staged_fields
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- FINANCIAL AUDIT LOGS: INSERT only (no UPDATE or DELETE via RLS)
-CREATE POLICY "audit_logs_insert_authenticated" ON financial_audit_logs
-  FOR INSERT WITH CHECK (fn_is_authenticated());
-CREATE POLICY "audit_logs_select_authenticated" ON financial_audit_logs
-  FOR SELECT USING (fn_is_authenticated());
--- No UPDATE or DELETE policy = those operations are blocked for all roles
-
--- CUSTOMER COMPLAINTS
-CREATE POLICY "customer_complaints_all_authenticated" ON customer_complaints
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- BACKGROUND JOBS
-CREATE POLICY "background_jobs_all_authenticated" ON background_jobs
-  FOR ALL USING (fn_is_authenticated()) WITH CHECK (fn_is_authenticated());
-
--- ============================================================
--- SUPABASE AUTH TRIGGER: Auto-create user_accounts row on signup
--- ============================================================
-CREATE OR REPLACE FUNCTION fn_handle_new_auth_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.user_accounts (auth_user_id, name, email, company_name, account_type)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'name', 'New User'),
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'company_name', 'My Company'),
-    COALESCE((NEW.raw_user_meta_data->>'account_type')::account_type_enum, 'BRAND_OWNER')
-  )
-  ON CONFLICT (auth_user_id) DO NOTHING;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Attach trigger to Supabase's auth.users table
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION fn_handle_new_auth_user();
+-- BUSINESS TABLES: deny direct access until tenant ownership is enforceable.
+-- No fn_is_authenticated() blanket policies are permitted.
+-- Run after migrations through 15; application cookies do not establish auth.uid().
+-- Existing permissive policies are removed by migration 15.
+-- Add narrowly scoped direct-access policies only after validating the actual
+-- Supabase identity/account mapping and parent-child ownership in staging.
+REVOKE ALL ON suppliers, supplier_payments, products, product_cost_history,
+  product_channel_aliases, orders, order_items, return_records, settlements,
+  settlement_deductions, claims, claim_documents, purchase_bills, expenses,
+  ai_staged_documents, ai_staged_fields, financial_audit_logs, customer_complaints,
+  background_jobs, marketplace_connections, marketplace_sync_logs, oauth_states,
+  file_import_logs, webhook_receipts FROM anon, authenticated;

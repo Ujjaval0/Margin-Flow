@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readFormBody, RequestBodyError } from "@/lib/security/request-body";
+import { checkProcessingBudget } from "@/lib/security/api-guard";
+import { getSessionUser } from "@/lib/security/session";
 
 interface ExtractedInvoiceData {
   orderId: string;
@@ -20,7 +23,17 @@ interface ExtractedInvoiceData {
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
+    const session = await getSessionUser(req);
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required to use AI invoice extraction." },
+        { status: 401 }
+      );
+    }
+
+    const budgetError = checkProcessingBudget(req, session.sub);
+    if (budgetError) return budgetError;
+    const formData = await readFormBody(req);
     const rawFiles: File[] = [];
 
     const filesList = formData.getAll("files");
@@ -39,17 +52,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (rawFiles.length > 10 || rawFiles.some((file) => file.size > 10 * 1024 * 1024)) {
+      return NextResponse.json({ success: false, error: "Upload at most 10 files, each no larger than 10MB." }, { status: 413 });
+    }
+
     const provider = (req.headers.get("x-ai-provider") || "gemini").toLowerCase();
     const headerApiKey = req.headers.get("x-ai-key") || req.headers.get("x-gemini-api-key");
     const requestedModel = (req.headers.get("x-ai-model") || req.headers.get("x-gemini-model") || "").trim();
 
-    const apiKey =
-      (headerApiKey && headerApiKey.trim()) ||
-      (provider === "openai" ? process.env.OPENAI_API_KEY : "") ||
-      (provider === "groq" ? process.env.GROQ_API_KEY : "") ||
-      process.env.GEMINI_API_KEY ||
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
-      "";
+    const providerKeys: Record<string, string | undefined> = {
+      gemini: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+      openai: process.env.OPENAI_API_KEY,
+      groq: process.env.GROQ_API_KEY,
+      openrouter: process.env.OPENROUTER_API_KEY,
+      deepseek: process.env.DEEPSEEK_API_KEY,
+      mistral: process.env.MISTRAL_API_KEY,
+    };
+    if (!Object.prototype.hasOwnProperty.call(providerKeys, provider)) {
+      return NextResponse.json({ success: false, error: "Unsupported AI provider." }, { status: 400 });
+    }
+    const apiKey = headerApiKey?.trim() || providerKeys[provider] || "";
 
     let modelName = requestedModel.startsWith("models/") ? requestedModel.replace("models/", "") : requestedModel;
     if (!modelName) {
@@ -391,6 +413,7 @@ Return strict JSON matching this exact structure:
       results,
     });
   } catch (error: any) {
+    if (error instanceof RequestBodyError) return NextResponse.json({ success: false, error: error.message }, { status: error.status });
     console.error("Error in /api/extract-invoice-text:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Failed to extract invoice text." },

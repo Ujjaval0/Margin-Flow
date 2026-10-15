@@ -1,3 +1,8 @@
+import { createRequire } from "node:module";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import postcss from "postcss";
+const loadApp = createRequire(import.meta.url)("./helpers/load-app.cjs");
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -63,18 +68,14 @@ describe('UI/UX Analyst Verification Test Suite', () => {
       );
     });
 
-    test('1.3 All module views implement standardized, hardcoded H1 titles and subtitles', () => {
+    test('1.3 Module headings preserve configured text and the personalized dashboard header', () => {
       const moduleChecks = [
         {
           file: 'src/components/modules/orders-view.tsx',
           expectedTitle: 'Orders',
           expectedSubtitle: 'Order Lifecycle, Unit Economics & Settlement Status'
         },
-        {
-          file: 'src/components/modules/dashboard-view.tsx',
-          expectedTitle: 'Financial Overview',
-          expectedSubtitle: 'Real-Time Multi-Channel Performance & Profit Intelligence'
-        },
+
         {
           file: 'src/components/modules/ai-staging-view.tsx',
           expectedTitle: 'Document Verification & Staging',
@@ -132,6 +133,12 @@ describe('UI/UX Analyst Verification Test Suite', () => {
         }
       ];
 
+      // The existing dashboard intentionally displays a live date and personal greeting.
+      // This checks source wiring; it is not an authenticated browser or accessibility proof.
+      const dashboard = readProjectFile('src/components/modules/dashboard-view.tsx');
+      assert.match(dashboard, /<h1\b[^>]*>\s*\{greeting\},\s*\{userName\}\s*<\/h1>/);
+      assert.match(dashboard, /\{formattedDate\}/);
+      assert.match(dashboard, /hour < 12.*Good morning.*Good afternoon.*Good evening/);
       for (const check of moduleChecks) {
         const content = readProjectFile(check.file);
         const normalizedContent = content.replace(/&amp;/g, '&');
@@ -264,16 +271,20 @@ describe('UI/UX Analyst Verification Test Suite', () => {
       );
     });
 
-    test('3.3 Route comparison step cards use responsive columns and uniform border widths', () => {
-      const routeContent = readProjectFile('src/components/landing/marginflow-route-comparison.tsx');
-      assert.ok(
-        routeContent.includes('grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'),
-        'Route comparison nodes must use responsive multi-breakpoint grid'
-      );
-      assert.ok(
-        !routeContent.includes('border-black/5 hover:border-2'),
-        'Route comparison cards must use uniform border-2 to eliminate timer step height jump'
-      );
+    test('3.3 Rendered route timeline retains desktop, tablet and mobile grid breakpoints', () => {
+      const { MarginFlowRouteComparison } = loadApp('src/components/landing/marginflow-route-comparison.tsx');
+      const markup = renderToStaticMarkup(React.createElement(MarginFlowRouteComparison));
+      const css = markup.match(/<style[^>]*>([\s\S]*?)<\/style>/)?.[1];
+      assert.ok(css, 'Rendered timeline must include its scoped responsive styles');
+      const root = postcss.parse(css);
+      const columns = nodes => nodes.find(node => node.type === 'decl' && node.prop === 'grid-template-columns')?.value;
+      const desktop = root.nodes.find(node => node.type === 'rule' && node.selector === '.timeaxis-st');
+      assert.equal(columns(desktop.nodes), 'repeat(4, 1fr)');
+      const media = width => root.nodes.find(node => node.type === 'atrule' && node.name === 'media' && node.params === '(max-width: ' + width + 'px)');
+      assert.equal(columns(media(900).nodes.find(node => node.selector === '.timeaxis-st').nodes), '1fr 1fr');
+      assert.equal(columns(media(600).nodes.find(node => node.selector === '.timeaxis-st').nodes), '1fr');
+      assert.match(markup, /class="timeaxis-st"/);
+      assert.doesNotMatch(markup, /border-black\/5 hover:border-2/);
     });
   });
 

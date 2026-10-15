@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queueManager } from "@/lib/queue/queue-manager";
+import { getSessionUserId } from "@/lib/security/session";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try {
+  const ownerId = await getSessionUserId(req);
+  if (!ownerId) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
   const { id } = await params;
   const job = queueManager.getJob(id);
 
-  if (!job) {
+  if (!job || job.ownerId !== ownerId) {
     return NextResponse.json(
       { success: false, error: `Job with ID '${id}' not found.` },
       { status: 404 }
@@ -19,17 +23,29 @@ export async function GET(
     success: true,
     data: job,
   });
+  } catch {
+    return NextResponse.json({ success: false, error: "Background processing is temporarily unavailable." }, { status: 503 });
+  }
 }
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try {
+  const ownerId = await getSessionUserId(req);
+  if (!ownerId) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
   const { id } = await params;
+  if (queueManager.getJob(id)?.ownerId !== ownerId) {
+    return NextResponse.json({ success: false, error: "Job not found." }, { status: 404 });
+  }
   const cancelled = queueManager.cancelJob(id);
 
   return NextResponse.json({
     success: cancelled,
     message: cancelled ? "Job cancelled successfully." : "Job could not be cancelled or does not exist.",
   });
+  } catch {
+    return NextResponse.json({ success: false, error: "Background processing is temporarily unavailable." }, { status: 503 });
+  }
 }

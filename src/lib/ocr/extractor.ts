@@ -1,7 +1,8 @@
 import path from "path";
 import { processDocumentOCR } from "@/domain/ocr-engine";
 import { executeIDPPipeline } from "@/domain/idp-pipeline";
-import { query } from "@/lib/db";
+import { query, pool } from "@/lib/db";
+import crypto from "crypto";
 import { AIStagedDocument, ExtractedField } from "@/domain/types";
 
 export interface DocumentExtractionResult {
@@ -83,6 +84,7 @@ export async function extractTextFromBuffer(
  * - Persists staged document and fields directly into PostgreSQL
  */
 export async function processAndStageDocument(
+  userId: string,
   fileName: string,
   fileUrl: string,
   fileBuffer: Buffer,
@@ -91,6 +93,7 @@ export async function processAndStageDocument(
     mimeType?: string;
   }
 ): Promise<DocumentExtractionResult> {
+  if (!userId?.trim()) throw new Error("A verified document owner is required.");
   const { text: rawText, engine } = await extractTextFromBuffer(
     fileBuffer,
     fileName,
@@ -123,8 +126,8 @@ export async function processAndStageDocument(
   if (detectedSku) {
     try {
       const prodRes = await query(
-        `SELECT sku, name FROM products WHERE active = TRUE AND (sku ILIKE $1 OR name ILIKE $1) LIMIT 1`,
-        [`%${detectedSku}%`]
+        `SELECT sku, name FROM products WHERE user_id = $1 AND active = TRUE AND deleted_at IS NULL AND (sku ILIKE $2 OR name ILIKE $2) LIMIT 1`,
+        [userId, `%${detectedSku}%`]
       );
       if (prodRes.rows.length > 0) {
         catalogMatchedSku = prodRes.rows[0].sku;
@@ -138,14 +141,16 @@ export async function processAndStageDocument(
         };
       }
     } catch (dbErr) {
-      console.warn("Catalog lookup error:", dbErr);
+      throw new Error("Document catalog validation unavailable.", { cause: dbErr });
     }
   }
 
   // Persist directly to PostgreSQL (ai_staged_documents & ai_staged_fields)
   let dbRecordId: string | undefined;
+  const client = await pool.connect();
   try {
-    const displayId = `DOC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    await client.query("BEGIN");
+    const displayId = `DOC-${crypto.randomUUID()}`;
     const declaredTotal = stagedDoc.extractedData.totalAmount?.value || 0;
     const calculatedTotal =
       stagedDoc.arithmeticValidation?.calculatedTotal || declaredTotal;
@@ -153,15 +158,15 @@ export async function processAndStageDocument(
     const passed = stagedDoc.arithmeticValidation?.passed ?? true;
     const diffMsg = stagedDoc.arithmeticValidation?.message || null;
 
-    const docInsertRes = await query(
+    const docInsertRes = await client.query(
       `
       INSERT INTO ai_staged_documents (
         display_id, file_name, file_url, file_type, status,
         raw_text_preview, arithmetic_passed, arithmetic_calculated,
         arithmetic_declared, arithmetic_difference, arithmetic_message,
-        catalog_sku_matched, catalog_matched_sku_id, catalog_suggestion
+        catalog_sku_matched, catalog_matched_sku_id, catalog_suggestion, user_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING id, display_id;
     `,
       [
@@ -179,6 +184,7 @@ export async function processAndStageDocument(
         stagedDoc.catalogValidation?.skuMatched || false,
         catalogMatchedSku || null,
         stagedDoc.catalogValidation?.suggestion || null,
+        userId,
       ]
     );
 
@@ -202,7 +208,7 @@ export async function processAndStageDocument(
             ? "MANUALLY_ENTERED"
             : "AI_EXTRACTED";
 
-        await query(
+        await client.query(
           `
           INSERT INTO ai_staged_fields (
             document_id, field_name, value_text, confidence, provenance, is_flagged, anomaly_message
@@ -227,8 +233,13 @@ export async function processAndStageDocument(
         );
       }
     }
+    if (!dbRecordId) throw new Error("Document persistence did not return an identifier.");
+    await client.query("COMMIT");
   } catch (persistErr) {
-    console.warn("Failed to persist staged document to PostgreSQL:", persistErr);
+    await client.query("ROLLBACK").catch(() => {});
+    throw new Error("Document persistence failed.", { cause: persistErr });
+  } finally {
+    client.release();
   }
 
   return {

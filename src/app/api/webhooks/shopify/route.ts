@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getWebhookSecret } from "@/lib/security/secret-vault";
+import { readRequestBytes, RequestBodyError } from "@/lib/security/request-body";
+import { resolveWebhookConnection } from "@/lib/security/webhook-connection";
 import { verifyShopifyWebhook, verifyTimestampFreshness } from "@/lib/security/webhook-verifier";
-import { checkAndMarkEventIdempotency } from "@/lib/security/idempotency";
+import { persistWebhookOrder } from "@/lib/integrations/webhook-persistence";
 import { formatSafeErrorResponse, redactSensitiveData } from "@/lib/security/redactor";
 import { ShopifyOrderWebhookSchema, mapShopifyOrderToDomain } from "@/lib/webhooks/schemas/shopify-schema";
-import { queueManager } from "@/lib/queue/queue-manager";
 
 const MAX_WEBHOOK_SIZE_BYTES = 1024 * 1024; // 1MB
 
@@ -12,6 +12,8 @@ export async function POST(req: NextRequest) {
   const startTime = performance.now();
 
   try {
+    const connection = await resolveWebhookConnection(req, "shopify");
+    if (!connection) return NextResponse.json({ success: false, error: "A registered webhook connection is required." }, { status: 401 });
     // 1. Enforce Payload Size Limit
     const contentLength = Number(req.headers.get("content-length")) || 0;
     if (contentLength > MAX_WEBHOOK_SIZE_BYTES) {
@@ -22,7 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Read Raw Byte Stream
-    const arrayBuffer = await req.arrayBuffer();
+    const arrayBuffer = await readRequestBytes(req, MAX_WEBHOOK_SIZE_BYTES);
     if (arrayBuffer.byteLength > MAX_WEBHOOK_SIZE_BYTES) {
       return NextResponse.json(
         { success: false, error: "Payload exceeds 1MB threshold." },
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
     // 3. Extract Headers
     const hmacHeader = req.headers.get("X-Shopify-Hmac-Sha256");
     const topicHeader = req.headers.get("X-Shopify-Topic") || "orders/create";
-    const webhookIdHeader = req.headers.get("X-Shopify-Webhook-Id") || `shpw_${Date.now()}`;
+    const webhookIdHeader = req.headers.get("X-Shopify-Webhook-Id") || "";
     const shopDomain = req.headers.get("X-Shopify-Shop-Domain") || "direct";
 
     // 4. Handle Shopify Ping events immediately
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Verify Cryptographic HMAC Signature
-    const secret = getWebhookSecret("shopify");
+    const secret = connection.secret;
     const verification = verifyShopifyWebhook(rawBodyBuffer, hmacHeader, secret);
 
     if (!verification.isValid) {
@@ -61,20 +63,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. Check Idempotency (Replay Defense)
-    const idempotency = checkAndMarkEventIdempotency("shopify", webhookIdHeader);
-    if (idempotency.isDuplicate) {
-      return NextResponse.json(
-        {
-          success: true,
-          deduplicated: true,
-          message: "Event already ingested into ledger.",
-          recordedAt: idempotency.recordedAt,
-        },
-        { status: 200 }
-      );
-    }
-
+    // Replay detection is committed atomically with the ledger below.
     // 6. Strict Zod Schema Parsing
     const rawJson = JSON.parse(rawBodyBuffer.toString("utf-8"));
     const parseResult = ShopifyOrderWebhookSchema.safeParse(rawJson);
@@ -93,20 +82,18 @@ export async function POST(req: NextRequest) {
     // 7. Map to Canonical Domain Model
     const domainOrder = mapShopifyOrderToDomain(parseResult.data);
 
-    // 8. Enqueue to Background Processing (< 20ms response time)
-    await queueManager.enqueue("BULK_CSV_IMPORT", {
-      type: "SHOPIFY_WEBHOOK_ORDER",
-      topic: topicHeader,
-      shopDomain,
-      order: domainOrder,
-      webhookId: webhookIdHeader,
-    });
+    // 8. Direct PostgreSQL Persistence (eliminates in-memory queue loss)
+    if (!webhookIdHeader) return NextResponse.json({ success: false, error: "Missing webhook delivery ID." }, { status: 400 });
+    const receipt = await persistWebhookOrder(connection, webhookIdHeader, rawBodyBuffer, domainOrder);
+
+    // Acknowledge only after durable ingestion.
 
     const latency = Math.round((performance.now() - startTime) * 100) / 100;
 
     return NextResponse.json(
       {
         success: true,
+        deduplicated: receipt.isDuplicate,
         eventId: webhookIdHeader,
         orderId: domainOrder.id,
         channel: "Shopify",
@@ -115,6 +102,7 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (err: any) {
+    if (err instanceof RequestBodyError) return NextResponse.json({ success: false, error: err.message }, { status: err.status });
     return NextResponse.json(formatSafeErrorResponse(err, "Webhook processing error."), {
       status: 500,
     });

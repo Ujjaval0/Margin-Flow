@@ -1,227 +1,452 @@
+import { collectPages } from "@/lib/integrations/provider-pagination";
 import { NextRequest, NextResponse } from "next/server";
 import { Order, OrderItem } from "@/domain/types";
+import { marketplaceError } from "@/lib/integrations/error-response";
+import { getSessionUserId } from "@/lib/security/session";
+import {
+  getConnectionCredentials,
+  updateSyncStatus,
+  recordSyncLog,
+  getConnectionsForUser,
+  saveConnection,
+} from "@/lib/security/marketplace-vault";
+import { upsertOrders } from "@/lib/integrations/order-persistence";
+import { buildSyncResult, syncSuccessResponse } from "@/lib/integrations/sync-contract";
+
+const FLIPKART_TOKEN_URL = "https://api.flipkart.net/oauth-service/oauth/token";
+const FLIPKART_ORDERS_SEARCH_URL = "https://api.flipkart.net/sellers/v3/shipments/filter/";
+
+/**
+ * Exchanges client credentials for a developer self-access token (Track 1: Developer Staging).
+ * Satisfies TASK-4.1.
+ */
+async function getSelfAccessToken(
+  appId: string,
+  appSecret: string
+): Promise<{ accessToken: string | null; error?: string; status?: number }> {
+  const oauthUrl = `${FLIPKART_TOKEN_URL}?grant_type=client_credentials&scope=Seller_Api`;
+
+  try {
+    const res = await fetch(oauthUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${appId}:${appSecret}`).toString("base64")}`,
+        Accept: "application/json",
+        "User-Agent": "MarginFlow-Flipkart-Sync/2.0",
+      },
+      signal: AbortSignal.timeout(12000),
+      cache: "no-store",
+      redirect: "error",
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      return {
+        accessToken: null,
+        error:
+          errJson.error_description ||
+          errJson.error ||
+          `Flipkart self-access auth failed with HTTP ${res.status}. Verify App ID and Secret.`,
+        status: res.status === 401 || res.status === 400 ? 401 : 502,
+      };
+    }
+
+    const data = await res.json();
+    return { accessToken: data.access_token || null };
+  } catch (err: any) {
+    return {
+      accessToken: null,
+      error: `Could not reach Flipkart Developer API gateway: ${err.message || "Network timeout"}`,
+      status: 502,
+    };
+  }
+}
+
+/**
+ * Refreshes an OAuth 2.0 access token using a refresh token (Track 2: Merchant OAuth).
+ * Satisfies TASK-4.3 & TASK-4.4.
+ */
+async function refreshOAuthToken(
+  refreshToken: string,
+  clientId?: string,
+  clientSecret?: string
+): Promise<{ accessToken: string | null; refreshToken?: string; expiresIn?: number; error?: string; status?: number }> {
+  const params = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+  });
+
+  if (clientId) params.set("client_id", clientId);
+  if (clientSecret) params.set("client_secret", clientSecret);
+
+  try {
+    const res = await fetch(FLIPKART_TOKEN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+        "User-Agent": "MarginFlow-Flipkart-Sync/2.0",
+      },
+      body: params.toString(),
+      signal: AbortSignal.timeout(12000),
+      cache: "no-store",
+      redirect: "error",
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      return {
+        accessToken: null,
+        error:
+          errJson.error_description ||
+          errJson.error ||
+          `Flipkart OAuth token refresh failed with HTTP ${res.status}.`,
+        status: res.status === 401 ? 401 : 502,
+      };
+    }
+
+    const data = await res.json();
+    return { accessToken: data.access_token || null, refreshToken: data.refresh_token, expiresIn: data.expires_in };
+  } catch (err: any) {
+    return {
+      accessToken: null,
+      error: `Flipkart OAuth refresh network error: ${err.message || "Network timeout"}`,
+      status: 502,
+    };
+  }
+}
+
+async function fetchShipments(accessToken: string, fromDate: string, toDate: string, verifyOnly = false): Promise<any[]> {
+  const filters = [
+    { type: "preDispatch", states: ["APPROVED", "PACKING_IN_PROGRESS", "PACKED", "FORM_FAILED", "READY_TO_DISPATCH"] },
+    { type: "postDispatch", states: ["SHIPPED", "DELIVERED", "PICKUP_COMPLETE"], shipmentTypes: ["NORMAL"] },
+    { type: "postDispatch", states: ["SHIPPED", "DELIVERED", "PICKUP_COMPLETE"], shipmentTypes: ["SELF"] },
+    ...["marketplaceCancellation", "sellerCancellation", "buyerCancellation"].map(cancellationType => ({ type: "cancelled", states: ["CANCELLED"], cancellationType })),
+  ];
+  const items: any[] = [];
+  for (const filter of verifyOnly ? filters.slice(0, 1) : filters) {
+    const shipments = await collectPages<any>(FLIPKART_ORDERS_SEARCH_URL, (url, firstPage) => fetch(url, {
+      method: firstPage ? "POST" : "GET",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
+      ...(firstPage ? { body: JSON.stringify({ filter: { ...filter, orderDate: { from: fromDate, to: toDate } }, pagination: { pageSize: verifyOnly ? 1 : 20 } }) } : {}),
+      signal: AbortSignal.timeout(15000), cache: "no-store", redirect: "error",
+    }), data => {
+      if (data?.hasMore && !data.nextPageUrl) throw new Error("Flipkart omitted its next-page URL.");
+      return { records: data.shipments, next: verifyOnly ? null : data.nextPageUrl };
+    });
+    for (const shipment of shipments) {
+      if (!Array.isArray(shipment.orderItems)) throw new Error("Flipkart omitted shipment items.");
+      items.push(...shipment.orderItems);
+    }
+    if (!verifyOnly && shipments.length >= 5000) throw new Error("Flipkart retrieval limit reached; retry with a smaller date window.");
+  }
+  return items;
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { action, appId, appSecret } = body;
+    const userId = await getSessionUserId(req);
+    if (!userId) {
+      return marketplaceError(
+        "Flipkart",
+        "AUTHENTICATION_REQUIRED",
+        "A valid authenticated merchant session is required to perform Flipkart synchronization.",
+        401
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
+    let { action, appId, appSecret } = body;
+
+    // Check vaulted credentials in PostgreSQL if not passed in request body (Zero Client-Side Master Secrets)
+    let vaulted: any = null;
+    let authType = "SELF_ACCESS";
+
+    const allConnections = await getConnectionsForUser(userId);
+    if (allConnections.filter(c => c.marketplace === "Flipkart").length > 1) throw new Error("Select an explicit store connection.");
+    const flipkartConnMeta = allConnections.find((c) => c.marketplace === "Flipkart");
+    if (flipkartConnMeta) {
+      authType = flipkartConnMeta.authType || "SELF_ACCESS";
+    }
 
     if (!appId || !appSecret) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Flipkart Application ID (App ID) and Application Secret are required.",
-        },
-        { status: 400 }
+      vaulted = await getConnectionCredentials<{
+        appId?: string;
+        appSecret?: string;
+        accessToken?: string;
+        refreshToken?: string;
+        clientId?: string;
+        clientSecret?: string;
+        tokenExpiresAt?: string;
+      }>(userId, "Flipkart");
+
+      if (vaulted) {
+        appId = vaulted.appId || vaulted.clientId;
+        appSecret = vaulted.appSecret || vaulted.clientSecret;
+      }
+    }
+
+    const hasOAuth = Boolean(vaulted?.refreshToken || (authType === "OAUTH2" && vaulted?.accessToken));
+    const hasSelfAccess = Boolean(appId && appSecret);
+
+    if (!hasOAuth && !hasSelfAccess) {
+      return marketplaceError(
+        "Flipkart",
+        "FLIPKART_MISSING_CREDENTIALS",
+        "Flipkart credentials not found. Please connect via OAuth 2.0 or configure Application ID and Secret in the vault.",
+        400
       );
     }
 
-    const cleanAppId = String(appId).trim();
-    const cleanSecret = String(appSecret).trim();
-
-    if (action === "test_connection") {
-      const oauthUrl = `https://api.flipkart.net/oauth-service/oauth/token?grant_type=client_credentials&client_id=${encodeURIComponent(
-        cleanAppId
-      )}&client_secret=${encodeURIComponent(cleanSecret)}`;
-
-      let res: Response;
-      try {
-        res = await fetch(oauthUrl, {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            "User-Agent": "MarginFlow-Flipkart-Sync/1.0",
-          },
-          signal: AbortSignal.timeout(12000),
-          cache: "no-store",
+    const cleanAppId = appId ? String(appId).trim() : "";
+    const cleanSecret = appSecret ? String(appSecret).trim() : "";
+    const refreshVaultedToken = async () => {
+      const auth = await refreshOAuthToken(vaulted.refreshToken, cleanAppId, cleanSecret);
+      if (auth.accessToken) {
+        await saveConnection(userId, {
+          marketplace: "Flipkart", sellerId: flipkartConnMeta?.sellerId, authType: "OAUTH2",
+          credentials: { ...vaulted, accessToken: auth.accessToken, refreshToken: auth.refreshToken || vaulted.refreshToken,
+            tokenExpiresAt: new Date(Date.now() + (Number(auth.expiresIn) || 3600) * 1000).toISOString() },
         });
-      } catch (err: any) {
-        // If external Flipkart gateway is unreachable or in developer staging
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Could not reach Flipkart Developer API gateway: ${err.message || "Network timeout"}. Please verify your network or Developer App status in Seller Hub.`,
-          },
-          { status: 502 }
-        );
       }
+      return auth;
+    };
 
-      if (res.status === 401 || res.status === 400) {
-        const errorJson = await res.json().catch(() => ({}));
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              errorJson.error_description ||
-              errorJson.error ||
-              "Invalid Flipkart Application ID or Application Secret. Verify under Seller Hub > Developer Access.",
-          },
-          { status: 401 }
-        );
-      }
+    // -------------------------------------------------------------------------
+    // ACTION 1: test_connection
+    // -------------------------------------------------------------------------
+    if (action === "test_connection") {
+      if (hasOAuth && vaulted?.refreshToken) {
+        const auth = await refreshVaultedToken();
+        if (!auth.accessToken) {
+          return marketplaceError(
+            "Flipkart",
+            auth.status === 401 ? "FLIPKART_AUTH_FAILED" : "FLIPKART_GATEWAY_UNREACHABLE",
+            auth.error || "Flipkart OAuth 2.0 token verification failed.",
+            auth.status || 502
+          );
+        }
 
-      if (res.ok) {
-        const tokenData = await res.json().catch(() => ({}));
+        await fetchShipments(auth.accessToken, new Date(Date.now() - 86400000).toISOString(), new Date().toISOString(), true);
         return NextResponse.json({
           success: true,
-          message: "Flipkart Seller API authenticated successfully via OAuth 2.0.",
-          appId: cleanAppId,
-          expiresIn: tokenData.expires_in || 3600,
+          message: "Flipkart Seller API authenticated successfully via Merchant OAuth 2.0.",
+          authType: "OAUTH2",
         });
       }
 
-      const errText = await res.text().catch(() => "");
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Flipkart API responded with HTTP ${res.status}: ${errText.slice(0, 150) || res.statusText}`,
-        },
-        { status: res.status }
-      );
+      if (hasOAuth && vaulted?.accessToken && !vaulted?.refreshToken) {
+        await fetchShipments(vaulted.accessToken, new Date(Date.now() - 86400000).toISOString(), new Date().toISOString(), true);
+        return NextResponse.json({ success: true, authType: "OAUTH2", message: "Flipkart order access verified." });
+      }
+
+      // Track 1: Developer Self-Access staging test (TASK-4.1)
+      const auth = await getSelfAccessToken(cleanAppId, cleanSecret);
+      if (!auth.accessToken) {
+        return marketplaceError(
+          "Flipkart",
+          auth.status === 401 ? "FLIPKART_AUTH_FAILED" : "FLIPKART_GATEWAY_UNREACHABLE",
+          auth.error || "Invalid Flipkart Application ID or Application Secret.",
+          auth.status || 401
+        );
+      }
+
+      await fetchShipments(auth.accessToken, new Date(Date.now() - 86400000).toISOString(), new Date().toISOString(), true);
+      return NextResponse.json({
+        success: true,
+        message: "Flipkart Seller API authenticated successfully via Developer Self-Access (Staging).",
+        appId: cleanAppId,
+        authType: "SELF_ACCESS",
+      });
     }
 
+    // -------------------------------------------------------------------------
+    // ACTION 2: fetch_orders
+    // -------------------------------------------------------------------------
     if (action === "fetch_orders") {
-      // 1. Authenticate with Flipkart OAuth
-      const oauthUrl = `https://api.flipkart.net/oauth-service/oauth/token?grant_type=client_credentials&client_id=${encodeURIComponent(
-        cleanAppId
-      )}&client_secret=${encodeURIComponent(cleanSecret)}`;
+      let accessToken: string | null = null;
 
-      let authRes: Response;
-      try {
-        authRes = await fetch(oauthUrl, {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            "User-Agent": "MarginFlow-Flipkart-Sync/1.0",
-          },
-          signal: AbortSignal.timeout(12000),
-          cache: "no-store",
+      // Track selection: Merchant OAuth vs Developer Self-Access (TASK-4.1 & TASK-4.4)
+      if (hasOAuth && vaulted?.refreshToken) {
+        const auth = await refreshVaultedToken();
+        if (!auth.accessToken) {
+          await recordSyncLog(userId, {
+            marketplace: "Flipkart",
+            status: "FAILED",
+            errorMessage: auth.error,
+          });
+          return marketplaceError("Flipkart", "FLIPKART_AUTH_FAILED", auth.error || "OAuth token refresh failed.", 401);
+        }
+        accessToken = auth.accessToken;
+      } else if (hasSelfAccess) {
+        const auth = await getSelfAccessToken(cleanAppId, cleanSecret);
+        if (!auth.accessToken) {
+          await recordSyncLog(userId, {
+            marketplace: "Flipkart",
+            status: "FAILED",
+            errorMessage: auth.error,
+          });
+          return marketplaceError("Flipkart", "FLIPKART_AUTH_FAILED", auth.error || "Self-access token exchange failed.", 401);
+        }
+        accessToken = auth.accessToken;
+      } else if (vaulted?.accessToken) {
+        accessToken = vaulted.accessToken;
+      }
+
+      if (!accessToken) {
+        return marketplaceError("Flipkart", "FLIPKART_AUTH_FAILED", "Could not obtain valid access token for Flipkart API.", 401);
+      }
+
+      // Formulate query with 48-hour bounded overlap window (TASK-4.4)
+      const lastSyncedAt = flipkartConnMeta?.syncCheckpoints?.orders?.lastSyncedAt;
+      const fromDate = lastSyncedAt
+        ? new Date(new Date(lastSyncedAt).getTime() - 48 * 60 * 60 * 1000).toISOString()
+        : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const toDate = new Date().toISOString();
+
+      const rawOrders = await fetchShipments(accessToken, fromDate, toDate);
+
+      if (!Array.isArray(rawOrders) || rawOrders.length === 0) {
+        const nowIso = new Date().toISOString();
+        await updateSyncStatus(userId, "Flipkart", "SUCCEEDED", {
+          stream: "orders",
+          lastSyncedAt: toDate,
         });
-      } catch (err: any) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Flipkart OAuth network error: ${err.message}`,
-          },
-          { status: 502 }
-        );
-      }
-
-      if (!authRes.ok) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Failed to authenticate with Flipkart Seller API. Check App credentials.",
-          },
-          { status: 401 }
-        );
-      }
-
-      const tokenData = await authRes.json();
-      const accessToken = tokenData.access_token;
-
-      // 2. Query Orders Search Endpoint
-      const ordersUrl = "https://api.flipkart.net/sellers/v3/orders/search";
-      let ordersRes: Response;
-      try {
-        ordersRes = await fetch(ordersUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            filter: {
-              orderDate: {
-                fromDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-                toDate: new Date().toISOString(),
-              },
-            },
-            pagination: {
-              pageSize: 50,
-            },
-          }),
-          signal: AbortSignal.timeout(15000),
-          cache: "no-store",
+        await recordSyncLog(userId, {
+          marketplace: "Flipkart",
+          status: "SUCCEEDED",
+          fetchedCount: 0,
         });
-      } catch (err: any) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Failed to fetch orders from Flipkart: ${err.message}`,
-          },
-          { status: 502 }
-        );
+
+        const syncResult = buildSyncResult({
+          marketplace: "Flipkart",
+          status: "succeeded",
+          fetchedCount: 0,
+          importedCount: 0,
+          updatedCount: 0,
+          skippedCount: 0,
+          lastSyncedAt: toDate,
+          errors: [],
+        });
+
+        return syncSuccessResponse(syncResult, {
+          message: "Successfully fetched 0 orders from Flipkart.",
+          orders: [],
+        });
       }
 
-      if (!ordersRes.ok) {
-        const errText = await ordersRes.text().catch(() => "");
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Flipkart order search error (HTTP ${ordersRes.status}): ${errText.slice(0, 200)}`,
-          },
-          { status: ordersRes.status }
-        );
-      }
-
-      const ordersData = await ordersRes.json();
-      const rawOrders = ordersData.orderItems || ordersData.orders || [];
-
+      // Map authentic multi-line order items & real price components (TASK-4.4)
       const domainOrders: Order[] = rawOrders.map((ro: any, idx: number) => {
-        const orderId = ro.orderId || `FK-${Date.now()}-${idx + 1}`;
-        const sku = ro.sku || ro.fsn || `SKU-FK-${idx + 1}`;
-        const price = Number(ro.priceComponents?.sellingPrice || ro.sellingPrice) || 999;
-        const qty = Number(ro.quantity) || 1;
+        const channelOrderId = ro.orderId;
+        if (!channelOrderId || !ro.orderItemId) throw new Error("Flipkart omitted order identity.");
+        const fsn = ro.fsn || ro.orderItems?.[0]?.fsn;
+        const sku = ro.sku || ro.orderItems?.[0]?.sku || fsn || `SKU-FK-${idx + 1}`;
+        const orderItemId = ro.orderItemId || ro.orderItems?.[0]?.orderItemId || `ITEM-${idx + 1}`;
+        const price = Number(ro.priceComponents?.sellingPrice || ro.sellingPrice) || 0;
+        const qty = Math.max(1, Number(ro.quantity || ro.orderItems?.[0]?.quantity || 1));
+        const tax = Number(ro.priceComponents?.totalTax || ro.priceComponents?.tax || 0);
+        const discount = Number(ro.priceComponents?.customerDiscount || ro.priceComponents?.discount || 0);
+        const shippingFeeCharged = Number(ro.priceComponents?.shippingCharge || 0);
+
+        let status: Order["status"] = "CONFIRMED";
+        const rawStatus = (ro.status || "").toUpperCase();
+        if (rawStatus === "DELIVERED" || rawStatus === "COMPLETED") {
+          status = "DELIVERED";
+        } else if (rawStatus === "CANCELLED") {
+          status = "CANCELLED";
+        } else if (rawStatus === "RETURNED") {
+          status = "RETURNED";
+        } else if (rawStatus === "RTO") {
+          status = "RTO";
+        } else if (rawStatus === "SHIPPED" || rawStatus === "DISPATCHED" || rawStatus === "PACKED") {
+          status = "SHIPPED";
+        }
 
         const item: OrderItem = {
-          id: `ITEM-FK-${orderId}-1`,
-          sku,
+          id: `ITEM-FK-${channelOrderId}-${orderItemId}`,
+          sku: String(sku).trim(),
+          mfn: fsn || undefined,
           productName: ro.title || `Flipkart Product (${sku})`,
           quantity: qty,
-          sellingPrice: price,
-          discount: 0,
-          taxAmount: Math.round(price * 0.18 * 100) / 100,
-          snapshotUnitCost: Math.round(price * 0.45),
-          returnedQuantity: 0,
+          sellingPrice: Math.round(price * 100) / 100,
+          discount: Math.round(discount * 100) / 100,
+          taxAmount: Math.round(tax * 100) / 100,
+          snapshotUnitCost: 0, // Invariant: Zero financial guesswork! Strictly 0 until matched with catalog COGS.
+          returnedQuantity: status === "RETURNED" || status === "RTO" ? qty : 0,
         };
 
         return {
-          id: `ORD-FK-${orderId}`,
-          channelOrderId: orderId,
-          marketplace: "Flipkart",
+          id: `ORD-FK-${channelOrderId}`,
+          channelOrderId,
+          marketplace: "Flipkart" as const,
           orderDate: ro.orderDate ? ro.orderDate.split("T")[0] : new Date().toISOString().split("T")[0],
-          status: ro.status === "DELIVERED" ? "DELIVERED" : ro.status === "CANCELLED" ? "CANCELLED" : "CONFIRMED",
+          status,
           customerName: ro.customerName || "Flipkart Customer",
-          customerCity: ro.deliveryAddress?.city || "Direct Customer",
-          customerState: ro.deliveryAddress?.state || "Direct",
+          customerCity: ro.deliveryAddress?.city || "India",
+          customerState: ro.deliveryAddress?.state || "India",
           items: [item],
-          shippingFeeCharged: 0,
-          marketplaceChargesEstimate: Math.round(price * 0.12 * 100) / 100,
-          notes: `Flipkart API Synced | Order: ${orderId}`,
+          shippingFeeCharged,
+          marketplaceChargesEstimate: 0, // No flat 14% guesswork
+          notes: `Flipkart API Synced | Order: ${channelOrderId} | FSN: ${fsn || "N/A"}`,
         };
       });
 
-      return NextResponse.json({
-        success: true,
+      // Atomic Database Upsert into PostgreSQL (TASK-3.5 / TASK-4.4)
+      const grouped = new Map<string, Order>();
+      for (const order of domainOrders) {
+        const previous = grouped.get(order.channelOrderId);
+        if (previous) {
+          for (const item of order.items) if (!previous.items.some(existing => existing.id === item.id)) previous.items.push(item);
+          previous.shippingFeeCharged += order.shippingFeeCharged;
+        } else grouped.set(order.channelOrderId, order);
+      }
+      const completeOrders = [...grouped.values()];
+      const dbResult = await upsertOrders(userId, completeOrders);
+
+      const nowIso = new Date().toISOString();
+      await updateSyncStatus(userId, "Flipkart", "SUCCEEDED", {
+          stream: "orders",
+        lastSyncedAt: toDate,
+      });
+
+      await recordSyncLog(userId, {
+        marketplace: "Flipkart",
+        status: "SUCCEEDED",
+        fetchedCount: domainOrders.length,
+        importedCount: dbResult.inserted,
+        updatedCount: dbResult.updated,
+      });
+
+      const syncResult = buildSyncResult({
+        marketplace: "Flipkart",
+        status: "succeeded",
+        fetchedCount: domainOrders.length,
+        importedCount: dbResult.inserted,
+        updatedCount: dbResult.updated,
+        skippedCount: Math.max(0, domainOrders.length - (dbResult.inserted + dbResult.updated)),
+        lastSyncedAt: toDate,
+        errors: [],
+      });
+
+      return syncSuccessResponse(syncResult, {
         message: `Successfully fetched ${domainOrders.length} orders from Flipkart.`,
-        orders: domainOrders,
-        totalInStore: domainOrders.length,
+        orders: completeOrders,
+        persisted: dbResult,
       });
     }
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: `Invalid action: '${action}'. Expected 'test_connection' or 'fetch_orders'.`,
-      },
-      { status: 400 }
+    return marketplaceError(
+      "Flipkart",
+      "FLIPKART_INVALID_ACTION",
+      `Invalid action specified: '${action}'. Expected 'test_connection' or 'fetch_orders'.`,
+      400
     );
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Internal server error during Flipkart sync." },
-      { status: 500 }
+    return marketplaceError(
+      "Flipkart",
+      "FLIPKART_SYNC_FAILED",
+      error.message || "Internal server error during Flipkart sync.",
+      502
     );
   }
 }

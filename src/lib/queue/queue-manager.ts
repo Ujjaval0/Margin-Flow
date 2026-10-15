@@ -1,21 +1,19 @@
 import { Job, JobType, JobStatus, EnqueueJobOptions } from "./types";
 
-// In-memory persistent job registry for local development and zero-config deployment
+// Development simulator only. This registry is not durable and cannot run production work.
 const jobsStore: Map<string, Job> = new Map();
+export class QueueUnavailableError extends Error {}
+function requireDevelopmentQueue() {
+  if (process.env.NODE_ENV === "production") throw new QueueUnavailableError("Durable background workers are not configured.");
+}
 
 /**
  * Universal Queue Manager
  * Provides a unified API for background asynchronous processing.
- * Works out-of-the-box locally, and seamlessly connects to Redis/BullMQ
- * when REDIS_URL is set in environment.
+ * Simulates work locally. REDIS_URL alone does not install a durable worker;
+ * production operations fail closed until a real queue is implemented.
  */
 class QueueManager {
-  private isRedisConfigured: boolean;
-
-  constructor() {
-    this.isRedisConfigured = Boolean(process.env.REDIS_URL);
-  }
-
   /**
    * Enqueue a new background task
    */
@@ -24,9 +22,17 @@ class QueueManager {
     payload: T,
     options?: EnqueueJobOptions
   ): Promise<Job<T, R>> {
+    requireDevelopmentQueue();
+    // Bound the temporary registry until durable workers replace it.
+    for (const [existingId, existing] of jobsStore) {
+      if (["COMPLETED", "FAILED", "CANCELLED"].includes(existing.status) &&
+          Date.now() - Date.parse(existing.updatedAt) > 86_400_000) jobsStore.delete(existingId);
+    }
+    if (jobsStore.size >= 1000) throw new Error("Job capacity reached. Try again later.");
     const id = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const job: Job<T, R> = {
       id,
+      ownerId: options?.ownerId,
       type,
       payload,
       status: "QUEUED",
@@ -50,16 +56,19 @@ class QueueManager {
    * Retrieve job state and current progress
    */
   getJob(jobId: string): Job | undefined {
+    requireDevelopmentQueue();
     return jobsStore.get(jobId);
   }
 
   /**
    * List recent jobs
    */
-  listJobs(filter?: { status?: JobStatus; type?: JobType }): Job[] {
+  listJobs(filter?: { status?: JobStatus; type?: JobType; ownerId?: string }): Job[] {
+    requireDevelopmentQueue();
     const list = Array.from(jobsStore.values());
     return list
       .filter((j) => {
+        if (filter?.ownerId && j.ownerId !== filter.ownerId) return false;
         if (filter?.status && j.status !== filter.status) return false;
         if (filter?.type && j.type !== filter.type) return false;
         return true;
@@ -71,6 +80,7 @@ class QueueManager {
    * Cancel an active or queued job
    */
   cancelJob(jobId: string): boolean {
+    requireDevelopmentQueue();
     const job = jobsStore.get(jobId);
     if (!job || job.status === "COMPLETED" || job.status === "FAILED") {
       return false;

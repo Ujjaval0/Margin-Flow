@@ -62,7 +62,7 @@ export function mapWooCommerceOrderToDomain(
   const items: OrderItem[] = (payload.line_items || []).map((item, idx) => {
     const unitPrice = item.price || (item.quantity > 0 ? item.total / item.quantity : item.total);
     const sku = item.sku || `SKU-WC-${item.product_id}`;
-    const unitCost = catalogCostLookup?.[sku] || Math.round(unitPrice * 0.45);
+    const unitCost = catalogCostLookup?.[sku] ?? 0;
 
     return {
       id: `ITEM-WC-${payload.id}-${idx + 1}`,

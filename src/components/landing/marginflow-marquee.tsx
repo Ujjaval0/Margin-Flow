@@ -47,13 +47,11 @@ export function MarginFlowBrandMarquee() {
       ),
     },
     {
-      name: "Shiprocket",
-      badge: "Courier Telemetry",
-      badgeClass: "bg-[#332a19] text-[#fcd34d] border-[#eab308]/40",
+      name: "WooCommerce",
+      badge: "REST & Webhook Sync",
+      badgeClass: "bg-[#291b3a] text-[#c084fc] border-[#a855f7]/40",
       icon: (
-        <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-[#79529cfb]" role="img" aria-label="Shiprocket">
-          <path d="M12 2.5l8.5 4.9v9.8L12 22.1l-8.5-4.9V7.4L12 2.5zm0 2.3L5.5 8.5 12 12.2l6.5-3.7L12 4.8zm-7 5.1v6.8l6 3.5v-6.8L5 9.9zm14 0l-6 3.5v6.8l6-3.5V9.9z" />
-        </svg>
+        <Globe className="w-4 h-4 text-[#c084fc]" />
       ),
     },
   ];

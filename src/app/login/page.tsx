@@ -58,6 +58,7 @@ export default function LoginPage() {
 
       if (typeof window !== "undefined" && data.user) {
         localStorage.setItem("marginflow_session", JSON.stringify(data.user));
+        window.dispatchEvent(new Event("marginflow:session-changed"));
       }
 
       setTimeout(() => {
@@ -124,6 +125,7 @@ export default function LoginPage() {
 
       if (typeof window !== "undefined" && data.user) {
         localStorage.setItem("marginflow_session", JSON.stringify(data.user));
+        window.dispatchEvent(new Event("marginflow:session-changed"));
       }
 
       setTimeout(() => {
@@ -165,7 +167,7 @@ export default function LoginPage() {
           {/* Logo & Headline */}
           <div className="flex flex-col items-center text-center">
             <Link href="/" className="mb-4 inline-block">
-              <MarginFlowLogo className="h-8 w-auto text-[#1D1D1F]" />
+              <MarginFlowLogo className="h-6 w-auto text-[#1D1D1F]" />
             </Link>
 
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#1D1D1F]">

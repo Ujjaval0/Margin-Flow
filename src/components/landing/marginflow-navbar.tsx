@@ -78,12 +78,12 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
           <Link href="/" className="relative z-10 flex items-center gap-2.5 group shrink-0">
             {/* Dark Brand Logo (fades in on white floating island) */}
             <MarginFlowLogo
-              className="h-6 sm:h-7 w-auto text-[#193022] transition-opacity duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:opacity-90"
+              className="h-5 sm:h-[22px] w-auto text-[#193022] transition-opacity duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:opacity-90"
               style={{ opacity: isFloating ? 1 : 0 }}
             />
             {/* White Brand Logo (fades out as island appears) */}
             <MarginFlowLogo
-              className="absolute inset-0 h-6 sm:h-7 w-auto text-white transition-opacity duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:opacity-90 pointer-events-none"
+              className="absolute inset-0 h-5 sm:h-[22px] w-auto text-white transition-opacity duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:opacity-90 pointer-events-none"
               style={{ opacity: isFloating ? 0 : 1 }}
             />
           </Link>

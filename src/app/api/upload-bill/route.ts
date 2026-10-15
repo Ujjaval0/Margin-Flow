@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readFormBody, RequestBodyError } from "@/lib/security/request-body";
+import { checkProcessingBudget } from "@/lib/security/api-guard";
 import fs from "fs/promises";
 import path from "path";
 import { processAndStageDocument } from "@/lib/ocr/extractor";
+import { getSessionUserId } from "@/lib/security/session";
+import { getDocumentDirectory } from "@/lib/security/document-storage";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB Maximum
 
@@ -29,7 +33,17 @@ const MAX_FILES_PER_BATCH = 50;
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
+    const userId = await getSessionUserId(request);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required to upload documents to the vault." },
+        { status: 401 }
+      );
+    }
+
+    const budgetError = checkProcessingBudget(request, userId);
+    if (budgetError) return budgetError;
+    const formData = await readFormBody(request);
     // Gather all uploaded files from 'files' or 'file' keys
     const rawFiles: File[] = [];
     const filesList = formData.getAll("files");
@@ -64,7 +78,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const uploadsDir = path.join(process.cwd(), "public", "uploads", "bills");
+    // Enterprise Vault: Store files in private authenticated storage outside web root
+    const uploadsDir = getDocumentDirectory(userId);
     await fs.mkdir(uploadsDir, { recursive: true });
 
     const stagedDocuments = [];
@@ -121,8 +136,9 @@ export async function POST(request: NextRequest) {
         await fs.writeFile(destinationPath, buffer);
 
         // 5. Extract textual content & process through real OCR / IDP Pipeline
-        const savedPath = `/uploads/bills/${savedFileName}`;
+        const savedPath = `/api/documents/stream?file=${savedFileName}`;
         const extraction = await processAndStageDocument(
+          userId,
           file.name,
           savedPath,
           buffer,
@@ -168,6 +184,7 @@ export async function POST(request: NextRequest) {
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error: any) {
+    if (error instanceof RequestBodyError) return NextResponse.json({ success: false, error: error.message }, { status: error.status });
     console.error("Error in /api/upload-bill:", error);
     return NextResponse.json(
       {

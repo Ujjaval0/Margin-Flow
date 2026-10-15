@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
+import { checkProcessingBudget } from "@/lib/security/api-guard";
+import { getSessionUserId } from "@/lib/security/session";
+import { safeOutboundFetch } from "@/lib/security/ssrf-guard";
 import { streamText, generateText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -154,7 +158,11 @@ function translateProviderError(status: number, providerName: string, body: stri
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const userId = await getSessionUserId(req);
+    if (!userId) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    const budgetError = checkProcessingBudget(req, userId);
+    if (budgetError) return budgetError;
+    const body = await readJsonBody(req, 1024 * 1024);
     const { prompt, context }: { prompt: string; context: GroundedFinancialContext } = body;
 
     if (!prompt || !context) {
@@ -248,7 +256,7 @@ ${JSON.stringify(context, null, 2)}`;
       let languageModel;
 
       if (provider === "gemini") {
-        const google = createGoogleGenerativeAI({ apiKey });
+        const google = createGoogleGenerativeAI({ apiKey, fetch: (url, init) => safeOutboundFetch(String(url), init) });
         languageModel = google(model);
       } else {
         // OpenAI / Groq / DeepSeek / OpenRouter / NVIDIA / Mistral / Moonshot / Custom
@@ -256,6 +264,7 @@ ${JSON.stringify(context, null, 2)}`;
         if (endpoint.endsWith("/")) endpoint = endpoint.slice(0, -1);
 
         const openai = createOpenAI({
+          fetch: (url, init) => safeOutboundFetch(String(url), init),
           apiKey,
           baseURL: endpoint,
           headers: provider === "openrouter" ? {
@@ -347,9 +356,10 @@ ${JSON.stringify(context, null, 2)}`;
       });
     }
   } catch (error: any) {
+    if (error instanceof RequestBodyError) return NextResponse.json({ success: false, error: error.message }, { status: error.status });
     console.error("Copilot route error:", error);
     return NextResponse.json(
-      { success: false, error: error?.message || "Failed to process Copilot query.", stack: error?.stack },
+      { success: false, error: "Failed to process Copilot query." },
       { status: 500 }
     );
   }

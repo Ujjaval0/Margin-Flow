@@ -1,5 +1,13 @@
 # MarginFlow Database Setup Guide
 
+Phase 2 update (15 October 2026): `00_run_all.sql` is for a **fresh, disposable database** only. It now applies schema migrations through 16 and does not run the demo seed. For an existing database, review and apply only unapplied numbered migrations after backup; do not rerun the bootstrap. No migration has been executed automatically by the application or during this remediation.
+
+API handlers now perform read-only readiness checks. Apply migrations 14 and 15 explicitly before testing webhook receipts, document ownership and per-tenant display IDs. Existing records without proven ownership are not assigned to a default merchant. Resolve ambiguous ownership before production use.
+
+Phase 4 requires `16_connector_sync_and_oauth.sql` for separate order/finance checkpoints and durable, bound OAuth state. Configure `FLIPKART_APP_ID`, `FLIPKART_APP_SECRET`, and `FLIPKART_REDIRECT_URI` on the server; production callbacks must use the registered HTTPS URI. Pending OAuth flows from before this migration must be restarted. No database was mutated during implementation.
+
+For Supabase, the revised `07_rls_supabase.sql` runs **after** the numbered migrations and denies direct business-table access to `anon` and `authenticated` by default. Any direct-access ownership policies need separate verification against the real Supabase identity mapping. See `../pending.md` for outstanding database and provider tests.
+
 ## Local PostgreSQL (Testing Phase)
 
 ### Prerequisites
@@ -92,3 +100,17 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ```
+
+## Phase 5 archive migration
+
+Apply `17_recycle_bin.sql` explicitly after migrations 01–16, first on an approved disposable database. The fresh bootstrap includes it; request handlers never execute DDL. It adds tenant-owned archives, settlement soft-delete visibility and recovery metadata for returns, claims and expenses. Existing unowned expenses are not assigned to an account.
+
+The server database role must have the required table privileges and a verified RLS strategy. `ledger_archives` enables RLS and grants no public/direct-client access. Test archival/recovery rollback, competing restores, stock conflicts, expiry and cross-tenant access using the actual intended server role before deployment. Seven days is the recovery window; this migration does not schedule physical purges.
+
+## Phase 6 session migration
+
+Apply `18_auth_sessions.sql` explicitly after migrations 01–17, first on an approved disposable target with the intended server role. Bootstrap includes it and the read-only readiness check requires it; request handlers never create the table. It stores SHA-256 token digests, owner, expiry and revocation timestamps. RLS is enabled with no public grants. Provision and test the server's privileges/RLS strategy; do not grant direct browser access to session records.
+
+All replicas need the same stable, randomly generated `SESSION_SECRET` of at least 32 bytes (or the existing `ENCRYPTION_MASTER_KEY` fallback). Authentication checks require an authoritative database without stale active-session caching/read replicas. Login fails if registration cannot persist; logout clears the browser cookie only after revocation succeeds. Old stateless tokens are rejected and users must sign in again after deployment.
+
+Before release, verify real SQL issuance, copied cookie/Bearer revocation, selective logout, outages/retry, deleted accounts, restart and separate replicas. The isolated test registry does not certify PostgreSQL behavior. Choose retention and scheduled cleanup for expired/revoked sessions separately; this migration schedules no deletion. No migration has been applied by the remediation work.

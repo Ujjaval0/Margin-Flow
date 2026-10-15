@@ -38,17 +38,30 @@ export function AddPurchaseModal({
   }, [isOpen, onClose]);
 
   const [purchaseSupplierId, setPurchaseSupplierId] = useState(suppliers[0]?.id || "");
-  const [purchaseInvoiceNo, setPurchaseInvoiceNo] = useState("INV-2026-901");
+  const [purchaseInvoiceNo, setPurchaseInvoiceNo] = useState("");
   const [purchaseSku, setPurchaseSku] = useState(products[0]?.sku || "");
-  const [purchaseQty, setPurchaseQty] = useState(100);
-  const [purchaseUnitCost, setPurchaseUnitCost] = useState(products[0]?.currentCostPrice || 350);
+  const [purchaseQty, setPurchaseQty] = useState<number | "">("");
+  const [purchaseUnitCost, setPurchaseUnitCost] = useState<number | "">(products[0]?.currentCostPrice ?? "");
   const [purchaseTaxRate, setPurchaseTaxRate] = useState(18);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPurchaseSupplierId(suppliers[0]?.id || "");
+      setPurchaseInvoiceNo("");
+      setPurchaseSku(products[0]?.sku || "");
+      setPurchaseQty("");
+      setPurchaseUnitCost(products[0]?.currentCostPrice ?? "");
+      setPurchaseTaxRate(18);
+    }
+  }, [isOpen, suppliers, products]);
 
   if (!isOpen || !mounted) return null;
 
-  const subtotal = purchaseQty * purchaseUnitCost;
-  const taxes = Math.round(subtotal * (purchaseTaxRate / 100));
-  const totalAmount = subtotal + taxes;
+  const numQty = typeof purchaseQty === "number" ? purchaseQty : Number(purchaseQty) || 0;
+  const numUnitCost = typeof purchaseUnitCost === "number" ? purchaseUnitCost : Number(purchaseUnitCost) || 0;
+  const subtotal = numQty * numUnitCost;
+  const taxes = Math.round(subtotal * (purchaseTaxRate / 100) * 100) / 100;
+  const totalAmount = Math.round((subtotal + taxes) * 100) / 100;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,8 +74,8 @@ export function AddPurchaseModal({
       invoiceNumber: purchaseInvoiceNo || `INV-${Date.now().toString().slice(-4)}`,
       invoiceDate: new Date().toISOString().split("T")[0],
       sku: purchaseSku,
-      quantity: Number(purchaseQty),
-      unitCost: Number(purchaseUnitCost),
+      quantity: numQty,
+      unitCost: numUnitCost,
       taxes,
       totalAmount,
       paymentStatus: "PAID",
@@ -110,11 +123,15 @@ export function AddPurchaseModal({
                 onChange={(e) => setPurchaseSupplierId(e.target.value)}
                 className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 cursor-pointer"
               >
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.contactPerson})
-                  </option>
-                ))}
+                {suppliers.length === 0 ? (
+                  <option value="">No suppliers available</option>
+                ) : (
+                  suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.contactPerson})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
             <div>
@@ -136,15 +153,19 @@ export function AddPurchaseModal({
               onChange={(e) => {
                 setPurchaseSku(e.target.value);
                 const prod = products.find((p) => p.sku === e.target.value);
-                if (prod) setPurchaseUnitCost(prod.currentCostPrice);
+                setPurchaseUnitCost(prod ? prod.currentCostPrice : "");
               }}
               className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 cursor-pointer"
             >
-              {products.map((p) => (
-                <option key={p.sku} value={p.sku}>
-                  {p.sku} — {p.name} (Current Cost: ₹{p.currentCostPrice})
-                </option>
-              ))}
+              {products.length === 0 ? (
+                <option value="">No products available</option>
+              ) : (
+                products.map((p) => (
+                  <option key={p.sku} value={p.sku}>
+                    {p.sku} — {p.name} (Current Cost: ₹{p.currentCostPrice})
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -153,9 +174,10 @@ export function AddPurchaseModal({
               <label className="font-medium text-[#6E6E73] block mb-1">Quantity</label>
               <input
                 type="number"
-                min="1"
+                min="0"
+                placeholder="0"
                 value={purchaseQty}
-                onChange={(e) => setPurchaseQty(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setPurchaseQty(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0))}
                 className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] tabular-nums focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
               />
             </div>
@@ -163,9 +185,11 @@ export function AddPurchaseModal({
               <label className="font-medium text-[#6E6E73] block mb-1">Unit Cost (₹)</label>
               <input
                 type="number"
-                min="1"
+                min="0"
+                step="any"
+                placeholder="0.00"
                 value={purchaseUnitCost}
-                onChange={(e) => setPurchaseUnitCost(Math.max(0.01, parseFloat(e.target.value) || 1))}
+                onChange={(e) => setPurchaseUnitCost(e.target.value === "" ? "" : Math.max(0, parseFloat(e.target.value) || 0))}
                 className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] tabular-nums focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
               />
             </div>
@@ -173,7 +197,7 @@ export function AddPurchaseModal({
               <label className="font-medium text-[#6E6E73] block mb-1">GST Tax Rate (%)</label>
               <select
                 value={purchaseTaxRate}
-                onChange={(e) => setPurchaseTaxRate(parseInt(e.target.value) || 18)}
+                onChange={(e) => setPurchaseTaxRate(Number(e.target.value))}
                 className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] tabular-nums focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 cursor-pointer"
               >
                 <option value={0}>0%</option>

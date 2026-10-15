@@ -13,10 +13,10 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
   const [activeChannel, setActiveChannel] = useState<number>(0);
 
   const CHANNELS = [
-    { name: "Amazon India", type: "SP-API Read-Only", status: "Reconciled", metric: "₹1,499.00 Invoiced", fee: "₹220.00 Comm", bank: "₹729.00 Bank" },
-    { name: "Flipkart", type: "Order & SPF Sync", status: "Overcharge Intercepted", metric: "420g vs 1.5kg", fee: "−₹185.00 Flagged", bank: "Refund Queued" },
-    { name: "Meesho", type: "Zero Commission", status: "RTO Toll Audited", metric: "COD Bounced", fee: "−₹205.00 Toll", bank: "Loss Isolated" },
-    { name: "Shopify D2C", type: "Gateway & COGS", status: "POAS Verified", metric: "3.2x ROAS", fee: "2.14x POAS", bank: "True Margin" },
+    { name: "Amazon India", type: "SP-API & MTR", status: "Reconciled", metric: "₹1,499.00 Invoiced", fee: "₹220.00 Comm", bank: "₹729.00 Bank" },
+    { name: "Flipkart", type: "Orders & SPF Sync", status: "Damaged Return Intercepted", metric: "Damaged Unit", fee: "₹840.00 Claim Value", bank: "SPF Dossier Ready" },
+    { name: "Meesho", type: "Statement Auto-Mapper", status: "RTO Toll Audited", metric: "COD Bounced", fee: "−₹205.00 Toll", bank: "Loss Isolated" },
+    { name: "Shopify D2C", type: "Live Webhook Sync", status: "POAS Verified", metric: "3.2x ROAS", fee: "2.14x POAS", bank: "True Margin" },
   ];
 
   return (
@@ -222,7 +222,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
             </h1>
 
             <p className="text-base sm:text-lg text-[#9ab1a1] leading-relaxed max-w-lg font-normal">
-              Amazon, Flipkart, and couriers silently erode your margins. MarginFlow audits every order to recover lost cash automatically.
+              MarginFlow automatically detects hidden marketplace fees, audits supplier costs, and recovers lost profits before settlement windows close.
             </p>
 
             {/* CTAs */}
@@ -329,7 +329,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
                     100%
                   </strong>
                   <span className="text-[11px] text-[#5c7062] font-medium mt-0.5 block">
-                    Zero Expired Claim SLAs
+                    Claims Compiled In SLA
                   </span>
                 </div>
               </div>

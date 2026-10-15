@@ -3,10 +3,10 @@ import React from "react";
 export interface MarginFlowLogoProps extends React.SVGProps<SVGSVGElement> {
   /**
    * Display variant:
-   * - 'full': Complete logo (Trend Arrow icon + "Margin Flow" wordmark)
-   * - 'icon': The upward trendline arrow mark only
-   * - 'mark': The Trend Arrow + 'M' monogram badge
-   * - 'text': The "Margin Flow" typography wordmark without the top arrow
+   * - 'full': Complete "MarginFlow" wordmark (default)
+   * - 'mark': The 'M' monogram mark
+   * - 'icon': The 'M' monogram mark
+   * - 'text': The "MarginFlow" wordmark
    */
   variant?: "full" | "icon" | "mark" | "text";
   /**
@@ -14,25 +14,21 @@ export interface MarginFlowLogoProps extends React.SVGProps<SVGSVGElement> {
    */
   fill?: string;
   /**
-   * Optional custom accent fill for the trendline arrow in multi-color modes.
+   * Optional custom accent fill (retained for backward compatibility).
    */
   arrowFill?: string;
 }
 
 /**
  * EXACT VECTOR PATH CONSTANTS EXTRACTED MATHEMATICALLY FROM THE MARGINFLOW LOGO
- * Coordinate system base: 1949 x 533
+ * Coordinate system base for wordmark: 1949 x 350 (Y: 180..530)
  */
 
-// 1. Upward Trendline Arrow Icon (Accent over 'M')
-const ARROW_ICON_PATH =
-  "M 349.363 15.499 C 338.853 20.751, 334.378 33.806, 339.569 44.075 C 341.589 48.072, 348.454 53.755, 352.679 54.928 C 354.781 55.511, 358.675 55.991, 361.333 55.994 C 363.992 55.997, 366.017 56.407, 365.833 56.904 C 365.650 57.401, 355.656 67.976, 343.623 80.404 C 318.365 106.493, 318.618 106.351, 311.569 98.427 C 309.331 95.912, 299.770 86.500, 290.322 77.512 C 270.754 58.898, 265.696 55.755, 252.122 53.777 C 242.340 52.351, 234.268 53.609, 225.500 57.925 C 221.900 59.698, 213.852 65.804, 205.382 73.190 C 176.603 98.285, 128.219 141.812, 118.333 151.500 C 109.379 160.275, 107.937 162.166, 106.564 166.932 C 104.596 173.767, 104.596 177.277, 106.567 183.913 C 108.401 190.089, 114.405 197.145, 120.455 200.234 C 125.355 202.736, 135.881 203.661, 141.663 202.096 C 143.952 201.477, 147.844 199.514, 150.311 197.735 C 152.779 195.956, 161.965 187.975, 170.725 180 C 240.229 116.724, 240.859 116.166, 243.750 115.388 C 244.987 115.056, 247.158 115.074, 248.572 115.429 C 250.057 115.801, 260.312 125.065, 272.822 137.333 C 295.039 159.120, 298.235 161.520, 308.468 164.096 C 311.229 164.792, 316.928 165.067, 322.507 164.775 C 338.447 163.941, 338.457 163.934, 375.651 126.295 C 394.298 107.424, 408.263 94.044, 408.901 94.439 C 409.552 94.841, 410.009 98.457, 410.022 103.309 C 410.048 113.159, 411.889 117.879, 417.773 123.183 C 424.746 129.470, 434.668 130.764, 443.690 126.564 C 449.609 123.808, 454.066 118.422, 455.909 111.798 C 456.768 108.712, 457.020 96.643, 456.802 69 L 456.500 30.500 453.394 25 C 451.234 21.176, 448.821 18.586, 445.474 16.500 L 440.660 13.500 397.580 13.216 L 354.500 12.933 349.363 15.499 Z";
-
-// 2. Letter 'M'
+// 1. Letter 'M'
 const LETTER_M_PATH =
   "M 36.500 196.402 C 29.998 198.464, 24.739 201.579, 20.860 205.665 C 16.191 210.584, 14.447 214.130, 13.093 221.454 C 12.349 225.479, 12 259.197, 12 327.025 C 12 434.923, 11.870 432.207, 17.389 439.443 C 18.795 441.287, 22.048 443.813, 24.617 445.057 C 28.443 446.909, 31.480 447.400, 41.394 447.770 C 48.179 448.024, 56.137 447.734, 59.500 447.110 C 66.953 445.727, 72.695 441.846, 76 435.956 L 78.500 431.500 79 362.742 L 79.500 293.983 103.500 318.102 C 116.700 331.368, 130.121 343.948, 133.325 346.059 C 137.275 348.661, 141.589 350.440, 146.721 351.581 C 164.199 355.470, 178.634 350.394, 193.878 334.998 C 195.870 332.986, 206.050 323.315, 216.500 313.506 C 226.950 303.697, 236.003 295.066, 236.618 294.326 C 237.493 293.271, 237.869 293.793, 238.357 296.740 C 238.698 298.808, 238.983 329.652, 238.989 365.282 C 238.998 417.354, 239.265 430.696, 240.348 433.282 C 242.366 438.096, 246.746 442.829, 251.376 445.197 C 255.034 447.068, 257.308 447.317, 271.500 447.403 C 287.157 447.498, 287.624 447.439, 293.301 444.652 C 300.024 441.350, 303.395 436.980, 304.987 429.500 C 305.711 426.100, 305.964 391.700, 305.776 321.978 L 305.500 219.457 302.215 212.785 C 296.648 201.477, 287.402 195.931, 272.902 195.202 C 263.822 194.746, 256.311 196.270, 248.827 200.088 C 246.773 201.136, 228.156 218.532, 207.455 238.747 C 186.754 258.961, 167.563 277.413, 164.809 279.750 C 162.055 282.087, 158.759 284, 157.485 284 C 155.765 284, 145.049 273.818, 115.853 244.441 C 94.229 222.683, 74.522 203.547, 72.061 201.917 C 69.599 200.286, 64.706 198.063, 61.187 196.976 C 53.854 194.711, 42.654 194.451, 36.500 196.402 Z";
 
-// 3. Letters "argin Flow" Wordmark
+// 2. Letters "argin Flow" Wordmark
 const WORDMARK_REST_PATH =
   // Letter 'a' (with cutout)
   "M 394.500 266.439 C 390.650 267.205, 384.266 268.959, 380.313 270.335 C 358.641 277.882, 338.565 296.658, 328.357 318.928 C 322.927 330.773, 320.789 340.630, 320.228 356.402 C 319.671 372.080, 320.662 379.590, 325.160 393.759 C 330.388 410.228, 344.272 428.068, 359.965 438.485 C 368.835 444.372, 381.908 449.499, 392.120 451.095 C 400.857 452.460, 414.785 451.780, 424.372 449.520 C 433.764 447.306, 445.492 441.204, 453.087 434.580 L 459.414 429.062 461.170 433.687 C 463.376 439.500, 467.384 443.738, 471.958 445.096 C 474.071 445.723, 482.993 446.017, 494.077 445.824 C 512.265 445.507, 512.738 445.444, 516.671 442.839 C 518.880 441.376, 521.545 438.451, 522.594 436.339 C 524.408 432.686, 524.513 429.004, 524.769 360.178 C 524.951 311.490, 524.692 286.569, 523.977 283.915 C 522.754 279.372, 518.092 273.659, 513.602 271.199 C 511.008 269.778, 507.553 269.500, 492.500 269.500 C 476.844 269.500, 474.044 269.743, 471 271.367 C 465.307 274.403, 463.029 277.094, 461.398 282.704 C 460.551 285.617, 459.674 288, 459.449 288 C 459.224 288, 456.049 285.290, 452.393 281.977 C 445.211 275.467, 435.160 270.066, 425.500 267.524 C 416.905 265.263, 402.874 264.771, 394.500 266.439 Z " +
@@ -61,70 +57,19 @@ export function MarginFlowLogo({
   variant = "full",
   fill = "currentColor",
   arrowFill,
-  className = "h-8 w-auto",
+  className = "h-[22px] w-auto",
   ...props
 }: MarginFlowLogoProps) {
-  const activeArrowFill = arrowFill || fill;
-
-  // Variant: Icon only (just the trendline arrow)
-  if (variant === "icon") {
+  // Variant: Mark or Icon (Letter M monogram badge without arrow)
+  if (variant === "mark" || variant === "icon") {
     return (
       <svg
-        viewBox="90 0 380 220"
+        viewBox="0 160 320 320"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className={className}
-        aria-label="MarginFlow Icon"
-        role="img"
-        {...props}
-      >
-        <path
-          d={ARROW_ICON_PATH}
-          fill={activeArrowFill}
-          fillRule="evenodd"
-          clipRule="evenodd"
-        />
-      </svg>
-    );
-  }
-
-  // Variant: Mark only (Trendline Arrow + Letter M monogram)
-  if (variant === "mark") {
-    return (
-      <svg
-        viewBox="0 0 470 470"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className={className}
-        aria-label="MarginFlow Mark"
-        role="img"
-        {...props}
-      >
-        <path
-          d={ARROW_ICON_PATH}
-          fill={activeArrowFill}
-          fillRule="evenodd"
-          clipRule="evenodd"
-        />
-        <path
-          d={LETTER_M_PATH}
-          fill={fill}
-          fillRule="evenodd"
-          clipRule="evenodd"
-        />
-      </svg>
-    );
-  }
-
-  // Variant: Text only ("Margin Flow" wordmark without the top arrow)
-  if (variant === "text") {
-    return (
-      <svg
-        viewBox="0 180 1949 350"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className={className}
-        aria-label="Margin Flow"
+        shapeRendering="geometricPrecision"
+        aria-label="MarginFlow"
         role="img"
         {...props}
       >
@@ -134,34 +79,22 @@ export function MarginFlowLogo({
           fillRule="evenodd"
           clipRule="evenodd"
         />
-        <path
-          d={WORDMARK_REST_PATH}
-          fill={fill}
-          fillRule="evenodd"
-          clipRule="evenodd"
-        />
       </svg>
     );
   }
 
-  // Variant: Full logo (Icon + Wordmark) - Default
+  // Variant: Full or Text ("MarginFlow" wordmark without top arrow)
   return (
     <svg
-      viewBox="0 0 1949 533"
+      viewBox="0 180 1949 350"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
+      shapeRendering="geometricPrecision"
       aria-label="MarginFlow"
       role="img"
       {...props}
     >
-      {/* Upward trendline financial indicator above 'M' */}
-      <path
-        d={ARROW_ICON_PATH}
-        fill={activeArrowFill}
-        fillRule="evenodd"
-        clipRule="evenodd"
-      />
       {/* Capital 'M' */}
       <path
         d={LETTER_M_PATH}

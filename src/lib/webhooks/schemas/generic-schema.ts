@@ -52,7 +52,7 @@ export function mapGenericOrderToDomain(
     const cost =
       item.unitCost ??
       catalogCostLookup?.[item.sku] ??
-      Math.round(item.sellingPrice * 0.45);
+      0;
 
     return {
       id: `ITEM-GEN-${payload.eventId}-${idx + 1}`,
