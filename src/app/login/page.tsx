@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MarginFlowLogo } from "@/components/MarginFlowLogo";
@@ -16,6 +16,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { AccountType } from "@/domain/types";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type AuthMode = "signin" | "signup";
 
@@ -32,45 +33,43 @@ export default function LoginPage() {
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<"google" | "email" | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("verified") === "1") {
+      setAuthMode("signin");
+      setSuccessMessage("Email verified. Please sign in.");
+    }
+  }, []);
 
   // 1. Google 1-Click Auth
   const handleGoogleAuth = async () => {
     setIsLoading(true);
+    setLoadingAction("google");
     setErrorMessage(null);
+    setSuccessMessage(null);
 
     try {
-      const res = await fetch("/api/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim() || "Google User",
-          email: email.trim() || "founder@marginflow.io",
-          accountType: selectedRole,
-        }),
+      const supabase = createSupabaseBrowserClient();
+      const callbackUrl = new URL("/auth/callback", window.location.origin);
+      callbackUrl.searchParams.set("accountType", selectedRole);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: callbackUrl.toString(),
+          queryParams: { prompt: "select_account" },
+        },
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Google authentication failed");
-      }
-
-      if (typeof window !== "undefined" && data.user) {
-        localStorage.setItem("marginflow_session", JSON.stringify(data.user));
-        window.dispatchEvent(new Event("marginflow:session-changed"));
-      }
-
-      setTimeout(() => {
-        if (data.isNewUser) {
-          router.push("/onboarding");
-        } else {
-          router.push("/dashboard");
-        }
-      }, 500);
+      if (error) throw error;
+      if (!data.url) throw new Error("Google sign-in could not be started.");
+      window.location.assign(data.url);
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to authenticate with Google");
       setIsLoading(false);
+      setLoadingAction(null);
     }
   };
 
@@ -78,6 +77,7 @@ export default function LoginPage() {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setSuccessMessage(null);
 
     if (authMode === "signup" && !name.trim()) {
       setErrorMessage("Please enter your name");
@@ -95,6 +95,7 @@ export default function LoginPage() {
     }
 
     setIsLoading(true);
+    setLoadingAction("email");
 
     try {
       const endpoint = authMode === "signup" ? "/api/auth/signup" : "/api/auth/login";
@@ -123,13 +124,20 @@ export default function LoginPage() {
         throw new Error(data.error || "Authentication failed");
       }
 
+      if (data.confirmationRequired) {
+        setSuccessMessage(data.message || "Check your email to confirm your address.");
+        setIsLoading(false);
+        setLoadingAction(null);
+        return;
+      }
+
       if (typeof window !== "undefined" && data.user) {
         localStorage.setItem("marginflow_session", JSON.stringify(data.user));
         window.dispatchEvent(new Event("marginflow:session-changed"));
       }
 
       setTimeout(() => {
-        if (authMode === "signup" || data.isNewUser) {
+        if (authMode === "signup" || data.onboardingRequired) {
           router.push("/onboarding");
         } else {
           router.push("/dashboard");
@@ -138,6 +146,7 @@ export default function LoginPage() {
     } catch (err: any) {
       setErrorMessage(err.message || "Authentication error occurred");
       setIsLoading(false);
+      setLoadingAction(null);
     }
   };
 
@@ -182,6 +191,7 @@ export default function LoginPage() {
               onClick={() => {
                 setAuthMode("signup");
                 setErrorMessage(null);
+                setSuccessMessage(null);
               }}
               className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 authMode === "signup"
@@ -196,6 +206,7 @@ export default function LoginPage() {
               onClick={() => {
                 setAuthMode("signin");
                 setErrorMessage(null);
+                setSuccessMessage(null);
               }}
               className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 authMode === "signin"
@@ -215,6 +226,13 @@ export default function LoginPage() {
             </div>
           )}
 
+          {successMessage && (
+            <div className="mt-4 p-3 rounded-xl bg-green-50 border border-green-200/60 flex items-start gap-2.5 text-xs text-green-800">
+              <CheckCircle2 className="w-4 h-4 text-green-700 shrink-0 mt-0.5" />
+              <span>{successMessage}</span>
+            </div>
+          )}
+
           {/* 1. Google One-Click Button */}
           <div className="mt-5">
             <button
@@ -223,7 +241,7 @@ export default function LoginPage() {
               disabled={isLoading}
               className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl bg-white hover:bg-[#FBFBFD] active:bg-[#F5F5F7] text-[#1D1D1F] font-medium text-xs sm:text-sm border border-black/[0.1] shadow-apple-sm btn-press transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed group relative overflow-hidden"
             >
-              {isLoading ? (
+              {loadingAction === "google" ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full border-2 border-[#0071E3] border-t-transparent animate-spin" />
                   <span className="text-[#1D1D1F]">Connecting...</span>
@@ -330,6 +348,11 @@ export default function LoginPage() {
                   )}
                 </button>
               </div>
+              {authMode === "signup" && (
+                <p className="mt-1.5 text-[11px] text-[#86868B]">
+                  At least 8 characters, including uppercase and lowercase letters, a number, and a symbol.
+                </p>
+              )}
             </div>
 
             <button
@@ -337,7 +360,7 @@ export default function LoginPage() {
               disabled={isLoading}
               className="w-full mt-3 py-2.5 px-4 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium text-xs sm:text-sm shadow-apple-sm btn-press transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
+              {loadingAction === "email" ? (
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
                   <span>Processing...</span>
@@ -363,10 +386,6 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Bottom info */}
-      <div className="max-w-6xl w-full mx-auto text-center text-xs text-[#86868B]">
-        MarginFlow Technologies India • Financial Intelligence for Modern E-Commerce
-      </div>
     </div>
   );
 }

@@ -162,7 +162,7 @@ export function CfoCopilot() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [aiSettings, setAiSettings] = useState<AISettings>(loadAISettings());
+  const [aiSettings, setAiSettings] = useState<AISettings>(loadAISettings(platform.verifiedOwnerId));
   const [inputQuery, setInputQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -230,11 +230,15 @@ export function CfoCopilot() {
   // Sync settings when updated in modal
   useEffect(() => {
     const handleSettingsUpdate = (e: any) => {
-      setAiSettings(e.detail || loadAISettings());
+      if (e.detail?.ownerId === platform.verifiedOwnerId) setAiSettings(e.detail.settings || loadAISettings(platform.verifiedOwnerId));
     };
     window.addEventListener("marginflow_ai_settings_updated", handleSettingsUpdate);
     return () => window.removeEventListener("marginflow_ai_settings_updated", handleSettingsUpdate);
-  }, []);
+  }, [platform.verifiedOwnerId]);
+
+  useEffect(() => {
+    setAiSettings(loadAISettings(platform.verifiedOwnerId));
+  }, [platform.verifiedOwnerId]);
 
   // Global event listener to open copilot from Navbar or anywhere
   useEffect(() => {
@@ -704,6 +708,7 @@ export function CfoCopilot() {
       <AISettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        ownerId={platform.verifiedOwnerId}
       />
 
       {/* SKU Inspection Drawer (triggered via Action Chip) */}

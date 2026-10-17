@@ -17,5 +17,6 @@
 \ir 16_connector_sync_and_oauth.sql
 \ir 17_recycle_bin.sql
 \ir 18_auth_sessions.sql
+\ir 19_durable_jobs.sql
 \echo 'Schema bootstrap complete. No demo seed was applied.'
 \echo 'Supabase only: review and run 07_rls_supabase.sql after all migrations.'

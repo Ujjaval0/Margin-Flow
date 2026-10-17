@@ -43,15 +43,16 @@ export function MarginFlowFlowMachine() {
         </div>
 
         {/* Compact, Professional Apparatus Card */}
-        <div className="rounded-[28px] sm:rounded-[36px] bg-white border border-[#e2e8e0] p-5 sm:p-8 lg:p-10 shadow-[0_12px_36px_rgba(0,0,0,0.03)]">
+        <div className="rounded-[24px] sm:rounded-[36px] bg-white border border-[#e2e8e0] p-4 sm:p-8 lg:p-10 shadow-[0_12px_36px_rgba(0,0,0,0.03)]">
           {/* Inner Dotted Canvas Arena (Clean Neutral with Subtle Accents) */}
           <div
-            className="relative rounded-2xl sm:rounded-3xl border border-[#e8ece6] bg-[#fbfcfb] p-4 sm:p-8 min-h-[220px] sm:min-h-[250px] flex items-center justify-between overflow-x-auto sm:overflow-visible no-scrollbar gap-2 sm:gap-4"
+            className="relative rounded-2xl sm:rounded-3xl border border-[#e8ece6] bg-[#fbfcfb] p-3 sm:p-8 min-h-[220px] sm:min-h-[250px] overflow-x-auto sm:overflow-visible no-scrollbar"
             style={{
               backgroundImage: "radial-gradient(#d1dbd0 1.2px, transparent 1.2px)",
               backgroundSize: "22px 22px",
             }}
           >
+            <div className="relative flex items-center justify-between min-w-[440px] sm:min-w-0 w-full gap-2 sm:gap-4">
             {/* SVG Connecting Rails with Live Animated Light Streams */}
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none z-0"
@@ -225,10 +226,11 @@ export function MarginFlowFlowMachine() {
                 </span>
               </div>
             </div>
+            </div>
           </div>
 
           {/* Three Clean Feature Columns Below Canvas */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-6 sm:pt-8 mt-6 sm:mt-8 border-t border-[#e2e8e0]">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 pt-6 sm:pt-8 mt-6 sm:mt-8 border-t border-[#e2e8e0]">
             <div>
               <h3 className="text-sm sm:text-base font-bold text-[#193022] tracking-tight">
                 A single audit ledger

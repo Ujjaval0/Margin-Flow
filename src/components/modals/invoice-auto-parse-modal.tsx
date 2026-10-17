@@ -21,6 +21,7 @@ import { formatINR } from "@/lib/utils";
 import { getMarketplaceBadge } from "@/lib/marketplace-config";
 import { detectAndMapCsv } from "@/domain/csv-auto-mapper";
 import { loadAISettings } from "@/lib/security/ai-vault";
+import { usePlatform } from "@/domain/store";
 
 export interface InvoiceAutoParseModalProps {
   isOpen: boolean;
@@ -61,7 +62,7 @@ interface ExtractedInvoiceResult {
 }
 
 // Helper: Extract text & multimodal structured data from uploaded file (.pdf, .csv, .txt, images)
-async function extractInvoiceFromFile(file: File): Promise<ExtractedInvoiceResult> {
+async function extractInvoiceFromFile(file: File, ownerId: string | null): Promise<ExtractedInvoiceResult> {
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
 
   // Plain text or CSV files can be read directly if needed
@@ -76,7 +77,7 @@ async function extractInvoiceFromFile(file: File): Promise<ExtractedInvoiceResul
 
   // Digital PDF, image, or text: use server route to extract real digital PDF text & multimodal OCR
   try {
-    const aiSettings = loadAISettings();
+    const aiSettings = loadAISettings(ownerId);
     const formData = new FormData();
     formData.append("files", file);
 
@@ -443,6 +444,7 @@ export function InvoiceAutoParseModal({
   existingOrders = [],
   onImportOrders,
 }: InvoiceAutoParseModalProps) {
+  const { verifiedOwnerId } = usePlatform();
   const [mounted, setMounted] = useState(false);
   const [parsedItems, setParsedItems] = useState<ParsedInvoiceItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -547,7 +549,7 @@ export function InvoiceAutoParseModal({
           }
 
           // Single invoice file (PDF, TXT, or single-invoice CSV) via multimodal extraction
-          const extraction = await extractInvoiceFromFile(file);
+          const extraction = await extractInvoiceFromFile(file, verifiedOwnerId);
           const order = createOrderFromExtractedData(extraction, file.name, products, suppliers, i);
 
           // Deduplication: Avoid adding duplicate order IDs within current batch

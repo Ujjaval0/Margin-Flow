@@ -173,6 +173,37 @@ test('Finances pagination reads its own checkpoint and cannot advance the Orders
   assert.equal(c.checkpoints[0][3].stream, 'finances');
 });
 
+test('checkpoint updates persist independent streams under the owner and one active connection guard', async () => {
+  const statements = [];
+  const vault = load('src/lib/security/marketplace-vault.ts', {
+    '@/lib/db': {
+      ensureMarketplaceTables: async () => {},
+      query: async (sql, args) => { statements.push({ sql, args }); return { rows: [], rowCount: 1 }; },
+    },
+    './encryption': { encryptPayload: () => '', decryptPayload: () => ({}) },
+    './webhook-connection': { webhookPath: () => '' },
+  });
+  await vault.updateSyncStatus('tenant-A', 'Amazon India', 'SUCCEEDED', {
+    stream: 'orders', lastSyncedAt: '2026-10-15T00:00:00.000Z', lastSyncCursor: null,
+  });
+  await vault.updateSyncStatus('tenant-A', 'Amazon India', 'SUCCEEDED', {
+    stream: 'finances', lastSyncedAt: '2026-10-14T00:00:00.000Z', lastSyncCursor: 'finance-next',
+  });
+
+  assert.equal(statements.length, 2);
+  for (const { sql, args } of statements) {
+    assert.match(sql, /jsonb_set\(sync_checkpoints, ARRAY\[\$7::text\], \$8::jsonb, true\)/);
+    assert.match(sql, /WHERE user_id = \$5 AND marketplace = \$6 AND is_active = true/);
+    assert.match(sql, /COUNT\(\*\).*is_active = true\) = 1/);
+    assert.equal(args[4], 'tenant-A');
+    assert.equal(args[5], 'Amazon India');
+  }
+  assert.equal(statements[0].args[6], 'orders');
+  assert.deepEqual(JSON.parse(statements[0].args[7]), { lastSyncedAt: '2026-10-15T00:00:00.000Z', cursor: null });
+  assert.equal(statements[1].args[6], 'finances');
+  assert.deepEqual(JSON.parse(statements[1].args[7]), { lastSyncedAt: '2026-10-14T00:00:00.000Z', cursor: 'finance-next' });
+});
+
 test('Flipkart refresh persists rotated tokens before using the new access token', async () => {
   const c = connector('flipkart/sync', async (url, options) => {
     if (url.includes('/oauth/token')) return Response.json({ access_token: 'new-access', refresh_token: 'rotated-refresh', expires_in: 1200 });

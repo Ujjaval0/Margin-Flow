@@ -249,6 +249,15 @@ test('F48/F49: actual provider rejects failed saves, uses canonical IDs and dedu
   assert.equal(app.render().orders.find(row => row.channelOrderId === 'new').id, 'canonical');
   assert.equal(app.render().orders.find(row => row.channelOrderId === 'new').status, 'SHIPPED');
 });
+test('F22/F40: product creation waits for server acknowledgement before updating local state', async () => {
+  const app = providerHarness(); await app.render().refreshFromDatabase();
+  app.reject(true);
+  await assert.rejects(app.render().addProduct(product({ id: 'new-product', sku: 'NEW-SKU' })), /Product could not be saved/);
+  assert.deepEqual(plain(app.render().products.map(row => row.sku)), ['SKU']);
+  app.reject(false);
+  await app.render().addProduct(product({ id: 'new-product', sku: 'NEW-SKU' }));
+  assert.deepEqual(plain(app.render().products.map(row => row.sku)), ['NEW-SKU', 'SKU']);
+});
 test('F47: failed archival leaves actual provider inventory and records untouched', async () => {
   const app = providerHarness(); await app.render().refreshFromDatabase();
   app.reject(true);
@@ -257,6 +266,25 @@ test('F47: failed archival leaves actual provider inventory and records untouche
   assert.equal(app.render().orders.length, 1);
   assert.equal(app.render().products[0].stockQuantity, 5);
   assert.equal(app.alerts.length, 1);
+});
+test('F51: restocking is idempotent and missing products remain pending', async () => {
+  const app = providerHarness(); await app.render().refreshFromDatabase();
+  const actions = app.render();
+  actions.addReturn(returned({ id: 'pending-restock', quantity: 2, restockStatus: 'PENDING_RESTOCK' }));
+  const before = app.render();
+  assert.equal(before.products[0].stockQuantity, 5);
+  const restock = before.restockReturn;
+  restock('pending-restock');
+  restock('pending-restock');
+  const after = app.render();
+  assert.equal(after.products[0].stockQuantity, 7);
+  assert.equal(after.returns.find(record => record.id === 'pending-restock').restockStatus, 'RESTOCKED');
+
+  after.addReturn(returned({ id: 'missing-product', sku: 'UNKNOWN', restockStatus: 'PENDING_RESTOCK' }));
+  app.render().restockReturn('missing-product');
+  const missing = app.render();
+  assert.equal(missing.products[0].stockQuantity, 7);
+  assert.equal(missing.returns.find(record => record.id === 'missing-product').restockStatus, 'PENDING_RESTOCK');
 });
 test('F47: canonical recovered records retain tenant-scoped identities and numeric amounts', async () => {
   const queries = [];

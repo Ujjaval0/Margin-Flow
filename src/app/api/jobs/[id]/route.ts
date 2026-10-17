@@ -10,9 +10,9 @@ export async function GET(
   const ownerId = await getSessionUserId(req);
   if (!ownerId) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
   const { id } = await params;
-  const job = queueManager.getJob(id);
+  const job = await queueManager.getJob(id, ownerId);
 
-  if (!job || job.ownerId !== ownerId) {
+  if (!job) {
     return NextResponse.json(
       { success: false, error: `Job with ID '${id}' not found.` },
       { status: 404 }
@@ -36,14 +36,12 @@ export async function DELETE(
   const ownerId = await getSessionUserId(req);
   if (!ownerId) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
   const { id } = await params;
-  if (queueManager.getJob(id)?.ownerId !== ownerId) {
-    return NextResponse.json({ success: false, error: "Job not found." }, { status: 404 });
-  }
-  const cancelled = queueManager.cancelJob(id);
+  const cancelled = await queueManager.cancelJob(id, ownerId);
+  if (!cancelled) return NextResponse.json({ success: false, error: "Job not found or no longer cancellable." }, { status: 404 });
 
   return NextResponse.json({
-    success: cancelled,
-    message: cancelled ? "Job cancelled successfully." : "Job could not be cancelled or does not exist.",
+    success: true,
+    message: "Job cancelled successfully.",
   });
   } catch {
     return NextResponse.json({ success: false, error: "Background processing is temporarily unavailable." }, { status: 503 });

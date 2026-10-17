@@ -31,8 +31,8 @@ export function MarginFlowFooter({ onSignIn, isAuthenticating }: MarginFlowFoote
             </p>
           </div>
 
-          {/* Right Group: Product and Channels & Trust strictly side-by-side */}
-          <div className="flex flex-row items-start gap-12 sm:gap-16 md:gap-24">
+          {/* Right Group: Product and Channels & Trust */}
+          <div className="flex flex-col sm:flex-row items-start gap-8 sm:gap-16 md:gap-24">
             
             {/* Column 1: Product */}
             <div className="space-y-3.5 min-w-[130px]">
@@ -100,7 +100,7 @@ export function MarginFlowFooter({ onSignIn, isAuthenticating }: MarginFlowFoote
         </div>
 
         {/* Legal & Meta Bottom Bar */}
-        <div className="pt-6 border-t border-white/[0.06] flex items-center justify-between text-xs font-mono text-[#687d6e]">
+        <div className="pt-6 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-mono text-[#687d6e] text-center sm:text-left">
           <p>© {new Date().getFullYear()} MarginFlow Technologies Pvt. Ltd. All rights reserved.</p>
         </div>
 

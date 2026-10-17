@@ -11,6 +11,7 @@ import {
   Camera,
   Pencil,
   Check,
+  LogOut,
 } from "lucide-react";
 import { usePlatform } from "@/domain/store";
 
@@ -36,8 +37,20 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   const [name, setName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileNotice, setProfileNotice] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [userPhone, setUserPhone] = useState("");
+  const [businessRole, setBusinessRole] = useState("FOUNDER");
+  const [customRole, setCustomRole] = useState("");
+  const initialProfile = useRef({ name: "", companyName: "", email: "", phone: "", businessRole: "FOUNDER", customRole: "" });
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -50,6 +63,11 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
     let initialName = currentUser?.name || "E-Commerce";
     let initialAvatar = currentUser?.avatarUrl || null;
+    let initialCompany = currentUser?.companyName || "";
+    let initialEmail = currentUser?.email || "";
+    let initialPhone = currentUser?.phone || "";
+    let initialRole = currentUser?.onboardingPreferences?.role || "FOUNDER";
+    let initialCustomRole = currentUser?.onboardingPreferences?.roleLabel || "";
 
     if (typeof window !== "undefined") {
       try {
@@ -58,15 +76,30 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
           const parsed = JSON.parse(raw);
           if (parsed?.name) initialName = parsed.name;
           if (parsed?.avatarUrl) initialAvatar = parsed.avatarUrl;
+          if (parsed?.companyName) initialCompany = parsed.companyName;
+          if (parsed?.email) initialEmail = parsed.email;
+          if (parsed?.phone !== undefined) initialPhone = parsed.phone || "";
+          if (parsed?.onboardingPreferences?.role) initialRole = parsed.onboardingPreferences.role;
+          if (parsed?.onboardingPreferences?.roleLabel) initialCustomRole = parsed.onboardingPreferences.roleLabel;
         }
       } catch {}
     }
 
     setName(initialName);
     setAvatarUrl(initialAvatar);
+    setCompanyName(initialCompany);
+    setUserEmail(initialEmail);
+    setUserPhone(initialPhone);
+    setBusinessRole(initialRole);
+    setCustomRole(initialRole === "OTHER" ? initialCustomRole : "");
+    initialProfile.current = { name: initialName, companyName: initialCompany, email: initialEmail, phone: initialPhone, businessRole: initialRole, customRole: initialRole === "OTHER" ? initialCustomRole : "" };
     setIsEditingName(false);
+    setIsEditingProfile(false);
     setHasChanges(false);
     setIsSaved(false);
+    setLogoutError(null);
+    setProfileError(null);
+    setProfileNotice(null);
   }, [isOpen, currentUser]);
 
   // Keyboard dismissal on Escape key (Standard invariant)
@@ -98,23 +131,9 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
   if (!isOpen || !mounted) return null;
 
-  // Resolve business role from onboarding
-  const rawRole =
-    currentUser?.onboardingPreferences?.role ||
-    sessionData?.onboardingPreferences?.role ||
-    sessionData?.businessRole ||
-    "FOUNDER";
-  const roleTitle =
-    ROLE_LABELS[rawRole] ||
-    rawRole.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
-
-  // Resolve company, email, phone
-  const companyName =
-    sessionData?.companyName ||
-    currentUser?.companyName ||
-    "VoltTech Consumer Electronics";
-  const userEmail = sessionData?.email || currentUser?.email || "founder@marginflow.io";
-  const userPhone = sessionData?.phone || currentUser?.phone || "+91 98200 99881";
+  const resolvedRawRole = currentUser?.onboardingPreferences?.role || sessionData?.onboardingPreferences?.role || sessionData?.businessRole || "FOUNDER";
+  const resolvedRoleTitle = sessionData?.onboardingPreferences?.roleLabel || ROLE_LABELS[resolvedRawRole] || resolvedRawRole.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+  const profileInputClass = "w-[min(190px,52vw)] rounded-lg border border-black/[0.1] bg-white px-2 py-1.5 text-right text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20";
 
   // Calculate initials
   const initials =
@@ -149,38 +168,83 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   };
 
   // Commit changes to state and storage
-  const handleSave = () => {
+  const handleSave = async () => {
     const cleanName = name.trim() || currentUser?.name || "User";
+    setIsSavingProfile(true);
+    setProfileError(null);
+    setProfileNotice(null);
+    try {
+      const response = await fetch("/api/auth/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ name: cleanName, companyName, phone: userPhone, businessRole, customRole }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || "Profile could not be saved.");
 
-    const updatedUser = {
-      ...currentUser,
-      name: cleanName,
-      avatarUrl: avatarUrl || undefined,
-    };
-
-    setCurrentUser(updatedUser);
-
-    if (typeof window !== "undefined") {
+      const updatedUser = { ...currentUser, ...result.user, avatarUrl: avatarUrl || undefined };
+      setCurrentUser(updatedUser);
       try {
         const raw = localStorage.getItem("marginflow_session");
         const currentSession = raw ? JSON.parse(raw) : {};
-        const updatedSession = {
-          ...currentSession,
-          name: cleanName,
-          avatarUrl: avatarUrl || undefined,
-        };
-        localStorage.setItem("marginflow_session", JSON.stringify(updatedSession));
+        localStorage.setItem("marginflow_session", JSON.stringify({ ...currentSession, ...result.user, avatarUrl: avatarUrl || undefined }));
       } catch {}
+
+      setName(cleanName);
+      setUserEmail(result.user.email || userEmail);
+      setIsSaved(true);
+      setHasChanges(false);
+      setIsEditingName(false);
+      setIsEditingProfile(false);
+      initialProfile.current = { name: cleanName, companyName, email: result.user.email || userEmail, phone: userPhone, businessRole, customRole };
+      setTimeout(() => {
+        setIsSaved(false);
+        onClose();
+      }, 600);
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Profile could not be saved. Please retry.");
+    } finally {
+      setIsSavingProfile(false);
     }
+  };
 
-    setIsSaved(true);
-    setHasChanges(false);
+  const cancelProfileEdit = () => {
+    const initial = initialProfile.current;
+    setName(initial.name);
+    setCompanyName(initial.companyName);
+    setUserEmail(initial.email);
+    setUserPhone(initial.phone);
+    setBusinessRole(initial.businessRole);
+    setCustomRole(initial.customRole);
     setIsEditingName(false);
+    setIsEditingProfile(false);
+    setHasChanges(false);
+    setProfileError(null);
+    setProfileNotice(null);
+  };
 
-    setTimeout(() => {
-      setIsSaved(false);
-      onClose();
-    }, 300);
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    setLogoutError(null);
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Logout could not be completed.");
+      }
+
+      localStorage.removeItem("marginflow_session");
+      localStorage.removeItem("marginflow_onboarding_completed");
+      window.dispatchEvent(new Event("marginflow:session-changed"));
+      window.location.assign("/");
+    } catch (error) {
+      setLogoutError(error instanceof Error ? error.message : "Logout could not be completed. Please retry.");
+      setIsLoggingOut(false);
+    }
   };
 
   return createPortal(
@@ -322,63 +386,73 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         <div className="px-5 pb-5">
           <div className="bg-[#F9F9FB] rounded-2xl border border-black/[0.06] divide-y divide-black/[0.04] overflow-hidden text-xs">
             {/* Business Role (from onboarding) */}
-            <div className="flex items-center justify-between p-3.5">
+            <div className="flex items-center justify-between gap-2 p-3.5">
               <div className="flex items-center gap-2.5 text-[#6E6E73] font-medium">
                 <div className="w-7 h-7 rounded-lg bg-black/[0.03] flex items-center justify-center text-[#1D1D1F] shrink-0">
                   <Briefcase className="w-3.5 h-3.5 text-[#6E6E73]" />
                 </div>
                 <span>Business Role</span>
               </div>
-              <span className="font-semibold text-[#1D1D1F] text-right truncate max-w-[190px]">
-                {roleTitle}
-              </span>
+              {isEditingProfile ? (
+                <div className="flex w-[min(190px,52vw)] flex-col gap-1.5">
+                  <select className={profileInputClass} value={businessRole} onChange={(e) => { setBusinessRole(e.target.value); setHasChanges(true); }}>
+                    <option value="FOUNDER">Founder / Business Owner</option>
+                    <option value="STUDENT">Student</option>
+                    <option value="OPERATIONS_FINANCE">E-commerce / Finance Manager</option>
+                    <option value="SUPPLIER_MANUFACTURER">Manufacturer / Supplier</option>
+                    <option value="AGENCY_CONSULTANT">Agency Owner / Consultant</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                  {businessRole === "OTHER" && <input className={profileInputClass} value={customRole} onChange={(e) => { setCustomRole(e.target.value); setHasChanges(true); }} placeholder="Your role" maxLength={100} />}
+                </div>
+              ) : <span className="font-semibold text-[#1D1D1F] text-right truncate max-w-[190px]">{sessionData?.onboardingPreferences?.roleLabel || ROLE_LABELS[resolvedRawRole] || resolvedRoleTitle}</span>}
             </div>
 
             {/* Brand / Company Name */}
-            <div className="flex items-center justify-between p-3.5">
+            <div className="flex items-center justify-between gap-2 p-3.5">
               <div className="flex items-center gap-2.5 text-[#6E6E73] font-medium">
                 <div className="w-7 h-7 rounded-lg bg-black/[0.03] flex items-center justify-center text-[#1D1D1F] shrink-0">
                   <Building2 className="w-3.5 h-3.5 text-[#6E6E73]" />
                 </div>
                 <span>Company / Brand</span>
               </div>
-              <span className="font-semibold text-[#1D1D1F] text-right truncate max-w-[190px]">
-                {companyName}
-              </span>
+              {isEditingProfile ? <input className={profileInputClass} value={companyName} onChange={(e) => { setCompanyName(e.target.value); setHasChanges(true); }} maxLength={200} aria-label="Company or brand name" /> : <span className="font-semibold text-[#1D1D1F] text-right truncate max-w-[190px]">{companyName || currentUser?.companyName || "Not provided"}</span>}
             </div>
 
             {/* Email */}
-            <div className="flex items-center justify-between p-3.5">
+            <div className="flex items-center justify-between gap-2 p-3.5">
               <div className="flex items-center gap-2.5 text-[#6E6E73] font-medium">
                 <div className="w-7 h-7 rounded-lg bg-black/[0.03] flex items-center justify-center text-[#1D1D1F] shrink-0">
                   <Mail className="w-3.5 h-3.5 text-[#6E6E73]" />
                 </div>
                 <span>Email</span>
               </div>
-              <span className="font-semibold text-[#1D1D1F] text-right truncate max-w-[190px]">
-                {userEmail}
-              </span>
+              <span className="font-semibold text-[#1D1D1F] text-right truncate max-w-[190px]" title="Email changes are managed through account verification">{userEmail || currentUser?.email || "Not provided"}</span>
             </div>
 
             {/* Phone */}
-            <div className="flex items-center justify-between p-3.5">
+            <div className="flex items-center justify-between gap-2 p-3.5">
               <div className="flex items-center gap-2.5 text-[#6E6E73] font-medium">
                 <div className="w-7 h-7 rounded-lg bg-black/[0.03] flex items-center justify-center text-[#1D1D1F] shrink-0">
                   <Phone className="w-3.5 h-3.5 text-[#6E6E73]" />
                 </div>
                 <span>Phone</span>
               </div>
-              <span className="font-semibold text-[#1D1D1F] text-right truncate max-w-[190px]">
-                {userPhone}
-              </span>
+              {isEditingProfile ? <input type="tel" inputMode="numeric" pattern="[0-9]{10}" maxLength={10} className={profileInputClass} value={userPhone} onChange={(e) => { setUserPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setHasChanges(true); }} placeholder="10-digit mobile number" aria-label="10-digit Indian mobile number" autoComplete="tel" /> : <span className="font-semibold text-[#1D1D1F] text-right truncate max-w-[190px]">{userPhone || currentUser?.phone || "Not provided"}</span>}
             </div>
           </div>
         </div>
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-black/[0.05] bg-[#FBFBFD] flex items-center justify-between shrink-0">
-          <div className="text-[11px] text-[#86868B]">
-            {isSaved ? (
+          <div className="text-[11px] text-[#86868B] min-w-0">
+            {profileError ? (
+              <span role="alert" className="text-red-600">{profileError}</span>
+            ) : profileNotice ? (
+              <span role="status" className="text-[#6E6E73]">{profileNotice}</span>
+            ) : logoutError ? (
+              <span role="alert" className="text-red-600">{logoutError}</span>
+            ) : isSaved ? (
               <span className="text-emerald-600 font-medium flex items-center gap-1">
                 <Check className="w-3 h-3" /> Saved
               </span>
@@ -388,22 +462,28 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="inline-flex items-center gap-1 px-2 py-1.5 text-[#B42318] hover:bg-red-50 rounded-full text-xs font-semibold transition cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              {isLoggingOut ? "Logging out..." : "Log out"}
+            </button>
             {hasChanges ? (
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-4 py-1.5 bg-[#0071E3] hover:bg-[#0077ED] text-white rounded-full text-xs font-semibold shadow-apple-sm transition cursor-pointer active:scale-95"
+                disabled={isSavingProfile}
+                className="px-4 py-1.5 bg-[#0071E3] hover:bg-[#0077ED] text-white rounded-full text-xs font-semibold shadow-apple-sm transition cursor-pointer active:scale-95 disabled:opacity-60"
               >
-                Save Changes
+                {isSavingProfile ? "Saving..." : "Save Changes"}
               </button>
+            ) : isEditingProfile ? (
+              <button type="button" onClick={cancelProfileEdit} className="px-4 py-1.5 bg-black/[0.05] hover:bg-black/[0.08] text-[#1D1D1F] rounded-full text-xs font-semibold transition cursor-pointer">Cancel</button>
             ) : (
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-1.5 bg-[#1D1D1F] hover:bg-black text-white rounded-full text-xs font-semibold shadow-apple-sm transition cursor-pointer active:scale-95"
-              >
-                Done
-              </button>
+              <button type="button" onClick={() => { setIsEditingProfile(true); setProfileNotice(null); setProfileError(null); }} className="px-4 py-1.5 bg-[#0071E3] hover:bg-[#0077ED] text-white rounded-full text-xs font-semibold shadow-apple-sm transition cursor-pointer active:scale-95">Edit Profile</button>
             )}
           </div>
         </div>

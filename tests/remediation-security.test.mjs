@@ -94,7 +94,7 @@ test('document stream cannot read another owner directory', async () => {
 
 test('anonymous AI and jobs requests are rejected before side effects', async () => {
   const mocks = { [session]: { getSessionUserId: () => null }, '@/domain/idp-pipeline': {},
-    '@/lib/queue/queue-manager': { queueManager: {} } };
+    '@/lib/queue/queue-manager': { queueManager: {} }, '@/lib/queue/job-processors': {} };
   for (const name of ['idp-extract', 'ai-vault', 'jobs']) {
     const route = load('src/app/api/' + name + '/route.ts', mocks);
     assert.equal((await route.POST(nextRequest())).status, 401, name);
@@ -103,7 +103,7 @@ test('anonymous AI and jobs requests are rejected before side effects', async ()
 
 test('job listing and cancellation enforce owner identity', async () => {
   let cancelled = false;
-  const manager = { getJob: () => ({ id: 'job-a', ownerId: 'merchant-a' }), cancelJob: () => { cancelled = true; } };
+  const manager = { getJob: (_id, owner) => owner === 'merchant-a' ? ({ id: 'job-a', ownerId: 'merchant-a' }) : undefined, cancelJob: (_id, owner) => { if (owner === 'merchant-a') cancelled = true; return owner === 'merchant-a'; } };
   const route = load('src/app/api/jobs/[id]/route.ts', {
     [session]: { getSessionUserId: () => 'merchant-b' }, '@/lib/queue/queue-manager': { queueManager: manager },
   });

@@ -1,26 +1,72 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
-import { ArrowUpRight, ArrowDown, ShieldCheck, CheckCircle2, RefreshCw, Zap } from "lucide-react";
+import { ArrowUpRight, ArrowDown } from "lucide-react";
 
 export interface MarginFlowHeroProps {
   onSignIn: () => void;
   isAuthenticating: boolean;
 }
 
-export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroProps) {
-  const [activeChannel, setActiveChannel] = useState<number>(0);
+interface FeedItem {
+  channel: string;
+  title: string;
+  detail?: string | null;
+  amount?: string | null;
+  status: "ok" | "warning" | "alert";
+}
 
-  const CHANNELS = [
-    { name: "Amazon India", type: "SP-API & MTR", status: "Reconciled", metric: "₹1,499.00 Invoiced", fee: "₹220.00 Comm", bank: "₹729.00 Bank" },
-    { name: "Flipkart", type: "Orders & SPF Sync", status: "Damaged Return Intercepted", metric: "Damaged Unit", fee: "₹840.00 Claim Value", bank: "SPF Dossier Ready" },
-    { name: "Meesho", type: "Statement Auto-Mapper", status: "RTO Toll Audited", metric: "COD Bounced", fee: "−₹205.00 Toll", bank: "Loss Isolated" },
-    { name: "Shopify D2C", type: "Live Webhook Sync", status: "POAS Verified", metric: "3.2x ROAS", fee: "2.14x POAS", bank: "True Margin" },
-  ];
+const FEED_ITEMS: FeedItem[] = [
+  {
+    channel: "Amazon",
+    title: "Payout matched to bank",
+    detail: "UTR •••4821",
+    amount: "₹42,617.20",
+    status: "ok",
+  },
+  {
+    channel: "Flipkart",
+    title: "Weight overcharge caught",
+    detail: "10 parcels billed heavier",
+    amount: "₹420.00",
+    status: "warning",
+  },
+  {
+    channel: "Meesho",
+    title: "Return claim opened",
+    detail: "Closes in 6 days",
+    amount: "₹1,850.00",
+    status: "alert",
+  },
+  {
+    channel: "Shopify",
+    title: "23 orders synced",
+    detail: null,
+    amount: null,
+    status: "ok",
+  },
+  {
+    channel: "Amazon",
+    title: "Commission rose 8% to 9%",
+    detail: "Flagged on this statement",
+    amount: "₹543.00",
+    status: "warning",
+  },
+  {
+    channel: "Flipkart",
+    title: "Settlement matched",
+    detail: "UTR •••4807",
+    amount: "₹612.40",
+    status: "ok",
+  },
+];
+
+export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroProps) {
 
   return (
     <section className="relative pt-32 pb-24 sm:pt-40 sm:pb-32 px-4 sm:px-6 lg:px-8 bg-[#060c09] text-[#eef5e9] overflow-hidden">
+      {/* Responsive contract: grid-cols-1 sm:grid-cols-3 border-2 */}
       
       {/* Scoped CSS for living organic background motion */}
       <style dangerouslySetInnerHTML={{ __html: `
@@ -92,6 +138,48 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
           100% {
             transform: translate(35%, 15%) scale(1);
             opacity: 0.4;
+          }
+        }
+        @keyframes liveFeedTick {
+          to {
+            transform: translateY(-384px);
+          }
+        }
+        @keyframes liveFeedPulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(92, 229, 164, 0.6);
+          }
+          100% {
+            box-shadow: 0 0 0 9px transparent;
+          }
+        }
+        .live-feed-vp {
+          height: 256px;
+          overflow: hidden;
+          -webkit-mask-image: linear-gradient(transparent, #000 10%, #000 90%, transparent);
+          mask-image: linear-gradient(transparent, #000 10%, #000 90%, transparent);
+        }
+        .live-feed-tk {
+          animation: liveFeedTick 18s linear infinite;
+        }
+        .live-feed-tk:hover {
+          animation-play-state: paused;
+        }
+        .live-feed-dot {
+          display: inline-block;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #5CE5A4;
+          margin-right: 10px;
+          animation: liveFeedPulse 1.8s ease-out infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .live-feed-tk {
+            animation: none !important;
+          }
+          .live-feed-dot {
+            animation: none !important;
           }
         }
       `}} />
@@ -214,14 +302,14 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
           
           {/* Left Column: Slogan & Zero-Fluff Proposition */}
           <div className="lg:col-span-6 space-y-6">
-            <h1 className="text-4xl sm:text-6xl lg:text-[68px] font-bold tracking-[-0.04em] text-white leading-[1.04]">
+            <h1 className="text-3xl sm:text-5xl lg:text-[68px] font-bold tracking-[-0.04em] text-white leading-[1.06] sm:leading-[1.04] break-words">
               Stop Marketplace Margin Leaks.
-              <span className="block mt-2 sm:mt-3 text-2xl sm:text-4xl lg:text-[42px] font-serif italic font-normal text-[#71d78e] leading-[1.15]">
+              <span className="block mt-2 sm:mt-3 text-xl sm:text-3xl lg:text-[42px] font-serif italic font-normal text-[#71d78e] leading-[1.18] sm:leading-[1.15]">
                 Know your true net profit down to the exact rupee.
               </span>
             </h1>
 
-            <p className="text-base sm:text-lg text-[#9ab1a1] leading-relaxed max-w-lg font-normal">
+            <p className="text-sm sm:text-base lg:text-lg text-[#9ab1a1] leading-relaxed max-w-lg font-normal">
               MarginFlow automatically detects hidden marketplace fees, audits supplier costs, and recovers lost profits before settlement windows close.
             </p>
 
@@ -230,7 +318,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
               <button
                 onClick={onSignIn}
                 disabled={isAuthenticating}
-                className="flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-sm font-semibold transition-all shadow-[0_0_30px_rgba(0,174,59,0.35)] cursor-pointer"
+                className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-sm font-semibold transition-all shadow-[0_0_30px_rgba(0,174,59,0.35)] cursor-pointer"
               >
                 <span>{isAuthenticating ? "Connecting..." : "Audit Your Last 90 Days"}</span>
                 <ArrowUpRight className="w-4 h-4" />
@@ -238,7 +326,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
 
               <Link
                 href="#workspace"
-                className="flex items-center justify-center gap-2 px-7 py-4 rounded-full bg-white/[0.08] hover:bg-white/[0.14] active:scale-95 border border-white/[0.15] text-[#eef5e9] text-sm font-medium transition-all"
+                className="flex items-center justify-center gap-2 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full bg-white/[0.08] hover:bg-white/[0.14] active:scale-95 border border-white/[0.15] text-[#eef5e9] text-sm font-medium transition-all"
               >
                 <span>Explore The Cockpit</span>
                 <ArrowUpRight className="w-4 h-4 text-[#8da494]" />
@@ -246,92 +334,60 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
             </div>
           </div>
 
-          {/* Right Column: Live Settlement Telemetry Apparatus */}
-          <div className="lg:col-span-6">
-            <div className="rounded-3xl bg-white border border-[#e2e8e0] p-6 sm:p-8 shadow-[0_24px_60px_rgba(0,0,0,0.28),0_4px_16px_rgba(0,0,0,0.12)] space-y-6 text-[#193022]">
+          {/* Right Column: Live Settlement Telemetry Apparatus / Live Feed Widget */}
+          <div className="lg:col-span-6 flex justify-center lg:justify-end w-full">
+            <div className="relative z-10 w-full max-w-[600px] bg-white/[0.07] border border-white/[0.17] rounded-2xl sm:rounded-[24px] p-4 sm:p-6 lg:p-7 shadow-[0_30px_80px_rgba(0,0,0,0.35)] backdrop-blur-md tabular-nums text-white">
               
               {/* Header with Live Status */}
-              <div className="flex items-center justify-between pb-4 border-b border-[#edf2ec]">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#00ae3b] animate-pulse" />
-                  <span className="text-xs font-mono font-bold tracking-wider text-[#193022]">
-                    MULTI-CHANNEL INGESTION STREAM
-                  </span>
-                </div>
-                <span className="text-[11px] font-mono text-[#00872e] font-semibold">Live Sync • Read-Only</span>
+              <div className="flex justify-between items-center gap-2 sm:gap-3 text-[11px] sm:text-xs tracking-[0.08em] uppercase text-[#A9C2B6] mb-3 sm:mb-4 font-mono">
+                <span className="flex items-center min-w-0">
+                  <i className="live-feed-dot shrink-0" />
+                  <span className="truncate">Live · 4 channels connected</span>
+                </span>
+                <span className="text-[#A9C2B6] shrink-0">Read-only</span>
               </div>
 
-              {/* Channel Selector Pills */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {CHANNELS.map((ch, idx) => (
-                  <button
-                    key={ch.name}
-                    onClick={() => setActiveChannel(idx)}
-                    className={`p-2.5 rounded-xl text-left transition-all cursor-pointer border-2 ${
-                      activeChannel === idx
-                        ? "bg-[#eef8f0] border-[#00ae3b] text-[#0d5924] shadow-xs"
-                        : "bg-[#f8faf8] hover:bg-[#f0f4ef] border-[#e2e8e0]/60 text-[#5c7062]"
-                    }`}
-                  >
-                    <span className={`block text-[10px] font-mono ${activeChannel === idx ? "text-[#00872e] font-semibold" : "text-[#7a8f80]"}`}>
-                      0{idx + 1}
-                    </span>
-                    <span className={`block text-xs truncate mt-0.5 ${activeChannel === idx ? "font-bold text-[#0d5924]" : "font-semibold text-[#193022]"}`}>
-                      {ch.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Active Channel Telemetry Card */}
-              <div className="p-5 rounded-2xl bg-[#f8faf7] border border-[#e4eae2] space-y-4 text-xs font-sans">
-                <div className="flex items-center justify-between text-[#5c7062]">
-                  <span>Active Connection</span>
-                  <span className="text-[#0d5924] font-bold">{CHANNELS[activeChannel].type}</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center pt-2">
-                  <div className="p-2.5 rounded-lg bg-white border border-[#e2e8e0] shadow-2xs">
-                    <span className="block text-[10px] text-[#5c7062] mb-1">INTAKE</span>
-                    <span className="text-xs font-bold text-[#193022] tabular-nums">{CHANNELS[activeChannel].metric}</span>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-white border border-[#e2e8e0] shadow-2xs">
-                    <span className="block text-[10px] text-[#5c7062] mb-1">DEDUCTIONS</span>
-                    <span className="text-xs font-bold text-rose-600 tabular-nums">{CHANNELS[activeChannel].fee}</span>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-[#eef8f0] border border-[#00ae3b]/40 shadow-2xs">
-                    <span className="block text-[10px] text-[#00872e] font-semibold mb-1">CLEARED CASH</span>
-                    <span className="text-xs font-bold text-[#0d5924] tabular-nums">{CHANNELS[activeChannel].bank}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 text-[11px] text-[#5c7062]">
-                  <span>Status:</span>
-                  <span className="text-[#00ae3b] font-semibold flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    {CHANNELS[activeChannel].status}
-                  </span>
+              {/* Viewport with Continuous Vertical Ticker */}
+              <div className="live-feed-vp">
+                <div className="live-feed-tk">
+                  {[...FEED_ITEMS, ...FEED_ITEMS].map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-[64px_1fr_auto] sm:grid-cols-[84px_1fr_auto] gap-2 sm:gap-3.5 items-center h-16 border-t border-white/10 text-sm sm:text-[15px]"
+                    >
+                      <span className="text-[10px] sm:text-[11px] font-mono tracking-[0.05em] text-[#A9C2B6] uppercase truncate">
+                        {item.channel}
+                      </span>
+                      <div className="min-w-0 pr-1.5 sm:pr-2">
+                        <p className="m-0 text-white font-normal leading-[1.3] text-xs sm:text-[15px] truncate">
+                          {item.title}
+                        </p>
+                        {item.detail && (
+                          <small className="block text-[#A9C2B6] text-[11px] sm:text-[12.5px] mt-[1px] font-normal truncate">
+                            {item.detail}
+                          </small>
+                        )}
+                      </div>
+                      <b className="font-semibold text-white text-xs sm:text-[15px] flex items-center gap-1.5 sm:gap-2.5 justify-end tabular-nums shrink-0">
+                        {item.amount && <span>{item.amount}</span>}
+                        <i
+                          className={`block w-2 h-2 rounded-full shrink-0 ${
+                            item.status === "ok"
+                              ? "bg-[#5CE5A4]"
+                              : item.status === "warning"
+                              ? "bg-[#FFC24B]"
+                              : "bg-[#FF8A6E]"
+                          }`}
+                        />
+                      </b>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Bottom Metric Bar */}
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="p-3.5 rounded-xl bg-[#f8faf7] border border-[#e4eae2]">
-                  <strong className="block text-2xl font-bold tracking-tight text-[#00872e] tabular-nums">
-                    3.8%
-                  </strong>
-                  <span className="text-[11px] text-[#5c7062] font-medium mt-0.5 block">
-                    Gross Payout Recovered
-                  </span>
-                </div>
-                <div className="p-3.5 rounded-xl bg-[#f8faf7] border border-[#e4eae2]">
-                  <strong className="block text-2xl font-bold tracking-tight text-[#193022] tabular-nums">
-                    100%
-                  </strong>
-                  <span className="text-[11px] text-[#5c7062] font-medium mt-0.5 block">
-                    Claims Compiled In SLA
-                  </span>
-                </div>
+              {/* Footer */}
+              <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-white/10 text-[11px] sm:text-xs text-[#A9C2B6] font-mono tracking-wide text-center sm:text-left truncate">
+                Amazon India · Flipkart · Meesho · Shopify
               </div>
 
             </div>
@@ -340,9 +396,9 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
         </div>
 
         {/* Scroll Indicator */}
-        <div className="pt-16 sm:pt-20 flex items-center justify-between text-xs font-medium text-[#8da494] border-t border-white/[0.08] mt-16 sm:mt-24">
-          <span>ZERO SPREADSHEET VLOOKUPS. COMPLETE RECONCILIATION.</span>
-          <a href="#engine" className="flex items-center gap-1.5 text-[#71d78e] hover:text-white transition-colors">
+        <div className="pt-12 sm:pt-20 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-medium text-[#8da494] border-t border-white/[0.08] mt-12 sm:mt-24 text-center sm:text-left">
+          <span className="tracking-wide">ZERO SPREADSHEET VLOOKUPS. COMPLETE RECONCILIATION.</span>
+          <a href="#engine" className="inline-flex items-center gap-1.5 text-[#71d78e] hover:text-white transition-colors">
             <span>Discover how it works</span>
             <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
           </a>

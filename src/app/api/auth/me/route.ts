@@ -12,9 +12,23 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  if (session.sid !== "internal-service") {
+    return NextResponse.json({
+      authenticated: true,
+      user: {
+        id: session.sub,
+        name: session.name,
+        email: session.email,
+        accountType: session.accountType,
+        companyName: session.companyName || "My Brand",
+        phone: session.phone || "",
+      },
+    }, { headers: { "Cache-Control": "no-store" } });
+  }
+
   try {
     const res = await query(
-      `SELECT id, auth_user_id, name, email, account_type, company_name, created_at
+      `SELECT id, auth_user_id, name, email, account_type, company_name, phone, created_at
        FROM user_accounts
        WHERE id = $1
        LIMIT 1`,
@@ -31,6 +45,7 @@ export async function GET(req: NextRequest) {
           email: dbUser.email,
           accountType: dbUser.account_type,
           companyName: dbUser.company_name || "My Brand",
+          phone: dbUser.phone || "",
         },
       }, { headers: { "Cache-Control": "no-store" } });
     }

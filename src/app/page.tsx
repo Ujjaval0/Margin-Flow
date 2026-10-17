@@ -69,7 +69,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f6f9f5] text-[#193022] font-sans antialiased selection:bg-[#00ae3b] selection:text-white">
+    <div className="min-h-screen bg-[#f6f9f5] text-[#193022] font-sans antialiased selection:bg-[#00ae3b] selection:text-white overflow-x-hidden">
       
       {/* 1. DYNAMIC HYSTERESIS FLOATING NAVBAR */}
       <MarginFlowNavbar

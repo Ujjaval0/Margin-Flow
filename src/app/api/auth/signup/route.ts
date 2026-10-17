@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
 import { checkAuthBudget } from "@/lib/security/api-guard";
-import { query } from "@/lib/db";
-import { hashPassword } from "@/lib/auth-crypto";
-import { issueSessionToken, getSessionCookieOptions } from "@/lib/security/session";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ensureMarginFlowAccount } from "@/lib/auth/supabase-account";
 
 export async function POST(request: Request) {
   try {
@@ -20,75 +19,60 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
-    if (typeof password !== "string" || password.length < 12 || password.length > 1024) {
+    if (typeof password !== "string" || password.length < 8 || password.length > 1024) {
       return NextResponse.json(
-        { error: "Password must contain between 12 and 1024 characters" },
+        { error: "Password must contain at least 8 characters" },
         { status: 400 }
       );
     }
 
     const trimmedName = name.trim();
     const cleanEmail = email.trim().toLowerCase();
-    const validAccountType = accountType || "BRAND_OWNER";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
+    const emailRedirectUrl = new URL("/auth/callback", siteUrl);
+    emailRedirectUrl.searchParams.set("next", "/login?verified=1");
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: {
+        data: { full_name: trimmedName, accountType },
+        emailRedirectTo: emailRedirectUrl.toString(),
+      },
+    });
 
-    // Hash password with salt
-    const hashedPassword = await hashPassword(password);
-
-    try {
-      // 1. Check if user already exists in PostgreSQL
-      const existing = await query(
-        `SELECT id, email FROM user_accounts WHERE LOWER(email) = LOWER($1) LIMIT 1`,
-        [cleanEmail]
-      );
-
-      if (existing.rows.length > 0) {
-        return NextResponse.json(
-          { error: "An account with this email already exists. Please sign in." },
-          { status: 409 }
-        );
-      }
-
-      // 2. Insert into PostgreSQL user_accounts
-      const insertRes = await query(
-        `INSERT INTO user_accounts (name, email, password_hash, account_type)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, auth_user_id, name, email, account_type, company_name, created_at`,
-        [trimmedName, cleanEmail, hashedPassword, validAccountType]
-      );
-
-      const dbUser = insertRes.rows[0];
-
-      const newUser = {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        accountType: dbUser.account_type,
-        companyName: dbUser.company_name || "My Brand",
-        authenticatedAt: new Date().toISOString(),
-      };
-
-      // Sign cryptographic session token
-      const sessionToken = await issueSessionToken(newUser);
-
-      const response = NextResponse.json({
-        success: true,
-        isNewUser: true,
-        user: newUser,
-      });
-
-      // Set cryptographically signed, HTTP-only session cookie
-      const cookieOpts = getSessionCookieOptions();
-      response.cookies.set(cookieOpts.name, sessionToken, cookieOpts);
-
-      return response;
-    } catch (dbErr: any) {
-      console.error("[Auth Signup Database Error]:", dbErr.message);
-
+    if (error) {
+      const isDuplicate = /already registered|already been registered/i.test(error.message);
       return NextResponse.json(
-        { error: "Registration service is temporarily unavailable. Please try again shortly." },
-        { status: 503 }
+        { error: isDuplicate ? "An account with this email already exists. Please sign in." : error.message },
+        { status: isDuplicate ? 409 : 400 }
       );
     }
+
+    if (data.session && data.user) {
+      const { account, isNewUser } = await ensureMarginFlowAccount(data.user, accountType);
+      if (isNewUser && data.user.user_metadata?.onboardingPending !== true) {
+        const { error: metadataError } = await supabase.auth.updateUser({ data: { onboardingPending: true } });
+        if (metadataError) throw metadataError;
+      }
+      return NextResponse.json({
+        success: true,
+        onboardingRequired: isNewUser || data.user.user_metadata?.onboardingPending === true,
+        user: {
+          id: account.id,
+          name: account.name,
+          email: account.email,
+          accountType: account.account_type,
+          companyName: account.company_name || "My Brand",
+        },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      confirmationRequired: true,
+      message: "Check your email and confirm your address to finish creating your account.",
+    });
   } catch (error: any) {
     if (error instanceof RequestBodyError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("[Auth Signup Error]:", error);

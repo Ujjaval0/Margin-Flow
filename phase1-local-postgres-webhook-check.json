@@ -1,0 +1,20 @@
+{
+  "database": "marginflow_phase1_security_test_20261015",
+  "checks": {
+    "actualOrderAndReceiptPersisted": true,
+    "actualReplayIsIdempotent": true,
+    "conflictingReplayRejected": true,
+    "failedOrderDidNotLeaveReceipt": true,
+    "failedDeliveryCanRetry": true,
+    "sameExternalOrderIdIsTenantScoped": true,
+    "concurrentDuplicateAppliedOnce": true
+  },
+  "limitations": "Actual PostgreSQL and application persistence modules; no actual ingress/HMAC resolver, external delivery, RLS role, restart or multi-process test.",
+  "cleanup": {
+    "syntheticUsers": 0,
+    "syntheticOrders": 0,
+    "syntheticConnections": 0,
+    "syntheticReceipts": 0,
+    "appendOnlySyntheticAuditRowsRetained": 4
+  }
+}

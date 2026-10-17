@@ -132,6 +132,15 @@ CREATE INDEX idx_jobs_status      ON background_jobs (status);
 CREATE INDEX idx_jobs_type_status ON background_jobs (type, status);
 CREATE INDEX idx_jobs_created_at  ON background_jobs (created_at ASC)
   WHERE status = 'QUEUED';
+CREATE UNIQUE INDEX idx_jobs_owner_idempotency
+  ON background_jobs (created_by, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
+CREATE INDEX idx_jobs_available
+  ON background_jobs (priority DESC, available_at ASC, created_at ASC)
+  WHERE status = 'QUEUED';
+CREATE INDEX idx_jobs_expired_lease
+  ON background_jobs (locked_at ASC)
+  WHERE status = 'PROCESSING';
 
 -- ------------------------------------------------------------
 -- SUPPLIER PAYMENTS — lookup payments per supplier

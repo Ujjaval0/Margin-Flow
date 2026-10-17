@@ -171,15 +171,72 @@ test('F63: protected workspace navigation redirects expired sessions without mod
   active = true;
   assert.equal(await template.default({ children: 'workspace' }), 'workspace');
 });
-test('F63: a Redis environment variable cannot turn simulated jobs into production success', async () => {
-  const queue = load('src/lib/queue/queue-manager.ts', {}, { process: { env: { NODE_ENV: 'production', REDIS_URL: 'redis://synthetic.example' } } });
-  await assert.rejects(queue.queueManager.enqueue('GENERATE_FINANCIAL_REPORT', {}, { ownerId: user.id }), /Durable background workers/);
-  assert.throws(() => queue.queueManager.listJobs(), /Durable background workers/);
-  const mocks = { [sessionName]: { getSessionUserId: async () => user.id } };
-  const globals = { process: { env: { NODE_ENV: 'production' } } };
+test('F21: job records require durable PostgreSQL and never fall back to simulated success', async () => {
+  const db = { pool: { query: async () => { throw Error('unavailable'); }, connect: async () => { throw Error('unavailable'); } } };
+  const queue = load('src/lib/queue/queue-manager.ts', { [dbName]: db });
+  queue.registerJobProcessor('GENERATE_FINANCIAL_REPORT', async () => ({ synthetic: true }));
+  await assert.rejects(queue.queueManager.enqueue('GENERATE_FINANCIAL_REPORT', {}, { ownerId: user.id }), /storage is unavailable/);
+  await assert.rejects(queue.queueManager.listJobs({ ownerId: user.id }));
+  const mocks = { [sessionName]: { getSessionUserId: async () => user.id }, [dbName]: db, '@/lib/queue/job-processors': {} };
+  const globals = {};
   const route = load('src/app/api/jobs/route.ts', mocks, globals);
   assert.equal((await route.POST(new Request('https://app.example/api/jobs', { method: 'POST', body: JSON.stringify({ type: 'GENERATE_FINANCIAL_REPORT' }) }))).status, 503);
   assert.equal((await route.GET(new Request('https://app.example/api/jobs'))).status, 503);
   const detail = load('src/app/api/jobs/[id]/route.ts', mocks, globals);
-  for (const method of ['GET', 'DELETE']) assert.equal((await detail[method](new Request('https://app.example/api/jobs/x'), { params: Promise.resolve({ id: 'x' }) })).status, 503);
+  for (const method of ['GET', 'DELETE']) assert.equal((await detail[method](new Request('https://app.example/api/jobs/x'), { params: Promise.resolve({ id: 'x' }) })).status, 404);
+  let writes = 0;
+  const unavailableType = load('src/app/api/jobs/route.ts', {
+    [sessionName]: { getSessionUserId: async () => user.id },
+    [dbName]: { pool: { query: async () => { writes++; throw Error('should not persist unsupported jobs'); } } },
+    '@/lib/queue/job-processors': {},
+  }, { process: { env: { MARGINFLOW_JOB_WORKER: '1' } } });
+  const unsupported = await unavailableType.POST(new Request('https://app.example/api/jobs', { method: 'POST', body: JSON.stringify({ type: 'BULK_CSV_IMPORT', payload: {} }) }));
+  assert.equal(unsupported.status, 503);
+  assert.equal(writes, 0);
+});
+
+test('F21: durable enqueue scopes ownership and stores bounded retry/idempotency settings', async () => {
+  const inserted = [];
+  const row = { id: crypto.randomUUID(), owner_id: user.id, type: 'PROCESS_BATCH_IDP', payload: { documents: [] }, status: 'QUEUED', progress: 0, result: null, error: null, attempts: 0, max_attempts: 4, created_at: new Date(), updated_at: new Date(), available_at: new Date(), locked_at: null };
+  const queue = load('src/lib/queue/queue-manager.ts', { [dbName]: { pool: { query: async (sql, params) => { inserted.push([sql, params]); return { rows: [row] }; } } } });
+  await assert.rejects(queue.queueManager.enqueue('PROCESS_BATCH_IDP', { documents: [] }, { ownerId: user.id }), /No processor is registered/);
+  queue.registerJobProcessor('PROCESS_BATCH_IDP', async () => ({ synthetic: true }));
+  const job = await queue.queueManager.enqueue('PROCESS_BATCH_IDP', { documents: [] }, { ownerId: user.id, idempotencyKey: 'upload:abc', maxAttempts: 4 });
+  assert.equal(job.id, row.id);
+  assert.equal(job.ownerId, user.id);
+  assert.equal(job.attempts, 0);
+  assert.match(inserted[0][0], /INSERT INTO background_jobs/);
+  assert.match(inserted[0][0], /ON CONFLICT \(created_by, idempotency_key\)/);
+  assert.equal(inserted[0][1][2], user.id);
+  assert.equal(inserted[0][1][3], 'upload:abc');
+  assert.equal(inserted[0][1][4], 4);
+});
+
+test('F21: worker claims atomically, supplies stable idempotency, and persists processor result', async () => {
+  const sql = [];
+  let resultUpdates = 0;
+  const claimed = { id: crypto.randomUUID(), owner_id: user.id, type: 'PROCESS_BATCH_IDP', payload: { documents: [] }, status: 'PROCESSING', progress: 0, result: null, error: null, attempts: 1, max_attempts: 3, created_at: new Date(), updated_at: new Date(), available_at: new Date(), locked_at: new Date(), lock_token: crypto.randomUUID() };
+  const pool = { connect: async () => ({ query: async (query, params) => { sql.push([query, params]); if (query.includes('RETURNING j.id, j.created_by AS owner_id')) return { rows: [claimed] }; if (query.includes("SET status = 'COMPLETED'")) { resultUpdates++; return { rowCount: 1, rows: [claimed] }; } return { rowCount: 1, rows: [] }; }, release() {} }), query: async (query, params) => { sql.push([query, params]); return { rowCount: 1, rows: [] }; } };
+  const queue = load('src/lib/queue/queue-manager.ts', { [dbName]: { pool } });
+  let processorKey;
+  queue.registerJobProcessor('PROCESS_BATCH_IDP', async context => { processorKey = context.idempotencyKey; assert.equal(await context.updateProgress(45), true); return { processedCount: 0 }; });
+  assert.equal(await queue.queueManager.runNextJob(), true);
+  assert.equal(processorKey, claimed.id);
+  assert.equal(resultUpdates, 1);
+  assert.ok(sql.some(([statement]) => statement.includes('FOR UPDATE SKIP LOCKED')));
+  assert.ok(sql.some(([statement]) => statement.includes("SET status = 'COMPLETED'")));
+});
+
+test('F21: processor failures retry with backoff and only fail after the configured attempt limit', async () => {
+  const sql = [];
+  const claimed = { id: crypto.randomUUID(), owner_id: user.id, type: 'PROCESS_BATCH_IDP', payload: {}, status: 'PROCESSING', progress: 0, result: null, error: null, attempts: 1, max_attempts: 2, created_at: new Date(), updated_at: new Date(), available_at: new Date(), locked_at: new Date(), lock_token: crypto.randomUUID() };
+  const pool = { connect: async () => ({ query: async (query, params) => { sql.push([query, params]); return query.includes('RETURNING j.id, j.created_by AS owner_id') ? { rows: [claimed] } : { rowCount: query.includes("SET status = 'COMPLETED'") ? 1 : 0, rows: [] }; }, release() {} }), query: async (query, params) => { sql.push([query, params]); return { rowCount: 1, rows: [] }; } };
+  const queue = load('src/lib/queue/queue-manager.ts', { [dbName]: { pool } });
+  queue.registerJobProcessor('PROCESS_BATCH_IDP', async () => { throw Error('do not persist this processor detail'); });
+  assert.equal(await queue.queueManager.runNextJob(), true);
+  const failure = sql.find(([statement]) => statement.includes('error = $1, available_at'));
+  assert.ok(failure);
+  assert.match(failure[0], /CASE WHEN \$5::boolean OR attempts >= max_attempts THEN 'FAILED'.*ELSE 'QUEUED'/s);
+  assert.match(failure[0], /available_at = CASE WHEN \$5::boolean OR attempts >= max_attempts THEN available_at ELSE now\(\) \+ \(\$2::int \* interval '1 millisecond'\) END/);
+  assert.equal(failure[1][0], 'Background job attempt failed.');
 });

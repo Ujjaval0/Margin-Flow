@@ -471,13 +471,10 @@ The following inventory is generated from the current source and configuration. 
 | [GUARDRAILS.md](<C:/Users/freak/Desktop/Unified platform/GUARDRAILS.md>) | Project notes |
 | [MATHEMATICAL_AUDIT_REPORT.md](<C:/Users/freak/Desktop/Unified platform/MATHEMATICAL_AUDIT_REPORT.md>) | Comprehensive Mathematical & Financial Audit Report: MarginFlow |
 | [PRD.md](<C:/Users/freak/Desktop/Unified platform/PRD.md>) | Product Requirements Document (PRD): MarginFlow |
-| [PRODUCTION_REMEDIATION_LOG.md](<C:/Users/freak/Desktop/Unified platform/PRODUCTION_REMEDIATION_LOG.md>) | MarginFlow Production Remediation & Engineering Audit Log |
 | [README.md](<C:/Users/freak/Desktop/Unified platform/README.md>) | Margin-Flow |
 | [STORE_INTEGRATION_PLAN.md](<C:/Users/freak/Desktop/Unified platform/STORE_INTEGRATION_PLAN.md>) | MarginFlow Store Integration — Production Architecture & Execution Plan |
 | [SUPABASE_PHASE_2_PLAN.md](<C:/Users/freak/Desktop/Unified platform/SUPABASE_PHASE_2_PLAN.md>) | MarginFlow — Supabase Phase 2 Production Architecture Plan |
 | [UI_UX_STANDARDS.md](<C:/Users/freak/Desktop/Unified platform/UI_UX_STANDARDS.md>) | UI & UX Standards and Design System: MarginFlow |
-| [analyzeproblems.md](<C:/Users/freak/Desktop/Unified platform/analyzeproblems.md>) | MarginFlow — Deep Architectural, Orchestration & Logic Audit |
-| [database-tutorial.md](<C:/Users/freak/Desktop/Unified platform/database-tutorial.md>) | MarginFlow: Complete PostgreSQL Setup & Connection Guide |
 | [logic.md](<C:/Users/freak/Desktop/Unified platform/logic.md>) | MarginFlow Financial Logic & Calculation Engine Specification (`logic.md`) |
 | [next-env.d.ts](<C:/Users/freak/Desktop/Unified platform/next-env.d.ts>) | Generated Next TypeScript environment declarations |
 | [next.config.mjs](<C:/Users/freak/Desktop/Unified platform/next.config.mjs>) | Next build/import settings, React Strict Mode disabled, /audit redirect |
@@ -487,7 +484,6 @@ The following inventory is generated from the current source and configuration. 
 | [postcss.config.js](<C:/Users/freak/Desktop/Unified platform/postcss.config.js>) | Tailwind and Autoprefixer pipeline |
 | [research.md](<C:/Users/freak/Desktop/Unified platform/research.md>) | Project notes |
 | [skills-lock.json](<C:/Users/freak/Desktop/Unified platform/skills-lock.json>) | Installed skill metadata |
-| [structurefixing.md](<C:/Users/freak/Desktop/Unified platform/structurefixing.md>) | MarginFlow — Structure Fixing Analysis |
 | [tailwind.config.js](<C:/Users/freak/Desktop/Unified platform/tailwind.config.js>) | Design tokens, fonts, neutral elevation, utility safelists |
 | [tsconfig.json](<C:/Users/freak/Desktop/Unified platform/tsconfig.json>) | Strict TypeScript, path aliases, Next types, incremental build configuration |
 | [tsconfig.tsbuildinfo](<C:/Users/freak/Desktop/Unified platform/tsconfig.tsbuildinfo>) | Generated TypeScript cache; not business source |

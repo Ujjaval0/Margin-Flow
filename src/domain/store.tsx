@@ -77,6 +77,7 @@ interface PlatformContextType {
   auditLogs: FinancialAuditLog[];
   complaints: CustomerComplaint[];
   currentUser: UserAccount;
+  verifiedOwnerId: string | null;
   setCurrentUser: (user: UserAccount) => void;
   switchAccountType: (role: AccountType, supplierId?: string) => void;
 
@@ -133,7 +134,7 @@ interface PlatformContextType {
   editClaim: (claimId: string, updates: Partial<Pick<Claim, "claimType" | "claimDate" | "amountClaimed" | "amountRecovered" | "status" | "notes" | "marketplace">>) => void;
   deleteClaim: (claimId: string) => void;
   deleteClaims: (claimIds: string[]) => void;
-  addProduct: (product: Product) => void;
+  addProduct: (product: Product) => Promise<void>;
   bulkAddProducts: (products: Product[]) => void;
   deleteProduct: (sku: string) => void;
   updateProductCost: (sku: string, newCost: number, reason: string) => void;
@@ -195,6 +196,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const verifiedOwner = useRef<string | null>(null);
   const refreshGeneration = useRef(0);
   const postedPurchases = useRef(new Set<string>());
+  const restockedReturnIds = useRef(new Set<string>());
   const [cacheOwner, setCacheOwner] = useState<string | null>(null);
 
   const liveLedger = useRef<LedgerData>({ products, orders, returns, settlements, claims, suppliers, purchases, expenses, aiDocuments, auditLogs, complaints, acknowledgedLossLeaderSkus });
@@ -960,6 +962,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateReturn = useCallback((updated: ReturnRecord) => {
+    if (updated.restockStatus === "PENDING_RESTOCK") {
+      restockedReturnIds.current.delete(updated.id);
+    }
     setReturns((prev) => {
       const oldReturn = prev.find((r) => r.id === updated.id);
       if (oldReturn) {
@@ -1051,33 +1056,33 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const restockReturn = useCallback((returnId: string) => {
-    let restockedSku = "";
-    let restockedQty = 0;
-
-    setReturns((prev) =>
-      prev.map((r) => {
-        if (r.id === returnId) {
-          restockedSku = r.sku;
-          restockedQty = r.quantity;
-          return {
-            ...r,
-            condition: "SELLABLE",
-            restockStatus: "RESTOCKED",
-          };
-        }
-        return r;
-      })
-    );
-
-    if (restockedSku && restockedQty > 0) {
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.sku === restockedSku
-            ? { ...p, stockQuantity: (p.stockQuantity ?? 0) + restockedQty }
-            : p
-        )
-      );
+    const target = returns.find((record) => record.id === returnId);
+    if (
+      !target ||
+      target.restockStatus !== "PENDING_RESTOCK" ||
+      !Number.isInteger(target.quantity) ||
+      target.quantity <= 0 ||
+      !products.some((product) => product.sku === target.sku) ||
+      restockedReturnIds.current.has(returnId)
+    ) {
+      return;
     }
+
+    restockedReturnIds.current.add(returnId);
+    setReturns((prev) =>
+      prev.map((record) =>
+        record.id === returnId && record.restockStatus === "PENDING_RESTOCK"
+          ? { ...record, condition: "SELLABLE", restockStatus: "RESTOCKED" }
+          : record
+      )
+    );
+    setProducts((prev) =>
+      prev.map((product) =>
+        product.sku === target.sku
+          ? { ...product, stockQuantity: (product.stockQuantity ?? 0) + target.quantity }
+          : product
+      )
+    );
 
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
@@ -1091,7 +1096,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "Item inspected and put away back to active sellable inventory",
     };
     setAuditLogs((prev) => [log, ...prev]);
-  }, []);
+  }, [products, returns]);
 
   const deleteReturn = useCallback((returnId: string) => {
     void archiveSelection("returns", [returnId]);
@@ -1244,7 +1249,26 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const addProduct = useCallback((product: Product) => {
+  const addProduct = useCallback(async (product: Product) => {
+    const owner = verifiedOwner.current;
+    if (!owner) throw new Error("Authentication required to save products.");
+
+    let response: Response;
+    try {
+      response = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ product }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.success !== true) throw new Error("Product could not be saved. Please retry.");
+    } catch {
+      throw new Error("Product could not be saved. Please retry.");
+    }
+
+    if (verifiedOwner.current !== owner) throw new Error("Account changed while the product was being saved.");
+
     setProducts((prev) => [product, ...prev]);
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
@@ -1258,16 +1282,6 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       reason: "New catalog product created",
     };
     setAuditLogs((prev) => [log, ...prev]);
-
-    // Persist to multi-tenant backend PostgreSQL
-    if (typeof window !== "undefined") {
-      fetch("/api/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ product }),
-      }).catch((e) => console.warn("[PlatformStore] Async product persistence deferred:", e));
-    }
   }, []);
 
   const deleteProduct = useCallback((sku: string) => {
@@ -1836,6 +1850,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       auditLogs,
       complaints,
       currentUser,
+      verifiedOwnerId: cacheOwner,
       setCurrentUser,
       switchAccountType,
       isHydrated,
@@ -1921,6 +1936,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       auditLogs,
       complaints,
       currentUser,
+      cacheOwner,
       setCurrentUser,
       switchAccountType,
       isHydrated,

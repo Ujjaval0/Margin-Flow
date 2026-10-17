@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-10-15",
+  "database": "marginflow_phase2_acceptance_20261015",
+  "marginflowDevTouched": false,
+  "migration17Present": true,
+  "archiveRecoveryAcceptance": {
+    "archiveHidesCanonicalOrderAndAdjustsStock": "passed",
+    "restoreReinstatesCanonicalOrderAndExactStock": "passed",
+    "staleStockConflictRollsBackWithoutConsumingArchive": "passed",
+    "retryAfterConflict": "passed",
+    "crossTenantRestoreRejected": "passed",
+    "twoSimultaneousRestoresExactlyOneSucceeds": "passed",
+    "replayAfterRestoreRejected": "passed",
+    "expiredArchiveHiddenAndRestoreRejectedAfterSevenDays": "passed"
+  },
+  "syntheticRowsCleaned": true,
+  "limitations": [
+    "Checks used the locally configured PostgreSQL role; a separately provisioned restricted application role was not verified.",
+    "This does not replace authenticated browser, application-process restart, or deployment acceptance.",
+    "Earlier Phase 2 inventory and all-domain CRUD persistence dependencies remain outside this Phase 5 check."
+  ]
+}

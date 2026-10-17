@@ -18,6 +18,29 @@ function readProjectFile(relPath) {
 
 describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', () => {
 
+  test('AI provider keys are isolated by verified owner and the legacy shared vault is discarded', () => {
+    const values = new Map([['marginflow_ai_vault_v1', JSON.stringify({ keys: { openai: 'legacy-secret' } })]]);
+    const events = [];
+    const localStorage = {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+      removeItem: (key) => values.delete(key),
+    };
+    class CustomEvent { constructor(type, init) { this.type = type; this.detail = init?.detail; } }
+    const window = { dispatchEvent: (event) => events.push(event) };
+    const vault = loadApp('src/lib/security/ai-vault.ts', {}, { window, localStorage, CustomEvent });
+    const settings = { ...vault.loadAISettings('owner-a'), keys: { openai: 'owner-a-secret' } };
+
+    vault.saveAISettings(settings, 'owner-a');
+    assert.equal(vault.loadAISettings('owner-a').keys.openai, 'owner-a-secret');
+    assert.equal(vault.loadAISettings('owner-b').keys.openai, undefined);
+    assert.equal(vault.loadAISettings().keys.openai, undefined);
+    assert.equal(values.has('marginflow_ai_vault_v1'), false);
+    assert.equal(events.at(-1).detail.ownerId, 'owner-a');
+    vault.purgeAISettings('owner-a');
+    assert.equal(vault.loadAISettings('owner-a').keys.openai, undefined);
+  });
+
   // =========================================================================
   // SUITE 1: DDL & SCHEMA MULTI-TENANT ISOLATION
   // =========================================================================
@@ -46,6 +69,17 @@ describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', (
       assert.ok(source.includes('Database migrations through step 18 are required.'));
       assert.ok(!/CREATE TABLE|ALTER TABLE|CREATE INDEX/.test(source), 'Request handlers must not migrate schema');
       assert.ok(source.includes('connectionTimeoutMillis') && source.includes('statement_timeout'));
+    });
+
+    test('1.4 Supabase direct access defaults to deny for every sensitive table', () => {
+      const sql = readProjectFile('database/07_rls_supabase.sql');
+      for (const table of ['user_accounts', 'marketplace_connections', 'marketplace_sync_logs', 'oauth_states', 'file_import_logs', 'webhook_receipts', 'ledger_archives', 'auth_sessions']) {
+        assert.match(sql, new RegExp(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`), `${table} must use RLS`);
+        assert.match(sql, new RegExp(`'${table}'`), `${table} must have any old policies removed`);
+      }
+      assert.match(sql, /FROM anon, authenticated/);
+      assert.match(sql, /FROM PUBLIC/);
+      assert.doesNotMatch(sql, /CREATE POLICY/);
     });
   });
 

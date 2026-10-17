@@ -13,9 +13,9 @@ export function MarginFlowCompoundMetrics() {
   } | null>(null);
 
   // Smooth curve interpolation along the S-curve
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const svgX = ((e.clientX - rect.left) / rect.width) * 600;
+  const updateTracer = (clientX: number, target: SVGSVGElement) => {
+    const rect = target.getBoundingClientRect();
+    const svgX = ((clientX - rect.left) / rect.width) * 600;
     const clampedX = Math.max(40, Math.min(560, svgX));
     const t = (clampedX - 40) / 520;
 
@@ -27,6 +27,16 @@ export function MarginFlowCompoundMetrics() {
     const monthText = months === 0 ? "Start" : `Month ${months}`;
 
     setHoverState({ x: clampedX, y, val: `${multiplier}×`, monthText });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    updateTracer(e.clientX, e.currentTarget);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (e.touches.length > 0) {
+      updateTracer(e.touches[0].clientX, e.currentTarget);
+    }
   };
 
   const handleMouseLeave = () => {
@@ -119,33 +129,33 @@ export function MarginFlowCompoundMetrics() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-8 rounded-3xl bg-white border border-[#cfdfd1] shadow-sm">
-              <strong className="text-5xl sm:text-6xl font-bold tracking-tight text-[#00872e] block mb-2 tabular-nums">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-[#cfdfd1] shadow-sm">
+              <strong className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#00872e] block mb-2 tabular-nums">
                 3.8<span>%</span>
               </strong>
-              <h3 className="text-lg font-bold text-[#193022]">Gross Revenue Protected</h3>
-              <p className="mt-1 text-sm text-[#5c7062] leading-relaxed">
+              <h3 className="text-base sm:text-lg font-bold text-[#193022]">Gross Revenue Protected</h3>
+              <p className="mt-1 text-xs sm:text-sm text-[#5c7062] leading-relaxed">
                 Protected from hidden commission hikes, unclaimed return damages, and unverified fee deductions.
               </p>
             </div>
 
-            <div className="p-8 rounded-3xl bg-white border border-[#cfdfd1] shadow-sm">
-              <strong className="text-5xl sm:text-6xl font-bold tracking-tight text-[#193022] block mb-2 tabular-nums">
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-[#cfdfd1] shadow-sm">
+              <strong className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#193022] block mb-2 tabular-nums">
                 15<span>h</span>
               </strong>
-              <h3 className="text-lg font-bold text-[#193022]">Saved Every Week</h3>
-              <p className="mt-1 text-sm text-[#5c7062] leading-relaxed">
+              <h3 className="text-base sm:text-lg font-bold text-[#193022]">Saved Every Week</h3>
+              <p className="mt-1 text-xs sm:text-sm text-[#5c7062] leading-relaxed">
                 Zero manual Excel VLOOKUPs, formula debugging, or messy statement exports.
               </p>
             </div>
 
-            <div className="p-8 rounded-3xl bg-white border border-[#cfdfd1] shadow-sm">
-              <strong className="text-5xl sm:text-6xl font-bold tracking-tight text-[#00872e] block mb-2 tabular-nums">
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-[#cfdfd1] shadow-sm">
+              <strong className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#00872e] block mb-2 tabular-nums">
                 100<span>%</span>
               </strong>
-              <h3 className="text-lg font-bold text-[#193022]">Claim SLA Compliance</h3>
-              <p className="mt-1 text-sm text-[#5c7062] leading-relaxed">
+              <h3 className="text-base sm:text-lg font-bold text-[#193022]">Claim SLA Compliance</h3>
+              <p className="mt-1 text-xs sm:text-sm text-[#5c7062] leading-relaxed">
                 Evidence dossiers pre-compiled before 7–30 day platform dispute windows close.
               </p>
             </div>
@@ -153,19 +163,19 @@ export function MarginFlowCompoundMetrics() {
         </div>
 
         {/* Lower Section: High-Contrast Obsidian & Emerald Compound Effect Card */}
-        <div className="rounded-3xl bg-[#122314] text-[#eef5e9] p-8 sm:p-12 border border-[#23452d] shadow-2xl relative overflow-hidden">
+        <div className="rounded-3xl bg-[#122314] text-[#eef5e9] p-5 sm:p-8 lg:p-12 border border-[#23452d] shadow-2xl relative overflow-hidden">
           
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-8 border-b border-white/[0.1]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 sm:pb-8 border-b border-white/[0.1]">
             <div>
               <span className="text-[10px] font-mono tracking-widest text-[#71d78e] uppercase font-semibold block mb-2">
                 THE COMPOUND EFFECT
               </span>
-              <div className="flex items-center gap-4">
-                <strong className="text-5xl sm:text-6xl font-bold tracking-tight text-[#b6f5cc] tabular-nums">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <strong className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#b6f5cc] tabular-nums">
                   3.5<span>×</span>
                 </strong>
                 <div>
-                  <h4 className="text-base font-bold text-white">First-Month Return on Software</h4>
+                  <h4 className="text-sm sm:text-base font-bold text-white">First-Month Return on Software</h4>
                   <p className="text-xs text-[#8da494]">Capital recovered from your past 90 days of unverified settlements often pays for MarginFlow in week one.</p>
                 </div>
               </div>
@@ -184,13 +194,16 @@ export function MarginFlowCompoundMetrics() {
           </div>
 
           {/* SVG Animated Return Curve */}
-          <div key={animKey} className="py-8 relative">
+          <div key={animKey} className="py-6 sm:py-8 relative">
             <svg
               viewBox="0 0 600 200"
-              className="w-full h-48 sm:h-56 overflow-visible select-none cursor-pointer"
+              className="w-full h-44 sm:h-56 overflow-visible select-none cursor-pointer"
               fill="none"
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
+              onTouchMove={handleTouchMove}
+              onTouchStart={handleTouchMove}
+              onTouchEnd={handleMouseLeave}
             >
               <defs>
                 <linearGradient id="returnAreaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -366,7 +379,7 @@ export function MarginFlowCompoundMetrics() {
               )}
             </svg>
 
-            <div className="flex justify-between text-[11px] font-medium text-[#8da494] px-8 pt-2">
+            <div className="flex justify-between text-[10px] sm:text-[11px] font-medium text-[#8da494] px-2 sm:px-8 pt-2">
               <span>Start</span>
               <span>6 Months</span>
               <span>12 Months</span>
@@ -375,9 +388,9 @@ export function MarginFlowCompoundMetrics() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-white/[0.08] flex items-center justify-between text-xs font-medium text-[#8da494]">
+          <div className="pt-4 border-t border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-medium text-[#8da494] text-center sm:text-left">
             <span>Continuous automated margin audit</span>
-            <span className="text-[#b6f5cc]">Protected By 7 Deterministic Accounting Invariants (P1–P7) & Double-Entry Math</span>
+            <span className="text-[#b6f5cc]">Protected By 7 Deterministic Accounting Invariants (P1–P7) &amp; Double-Entry Math</span>
           </div>
 
         </div>

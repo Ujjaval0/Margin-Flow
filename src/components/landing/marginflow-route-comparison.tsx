@@ -320,13 +320,40 @@ export function MarginFlowRouteComparison() {
               }
             }
             @media (max-width: 900px) {
+              .timeaxis-hd {
+                padding: 16px 20px;
+                gap: 16px;
+              }
+              .timeaxis-ch {
+                padding: 8px 20px 24px;
+              }
               .timeaxis-st {
                 grid-template-columns: 1fr 1fr;
+                padding: 16px 20px 20px;
+                gap: 16px;
               }
             }
             @media (max-width: 600px) {
+              .timeaxis-hd {
+                padding: 14px 16px;
+                gap: 12px;
+              }
+              .timeaxis-ch {
+                padding: 8px 16px 20px;
+                grid-template-columns: 155px minmax(560px, 1fr);
+                min-width: 715px;
+              }
               .timeaxis-st {
                 grid-template-columns: 1fr;
+                padding: 14px 16px 18px;
+                gap: 12px;
+              }
+              .timeaxis-st span {
+                margin: 2px 0 0 26px;
+              }
+              .timeaxis-lg {
+                gap: 12px;
+                font-size: 11px;
               }
             }
           `,
@@ -356,7 +383,6 @@ export function MarginFlowRouteComparison() {
           <div className="timeaxis-hd">
             <div>
               <b>Time from statement to reconciled books</b>
-              <small>Illustrative · days after the statement arrives</small>
             </div>
             <div className="timeaxis-lg">
               <span>
@@ -460,18 +486,12 @@ export function MarginFlowRouteComparison() {
                   >
                     Lump payout matching<em>8d</em>
                   </div>
-                  <div className="timeaxis-dm">
-                    <span>UP TO 21 DAYS</span>
-                  </div>
                 </div>
 
                 {/* Lane 2: With MarginFlow */}
                 <div className="timeaxis-lane" style={{ height: "92px" }}>
                   <div className="timeaxis-mfb" />
                   <span className="timeaxis-mfl">ON UPLOAD</span>
-                  <div className="timeaxis-an">
-                    Manual audits finish after the shortest claim windows have closed.
-                  </div>
                 </div>
 
                 {/* 7-Day Claim Window Marker */}

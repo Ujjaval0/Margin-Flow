@@ -439,5 +439,12 @@ CREATE TABLE background_jobs (
   error       TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by  UUID REFERENCES user_accounts(id) ON DELETE SET NULL
+  created_by  UUID REFERENCES user_accounts(id) ON DELETE CASCADE,
+  idempotency_key TEXT,
+  attempts SMALLINT NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  max_attempts SMALLINT NOT NULL DEFAULT 3 CHECK (max_attempts BETWEEN 1 AND 10),
+  available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  locked_at TIMESTAMPTZ,
+  lock_token UUID,
+  priority SMALLINT NOT NULL DEFAULT 0
 );

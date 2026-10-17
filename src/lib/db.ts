@@ -2,6 +2,8 @@ import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 declare global {
   // eslint-disable-next-line no-var
   var _postgresPool: Pool | undefined;
+  // eslint-disable-next-line no-var
+  var _marketplaceSchemaReadiness: { expiresAt: number; promise: Promise<void> } | undefined;
 }
 const connectionString = process.env.DATABASE_URL ||
   (process.env.NODE_ENV !== 'production' ? 'postgresql://postgres:postgres@localhost:5432/marginflow_dev' : undefined);
@@ -24,8 +26,27 @@ export const pool = {
   query,
 };
 /** Read-only schema readiness check. Migrations run outside request handlers. */
-export async function ensureMarketplaceTables(): Promise<void> {
+async function checkMarketplaceTables(): Promise<void> {
   const result = await query<{ ready: boolean }>("SELECT NOT EXISTS (SELECT 1 FROM (VALUES ('orders','user_id'),('settlements','user_id'),('products','user_id'),('suppliers','user_id'),('ai_staged_documents','user_id'),('marketplace_connections','encrypted_credentials'),('marketplace_sync_logs','user_id'),('oauth_states','state'),('oauth_states','client_id'),('oauth_states','redirect_uri'),('marketplace_connections','sync_checkpoints'),('file_import_logs','user_id'),('webhook_receipts','connection_id'),('ledger_archives','patch'),('settlements','deleted_at'),('expenses','user_id'),('return_records','recovered_at'),('claims','recovered_at'),('expenses','recovered_at'),('auth_sessions','token_hash'),('auth_sessions','revoked_at')) AS required(table_name,column_name) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns c WHERE c.table_schema='public' AND c.table_name=required.table_name AND c.column_name=required.column_name)) AS ready");
   if (result.rows[0]?.ready !== true) throw new Error('Database migrations through step 18 are required.');
+}
+
+// Schema migrations are deployment-time work; avoid querying information_schema
+// on every authenticated ledger request. Retry immediately after failures and
+// refresh the successful readiness result once per minute.
+export function ensureMarketplaceTables(): Promise<void> {
+  const cached = global._marketplaceSchemaReadiness;
+  if (cached && cached.expiresAt > Date.now()) return cached.promise;
+
+  const entry: { expiresAt: number; promise: Promise<void> } = {
+    expiresAt: Date.now() + 60_000,
+    promise: Promise.resolve(),
+  };
+  entry.promise = checkMarketplaceTables().catch(error => {
+    if (global._marketplaceSchemaReadiness === entry) global._marketplaceSchemaReadiness = undefined;
+    throw error;
+  });
+  global._marketplaceSchemaReadiness = entry;
+  return entry.promise;
 }
 export default pool;

@@ -186,7 +186,8 @@ export interface AISettings {
   useLocalFallbackIfEmpty: boolean;
 }
 
-const VAULT_STORAGE_KEY = "marginflow_ai_vault_v1";
+const VAULT_STORAGE_KEY_PREFIX = "marginflow_ai_vault_v1:";
+const LEGACY_VAULT_STORAGE_KEY = "marginflow_ai_vault_v1";
 
 const DEFAULT_SETTINGS: AISettings = {
   activeProvider: "gemini",
@@ -326,10 +327,12 @@ export async function verifyConnection(
 /**
  * Load AI settings securely from client-side storage
  */
-export function loadAISettings(): AISettings {
-  if (typeof window === "undefined") return DEFAULT_SETTINGS;
+export function loadAISettings(ownerId?: string | null): AISettings {
+  if (typeof window === "undefined" || !ownerId?.trim()) return DEFAULT_SETTINGS;
   try {
-    const raw = localStorage.getItem(VAULT_STORAGE_KEY);
+    // The legacy key had no owner and cannot be safely assigned to an account.
+    localStorage.removeItem(LEGACY_VAULT_STORAGE_KEY);
+    const raw = localStorage.getItem(`${VAULT_STORAGE_KEY_PREFIX}${ownerId}`);
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
 
@@ -355,11 +358,11 @@ export function loadAISettings(): AISettings {
 /**
  * Save AI settings strictly into client-side storage
  */
-export function saveAISettings(settings: AISettings): void {
-  if (typeof window === "undefined") return;
+export function saveAISettings(settings: AISettings, ownerId?: string | null): void {
+  if (typeof window === "undefined" || !ownerId?.trim()) return;
   try {
-    localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(settings));
-    window.dispatchEvent(new CustomEvent("marginflow_ai_settings_updated", { detail: settings }));
+    localStorage.setItem(`${VAULT_STORAGE_KEY_PREFIX}${ownerId}`, JSON.stringify(settings));
+    window.dispatchEvent(new CustomEvent("marginflow_ai_settings_updated", { detail: { ownerId, settings } }));
   } catch (e) {
     console.error("Failed to save AI settings", e);
   }
@@ -368,11 +371,11 @@ export function saveAISettings(settings: AISettings): void {
 /**
  * Wipe all saved API keys and reset settings
  */
-export function purgeAISettings(): void {
-  if (typeof window === "undefined") return;
+export function purgeAISettings(ownerId?: string | null): void {
+  if (typeof window === "undefined" || !ownerId?.trim()) return;
   try {
-    localStorage.removeItem(VAULT_STORAGE_KEY);
-    window.dispatchEvent(new CustomEvent("marginflow_ai_settings_updated", { detail: DEFAULT_SETTINGS }));
+    localStorage.removeItem(`${VAULT_STORAGE_KEY_PREFIX}${ownerId}`);
+    window.dispatchEvent(new CustomEvent("marginflow_ai_settings_updated", { detail: { ownerId, settings: DEFAULT_SETTINGS } }));
   } catch (e) {
     console.error("Failed to purge AI settings", e);
   }

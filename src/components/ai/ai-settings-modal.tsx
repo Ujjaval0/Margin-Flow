@@ -33,9 +33,10 @@ import {
 interface AISettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  ownerId: string | null;
 }
 
-export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
+export function AISettingsModal({ isOpen, onClose, ownerId }: AISettingsModalProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -52,7 +53,7 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  const [settings, setSettings] = useState<AISettings>(loadAISettings());
+  const [settings, setSettings] = useState<AISettings>(loadAISettings(ownerId));
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(settings.activeProvider);
   const [apiKey, setApiKey] = useState<string>("");
   const [showKey, setShowKey] = useState<boolean>(false);
@@ -113,7 +114,7 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
   // Load initial settings when modal opens
   useEffect(() => {
     if (isOpen) {
-      const current = loadAISettings();
+      const current = loadAISettings(ownerId);
       setSettings(current);
       setSelectedProvider(current.activeProvider);
       const activeKey = current.keys[current.activeProvider] || "";
@@ -144,7 +145,7 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
         setShowSuggestionToast(false);
       }
     }
-  }, [isOpen]);
+  }, [isOpen, ownerId]);
 
   // Auto-dismiss recommendation pop-up after 9 seconds
   useEffect(() => {
@@ -277,7 +278,7 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
       customBaseUrl: customBaseUrl.trim() || undefined,
     };
 
-    saveAISettings(updated);
+    saveAISettings(updated, ownerId);
     setSettings(updated);
     setSavedSuccess(true);
     setTimeout(() => {
@@ -294,7 +295,7 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
       ...settings,
       keys: updatedKeys,
     };
-    saveAISettings(updated);
+    saveAISettings(updated, ownerId);
     setSettings(updated);
     setApiKey("");
     setTestState({ status: "idle" });
@@ -303,8 +304,8 @@ export function AISettingsModal({ isOpen, onClose }: AISettingsModalProps) {
   // Purge all keys
   const handlePurgeAll = () => {
     if (window.confirm("Purge all stored AI keys from this browser? This cannot be undone.")) {
-      purgeAISettings();
-      setSettings(loadAISettings());
+      purgeAISettings(ownerId);
+      setSettings(loadAISettings(ownerId));
       setApiKey("");
       setTestState({ status: "idle" });
       onClose();

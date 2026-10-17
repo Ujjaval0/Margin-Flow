@@ -41,19 +41,19 @@ Status: IN PROGRESS.
 
 - [x] F04: HIGH: shared browser ledger leaks data between accounts — locally verified account switching, owner-labelled caches and empty authoritative responses; browser staging verification remains pending.
 - [ ] F05: HIGH, deployment-dependent: RLS policies grant all authenticated users all business rows
-- [ ] F06: HIGH: OCR processing crosses tenant boundaries
-- [ ] F18: MEDIUM: private artifacts can enter version control; browser secrets are shared
-- [ ] F20: HIGH: webhook deduplication can lose retries and fails across replicas
-- [ ] F21: HIGH: generic webhooks and background workers report simulated success
+- [x] F06: HIGH: OCR processing crosses tenant boundaries — OCR owner is required for catalog lookup and document insert; actual Phase 2 PostgreSQL test confirmed cross-owner catalog isolation and document/field rollback on a forced write error.
+- [x] F18: MEDIUM: private artifacts can enter version control; browser secrets are shared — `/data/` is ignored; AI settings now use verified owner-scoped keys and discard the unowned legacy key.
+- [x] F20: HIGH: webhook deduplication can lose retries and fails across replicas — real PostgreSQL receipt uniqueness, transaction rollback/retry, owner scoping and concurrent replay checks passed in the Phase 1 isolated database; signed provider and restart acceptance remains F19.
+- [ ] F21: HIGH: generic webhooks and background workers can report simulated success — durable queue lifecycle implemented; CSV import and financial summary jobs now use real transactional processors, while reconciliation and batch IDP fail closed as unregistered. Generic webhook behavior and supervised worker-host acceptance remain open.
 - [ ] F22: HIGH: rolled-back or failed writes are counted as successful imports
-- [ ] F23: HIGH: global display-ID uniqueness defeats tenant isolation keys
-- [ ] F24: HIGH: line items collapse by SKU
+- [x] F23: HIGH: global display-ID uniqueness defeats tenant isolation keys — owner-scoped display IDs accepted across owners and duplicate same-owner IDs rejected on PostgreSQL after migration 15.
+- [x] F24: HIGH: line items collapse by SKU — repeated SKU lines with distinct line IDs persist; duplicate order-line identity is rejected on PostgreSQL after migration 15.
 - [x] F31: HIGH reliability defect: connection save/disconnect silently falls back to memory — all memory fallback branches removed; outage rejection locally verified. Provider revocation remains separate from local disconnect.
 - [ ] F33: MEDIUM: multi-store accounts lack consistent connection identity
-- [ ] F38: MEDIUM: import audit trusts caller claims instead of durable source/result
+- [x] F38: MEDIUM: import audit trusts caller claims instead of durable source/result — upload route derives file hash/size and parsed counts from original server-read files and commits audit with persisted orders; caller-supplied summaries are ignored.
 - [ ] F39: HIGH: most business mutations are browser-only
 - [ ] F40: HIGH: optimistic mutations ignore HTTP rejection
-- [ ] F61: HIGH operational risk: setup omits migrations and API paths execute suppressed DDL
+- [x] F61: HIGH operational risk: setup omits migrations and API paths execute suppressed DDL — explicit clean bootstrap covers migrations 01–18 without demo seed; request-time schema readiness is read-only and passed on the clean Phase 2 database. Populated upgrade and least-privilege deployment checks remain pending.
 
 Acceptance gate: Make tenant/connection ownership structural and all existing mutations transactional, acknowledged and recoverable. Verify schema, rollback, retry, account switching and restart behavior.
 
@@ -82,13 +82,13 @@ Required before closing: meaningful regression checks for the changed behavior, 
 
 ## Phase 4: Store connector contracts and synchronization
 
-Status: IN PROGRESS — local fixes implemented; provider, browser and disposable-PostgreSQL verification remain pending.
+Status: IN PROGRESS — local fixes and isolated PostgreSQL acceptance are verified; provider, browser, restricted-role and complete multi-store verification remain pending.
 
 - [x] F25: HIGH: synchronization silently truncates records — local multi-page fixtures pass; incomplete/repeated/unsafe pagination fails before persistence or checkpoint advancement.
 - [ ] F26: HIGH contract risk: Flipkart endpoint differs from reviewed official contract — shipment filter contract, lifecycle filters, page traversal and grouping implemented/tested; real partner/seller contract verification pending.
 - [x] F27: HIGH: Amazon item failures manufacture incorrect financial lines — item pagination exhausts; HTTP/malformed/empty item failures reject the run with no fictional fallback or write.
 - [ ] F28: MEDIUM: obsolete Shopify API version and unsupported assurance — pinned to 2026-10 with actual order-access verification. REST remains a legacy integration; new-public-app GraphQL eligibility and real-store compatibility are not certified.
-- [ ] F32: MEDIUM: sync checkpoints are read from the wrong data and shared across streams — metadata-backed order/finance checkpoints implemented; migration 16 and real PostgreSQL isolation/restart tests pending. Selected multi-store identity remains under F33.
+- [ ] F32: MEDIUM: sync checkpoints are read from the wrong data and shared across streams — metadata-backed order/finance checkpoints and migration 16 are verified; isolated PostgreSQL checks passed for independent streams, cursor clearing, rollback/retry, tenant isolation and persistence through a fresh pool. Acceptance with the intended restricted app role and an application-process restart remains pending. Selected multi-store identity remains under F33.
 - [x] F34: MEDIUM: connection UI ignores failed saves and cannot reuse vaulted secrets reliably — actual component tests verify rejected saves leave new connections inactive and reload verification uses the server vault; browser staging still pending.
 - [x] F35: MEDIUM: connection verification can pass without usable API access — actual Orders/Finances resource access required; custom endpoints require a successful orders collection, not reachability alone. Real provider permissions remain an external check.
 - [x] F36: MEDIUM: credentials are embedded in request URLs — WooCommerce uses Basic headers only; Flipkart self-access uses the documented Basic header, with no client secret in the URL.
@@ -100,9 +100,9 @@ Required before closing: meaningful regression checks for the changed behavior, 
 
 ## Phase 5: Imports, reports and existing workflow integrity
 
-Status: IN PROGRESS — local fixes implemented; real database, provider-file and browser acceptance checks remain pending in pending.md. Started at the user's explicit request while earlier phases remain open.
+Status: IN PROGRESS — local fixes and isolated PostgreSQL archive/recovery acceptance are verified; restricted-role, restart, seller-file and browser acceptance remain pending in pending.md. Started at the user's explicit request while earlier phases remain open.
 
-- [ ] F47: HIGH: recycle-bin recovery is simulated — demo records/timed success removed; durable owner-scoped archive/restore, cascades, stock conflicts, recovered canonical records and acknowledgement implemented and locally tested. Migration 17, real SQL/restart/concurrency/browser tests and earlier Phase 2 inventory/CRUD dependencies remain open.
+- [ ] F47: HIGH: recycle-bin recovery is simulated — demo records/timed success removed; durable owner-scoped archive/restore, cascades, stock conflicts, recovered canonical records and acknowledgement implemented. Actual route/persistence acceptance passed on isolated PostgreSQL for transaction rollback/retry, stock restoration, tenant isolation and concurrent single-use recovery. Restricted-role/process restart/browser acceptance and earlier Phase 2 inventory/CRUD dependencies remain open.
 - [x] F48: MEDIUM: sync merge can update the wrong existing record — stable indexes, marketplace identities, separate receipt identities, canonical server IDs and acknowledged merges locally verified.
 - [x] F49: MEDIUM: CSV import manufactures financial values and duplicates orders — missing/invalid source fields reject; zero amounts survive; dated costs, source-line grouping, conflicting-file rejection, idempotent upserts and atomic original-file audit locally verified. Real seller-file compatibility remains pending.
 - [x] F52: MEDIUM: report scope and aging use inconsistent datasets/time — report tables/charts/exports share scope; current India business date and partially outstanding balances use recorded lifetime receipts/returns. Local calculation/view tests pass; accounting-policy/source reconciliation remains F53.
@@ -116,150 +116,66 @@ Required before closing: meaningful regression checks for the changed behavior, 
 
 ## Phase 6: Session lifecycle, operational hardening and release gates
 
-Status: IN PROGRESS — local session/release fixes and public browser smoke checks pass; migration 18, real SQL/session resilience, remaining build dependencies and infrastructure acceptance remain open in pending.md. Earlier incomplete phases remain open.
+Status: IN PROGRESS — local session/release fixes and public browser smoke checks pass; migrations 18 and 19 have isolated acceptance evidence, while deployed-role/session resilience, real job processors, remaining build dependencies and infrastructure acceptance remain open in pending.md. Earlier incomplete phases remain open.
 
-- [ ] F15: MEDIUM: logout does not revoke copied sessions — durable token-digest registration/revocation, unique login IDs, awaited verification throughout protected APIs/workspace navigation and retryable failed logout implemented. Actual handlers pass isolated behavioral tests; migration 18 and real PostgreSQL/multi-process/restart acceptance remain pending.
+- [ ] F15: MEDIUM: logout does not revoke copied sessions — durable token-digest registration/revocation, unique login IDs, awaited verification throughout protected APIs/workspace navigation and retryable failed logout implemented. Actual handlers and isolated PostgreSQL registration/digest/revocation/account-deletion checks pass; intended-role, real process/replica restart and authenticated browser acceptance remain pending.
 - [ ] F60: MEDIUM: other dependency advisories remain unresolved — unused potrace/Jimp chain removed; PostCSS, selector parser and source-map-js updated. Production audit reports 0; full audit reports 5 high build-tool advisories through unpatched braces. No force-upgrade or audit suppression; finding remains open.
 - [x] F62: HIGH assurance gap: tests and prior reports overstate readiness — mirrored auth/tenant/rate-limit/math simulations replaced with actual module execution, remaining source checks labelled accurately, stale UI assertions repaired against the existing UI, all 247 tests pass together with none skipped. Current evidence explicitly separates isolated tests, anonymous browser checks and unverified production acceptance; historical completion claims are not release evidence.
-- [ ] F63: MEDIUM assurance gap: production resilience and browser interactions are unverified — simulated jobs now reject production operations with 503 instead of claiming completion; public desktop/mobile navigation smoke checks pass. Durable workers, shared quotas, authenticated browser workflows, monitoring/load/backup recovery and deployment checks remain open.
+- [ ] F63: MEDIUM assurance gap: production resilience and browser interactions are unverified — job APIs persist only types with registered processors and reject unsupported work; durable queue lifecycle plus CSV/report processing passed isolated PostgreSQL acceptance. Supervised worker hosting, reconciliation/IDP processors, shared quotas, authenticated browser workflows, monitoring/load/backup recovery and deployment checks remain open.
 
 Acceptance gate: Verify session revocation, all dependency paths, complete behavioral tests, production build, controlled migrations, durability/monitoring/backup recovery and full UI/provider staging matrix.
 
 Required before closing: meaningful regression checks for the changed behavior, TypeScript, affected tests, production build, and recorded remaining limitations. A failing test is repaired or remains explicitly open; it is never hidden by narrowing the test command.
 
-## Verification register
+## Verified implementation and test register
 
-- [x] Behavioral tests load actual application TypeScript and isolate external side effects; source-wiring tests are identified separately and do not prove real SQL/provider behavior.
-- [x] All previously discovered test failures triaged; stale test assertions repaired against the established UI without changing its layout or styling.
-- [x] All application test suites run together, with no skipped security/integration tests: 247/247 pass at the Phase 6 checkpoint.
-- [x] npm run build completes successfully after final application edits, including TypeScript and all 53 static-page generation steps.
-- [ ] Live provider contracts and credentials checked later in approved sandboxes (EXTERNAL/PENDING).
-- [ ] Migrations/RLS tested on disposable real PostgreSQL, then explicitly deployed later (EXTERNAL/PENDING until target available).
-- [ ] Production monitoring, load, backup restore, TLS/egress and multi-instance checks (EXTERNAL/PENDING).
+This register consolidates completed work and passed checks previously repeated in `pending.md` and dated progress notes. A locally verified slice does not close a finding when the phase checklist above remains unchecked; outstanding acceptance and dependencies are tracked in [`pending.md`](./pending.md).
 
-## Progress log
+### Phase 1 — security and identity
 
-- Baseline: audit has 63 findings/gaps; build and TypeScript passed, executed suites had 130 passes and 10 failures; no live provider proof.
-- Implementation started with Phase 1. All unchecked items remain open.
+- [x] Local behavioral security suite: `tests/remediation-security.test.mjs` passed **18/18**, using actual application modules with isolated dependencies. Coverage includes authentication boundaries, SSRF/provider URL handling, outbound request validation and public error behavior. It does not prove hosted provider signatures, roles or deployment behavior.
+- [x] Isolated PostgreSQL webhook receipt checks: migration set applied to `marginflow_phase1_security_test_20261015`; verified unique receipts, first delivery, exact replay deduplication, conflicting-body rejection, failed-order rollback/retry, same external order identity across tenants, and concurrent duplicate delivery (one applied, one deduplicated). Evidence: [`phase1-local-postgres-check.json`](./phase1-local-postgres-check.json), [`phase1-local-postgres-webhook-check.json`](./phase1-local-postgres-webhook-check.json).
+- [x] Session revocation filtering and selected schema-readiness checks passed on the isolated database. Synthetic fixtures were cleaned; append-only synthetic audit rows remain in that test-only database. `marginflow_dev` was not modified.
 
+### Phase 2 — tenant isolation and durable persistence
 
-## Phase 1 implementation checkpoint — 15 October 2026
+- [x] Actual PostgreSQL OCR checks verified owner-scoped catalog matching and document/field persistence, plus rollback on forced field-write failure.
+- [x] PostgreSQL tenant identity checks accepted the same display ID and external order identity for separate owners, rejected duplicates within an owner, preserved repeated-SKU order lines with distinct line IDs and rejected duplicate line identity.
+- [x] Webhook receipt deduplication/retry and import audit provenance checks passed; audit hash, byte size and parsed counts are derived from the uploaded source rather than caller summaries.
+- [x] Fresh-schema bootstrap/readiness checks covered migrations 01–05 and 08–18 without demo seed; actual read-only `ensureMarketplaceTables()` passed. Supabase-only migration 07 was reviewed but not applied locally.
+- [x] Focused Phase 2/persistence/workflow suites passed **54/54** at the recorded checkpoint; production build/type checking passed with 53 static pages.
+- [x] Private-file Git ignore and owner-scoped AI settings checks passed. The legacy unowned shared key is discarded after owner verification.
+- [x] The Phase 2 isolated database checks used synthetic acceptance data; `marginflow_dev` was not changed. Detailed PostgreSQL evidence is linked above where a result file is available.
 
-Implemented and locally exercised: missing-password-hash rejection; async versioned PBKDF2-SHA512 at 220,000 iterations with legacy verification/upgrade; mandatory Google audience; minimal health response; merchant-owned document directories; authenticated owner-scoped jobs; AI authentication and process-level budgets; bounded JSON/multipart reads; provider-specific key selection; pinned outbound DNS with redirect rejection; strict Shopify domains; connection-bound webhook URLs and atomic receipt transactions; failure propagation instead of fake imported counts.
+### Phase 3 — financial, ledger and inventory correctness
 
-Patched dependencies: Next.js 15.5.28, sharp 0.35.5, SheetJS 0.20.3 from the vendor distribution. Installer reports 15 remaining dependency advisories (7 high, 8 moderate); F60 remains open. No automatic force-fix was used.
+- [x] Behavioral tests verified recorded cash versus receivables, bounded partial-return quantity/cost effects, optional supplier handling, purchase intake restock-once behavior, per-bill partial payment allocation and 0%/fractional GST handling.
+- [x] F51 repeated-restock subcase passed through the actual `PlatformProvider` harness: only positive integer quantities from pending-restock returns with a known SKU restock, and duplicate calls in one provider session change inventory once. Test: `tests/remediation-workflows.test.mjs`.
+- [x] Focused financial, persistence/ledger, workflow and store-integration suites passed **77/77** after the restock guard; `npm run build` passed TypeScript and all 53 static pages.
 
-Phase 1 remains IN PROGRESS. F08/F12 are partial: authentication and bounded process-local throttling are implemented, but shared multi-instance quotas still need Phase 2/6 infrastructure. F16 is partial: request/file byte limits are implemented; parser CPU/page/pixel isolation remains. F17 is partial: health/copilot/auth/webhook generic errors are safer; remaining public error paths still need review. F19 has implementation and isolated owner tests, but real database/provider verification is pending. These tasks stay unchecked.
+### Phase 4 — connectors and synchronization
 
-Prerequisites introduced without declaring Phase 2 complete: failed persistence now rejects, generic webhooks persist synchronously, receipt/ledger commit together, and server-generated webhook routing capabilities are exposed only through the authenticated connection metadata. Connection-save calls now await HTTP acknowledgement. Existing UI styling/layout was not changed.
+- [x] Fixture-based connector tests verified pagination failure behavior, Amazon item failure handling without fictional fallback, Flipkart shipment/cancellation filters and grouping, Shopify pinned-version cursor pagination and foreign-origin rejection, server-side credential use, resource-based connection verification and credentials excluded from URLs.
+- [x] Isolated PostgreSQL checks verified independent order/finance checkpoints, cursor clearing, rollback/retry, tenant isolation, ambiguous connection rejection and persistence through a fresh pool. OAuth checks verified client/owner/redirect binding, expiry rejection and exactly one concurrent state consume. Evidence: [`phase4-postgres-check.json`](./phase4-postgres-check.json).
+- [x] Connector and Phase 4 store integration suites passed **35/35** at the recorded checkpoint. Evidence: `tests/remediation-connectors.test.mjs` and `tests/store-integration-phase4.test.mjs`.
 
-Operational compatibility: legacy shared-root documents are intentionally not reassigned or deleted; an ownership-verified migration is required. Existing connections must be saved again to receive a server-generated connection-specific webhook URL. Configure providers with that URL; the old bare URL and user_id routing are rejected. database/14_webhook_receipts.sql must be applied after earlier connection/tenant migrations before accepting webhook events. No database migrations or store calls were executed.
+### Phase 5 — recovery, imports, reports and acquisition
 
-Test infrastructure: npm test now includes every test suite. Legacy TypeScript unit imports run through the isolated application loader with database access mocked, and obsolete assertions were updated for tenant conflict keys, stronger passwords and transactional webhook ingestion. The existing visual title/grid assertions remain open; no UI was changed to satisfy brittle source-string checks.
+- [x] Actual recycle-bin route and persistence modules passed isolated PostgreSQL checks for archive/restore, exact stock reversal, stale-stock conflict rollback and retry, cross-tenant rejection, concurrent single-use restore, replay rejection and seven-day expiry. Evidence: [`phase5-postgres-check.json`](./phase5-postgres-check.json).
+- [x] Workflow and Phase 5 integration suites passed **42/42**, covering merge identity, CSV validation/idempotency/audit, report scope/aging, snapshot rejection, spreadsheet-safe exports and acquisition routing. Tests: `tests/remediation-workflows.test.mjs` and `tests/store-integration-phase5.test.mjs`.
+- [x] Phase 5 production build/type checking passed with all 53 static pages. Full-suite status is recorded below using the latest run.
 
-Password work-factor reference: [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+### Phase 6 — sessions, queue and release assurance
 
-### Verified checkpoint
+- [x] F15 actual session handlers and isolated PostgreSQL checks verified account existence, digest-only token storage, independent logins, fresh-pool/module persistence, registration in one Node process and validation/revocation in another, copied-token logout, account-deletion denial, retryable logout and malformed/unsigned/expired/unregistered token rejection. Evidence: [`phase6-postgres-check.json`](./phase6-postgres-check.json).
+- [x] F21 queue migration/lifecycle passed isolated PostgreSQL checks for idempotent enqueue, owner-scoped read/cancel, atomic claims, retry/backoff/final failure, expired-lease recovery, cancellation safety, processor rollback and account-delete cascade. CSV order import and tenant-scoped financial-summary processors completed real transactional work. Evidence: [`phase6-queue-postgres-check.json`](./phase6-queue-postgres-check.json).
+- [x] Focused current F21/security/release tests passed **34/34**. `npm run build` passed TypeScript and all 53 static pages. The previous checkpoint of 247/247 is historical; use the latest totals below for release decisions.
+- [x] Dependency/CSS checks recorded removal of unused potrace/Jimp dependencies, direct build-tool updates, a clean production-only audit, and comparison of 9,986 CSS records. The full-tree advisory remains open and is listed in `pending.md`.
+- [x] F62 assurance work replaced simulated behavior with actual module execution where recorded and repaired stale UI test assertions against the established UI. No visual redesign was made.
 
-- Final production build: PASS on Next.js 15.5.28; type checking and all 52 static-page generation steps completed.
-- New behavioral security suite: 18/18 PASS, exercising actual handlers/modules with isolated dependencies.
-- Full npm test after repairs: 158 tests, 156 PASS, 2 FAIL, 0 skipped. Remaining failures are the pre-existing dashboard hardcoded-title and landing route-comparison grid-string assertions in ui-ux-analyst.test.mjs. They remain visible; existing UI was preserved.
-- Phase 1 has 11 locally verified completed audit items, with 5 partial/open items. Phases 2–6 remain pending; preliminary dependencies implemented in this pass do not close those phases.
-- No live stores were connected, no real credentials were requested, and no existing database records or document files were migrated.
+### Current workspace verification
 
-## Phase 2 implementation checkpoint — 15 October 2026
-
-Per the user's instruction, Phase 1's unfinished work and external verification are carried in pending.md; Phase 2 has started, not completed.
-
-Implemented in this pass:
-
-- F04: production ledger arrays start empty; the server session selects an owner-labelled, tenant-specific cache. Account changes and authentication failures clear financial state; empty server datasets replace stale rows. Login triggers revalidation, and generation checks prevent older refreshes from overwriting newer ones. Legacy unowned browser snapshots are not loaded or deleted.
-- F06 (implementation; database verification pending): OCR requires the verified owner, scopes catalog queries, stores document ownership, and commits document/field records in one transaction. Persistence errors now fail the upload instead of claiming a staged record was saved.
-- F22/F40 (partial): core reads no longer return successful empty results during outages; catalog batches and order batches use transactions, and settlement lookups include marketplace. Remaining domain mutation acknowledgement and full settlement-batch atomicity are still open.
-- F23/F24 (implementation; migration verification pending): migration 15 supplies per-tenant display-ID uniqueness and per-order line identity instead of SKU uniqueness. Persistence preserves repeated-SKU lines, immutable costs and removes deleted source lines. Duplicate/legacy-data migration checks remain pending on a disposable database.
-- F31: memory vault fallback was removed for all environments; save/disconnect/status/audit failures propagate. Credential lookup refuses ambiguous multiple stores. Complete selected-connection routing remains open under F33.
-- F05/F61 (partial): removed runtime DDL, added bounded database pool/query timeouts and production configuration guards, supplied an explicit bootstrap through migration 15 without demo seed, removed blanket Supabase business policies/grants, and stopped assigning unowned legacy rows to ACC-001. Direct Supabase business access stays denied until explicit ownership policies are validated. These SQL changes have not been applied to any database.
-
-Verification:
-
-- Production build and type checking: PASS; all 52 static-page generation steps completed.
-- Focused behavioral suites: 27/27 PASS (18 security + 9 persistence/tenant tests).
-- Full npm test: 167 tests; 165 PASS, 2 FAIL, 0 skipped. Remaining failures are the same existing dashboard-title and landing grid-string assertions, listed in pending.md.
-- Database/provider/browser staging checks remain pending; unit tests use synthetic data and isolated adapters, including the actual PlatformProvider and OCR/persistence functions.
-
-Phase 2 remaining engineering includes F18 credential/cache handling, durable real job processors (F21), all-domain CRUD (F39), explicit connection identity (F33), import provenance (F38), full client acknowledgement/error handling (F40), and complete database ownership/constraint verification. No whole-phase completion is claimed.
-
-## Phase 3 implementation checkpoint — 15 October 2026
-
-Phase 3 has started and remains IN PROGRESS. Earlier incomplete phases remain open in pending.md.
-
-- Financial calculations now share bounded line-level facts across business, order, marketplace and SKU projections. Only recorded settlement amounts count as received cash; unpaid revenue remains an estimated receivable. Pending, confirmed, shipped and cancelled orders do not recognise goods revenue or COGS.
-- Partial returns reverse the returned share of discounted revenue and recoverable sellable cost. Damaged units retain their cost. Duplicate records and repeated-SKU lines cannot apply the same returned quantity repeatedly. Source return line identity and all report/ledger projections still require further work.
-- Purchase intake adds catalog stock once per bill locally. Supplier payments retain cumulative per-bill paid amounts and allocate against remaining balances oldest-first. This does not close durable server posting or inventory transaction requirements.
-- The Suppliers view tolerates an unassigned supplier. Purchase entry preserves zero GST and rounds fractional tax to cents. No visual styling/layout changes were made.
-- Ledger changes gate order recognition, subtract actual discounts and replace the invented commission/logistics split with recorded deduction categories. Tax, refund/revenue reversal, claim recovery and purchase-payment events remain open under F45.
-
-Remaining Phase 3 engineering includes source mapping/cost completeness (F29), Amazon financial event reconciliation (F30), safe document approval posting (F44), the remaining ledger events (F45), atomic return edit/restock transitions (F51), and complete report/detail reconciliation (F53). Estimates and missing cost data are not proof of observed costs. Return fees already present in settlement deductions also need explicit source identity to prevent duplicate expense recognition. No live credentials were used, and no database migrations were executed in this pass.
-
-Verification at this checkpoint:
-
-- Final production build: PASS, including type checking and all 52 static-page generation steps.
-- Financial behavioral regression suite: 16/16 PASS, including actual provider purchase intake, Suppliers view rendering and purchase-modal GST calculations with isolated dependencies.
-- Final full npm test: 205 tests, 203 PASS, 2 FAIL, 0 skipped. The remaining failures are the existing dashboard hardcoded-title and landing route-comparison grid-string assertions. The TypeScript test passes in the final run. Earlier intermediate Shopify/schema assertions were rechecked, and the stale migration-15 expectation was updated to the current migration-16 readiness requirement.
-- Whitespace/diff validation for the touched Phase 3 files: PASS. Tests use synthetic records and mocked external adapters; these results do not prove real database durability, provider interoperability or production readiness.
-
-
-## Phase 4 implementation checkpoint — 15 October 2026
-
-Implemented within the existing connector workflows:
-
-- Amazon Orders, Amazon order items, Amazon Finances, Shopify Link headers, WooCommerce numbered pages and Flipkart shipment nextPageUrl are drained before business persistence. Custom APIs accept same-endpoint next URLs/Link headers and reject cursor-only incomplete responses. Pagination loops, foreign destinations, malformed collections and the 250-page ceiling fail explicitly; no partial run reports success. Existing default date windows remain; this is not an unlimited historical backfill.
-- Amazon no longer invents a financial item when item retrieval fails, or a random order ID when the source omits identity. Flipkart uses the documented shipment endpoint, 20-record pages, separate lifecycle/shipment filters, and groups sibling source lines before writing. Flipkart refresh tokens and expiry are saved before the new access token is used.
-- Order and finance watermarks live in connection metadata, not decrypted credentials. Only an exhausted, persisted full run advances the stream watermark, using the run start time. Caller-supplied Amazon continuations and single-order finance queries cannot advance a global watermark. Completed cursors are cleared. Ambiguous Amazon/Flipkart stores reject; complete multi-store routing is still F33.
-- Shopify uses 2026-10 and verifies Orders access. Amazon verifies Orders/Finances access and Flipkart verifies shipment access after token exchange. WooCommerce/custom verification validates an actual JSON record collection. Existing unavailable Meesho/Myntra integrations remain unavailable.
-- The connection component waits for successful vault persistence before reporting a new active connection. Metadata permits verification/sync without returning secrets to the browser. Failed disconnects retain the established state. Existing layout, styles and modal structure were preserved.
-- OAuth creation/consumption requires durable storage. One DELETE ... RETURNING statement enforces single use with owner/client/redirect/marketplace/expiry predicates. Initiation and callback use server configuration; caller overrides and hardcoded staging defaults were removed.
-
-Verification:
-
-- New behavioral connector suite: 22/22 PASS; actual handlers, pagination helpers, OAuth module and connection component execute with isolated synthetic adapters.
-- Full npm test: 205 tests, 203 PASS, 2 FAIL, 0 skipped. The same pre-existing UI source-string assertions remain: dashboard hardcoded heading and landing route-comparison responsive grid. They were not hidden or changed.
-- Production build: PASS; compilation, TypeScript validation and all 52 static-page generation steps completed. An initial sandbox EPERM creating .next/types was resolved by rerunning the same build with approved execution permissions.
-- Updated stale legacy tests that expected memory-backed OAuth state or the obsolete Shopify shop endpoint; no guarantees were weakened to retain those behaviors.
-
-Migration/deployment requirements: apply database/16_connector_sync_and_oauth.sql after migration 15 on an explicitly approved disposable target first. Fresh bootstrap and read-only readiness checks now include migration 16. Configure FLIPKART_APP_ID, FLIPKART_APP_SECRET and FLIPKART_REDIRECT_URI server-side. Production requires the registered HTTPS callback. Restart pending OAuth flows after upgrade. No database mutation, live seller call or real credential use occurred.
-
-Limitations: bounded synchronous sync can still hit provider rate limits/runtime deadlines, in which case it fails rather than claims completion. Durable background orchestration is still Phase 2/6 work. Flipkart's documented shipment API excludes Flipkart Advantage orders and has a retrieval ceiling; partner scope and cancellation filters need real seller proof. Shopify REST is legacy and new public apps require a separately verified GraphQL path. F29/F30 financial mapping and settlement correctness remain Phase 3 work. Migration, real SQL concurrency/RLS/restart, browser staging and live provider permissions remain pending; Phase 4 is not declared complete.
-
-Provider references reviewed: [Flipkart shipments](https://seller.flipkart.com/api-docs/order-api-docs/v3/PostShipmentSearch.html), [Flipkart authentication](https://seller.flipkart.com/api-docs/FMSAPI.html), [Shopify pagination and REST legacy status](https://shopify.dev/docs/api/admin-rest/usage/pagination), [Shopify 2026-10](https://shopify.dev/changelog/release-notes/2026-10), [Amazon order-item pagination](https://developer-docs.amazon/sp-api/lang-us/reference/getorderitems).
-
-
-## Phase 5 implementation checkpoint — 15 October 2026
-
-The user's Phase 5 instruction supersedes sequential execution for this pass; earlier open phases remain open. Six Phase 5 findings have locally verified fixes. F47 has working local implementation and isolated regression coverage but stays unchecked until migration/real database acceptance and earlier inventory-persistence prerequisites are satisfied. Phase 5 is not complete.
-
-Implementation evidence:
-
-- New tests/remediation-workflows.test.mjs: 29 behavioral tests pass, 0 fail, 0 skipped. These execute actual merge/import/aging/snapshot/CSV modules, actual upload/archive handlers with isolated database adapters, actual PlatformProvider actions and both Reports export tabs. Tests cover rejected saves without state mutation, canonical IDs, source-line duplication/conflicts, tax/price zeros, historical costs, partial receipts, tenant binding, rollback, cascades, repeated recovery and stale-stock refusal.
-- Full regression checkpoint: 234 tests, 232 passed, 2 failed, 0 skipped. Both failures are the existing ui-ux-analyst.test.mjs dashboard-title and landing-grid source-string assertions. They remain included and unchanged. Stale migration-16 and CSV implementation-string checks were updated for migration 17, dated costs and original-file uploads; settlement payout rejection also has a behavioral assertion.
-- Production build passed with compilation, TypeScript validation and all 53 static-page generation steps. The first attempt hit a Windows EPERM under .next/server/app/api; an unchanged retry passed without a dependency/configuration change. Final verification is recorded below after the last source edits.
-- git diff --check passed. Existing UI styling, layout, navigation and modal conventions were preserved.
-
-Deployment: database/17_recycle_bin.sql is included in explicit bootstrap/readiness checks and is not applied by request handlers. No database, seed, real store or real credential was used. pending.md lists the disposable database/role, actual source files, legacy ownership/repair and identity/browser checks needed before release. Earlier F16/F23/F29/F30/F33/F39/F51/F53 and operational limits remain open under their original phases.
-
-Final verification after the last source edits: npm run build PASS (compilation, TypeScript and 53 static-page generation steps); focused workflows 29/29 PASS; full npm test 234 total, 232 PASS, 2 existing UI assertions FAIL, 0 skipped/cancelled. No new failing test remains. Phase 5 stays open for the acceptance items above.
-
-## Phase 6 implementation checkpoint — 15 October 2026
-
-Session issuance now registers a SHA-256 token digest before returning a cookie. Each login has a unique signed ID; every protected API and workspace navigation awaits a registry check. Logout commits revocation before clearing the cookie; registry failure returns a retryable 503. Unregistered/legacy/expired/malformed tokens and deleted accounts reject. Production requires a stable signing secret of at least 32 bytes. Migration 18 is supplied, bootstrap/readiness references it, and no database was modified. Real intended-role/RLS, independent process, restart and browser session acceptance remain open under F15.
-
-Dependency work removed unused potrace/Jimp and updated PostCSS 8.5.30, postcss-selector-parser 7.1.6 and source-map-js 1.2.2 through the locked tree. Full npm audit: 5 high, 0 moderate/critical, down from 15; production-only audit: 0. The remaining entries trace to the unpatched braces/Tailwind 3 build chain ([advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)); F60 stays open. npm ls --all succeeds. Sorted compiled CSS rule records match the saved baseline: 9,986 records, 0 added/removed. No UI style/layout change or force upgrade was used.
-
-Verification now executes real signer/tenant upsert/product handler/rate-limiter/financial engine behavior in place of mirrored simulations. Source-wiring checks are identified accurately and do not assert production durability. The two stale UI tests now check the existing dashboard greeting/date and rendered responsive route-comparison CSS; the UI was preserved. The production queue refuses its development simulator and returns 503; actual durable workers remain F21 engineering work.
-
-- Full npm test: **247 passed, 0 failed, 0 skipped/cancelled**, including all existing suites and 13 new release tests. Session tests use actual handlers with an isolated registry adapter; separate module instances/reloads are not real PostgreSQL or multi-process proof.
-- npm run build: **PASS**, including TypeScript and all 53 static-page generation steps. No warnings were reported by the final build.
-- Public browser smoke: existing landing CTA reaches /login, Sign In switches the form, and anonymous dashboard navigation redirects to /login. Desktop and 390px mobile landing/login checks show no horizontal document overflow; no console warnings/errors observed in that limited session.
-- Anonymous HTTP: public landing/login 200, dashboard/orders 307 to /login, auth/me and jobs 401. Protected workspace redirects are private/no-store. No credentials, authenticated database calls, provider calls or migrations were used.
-
-Evidence: phase6-test-output.log, phase6-build-output.log, phase6-audit-before.json, phase6-audit-after.json, phase6-audit-production.json, phase6-dependency-tree.json, phase6-css-comparison.json and phase6-http-smoke.json. pending.md records migration/secret configuration, authenticated staging, remaining dependencies, real workers/shared quotas, monitoring/load/backup restore and earlier incomplete findings. Phase 6 remains IN PROGRESS; no whole-phase or production-readiness claim is made.
+- **Focused F21/security/release suites:** 34 passed, 0 failed.
+- **Production build:** passed, including TypeScript and 53 static pages.
+- **Full `npm test`:** 253 passed, 1 failed (254 total). The remaining UI analyst assertion expects `grid-cols-1 sm:grid-cols-3` in `marginflow-hero.tsx`; investigate/resolve before release. It is tracked as open in [`pending.md`](./pending.md).
+- **External acceptance:** no live provider credentials, Google OAuth staging, Supabase role/RLS deployment, restricted production role or deployment-host operations were used for these local results.

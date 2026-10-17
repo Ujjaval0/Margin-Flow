@@ -717,7 +717,14 @@ CREATE TABLE background_jobs (
   error       TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by  UUID REFERENCES user_accounts(id) ON DELETE SET NULL
+  created_by  UUID REFERENCES user_accounts(id) ON DELETE CASCADE,
+  idempotency_key TEXT,
+  attempts SMALLINT NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  max_attempts SMALLINT NOT NULL DEFAULT 3 CHECK (max_attempts BETWEEN 1 AND 10),
+  available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  locked_at TIMESTAMPTZ,
+  lock_token UUID,
+  priority SMALLINT NOT NULL DEFAULT 0
 );
 
 -- ------------------------------------------------------------
@@ -871,6 +878,10 @@ CREATE TRIGGER trg_expenses_updated_at BEFORE UPDATE ON expenses FOR EACH ROW EX
 CREATE TRIGGER trg_ai_staged_documents_updated_at BEFORE UPDATE ON ai_staged_documents FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 CREATE TRIGGER trg_ai_staged_fields_updated_at BEFORE UPDATE ON ai_staged_fields FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 CREATE TRIGGER trg_background_jobs_updated_at BEFORE UPDATE ON background_jobs FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+
+CREATE UNIQUE INDEX idx_jobs_owner_idempotency ON background_jobs (created_by, idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX idx_jobs_available ON background_jobs (priority DESC, available_at ASC, created_at ASC) WHERE status = 'QUEUED';
+CREATE INDEX idx_jobs_expired_lease ON background_jobs (locked_at ASC) WHERE status = 'PROCESSING';
 
 -- Trigger: Audit logs are append-only
 CREATE OR REPLACE FUNCTION fn_block_audit_log_mutations()

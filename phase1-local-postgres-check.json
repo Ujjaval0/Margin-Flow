@@ -1,0 +1,14 @@
+{
+  "database": "marginflow_phase1_security_test_20261015",
+  "checks": {
+    "readiness": true,
+    "rls": {
+      "auth_sessions": true,
+      "webhook_receipts": false
+    },
+    "sessionRevocationDenied": true,
+    "duplicateWebhookRejected": true,
+    "syntheticRowsRolledBack": true
+  },
+  "syntheticFixtures": "rolled back in a single transaction"
+}

@@ -403,6 +403,7 @@ export type AccountType = "BRAND_OWNER" | "SUPPLIER" | "WHOLESALER";
 
 export interface OnboardingPreferences {
   role?: string;
+  roleLabel?: string;
   channels?: string[];
   volume?: string;
   completedAt?: string;

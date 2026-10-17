@@ -144,13 +144,21 @@ function hooks() {
   return { react, render: fn => { cursor = 0; return fn(); }, flush: () => { effects.splice(0).forEach(fn => fn()); } };
 }
 
-test('actual purchase action adds stock exactly once for a repeated bill', () => {
+test('actual purchase action adds stock exactly once for a repeated bill', async () => {
   const harness = hooks();
   const app = load('src/domain/store.tsx', { react: harness.react }, {
-    window: {}, localStorage: { getItem: () => null }, fetch: async () => Response.json({ success: true }),
+    window: {}, localStorage: { getItem: () => null }, fetch: async (url, options) => {
+      if (url === '/api/auth/me') return Response.json({ user: { id: 'tenant-A' } });
+      if (url.startsWith('/api/orders')) return Response.json({ orders: [] });
+      if (url.startsWith('/api/products') && options?.method !== 'POST') return Response.json({ products: [] });
+      if (url.startsWith('/api/settlements')) return Response.json({ settlements: [] });
+      if (url === '/api/recycle-bin?recovered=true') return Response.json({ recovered: { returns: [], claims: [], expenses: [] } });
+      return Response.json({ success: true });
+    },
   });
   const render = () => harness.render(() => app.PlatformProvider({ children: null }).props.value);
-  render().addProduct({ id: 'p', sku: 'SKU', name: 'Item', currentCostPrice: 40, costHistory: [], channelAliases: {}, active: true, supplierId: 's', stockQuantity: 5 });
+  await render().refreshFromDatabase();
+  await render().addProduct({ id: 'p', sku: 'SKU', name: 'Item', currentCostPrice: 40, costHistory: [], channelAliases: {}, active: true, supplierId: 's', stockQuantity: 5 });
   const state = render();
   const bill = { id: 'purchase', supplierId: 's', supplierName: 'Supplier', invoiceDate: '2026-10-15', invoiceNumber: 'INV',
     sku: 'SKU', quantity: 3, unitCost: 40, taxes: 0, totalAmount: 120, paymentStatus: 'PENDING' };

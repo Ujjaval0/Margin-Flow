@@ -22,10 +22,15 @@ export interface Job<T = any, R = any> {
   error?: string;
   createdAt: string;
   updatedAt: string;
+  availableAt?: string;
+  attempts: number;
+  maxAttempts: number;
 }
 
 export interface EnqueueJobOptions {
   ownerId?: string;
   priority?: number;
   delayMs?: number;
+  maxAttempts?: number;
+  idempotencyKey?: string;
 }

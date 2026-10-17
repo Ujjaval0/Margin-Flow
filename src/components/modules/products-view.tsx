@@ -45,6 +45,7 @@ export function ProductsView() {
 
   // Add Product Modal State
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  const [productSaveError, setProductSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -71,6 +72,7 @@ export function ProductsView() {
   const [newAliasMsh, setNewAliasMsh] = useState("");
 
   const handleOpenAddProduct = () => {
+    setProductSaveError(null);
     setNewSupplierId(suppliers[0]?.id || "SUP-001");
     setNewSku("");
     setNewMfn("");
@@ -84,7 +86,7 @@ export function ProductsView() {
     setIsAddProductOpen(true);
   };
 
-  const handleAddProductSubmit = (e: React.FormEvent) => {
+  const handleAddProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSku.trim() || !newName.trim()) return;
 
@@ -118,8 +120,12 @@ export function ProductsView() {
       ],
     };
 
-    addProduct(newProd);
-    setIsAddProductOpen(false);
+    try {
+      await addProduct(newProd);
+      setIsAddProductOpen(false);
+    } catch (error) {
+      setProductSaveError(error instanceof Error ? error.message : "Product could not be saved. Please retry.");
+    }
   };
 
   const handleOpenEditCost = (prod: Product) => {
@@ -692,6 +698,7 @@ export function ProductsView() {
                   </div>
                 </div>
               </div>
+              {productSaveError && <p role="alert" className="text-xs text-red-600">{productSaveError}</p>}
             </form>
 
             <div className="px-6 py-4 border-t border-black/[0.05] bg-slate-50/50 flex justify-end gap-2 shrink-0">
