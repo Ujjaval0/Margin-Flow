@@ -40,15 +40,6 @@ const DEFAULT_PRODUCT_WEIGHTS: Record<string, number> = {
   "ELEC-BRAID-CBL": 90,   // 90g (sub-500g bracket)
 };
 
-// Expected baseline standard commission rates
-const STANDARD_COMMISSION_BENCHMARKS: Record<string, number> = {
-  "Amazon India": 0.13, // 13% for consumer electronics
-  Flipkart: 0.13,       // 13% for consumer electronics
-  Meesho: 0.02,         // 2% platform fee
-  "Personal Website": 0.02, // Payment gateway only
-  Myntra: 0.20,
-};
-
 export function computeAnomalyRadar(params: {
   orders: Order[];
   returns: ReturnRecord[];
@@ -105,52 +96,6 @@ export function computeAnomalyRadar(params: {
       actionLabel: "Dispute Weight Overcharges",
       actionModule: "claims",
       actionHint: "Pre-fill volumetric claim dispute packet",
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // 2. MARKETPLACE COMMISSION FEE CREEP (>10% deviation)
-  // ─────────────────────────────────────────────────────────────
-  let feeCreepTotal = 0;
-  let feeCreepOrderCount = 0;
-  const feeCreepChannels = new Set<string>();
-
-  orders.forEach((order) => {
-    const totalItemValue = order.items.reduce(
-      (acc, it) => acc + (it.sellingPrice || 0) * (it.quantity || 1) - (it.discount || 0),
-      0
-    );
-    if (totalItemValue <= 0) return;
-
-    const benchmarkRate = STANDARD_COMMISSION_BENCHMARKS[order.marketplace] ?? 0.12;
-    const effectiveFeeRate = order.marketplaceChargesEstimate / totalItemValue;
-
-    // Relative deviation > 15% above benchmark (e.g. charged 16.5% vs 13%)
-    if (effectiveFeeRate > benchmarkRate * 1.15) {
-      const expectedFee = totalItemValue * benchmarkRate;
-      const slippage = order.marketplaceChargesEstimate - expectedFee;
-      if (slippage > 20) {
-        feeCreepTotal += slippage;
-        feeCreepOrderCount++;
-        feeCreepChannels.add(order.marketplace);
-      }
-    }
-  });
-
-  if (feeCreepOrderCount > 0) {
-    items.push({
-      id: "ANOMALY-FEE-02",
-      category: "FEE_CREEP",
-      severity: feeCreepTotal > 6000 ? "CRITICAL" : "WARNING",
-      title: "Marketplace Commission Fee Creep",
-      metricHighlight: `₹${Math.round(feeCreepTotal).toLocaleString("en-IN")} fee slippage`,
-      impactAmount: Math.round(feeCreepTotal),
-      orderCount: feeCreepOrderCount,
-      affectedEntities: Array.from(feeCreepChannels),
-      description: `Commission charges exceed standard rate cards by >15% on ${feeCreepOrderCount} orders (${Array.from(feeCreepChannels).join(", ")}).`,
-      actionLabel: "Inspect Fee Breakdown",
-      actionModule: "settlements",
-      actionHint: "Compare order deductions with marketplace rate cards",
     });
   }
 

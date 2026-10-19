@@ -36,12 +36,23 @@ export async function GET(req: NextRequest) {
         o.customer_state,
         o.shipping_fee_charged,
         o.marketplace_charges_estimate,
+        o.fee_estimate_status,
+        o.fulfilment_mode,
+        o.quick_fee_rate_bps,
         o.settlement_amount,
         o.commission_percent,
+        fee.total_paise AS fee_estimate_total_paise,
+        fee.status AS latest_fee_estimate_status,
         o.notes,
         o.created_at,
         o.updated_at
       FROM orders o
+      LEFT JOIN LATERAL (
+        SELECT estimate.status, estimate.total_paise
+        FROM order_fee_estimates estimate
+        WHERE estimate.user_id = o.user_id AND estimate.order_id = o.id
+        ORDER BY estimate.calculated_at DESC, estimate.id DESC LIMIT 1
+      ) fee ON TRUE
       WHERE o.user_id = $1 AND o.deleted_at IS NULL
     `;
 
@@ -134,6 +145,10 @@ export async function GET(req: NextRequest) {
         customerState: row.customer_state,
         shippingFeeCharged: Number(row.shipping_fee_charged || 0),
         marketplaceChargesEstimate: Number(row.marketplace_charges_estimate || 0),
+        feeEstimateStatus: row.latest_fee_estimate_status || row.fee_estimate_status || "LEGACY",
+        feeEstimateTotalPaise: row.latest_fee_estimate_status === "CONFIGURED" ? Number(row.fee_estimate_total_paise) : null,
+        fulfilmentMode: row.fulfilment_mode || undefined,
+        quickFeeRateBps: row.quick_fee_rate_bps === null ? undefined : Number(row.quick_fee_rate_bps),
         settlementAmount: row.settlement_amount !== null ? Number(row.settlement_amount) : undefined,
         commissionPercent: row.commission_percent !== null ? Number(row.commission_percent) : undefined,
         items,
@@ -183,6 +198,7 @@ export async function POST(req: NextRequest) {
       inserted: result.inserted,
       updated: result.updated,
       orderIds: result.orderIds,
+      feeEstimates: result.feeEstimates,
     });
   } catch (err: any) {
     if (err instanceof RequestBodyError) return NextResponse.json({ success: false, error: err.message }, { status: err.status });

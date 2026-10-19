@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
+import Image from "next/image";
 import { ChevronDown, Check, Layers } from "lucide-react";
 import { Marketplace } from "@/domain/types";
 import {
@@ -10,12 +12,45 @@ import {
   MarketplaceConfigItem,
 } from "@/lib/marketplace-config";
 
+const MARKETPLACE_LOGOS: Partial<Record<Marketplace, string>> = {
+  "Amazon India": "/integrations/logo-amazon.svg",
+  Flipkart: "/integrations/flipkart-icon.svg",
+  Myntra: "/integrations/myntra-2.svg",
+  Meesho: "/integrations/meesho.svg",
+  WooCommerce: "/integrations/woocommerce.png",
+  "Personal Website": "/integrations/shopify.svg",
+};
+
+function MarketplaceIcon({
+  marketplace,
+  className,
+  fallback,
+}: {
+  marketplace: Marketplace;
+  className: string;
+  fallback: React.ReactNode;
+}) {
+  const logo = MARKETPLACE_LOGOS[marketplace];
+  if (!logo) return <>{fallback}</>;
+
+  return (
+    <Image
+      src={logo}
+      alt=""
+      aria-hidden="true"
+      width={24}
+      height={24}
+      className={`${className} object-contain`}
+    />
+  );
+}
+
 // ----------------------------------------------------
 // 1. Form Marketplace Dropdown (Used in Modals & Forms)
 // ----------------------------------------------------
 interface FormMarketplaceDropdownProps {
   selected: Marketplace;
-  onChange: (mp: Marketplace, defaultCommission: number) => void;
+  onChange: (mp: Marketplace) => void;
   className?: string;
 }
 
@@ -25,11 +60,15 @@ export function FormMarketplaceDropdown({
   className = "",
 }: FormMarketplaceDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ left: number; top: number; width: number; maxHeight: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (!dropdownRef.current?.contains(target) && !menuRef.current?.contains(target)) {
         setIsOpen(false);
       }
     }
@@ -46,14 +85,44 @@ export function FormMarketplaceDropdown({
     };
   }, []);
 
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setMenuPosition(null);
+      return;
+    }
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const margin = 8;
+      const width = Math.min(280, Math.max(180, window.innerWidth - margin * 2));
+      const left = Math.max(margin, Math.min(rect.right - width, window.innerWidth - width - margin));
+      const spaceBelow = window.innerHeight - rect.bottom - margin;
+      const spaceAbove = rect.top - margin;
+      const maxHeight = Math.max(100, Math.min(288, Math.max(spaceBelow, spaceAbove)));
+      const openAbove = spaceBelow < Math.min(240, maxHeight) && spaceAbove > spaceBelow;
+      const top = openAbove ? Math.max(margin, rect.top - maxHeight - 6) : rect.bottom + 6;
+      setMenuPosition({ left, top, width, maxHeight });
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen]);
+
   const activeOption = MARKETPLACE_CONFIGS[selected] || MARKETPLACE_CONFIGS["Amazon India"];
   const ActiveIcon = activeOption.icon;
 
   return (
     <div ref={dropdownRef} className={`relative w-full ${className}`}>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
         className={`w-full flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-xl border text-xs font-medium transition-all duration-150 active:scale-[0.99] cursor-pointer shadow-apple-sm ${
           isOpen
             ? "border-black/20 ring-2 ring-[#0071E3]/20 bg-white text-[#1D1D1F]"
@@ -64,7 +133,11 @@ export function FormMarketplaceDropdown({
           <span
             className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 border text-[10px] ${activeOption.colorClass}`}
           >
-            <ActiveIcon className="w-3.5 h-3.5" />
+          <MarketplaceIcon
+            marketplace={selected}
+            className="w-3.5 h-3.5"
+            fallback={<ActiveIcon className="w-3.5 h-3.5" />}
+          />
           </span>
           <span className="font-semibold text-[#1D1D1F] tracking-tight truncate">
             {activeOption.label}
@@ -72,9 +145,6 @@ export function FormMarketplaceDropdown({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-xs text-[#86868B] tabular-nums font-normal">
-            {activeOption.estCommission}%
-          </span>
           <ChevronDown
             className={`w-3.5 h-3.5 text-[#86868B] shrink-0 transition-transform duration-200 ${
               isOpen ? "rotate-180 text-[#1D1D1F]" : ""
@@ -83,11 +153,10 @@ export function FormMarketplaceDropdown({
         </div>
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-1.5 w-[270px] sm:w-[280px] bg-white/95 backdrop-blur-xl rounded-2xl border border-black/[0.08] shadow-apple-lg p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
+      {isOpen && menuPosition && createPortal(
+        <div ref={menuRef} role="listbox" style={{ position: "fixed", left: menuPosition.left, top: menuPosition.top, width: menuPosition.width, maxHeight: menuPosition.maxHeight }} className="bg-white/95 backdrop-blur-xl rounded-2xl border border-black/[0.08] shadow-apple-lg p-1.5 z-[1000] animate-in fade-in zoom-in-95 duration-150 overflow-y-auto">
           <div className="px-3 py-1.5 text-[11px] font-medium text-[#86868B] border-b border-black/[0.04] mb-1 flex items-center justify-between">
             <span>Marketplace</span>
-            <span>Fee</span>
           </div>
           <div className="space-y-0.5">
             {MARKETPLACE_LIST.map((option) => {
@@ -98,7 +167,7 @@ export function FormMarketplaceDropdown({
                   key={option.id}
                   type="button"
                   onClick={() => {
-                    onChange(option.id, option.estCommission);
+                    onChange(option.id);
                     setIsOpen(false);
                   }}
                   className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors group cursor-pointer ${
@@ -111,7 +180,11 @@ export function FormMarketplaceDropdown({
                     <span
                       className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border text-[11px] ${option.colorClass}`}
                     >
-                      <Icon className="w-3.5 h-3.5" />
+                      <MarketplaceIcon
+                        marketplace={option.id}
+                        className="w-4 h-4"
+                        fallback={<Icon className="w-3.5 h-3.5" />}
+                      />
                     </span>
                     <span className="font-semibold text-[#1D1D1F] whitespace-nowrap truncate">
                       {option.label}
@@ -120,7 +193,7 @@ export function FormMarketplaceDropdown({
 
                   <div className="flex items-center gap-2.5 shrink-0 ml-2">
                     <span className="text-xs text-[#86868B] tabular-nums font-normal">
-                      {option.estCommission}%
+                      Rule based
                     </span>
                     {isSelected ? (
                       <Check className="w-3.5 h-3.5 text-[#1D1D1F] shrink-0 stroke-[2.2]" />
@@ -132,7 +205,8 @@ export function FormMarketplaceDropdown({
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -208,7 +282,15 @@ export function PlatformFilterDropdown({
               activeConfig ? activeConfig.colorClass : "text-slate-700 bg-slate-100 border-slate-200"
             }`}
           >
-            <ActiveIcon className="w-3 h-3" />
+            {isAll ? (
+              <ActiveIcon className="w-3 h-3" />
+            ) : (
+              <MarketplaceIcon
+                marketplace={selected}
+                className="w-3.5 h-3.5"
+                fallback={<ActiveIcon className="w-3 h-3" />}
+              />
+            )}
           </span>
           <span className="font-semibold truncate">{label}</span>
         </div>
@@ -286,7 +368,11 @@ export function PlatformFilterDropdown({
                     <span
                       className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border text-[11px] ${option.colorClass}`}
                     >
-                      <Icon className="w-3.5 h-3.5" />
+                      <MarketplaceIcon
+                        marketplace={option.id}
+                        className="w-4 h-4"
+                        fallback={<Icon className="w-3.5 h-3.5" />}
+                      />
                     </span>
                     <span className="truncate">{option.label}</span>
                   </div>

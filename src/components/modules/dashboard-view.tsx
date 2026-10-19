@@ -194,24 +194,33 @@ export function DashboardView({
   ];
 
   const sortedMarketplaceBreakdown = [...marketplaceBreakdown]
-    .filter((m) => m.marketplace !== "Other" && m.marketplace !== "B2B Wholesale")
+    .filter((m) =>
+      m.marketplace !== "Other" &&
+      m.marketplace !== "B2B Wholesale" &&
+      (m.revenue || 0) > 0
+    )
     .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
     .map((item, index) => ({
       ...item,
       color: TONAL_GREEN_SCALE[index % TONAL_GREEN_SCALE.length],
     }));
 
-  const activeChannels = sortedMarketplaceBreakdown.filter((m) => (m.revenue || 0) > 0);
+  const activeChannels = sortedMarketplaceBreakdown;
   const channelPieData =
     activeChannels.length > 0
       ? activeChannels
       : [{ marketplace: "No Revenue", revenue: 1, color: "#E5E5EA" }];
 
-  const totalChannelRevenue = sortedMarketplaceBreakdown.reduce((sum, m) => sum + (m.revenue || 0), 0);
+  const totalChannelRevenue = activeChannels.reduce((sum, m) => sum + (m.revenue || 0), 0);
 
   const channelChartData = useMemo(() => {
     return marketplaceBreakdown
-      .filter((m) => m.marketplace !== "Other" && m.marketplace !== "B2B Wholesale")
+      .filter((m) =>
+        m.marketplace !== "Other" &&
+        m.marketplace !== "B2B Wholesale" &&
+        (m.revenue || 0) > 0
+      )
+      .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
       .map((m) => ({
         name: m.marketplace.replace(" India", "").replace("Personal ", ""),
         Revenue: m.revenue,
@@ -1236,8 +1245,9 @@ export function DashboardView({
                 <span className="text-[11px] font-medium text-[#86868B]">Mkt. Fees</span>
               </div>
               <div className="text-xl font-semibold text-[#D70015] tracking-tight tabular-nums">{formatINR(profitability.marketplaceCharges)}</div>
-              <div className="text-[11px] text-[#6E6E73]">Total deducted</div>
-              <div className="mt-auto pt-2 border-t border-black/[0.04]"><span className="text-[10px] font-semibold text-rose-800">Commissions &amp; fixed</span></div>
+              <div className="text-[11px] text-[#6E6E73]">Recorded and estimated fees</div>
+              {profitability.unknownFeeOrders > 0 && <div className="text-[10px] text-[#86868B]">Rules missing for {profitability.unknownFeeOrders} orders</div>}
+              <div className="mt-auto pt-2 border-t border-black/[0.04]"><span className="text-[10px] font-semibold text-rose-800">Actuals, estimates, and legacy values</span></div>
             </div>
 
             {/* Returns & RTO */}
@@ -1321,14 +1331,14 @@ export function DashboardView({
               </div>
             ) : channelChartData.length === 0 ? (
               <div className="h-72 w-full flex items-center justify-center text-xs text-[#86868B] bg-[#F5F5F7] rounded-xl">
-                No channel data available
+                No channel revenue for this period
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={280}>
                 <BarChart
                   data={channelChartData}
                   barGap={4}
-                  barCategoryGap="24%"
+                  barCategoryGap={channelChartData.length <= 3 ? "12%" : "24%"}
                   margin={{ top: 10, right: 10, left: -10, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E5EA" strokeOpacity={0.6} />
@@ -1345,6 +1355,10 @@ export function DashboardView({
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
+                    domain={[
+                      (dataMin: number) => Math.min(0, dataMin),
+                      (dataMax: number) => Math.max(1, dataMax * 1.12),
+                    ]}
                     tickFormatter={(v) => `₹${Number(v) >= 1000 ? `${(Number(v) / 1000).toFixed(0)}k` : v}`}
                   />
                   <Tooltip
@@ -1358,10 +1372,10 @@ export function DashboardView({
                       padding: "8px 12px",
                     }}
                   />
-                  <Bar dataKey="Revenue" fill="#0071E3" radius={[4, 4, 0, 0]} maxBarSize={22} />
-                  <Bar dataKey="COGS" fill="#8E8E93" radius={[4, 4, 0, 0]} maxBarSize={22} />
-                  <Bar dataKey="Fees" fill="#FF9F0A" radius={[4, 4, 0, 0]} maxBarSize={22} />
-                  <Bar dataKey="Profit" fill="#34C759" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                  <Bar dataKey="Revenue" fill="#0071E3" radius={[4, 4, 0, 0]} maxBarSize={channelChartData.length <= 3 ? 36 : 22} />
+                  <Bar dataKey="COGS" fill="#8E8E93" radius={[4, 4, 0, 0]} maxBarSize={channelChartData.length <= 3 ? 36 : 22} />
+                  <Bar dataKey="Fees" fill="#FF9F0A" radius={[4, 4, 0, 0]} maxBarSize={channelChartData.length <= 3 ? 36 : 22} />
+                  <Bar dataKey="Profit" fill="#34C759" radius={[4, 4, 0, 0]} maxBarSize={channelChartData.length <= 3 ? 36 : 22} />
                 </BarChart>
               </ResponsiveContainer>
             )}

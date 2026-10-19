@@ -43,6 +43,22 @@ export default function DashboardLayout({
     }
   }, []);
 
+  // Rehydrate dark mode theme preference on mount
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const savedTheme = localStorage.getItem("marginflow_theme");
+        if (savedTheme === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const handleToggle = () => {
     setIsWorkspaceOpen((prev) => {
       const next = !prev;
@@ -107,7 +123,7 @@ export default function DashboardLayout({
   }, [platform.returns]);
 
   return (
-    <div className="fixed inset-0 flex h-full w-full overflow-hidden bg-[#F5F5F7] text-[#1D1D1F] font-apple tracking-[-0.012em] antialiased">
+    <div className="fixed inset-0 flex h-full w-full overflow-hidden bg-[#F5F5F7] dark:bg-[#0A0A0C] text-[#1D1D1F] dark:text-[#F5F5F7] font-apple tracking-[-0.012em] antialiased">
       {/* Persistent Sidebar Navigation */}
       <Sidebar
         isOpen={isWorkspaceOpen}
@@ -123,7 +139,7 @@ export default function DashboardLayout({
         />
 
         {/* Dynamic Route Scrollable View Container with Silky Page Transition */}
-        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 min-w-0 scroll-smooth">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 min-w-0 scroll-smooth bg-[#F5F5F7] dark:bg-[#0A0A0C]">
           <div key={pathname} className="page-transition min-w-0 w-full">
             {children}
           </div>

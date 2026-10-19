@@ -2,12 +2,14 @@ import { Order, OrderItem, Settlement, SettlementDeduction } from "@/domain/type
 import { query, ensureMarketplaceTables, pool } from "@/lib/db";
 import crypto from "crypto";
 import type { PoolClient } from "pg";
+import { buildFeeOrderLineInputs, calculateMarketplaceFeeEstimate, decimalRupeesToPaise, type MarketplaceFeeRule } from "@/domain/marketplace-fees";
 
 export interface OrderPersistenceResult {
   inserted: number;
   updated: number;
   orderIds: string[];
   insertedOrderIds: string[];
+  feeEstimates: Array<{ status: "CONFIGURED" | "NOT_CONFIGURED"; totalPaise: number | null }>;
 }
 
 export interface SettlementPersistenceResult {
@@ -34,7 +36,7 @@ export async function upsertOrders(
   }
 
   if (!orders || orders.length === 0) {
-    return { inserted: 0, updated: 0, orderIds: [], insertedOrderIds: [] };
+    return { inserted: 0, updated: 0, orderIds: [], insertedOrderIds: [], feeEstimates: [] };
   }
 
   await ensureMarketplaceTables();
@@ -43,6 +45,7 @@ export async function upsertOrders(
   let updated = 0;
   const orderIds: string[] = [];
   const insertedOrderIds: string[] = [];
+  const feeEstimates: OrderPersistenceResult["feeEstimates"] = [];
 
   if (orders.length > 1000 || orders.some(order => !order || !Array.isArray(order.items))) {
     throw new Error("Invalid order batch.");
@@ -52,6 +55,31 @@ export async function upsertOrders(
   });
   try {
   if (!transactionClient) await client.query("BEGIN");
+  const feeRuleRows = await client.query(`SELECT r.id, r.marketplace, r.sku, r.product_category, r.fulfilment_mode,
+      r.min_unit_price_paise, r.max_unit_price_paise, r.effective_from, r.effective_to, r.version, r.status,
+      c.id AS component_id, c.name AS component_name, c.component_type, c.calculation_method,
+      c.rate_bps, c.amount_paise, c.calculation_base, c.tax_treatment, c.tax_rate_bps, c.sequence
+    FROM marketplace_fee_rules r LEFT JOIN marketplace_fee_rule_components c
+      ON c.user_id = r.user_id AND c.rule_id = r.id AND c.enabled = TRUE
+    WHERE r.user_id = $1 AND r.status = 'ACTIVE' ORDER BY r.created_at, c.sequence, c.id`, [userId]);
+  const ruleGroups = new Map<string, MarketplaceFeeRule>();
+  for (const row of feeRuleRows.rows) {
+    let rule = ruleGroups.get(row.id);
+    if (!rule) {
+      rule = { id: row.id, version: Number(row.version), marketplace: row.marketplace,
+        sku: row.sku, productCategory: row.product_category, fulfilmentMode: row.fulfilment_mode,
+        minUnitPricePaise: row.min_unit_price_paise === null ? null : Number(row.min_unit_price_paise),
+        maxUnitPricePaise: row.max_unit_price_paise === null ? null : Number(row.max_unit_price_paise),
+        effectiveFrom: row.effective_from.toISOString?.().slice(0, 10) || String(row.effective_from).slice(0, 10),
+        effectiveTo: row.effective_to ? row.effective_to.toISOString?.().slice(0, 10) || String(row.effective_to).slice(0, 10) : null,
+        status: row.status, components: [] };
+      ruleGroups.set(row.id, rule);
+    }
+    if (row.component_id) rule.components.push({ id: row.component_id, name: row.component_name, componentType: row.component_type,
+      method: row.calculation_method, rateBps: row.rate_bps === null ? undefined : Number(row.rate_bps),
+      amountPaise: row.amount_paise === null ? undefined : Number(row.amount_paise), calculationBase: row.calculation_base || undefined,
+      taxTreatment: row.tax_treatment, taxRateBps: row.tax_rate_bps === null ? undefined : Number(row.tax_rate_bps), sequence: Number(row.sequence) });
+  }
   for (const order of orders) {
     const displayId = order.id || `ORD-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
     const channelOrderId = order.channelOrderId || displayId;
@@ -62,10 +90,21 @@ export async function upsertOrders(
     const customerCity = order.customerCity || "City";
     const customerState = order.customerState || "State";
     const shippingFeeCharged = order.shippingFeeCharged || 0;
-    const marketplaceChargesEstimate = order.marketplaceChargesEstimate || 0;
     const notes = order.notes || `SP-API Synced | ${channelOrderId}`;
 
     const q = (text: string, params?: any[]) => client.query(text, params);
+    const existingOrder = await q(`SELECT id, display_id, quick_fee_rate_bps FROM orders
+      WHERE user_id = $1 AND (display_id = $2 OR (channel_order_id = $3 AND marketplace = $4)) AND deleted_at IS NULL
+      ORDER BY CASE WHEN display_id = $2 THEN 0 ELSE 1 END LIMIT 1 FOR UPDATE`, [userId, displayId, channelOrderId, marketplace]);
+    const quickFeeRateBps = order.quickFeeRateBps === undefined
+      ? existingOrder.rows[0]?.quick_fee_rate_bps == null ? null : Number(existingOrder.rows[0].quick_fee_rate_bps)
+      : order.quickFeeRateBps;
+    const productCategories = await q("SELECT sku, category FROM products WHERE user_id = $1 AND sku = ANY($2::text[])", [userId, order.items.map(item => item.sku)]);
+    const categoryBySku = new Map(productCategories.rows.map((row: any) => [row.sku, row.category]));
+    const feeInputLines = buildFeeOrderLineInputs(order.items, categoryBySku, order.fulfilmentMode);
+    const estimate = calculateMarketplaceFeeEstimate([...ruleGroups.values()].filter(rule => rule.components.length > 0), feeInputLines,
+      marketplace, orderDate.slice(0, 10), quickFeeRateBps);
+    const calculatedFeeAmount = estimate.status === "CONFIGURED" ? (estimate.totalPaise / 100).toFixed(2) : null;
 
       // 1. Upsert Order Header with Tenant Isolation
       const orderUpsertSql = `
@@ -82,12 +121,17 @@ export async function upsertOrders(
           customer_state,
           shipping_fee_charged,
           marketplace_charges_estimate,
+          settlement_amount,
+          fulfilment_mode,
+          quick_fee_rate_bps,
+          fee_estimate_status,
           notes,
           created_at,
           updated_at
         ) VALUES (
           gen_random_uuid(),
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+          CASE WHEN $15 THEN $16::numeric ELSE 0::numeric END, $11, $12, $13, $14, $17, NOW(), NOW()
         )
         ON CONFLICT (user_id, channel_order_id, marketplace)
         DO UPDATE SET
@@ -96,14 +140,18 @@ export async function upsertOrders(
           customer_city = EXCLUDED.customer_city,
           customer_state = EXCLUDED.customer_state,
           shipping_fee_charged = EXCLUDED.shipping_fee_charged,
-          marketplace_charges_estimate = EXCLUDED.marketplace_charges_estimate,
+          marketplace_charges_estimate = CASE WHEN $15 THEN EXCLUDED.marketplace_charges_estimate ELSE orders.marketplace_charges_estimate END,
+          settlement_amount = COALESCE(EXCLUDED.settlement_amount, orders.settlement_amount),
+          fulfilment_mode = COALESCE(EXCLUDED.fulfilment_mode, orders.fulfilment_mode),
+          quick_fee_rate_bps = EXCLUDED.quick_fee_rate_bps,
+          fee_estimate_status = EXCLUDED.fee_estimate_status,
           notes = EXCLUDED.notes,
           updated_at = NOW()
         WHERE orders.deleted_at IS NULL
         RETURNING id, display_id, (xmax = 0) AS is_insert;
       `;
 
-      const orderRes = await q(orderUpsertSql, [
+      const orderValues = [
         userId,
         displayId,
         channelOrderId,
@@ -114,14 +162,58 @@ export async function upsertOrders(
         customerCity,
         customerState,
         shippingFeeCharged,
-        marketplaceChargesEstimate,
+        order.settlementAmount ?? null,
+        order.fulfilmentMode ?? null,
+        quickFeeRateBps,
+        estimate.status,
+        estimate.status === "CONFIGURED",
+        calculatedFeeAmount,
         notes,
-      ]);
+      ];
+      const orderRes = existingOrder.rows.length
+        ? await q(`UPDATE orders SET
+            channel_order_id = $1, marketplace = $2, order_date = $3, status = $4, customer_name = $5,
+            customer_city = $6, customer_state = $7, shipping_fee_charged = $8,
+            marketplace_charges_estimate = CASE WHEN $13 THEN $14 ELSE marketplace_charges_estimate END,
+            settlement_amount = COALESCE($9, settlement_amount), fulfilment_mode = COALESCE($10, fulfilment_mode),
+            quick_fee_rate_bps = $11, fee_estimate_status = $12, notes = $15, updated_at = NOW()
+          WHERE user_id = $16 AND id = $17 AND deleted_at IS NULL
+          RETURNING id, display_id, FALSE AS is_insert`, [
+            channelOrderId, marketplace, orderDate, status, customerName, customerCity, customerState,
+            shippingFeeCharged, order.settlementAmount ?? null, order.fulfilmentMode ?? null, quickFeeRateBps, estimate.status,
+            estimate.status === "CONFIGURED", calculatedFeeAmount, notes, userId, existingOrder.rows[0].id,
+          ])
+        : await q(orderUpsertSql, orderValues);
 
       const dbOrder = orderRes.rows[0];
       if (!dbOrder) throw new Error("Archived order must be restored before synchronization.");
       const dbOrderId = dbOrder?.id;
       const isInsert = dbOrder?.is_insert;
+
+      const estimateRow = await q(`INSERT INTO order_fee_estimates (
+        user_id, order_id, status, total_paise, calculation_version, input_snapshot
+      ) VALUES ($1,$2,$3,$4,$5,$6::jsonb) RETURNING id`, [userId, dbOrderId, estimate.status,
+        estimate.status === "CONFIGURED" ? estimate.totalPaise : null,
+        estimate.status === "CONFIGURED" ? estimate.calculationVersion : 1,
+        JSON.stringify({ marketplace, orderDate: orderDate.slice(0, 10), fulfilmentMode: order.fulfilmentMode || null, quickFeeRateBps,
+          grossPaise: feeInputLines.reduce((sum, line) => sum + line.unitPricePaise * line.quantity, 0),
+          discountPaise: feeInputLines.reduce((sum, line) => sum + line.discountPaise, 0),
+          taxPaise: feeInputLines.reduce((sum, line) => sum + line.taxPaise, 0),
+          shippingFeePaise: decimalRupeesToPaise(shippingFeeCharged), lines: feeInputLines })]);
+      feeEstimates.push({ status: estimate.status, totalPaise: estimate.status === "CONFIGURED" ? estimate.totalPaise : null });
+      if (estimate.status === "CONFIGURED") {
+        for (const [sequence, component] of estimate.components.entries()) {
+          await q(`INSERT INTO order_fee_estimate_components (
+            user_id, estimate_id, rule_id, rule_version, rule_component_id, line_sku, component_name, component_type,
+            calculation_method, calculation_base_paise, rate_bps, amount_paise, tax_treatment, tax_rate_bps,
+            tax_paise, quantity, sequence
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, [
+            userId, estimateRow.rows[0].id, component.ruleId, component.ruleVersion, component.componentId, component.lineSku,
+            component.componentName, component.componentType, component.method, component.basePaise, component.rateBps ?? null,
+            component.amountPaise, component.taxTreatment, component.taxRateBps, component.taxPaise, component.quantity, sequence,
+          ]);
+        }
+      }
 
 
       // 2. Upsert Order Items
@@ -148,9 +240,9 @@ export async function upsertOrders(
             // Update non-cost fields. CRITICAL: snapshot_unit_cost is never modified (Trigger 2 invariant)
             await q(
               `UPDATE order_items 
-               SET product_name = $1, quantity = $2, selling_price = $3, discount = $4, tax_amount = $5, returned_quantity = $6
-               WHERE order_id = $7 AND display_id = $8;`,
-              [productName, quantity, sellingPrice, discount, taxAmount, returnedQuantity, dbOrderId, itemDisplayId]
+               SET product_name = $1, quantity = $2, selling_price = $3, discount = $4, tax_amount = $5, returned_quantity = $6, sku = $7
+               WHERE order_id = $8 AND display_id = $9;`,
+              [productName, quantity, sellingPrice, discount, taxAmount, returnedQuantity, sku, dbOrderId, itemDisplayId]
             );
           } else {
             // Insert fresh item with locked snapshotUnitCost
@@ -186,23 +278,32 @@ export async function upsertOrders(
       const auditDisplayId = `AUD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       await q(
         `INSERT INTO financial_audit_logs (
-           id, display_id, timestamp, entity_type, entity_id, field_name, old_value, new_value, modified_by, reason
+           id, display_id, timestamp, entity_type, entity_id, field_name, old_value, new_value, modified_by, reason, user_id
          ) VALUES (
-           gen_random_uuid(), $1, NOW(), 'ORDER', $2, 'sync_status', 'PREVIOUS', $3, 'Amazon SP-API Integration', $4
+           gen_random_uuid(), $1, NOW(), 'ORDER', $2, 'order_upsert', 'PREVIOUS', $3, 'Authenticated Order API', $4, $5
          );`,
         [
           auditDisplayId,
           displayId,
           status,
-          `Channel order ${channelOrderId} synchronized (IsInsert: ${isInsert})`,
+          `Channel order ${channelOrderId} persisted (IsInsert: ${isInsert})`,
+          userId,
         ]
       );
+      await q(`INSERT INTO financial_audit_logs (
+        id, display_id, timestamp, entity_type, entity_id, field_name, old_value, new_value, modified_by, reason, user_id
+      ) VALUES (gen_random_uuid(), $1, NOW(), 'ORDER', $2, 'fee_estimate_snapshot', 'PREVIOUS', $3, 'Authenticated Order API', $4, $5)`, [
+        `AUD-FEE-${crypto.randomUUID()}`, displayId,
+        JSON.stringify({ status: estimate.status, totalPaise: estimate.status === "CONFIGURED" ? estimate.totalPaise : null,
+          calculationVersion: estimate.status === "CONFIGURED" ? estimate.calculationVersion : 1 }),
+        "Immutable marketplace fee estimate snapshot stored.", userId,
+      ]);
 
       if (isInsert) { inserted++; insertedOrderIds.push(dbOrder.display_id || displayId); } else updated++;
       orderIds.push(dbOrder.display_id || displayId);
   }
   if (!transactionClient) await client.query("COMMIT");
-  return { inserted, updated, orderIds, insertedOrderIds };
+  return { inserted, updated, orderIds, insertedOrderIds, feeEstimates };
   } catch (err) {
     if (!transactionClient) await client.query("ROLLBACK").catch(() => {});
     throw new Error("Order persistence failed.", { cause: err });

@@ -286,17 +286,6 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
 
       <div className="max-w-7xl mx-auto relative z-10">
         
-        {/* Kicker Tag */}
-        <div className="flex items-center gap-2 mb-6">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00ae3b] opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00ae3b]" />
-          </span>
-          <span className="text-[11px] font-mono tracking-widest text-[#71d78e] uppercase font-semibold">
-            MULTI-CHANNEL PROFIT & RECONCILIATION ENGINE
-          </span>
-        </div>
-
         {/* Grid Split */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
           
@@ -318,7 +307,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
               <button
                 onClick={onSignIn}
                 disabled={isAuthenticating}
-                className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-sm font-semibold transition-all shadow-[0_0_30px_rgba(0,174,59,0.35)] cursor-pointer"
+                className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full bg-[#124b20] hover:bg-[#1b6235] active:scale-95 border border-white/20 backdrop-blur-sm text-white text-sm font-semibold transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_0_24px_rgba(18,75,32,0.4)] cursor-pointer"
               >
                 <span>{isAuthenticating ? "Connecting..." : "Audit Your Last 90 Days"}</span>
                 <ArrowUpRight className="w-4 h-4" />

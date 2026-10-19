@@ -1,5 +1,6 @@
 "use client";
 
+import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Truck, X } from "lucide-react";
@@ -172,8 +173,7 @@ export function AddPurchaseModal({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="font-medium text-[#6E6E73] block mb-1">Quantity</label>
-              <input
-                type="number"
+              <NumericInput
                 min="0"
                 placeholder="0"
                 value={purchaseQty}
@@ -183,8 +183,7 @@ export function AddPurchaseModal({
             </div>
             <div>
               <label className="font-medium text-[#6E6E73] block mb-1">Unit Cost (₹)</label>
-              <input
-                type="number"
+              <NumericInput
                 min="0"
                 step="any"
                 placeholder="0.00"

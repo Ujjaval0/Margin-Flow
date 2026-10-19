@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import { usePlatform } from "@/domain/store";
 import { formatINR } from "@/lib/utils";
 import { Marketplace } from "@/domain/types";
 import { CsvImportModal } from "@/components/modals/csv-import-modal";
-import { MyntraLogo } from "@/lib/marketplace-config";
 import {
   RefreshCw,
   Copy,
@@ -149,6 +149,15 @@ const CATALOG_PLATFORMS = [
     comingSoon: true,
   },
 ];
+
+const CHANNEL_LOGOS: Record<string, string> = {
+  shopify: "/integrations/shopify.svg",
+  woocommerce: "/integrations/woocommerce.png",
+  amazon: "/integrations/logo-amazon.svg",
+  flipkart: "/integrations/flipkart-icon.svg",
+  meesho: "/integrations/meesho.svg",
+  myntra: "/integrations/myntra-2.svg",
+};
 
 interface StoredChannelCredentials {
   webhookPath?: string;
@@ -1529,22 +1538,24 @@ export function WebhookSimulatorView() {
     }
   };
 
-  // Simplistic, lightweight icon renderer
+  // Reuse the local platform logos in the existing icon slot.
   const renderSimpleIcon = (id: string) => {
+    const logo = CHANNEL_LOGOS[id];
+    if (logo) {
+      return (
+        <Image
+          src={logo}
+          alt=""
+          aria-hidden="true"
+          width={32}
+          height={32}
+          className={id === "woocommerce" ? "w-8 h-auto object-contain" : "w-5 h-5 object-contain"}
+        />
+      );
+    }
+
     const iconClass = "w-4 h-4 text-[#1D1D1F] stroke-[1.75]";
     switch (id) {
-      case "shopify":
-        return <ShoppingBag className={iconClass} />;
-      case "woocommerce":
-        return <Store className={iconClass} />;
-      case "amazon":
-        return <Layers className={iconClass} />;
-      case "flipkart":
-        return <Zap className={iconClass} />;
-      case "meesho":
-        return <Globe className={iconClass} />;
-      case "myntra":
-        return <MyntraLogo className="w-4 h-4" />;
       default:
         return <SlidersHorizontal className={iconClass} />;
     }

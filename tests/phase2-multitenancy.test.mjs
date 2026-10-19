@@ -66,7 +66,7 @@ describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', (
     test('1.3 schema readiness checks are read-only and fail closed', () => {
       const source = readProjectFile('src/lib/db.ts');
       assert.ok(source.includes('information_schema.columns'));
-      assert.ok(source.includes('Database migrations through step 18 are required.'));
+      assert.ok(source.includes('Database migrations through marketplace fee engine step 21 are required.'));
       assert.ok(!/CREATE TABLE|ALTER TABLE|CREATE INDEX/.test(source), 'Request handlers must not migrate schema');
       assert.ok(source.includes('connectionTimeoutMillis') && source.includes('statement_timeout'));
     });
@@ -170,9 +170,9 @@ describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', (
 
     test('4.4 Store action mutations asynchronously persist to backend APIs', () => {
       const storeContent = readProjectFile('src/domain/store.tsx');
-      assert.ok(storeContent.includes('fetch("/api/orders", {\n        method: "POST"'), 'addOrder and syncExternalOrders must push to /api/orders');
-      assert.ok(storeContent.includes('fetch("/api/settlements", {\n        method: "POST"'), 'addSettlement and syncExternalSettlements must push to /api/settlements');
-      assert.ok(storeContent.includes('fetch("/api/products", {\n        method: "POST"'), 'addProduct and bulkAddProducts must push to /api/products');
+      assert.match(storeContent, /fetch\("\/api\/orders",\s*\{\s*method: "POST"/s, 'order actions must push to /api/orders');
+      assert.match(storeContent, /fetch\("\/api\/settlements",\s*\{\s*method: "POST"/s, 'settlement actions must push to /api/settlements');
+      assert.match(storeContent, /fetch\("\/api\/products",\s*\{\s*method: "POST"/s, 'product actions must push to /api/products');
     });
   });
 
@@ -186,11 +186,14 @@ describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', (
         const client = { query: async (sql, params) => {
           if (sql.includes('INSERT INTO orders')) { writes.push([sql, params]); return { rows: [{ id: 'uuid-' + owner, display_id: 'same-order', is_insert: true }] }; }
           if (sql.includes('INSERT INTO products')) { writes.push([sql, params]); return { rows: [{ is_insert: true }] }; }
+          if (sql.includes('SELECT sku, category FROM products')) return { rows: [] };
           return { rows: [] };
         }, release() {} };
         const adapter = { ensureMarketplaceTables: async () => {}, pool: { connect: async () => client } };
         const persistence = loadApp('src/lib/integrations/order-persistence.ts', { '@/lib/db': adapter });
-        await persistence.upsertOrders(owner, [{ id: 'same-order', channelOrderId: 'same-channel', marketplace: 'WooCommerce', items: [] }]);
+        await persistence.upsertOrders(owner, [{ id: 'same-order', channelOrderId: 'same-channel', marketplace: 'WooCommerce', items: [
+          { id: 'same-item', sku: 'SAME-SKU', productName: 'Item', quantity: 1, sellingPrice: 10, discount: 0, taxAmount: 0, snapshotUnitCost: 5 },
+       ] }]);
         const route = loadApp('src/app/api/products/route.ts', { '@/lib/db': adapter, '@/lib/security/session': { getSessionUserId: () => owner } });
         const response = await route.POST(new Request('https://app.example', { method: 'POST', body: JSON.stringify({ product: { sku: 'SAME-SKU', currentCostPrice: owner === 'A' ? 20 : 30 } }) }));
         assert.equal(response.status, 200);

@@ -196,13 +196,13 @@ function getSynthesizedStatus(
 // Status Pill Filter Options (Matching Reference Design)
 // ----------------------------------------------------
 const STATUS_PILL_OPTIONS = [
-  { id: "ALL", label: "ALL" },
-  { id: "CONFIRMED", label: "CONFIRMED" },
-  { id: "SHIPPED", label: "SHIPPED" },
-  { id: "DELIVERED", label: "DELIVERED" },
+  { id: "ALL", label: "All" },
+  { id: "CONFIRMED", label: "Confirmed" },
+  { id: "SHIPPED", label: "Shipped" },
+  { id: "DELIVERED", label: "Delivered" },
   { id: "RTO", label: "RTO" },
-  { id: "RETURNED", label: "RETURNED" },
-  { id: "CANCELLED", label: "CANCELLED" },
+  { id: "RETURNED", label: "Returned" },
+  { id: "CANCELLED", label: "Cancelled" },
 ] as const;
 
 
@@ -1196,7 +1196,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                     : "text-[#6E6E73] hover:text-[#1D1D1F]"
                 }`}
               >
-                <span className="tracking-tight uppercase">{opt.label}</span>
+                <span className="tracking-tight">{opt.label}</span>
                 <span
                   className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[11px] font-bold tabular-nums ${
                     isSelected
@@ -1764,7 +1764,7 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                             : "bg-black/[0.04] text-[#6E6E73] hover:bg-black/[0.08] hover:text-[#1D1D1F]"
                         }`}
                       >
-                        {st.replace(/_/g, " ")}
+                        {st === "RTO" ? "RTO" : st.charAt(0).toUpperCase() + st.slice(1).toLowerCase()}
                       </button>
                     )
                   )}
@@ -1793,7 +1793,6 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
         products={products}
         suppliers={suppliers}
         onAddOrder={addOrder}
-        onAddSettlement={addSettlement}
         onAddReturn={addReturn}
         onAddClaim={addClaim}
       />
@@ -1808,7 +1807,6 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
         products={products}
         suppliers={suppliers}
         onUpdateOrder={updateOrder}
-        onAddSettlement={addSettlement}
         onAddReturn={addReturn}
         onAddClaim={addClaim}
       />

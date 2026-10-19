@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
         accountType: session.accountType,
         companyName: session.companyName || "My Brand",
         phone: session.phone || "",
+        avatarUrl: session.avatarUrl || null,
       },
     }, { headers: { "Cache-Control": "no-store" } });
   }
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
           accountType: dbUser.account_type,
           companyName: dbUser.company_name || "My Brand",
           phone: dbUser.phone || "",
+          avatarUrl: null,
         },
       }, { headers: { "Cache-Control": "no-store" } });
     }

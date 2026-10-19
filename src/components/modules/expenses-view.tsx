@@ -1,5 +1,6 @@
 "use client";
 
+import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Expense, ExpenseCategory } from "@/domain/types";
@@ -371,8 +372,7 @@ export function ExpensesView() {
                 </div>
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Amount (₹)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     min="1"
                     value={amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
@@ -521,8 +521,7 @@ export function ExpensesView() {
 
               <div>
                 <label className="font-medium text-[#6E6E73] block mb-1">Amount (₹)</label>
-                <input
-                  type="number"
+                <NumericInput
                   min="0"
                   step="any"
                   value={editAmount}

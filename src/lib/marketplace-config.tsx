@@ -78,8 +78,6 @@ export type MarketplaceLogoComponent = React.ComponentType<{ className?: string 
 export interface MarketplaceConfigItem {
   id: Marketplace;
   label: string;
-  sublabel: string;
-  estCommission: number;
   icon: MarketplaceLogoComponent;
   colorClass: string;
   pillClass: string;
@@ -91,8 +89,6 @@ export const MARKETPLACE_CONFIGS: Record<Marketplace, MarketplaceConfigItem> = {
   "Amazon India": {
     id: "Amazon India",
     label: "Amazon India",
-    sublabel: "15% est. fee",
-    estCommission: 15,
     icon: AmazonLogo,
     colorClass: "bg-amber-500/10 text-[#FF9900] border-amber-500/25",
     pillClass: "bg-amber-50 text-amber-800 border border-amber-200/60",
@@ -102,8 +98,6 @@ export const MARKETPLACE_CONFIGS: Record<Marketplace, MarketplaceConfigItem> = {
   Flipkart: {
     id: "Flipkart",
     label: "Flipkart",
-    sublabel: "15% est. fee",
-    estCommission: 15,
     icon: FlipkartLogo,
     colorClass: "bg-blue-500/10 text-[#2874F0] border-blue-500/25",
     pillClass: "bg-blue-50 text-blue-800 border border-blue-200/60",
@@ -113,8 +107,6 @@ export const MARKETPLACE_CONFIGS: Record<Marketplace, MarketplaceConfigItem> = {
   Myntra: {
     id: "Myntra",
     label: "Myntra",
-    sublabel: "20% est. fee",
-    estCommission: 20,
     icon: MyntraLogo,
     colorClass: "bg-pink-500/10 text-[#FF3F6C] border-pink-500/25",
     pillClass: "bg-pink-50 text-pink-800 border border-pink-200/60",
@@ -124,8 +116,6 @@ export const MARKETPLACE_CONFIGS: Record<Marketplace, MarketplaceConfigItem> = {
   Meesho: {
     id: "Meesho",
     label: "Meesho",
-    sublabel: "0% commission",
-    estCommission: 0,
     icon: MeeshoLogo,
     colorClass: "bg-rose-500/10 text-[#F43397] border-rose-500/25",
     pillClass: "bg-rose-50 text-rose-800 border border-rose-200/60",
@@ -135,8 +125,6 @@ export const MARKETPLACE_CONFIGS: Record<Marketplace, MarketplaceConfigItem> = {
   WooCommerce: {
     id: "WooCommerce",
     label: "WooCommerce",
-    sublabel: "2% gateway fee",
-    estCommission: 2,
     icon: WooCommerceLogo,
     colorClass: "bg-purple-500/10 text-[#7F54B3] border-purple-500/25",
     pillClass: "bg-purple-50 text-purple-800 border border-purple-200/60",
@@ -146,8 +134,6 @@ export const MARKETPLACE_CONFIGS: Record<Marketplace, MarketplaceConfigItem> = {
   "Personal Website": {
     id: "Personal Website",
     label: "Direct Store / Website",
-    sublabel: "2% gateway fee",
-    estCommission: 2,
     icon: ShopifyLogo,
     colorClass: "bg-emerald-500/10 text-[#008060] border-emerald-500/25",
     pillClass: "bg-emerald-50 text-emerald-800 border border-emerald-200/60",
@@ -157,8 +143,6 @@ export const MARKETPLACE_CONFIGS: Record<Marketplace, MarketplaceConfigItem> = {
   "B2B Wholesale": {
     id: "B2B Wholesale",
     label: "B2B Wholesale",
-    sublabel: "0% commission",
-    estCommission: 0,
     icon: B2BWholesaleLogo,
     colorClass: "bg-slate-500/10 text-slate-700 border-slate-500/25",
     pillClass: "bg-slate-50 text-slate-800 border border-slate-200/60",
@@ -168,8 +152,6 @@ export const MARKETPLACE_CONFIGS: Record<Marketplace, MarketplaceConfigItem> = {
   Other: {
     id: "Other",
     label: "Other Channel / Offline",
-    sublabel: "Custom / 0% fee",
-    estCommission: 0,
     icon: Layers,
     colorClass: "bg-slate-400/10 text-slate-600 border-slate-400/25",
     pillClass: "bg-slate-50 text-slate-700 border border-slate-200/60",

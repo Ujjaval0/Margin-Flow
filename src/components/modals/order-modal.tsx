@@ -1,5 +1,6 @@
 "use client";
 
+import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
@@ -7,13 +8,16 @@ import {
   Order,
   Marketplace,
   ReturnType,
-  Settlement,
   Claim,
   Product,
   Supplier,
 } from "@/domain/types";
 import { formatINR } from "@/lib/utils";
 import { FormMarketplaceDropdown } from "@/components/ui/marketplace-dropdown";
+import { buildFeeOrderLineInputs, calculateMarketplaceFeeEstimate, decimalRupeesToPaise, type FeeEstimateResult, type FeeOrderLineInput, type MarketplaceFeeRule } from "@/domain/marketplace-fees";
+import { MarketplaceFeeRulesModal } from "@/components/modals/marketplace-fee-rules-modal";
+
+const formatQuickRate = (rateBps: number) => `${(rateBps / 100).toFixed(2).replace(/\.?0+$/, "")}%`;
 
 export interface OrderModalProps {
   isOpen: boolean;
@@ -23,9 +27,8 @@ export interface OrderModalProps {
   defaultMarketplace?: Marketplace | "ALL";
   products: Product[];
   suppliers: Supplier[];
-  onAddOrder?: (order: Order) => void;
-  onUpdateOrder?: (order: Order) => void;
-  onAddSettlement?: (settlement: Settlement) => void;
+  onAddOrder?: (order: Order) => Promise<Order>;
+  onUpdateOrder?: (order: Order) => Promise<Order>;
   onAddReturn?: (ret: any) => void;
   onAddClaim?: (claim: Claim) => void;
 }
@@ -40,16 +43,21 @@ export function OrderModal({
   suppliers,
   onAddOrder,
   onUpdateOrder,
-  onAddSettlement,
   onAddReturn,
   onAddClaim,
 }: OrderModalProps) {
   const [mounted, setMounted] = useState(false);
+  const [isFeeRulesOpen, setIsFeeRulesOpen] = useState(false);
+  const feeRulesOpenRef = useRef(false);
+  feeRulesOpenRef.current = isFeeRulesOpen;
 
   useEffect(() => {
     setMounted(true);
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        if (feeRulesOpenRef.current) setIsFeeRulesOpen(false);
+        else onClose();
+      }
     };
     if (isOpen) {
       window.addEventListener("keydown", handleKeyDown);
@@ -59,6 +67,7 @@ export function OrderModal({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose]);
+  useEffect(() => { if (!isOpen) setIsFeeRulesOpen(false); }, [isOpen]);
   // Determine starting marketplace
   const startingMarketplace: Marketplace =
     initialOrder?.marketplace ||
@@ -77,8 +86,16 @@ export function OrderModal({
   const [supplierName, setSupplierName] = useState("");
   const [unitCost, setUnitCost] = useState("350");
   const [sellingPrice, setSellingPrice] = useState("1000");
-  const [commissionPercent, setCommissionPercent] = useState("20");
-  const [settlementAmount, setSettlementAmount] = useState("800");
+  const [settlementAmount, setSettlementAmount] = useState("");
+  const [fulfilmentMode, setFulfilmentMode] = useState("");
+  const [feeRules, setFeeRules] = useState<MarketplaceFeeRule[]>([]);
+  const [savedQuickRates, setSavedQuickRates] = useState<number[]>([]);
+  const [quickRateSelection, setQuickRateSelection] = useState("");
+  const [customQuickRate, setCustomQuickRate] = useState("");
+  const [quickRateSaveError, setQuickRateSaveError] = useState("");
+  const [savingQuickRate, setSavingQuickRate] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [notes, setNotes] = useState("");
 
   // Return / RTO Sub-Form (mainly for create mode)
@@ -110,21 +127,12 @@ export function OrderModal({
       const sPrice = firstItem?.sellingPrice || 0;
       const sQty = firstItem?.quantity || 1;
       setSellingPrice(String(sPrice));
-      const gSales = sPrice * sQty;
-
       const isReturnedOrder = initialOrder.status === "CUSTOMER_RETURN" || initialOrder.status === "RETURNED" || initialOrder.status === "RTO";
-      let initSettlement = (initialOrder.settlementAmount !== undefined && initialOrder.settlementAmount !== null)
-        ? initialOrder.settlementAmount
-        : (isReturnedOrder ? 0 : Math.round(gSales * 0.8));
-      let initCommPercent = initialOrder.commissionPercent ?? (initialOrder.settlementPercent ? Math.max(0, 100 - initialOrder.settlementPercent) : 20);
-      if (initialOrder.settlementAmount === undefined && !isReturnedOrder && initialOrder.marketplaceChargesEstimate) {
-        initSettlement = Math.max(0, gSales - initialOrder.marketplaceChargesEstimate);
-      }
-      if (gSales > 0 && !initialOrder.commissionPercent && !initialOrder.settlementPercent) {
-        initCommPercent = Math.max(0, Math.round(((gSales - initSettlement) / gSales) * 100 * 10) / 10);
-      }
-      setSettlementAmount(String(initSettlement));
-      setCommissionPercent(String(initCommPercent));
+      setSettlementAmount(initialOrder.settlementAmount === undefined || isReturnedOrder ? "" : String(initialOrder.settlementAmount));
+      setFulfilmentMode(initialOrder.fulfilmentMode || "");
+      const quickRateBps = initialOrder.quickFeeRateBps;
+      setQuickRateSelection(quickRateBps == null ? "" : "CUSTOM");
+      setCustomQuickRate(quickRateBps == null ? "" : (quickRateBps / 100).toFixed(2));
       setSupplierName(initialOrder.supplierName || "");
       setNotes(initialOrder.notes || "");
       setIsReturned(initialOrder.status === "RETURNED" || initialOrder.status === "RTO" || initialOrder.status === "CUSTOMER_RETURN" || initialOrder.status === "DAMAGED_RETURN");
@@ -143,8 +151,11 @@ export function OrderModal({
       setUnitCost(String(initialProd?.currentCostPrice || 400));
       const defSellingPrice = initialProd ? Math.round(initialProd.currentCostPrice * 2.5) : 1000;
       setSellingPrice(String(defSellingPrice));
-      setCommissionPercent("20");
-      setSettlementAmount(String(Math.round(defSellingPrice * 0.8)));
+      setSettlementAmount("");
+      setFulfilmentMode("");
+      setQuickRateSelection("");
+      setCustomQuickRate("");
+      setQuickRateSaveError("");
       const initialSup = suppliers.find((s) => s.id === initialProd?.supplierId || s.name === initialProd?.supplierId);
       setSupplierName(initialSup ? initialSup.name : (suppliers[0]?.name || ""));
       setNotes("");
@@ -159,64 +170,111 @@ export function OrderModal({
     }
   }, [isOpen, mode, initialOrder]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    fetch("/api/marketplace-fee-rules", { credentials: "same-origin", cache: "no-store" })
+      .then(response => response.ok ? response.json() : null)
+      .then(result => { if (active && Array.isArray(result?.rules)) setFeeRules(result.rules); })
+      .catch(() => { if (active) setFeeRules([]); });
+    return () => { active = false; };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    fetch(`/api/marketplace-quick-rates?marketplace=${encodeURIComponent(marketplace)}`, { credentials: "same-origin", cache: "no-store" })
+      .then(response => response.ok ? response.json() : null)
+      .then(result => {
+        if (!active || !Array.isArray(result?.rates)) return;
+        setSavedQuickRates(result.rates.map((rate: { rateBps: number }) => rate.rateBps).filter(Number.isInteger));
+      })
+      .catch(() => { if (active) setSavedQuickRates([]); });
+    return () => { active = false; };
+  }, [isOpen, marketplace]);
+
+  const saveCustomQuickRate = async () => {
+    setQuickRateSaveError("");
+    try {
+      const rateBps = decimalRupeesToPaise(customQuickRate);
+      if (rateBps < 0 || rateBps > 10000) throw new Error("Rate must be between 0% and 100%.");
+      setSavingQuickRate(true);
+      const response = await fetch("/api/marketplace-quick-rates", {
+        method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ marketplace, rateBps }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result?.rate) throw new Error(result?.error || "Quick rate could not be saved.");
+      setSavedQuickRates(current => [...new Set([...current, rateBps])].sort((a, b) => a - b));
+      setQuickRateSelection(String(rateBps));
+      setCustomQuickRate("");
+    } catch (error) {
+      setQuickRateSaveError(error instanceof Error ? error.message : "Quick rate could not be saved.");
+    } finally {
+      setSavingQuickRate(false);
+    }
+  };
+
   if (!isOpen) return null;
 
-  // Synchronization Handlers (Commission % <-> Settlement Amount)
   const handleSellingPriceChange = (val: string) => {
     setSellingPrice(val);
-    const pPrice = Math.max(0, parseFloat(val) || 0);
-    const pQty = Math.max(1, parseFloat(quantity) || 1);
-    const gSales = pPrice * pQty;
-    const cPct = parseFloat(commissionPercent) || 0;
-    setSettlementAmount(String(Math.round(gSales * (1 - cPct / 100))));
   };
 
   const handleQuantityChange = (val: string) => {
     setQuantity(val);
-    const pPrice = Math.max(0, parseFloat(sellingPrice) || 0);
-    const pQty = Math.max(1, parseFloat(val) || 1);
-    const gSales = pPrice * pQty;
-    const cPct = parseFloat(commissionPercent) || 0;
-    setSettlementAmount(String(Math.round(gSales * (1 - cPct / 100))));
-  };
-
-  const handleCommissionPercentChange = (val: string) => {
-    setCommissionPercent(val);
-    const pPrice = Math.max(0, parseFloat(sellingPrice) || 0);
-    const pQty = Math.max(1, parseFloat(quantity) || 1);
-    const gSales = pPrice * pQty;
-    const cPct = parseFloat(val) || 0;
-    if (gSales > 0) {
-      setSettlementAmount(String(Math.round(gSales * (1 - cPct / 100))));
-    }
-  };
-
-  const handleSettlementAmountChange = (val: string) => {
-    setSettlementAmount(val);
-    const pPrice = Math.max(0, parseFloat(sellingPrice) || 0);
-    const pQty = Math.max(1, parseFloat(quantity) || 1);
-    const gSales = pPrice * pQty;
-    const sAmt = parseFloat(val) || 0;
-    if (gSales > 0) {
-      const cPct = Math.max(0, Math.round(((gSales - sAmt) / gSales) * 100 * 10) / 10);
-      setCommissionPercent(String(cPct));
-    }
   };
 
   // Live Calculations
   const parsedQty = Math.max(1, parseFloat(quantity) || 1);
   const parsedUnitCost = Math.max(0, parseFloat(unitCost) || 0);
   const parsedSellingPrice = Math.max(0, parseFloat(sellingPrice) || 0);
-  const grossSales = parsedQty * parsedSellingPrice;
-  const parsedCommissionPercent = parseFloat(commissionPercent) || 0;
-  const parsedSettlementPercent = Math.max(0, 100 - parsedCommissionPercent);
-  const parsedSettlementAmount = !isNaN(parseFloat(settlementAmount))
-    ? parseFloat(settlementAmount)
-    : Math.round(grossSales * (1 - parsedCommissionPercent / 100));
-  const totalWholesaleCost = parsedQty * parsedUnitCost;
-  const commissionDeduction = Math.max(0, grossSales - parsedSettlementAmount);
-  const expectedSettlement = parsedSettlementAmount;
-  const estimatedTrueProfit = expectedSettlement - totalWholesaleCost;
+  const parsedSettlementAmount = settlementAmount.trim() && Number.isFinite(Number(settlementAmount))
+    ? Number(settlementAmount)
+    : undefined;
+  const formTaxAmount = mode === "edit" ? Number(initialOrder?.items[0]?.taxAmount || 0) : 0;
+  const formDiscountAmount = mode === "edit" ? Number(initialOrder?.items[0]?.discount || 0) : 0;
+  const feeOrderItems = mode === "edit" && initialOrder ? [
+    { ...(initialOrder.items[0] || { id: "preview" }), sku: sku || "SKU-CUSTOM", productName: productName || "Order Item",
+      quantity: parsedQty, sellingPrice: parsedSellingPrice, discount: formDiscountAmount, taxAmount: formTaxAmount, snapshotUnitCost: parsedUnitCost },
+    ...initialOrder.items.slice(1),
+  ] : [{
+    id: "preview", sku: sku || "CUSTOM-SKU", productName: productName || "Custom Order Item", quantity: parsedQty,
+    sellingPrice: parsedSellingPrice, discount: 0, taxAmount: 0, snapshotUnitCost: parsedUnitCost,
+  }];
+  let feeEstimate: FeeEstimateResult = { status: "NOT_CONFIGURED", totalPaise: null, components: [], reason: "No fee rule is configured." };
+  let feeLines: FeeOrderLineInput[] = [];
+  let estimatedGrossPaise = 0;
+  let estimatedDiscountPaise = 0;
+  let estimatedTaxPaise = 0;
+  let estimatedCogsPaise = 0;
+  let previewInputsValid = true;
+  let quickFeeRateBps: number | null = null;
+  try {
+    if (quickRateSelection === "CUSTOM") {
+      if (!customQuickRate.trim()) throw new Error("Enter a custom quick commission rate.");
+      quickFeeRateBps = decimalRupeesToPaise(customQuickRate);
+    } else if (quickRateSelection) {
+      quickFeeRateBps = Number(quickRateSelection);
+    }
+    const categoriesBySku = new Map(products.map(product => [product.sku, product.category || ""]));
+    feeLines = buildFeeOrderLineInputs(feeOrderItems, categoriesBySku, fulfilmentMode.trim() || null);
+    estimatedGrossPaise = feeOrderItems.reduce((sum, item) => sum + decimalRupeesToPaise(String(item.sellingPrice)) * item.quantity, 0);
+    estimatedDiscountPaise = feeOrderItems.reduce((sum, item) => sum + decimalRupeesToPaise(String(item.discount || 0)), 0);
+    estimatedTaxPaise = feeOrderItems.reduce((sum, item) => sum + decimalRupeesToPaise(String(item.taxAmount || 0)), 0);
+    estimatedCogsPaise = feeOrderItems.reduce((sum, item) => sum + decimalRupeesToPaise(String(item.snapshotUnitCost)) * item.quantity, 0);
+    feeEstimate = calculateMarketplaceFeeEstimate(feeRules, feeLines, marketplace, orderDate, quickFeeRateBps);
+  } catch { previewInputsValid = false; }
+  const estimatedFeeAmount = previewInputsValid && feeEstimate.status === "CONFIGURED" ? feeEstimate.totalPaise / 100 : null;
+  const estimatedUnits = feeOrderItems.reduce((sum, item) => sum + item.quantity, 0);
+  const orderShippingPaise = mode === "edit" && initialOrder ? decimalRupeesToPaise(String(initialOrder.shippingFeeCharged || 0)) : 0;
+  const estimatedSettlementPaise = isReturned || !previewInputsValid || feeEstimate.status !== "CONFIGURED" ? null
+    : estimatedGrossPaise - estimatedDiscountPaise + estimatedTaxPaise + orderShippingPaise - feeEstimate.totalPaise;
+  const estimatedTrueProfitPaise = estimatedSettlementPaise === null ? null : estimatedSettlementPaise - estimatedCogsPaise;
+  const estimatedGross = previewInputsValid ? estimatedGrossPaise / 100 : null;
+  const estimatedCogs = previewInputsValid ? estimatedCogsPaise / 100 : null;
+  const estimatedSettlement = estimatedSettlementPaise === null ? null : estimatedSettlementPaise / 100;
+  const estimatedTrueProfit = estimatedTrueProfitPaise === null ? null : estimatedTrueProfitPaise / 100;
 
   const handleSelectMfn = (mfnValue: string) => {
     setMfn(mfnValue);
@@ -239,10 +297,6 @@ export function OrderModal({
 
       const sPrice = Math.round(prod.currentCostPrice * 2.5);
       setSellingPrice(String(sPrice));
-      const pQty = Math.max(1, parseFloat(quantity) || 1);
-      const gSales = sPrice * pQty;
-      const cPct = parseFloat(commissionPercent) || 20;
-      setSettlementAmount(String(Math.round(gSales * (1 - cPct / 100))));
 
       if (prod.supplierId) {
         const sup = suppliers.find((s) => s.id === prod.supplierId || s.name === prod.supplierId);
@@ -261,10 +315,6 @@ export function OrderModal({
       if (prod.mfn1) setMfn1(prod.mfn1);
       const sPrice = Math.round(prod.currentCostPrice * 2.5);
       setSellingPrice(String(sPrice));
-      const pQty = Math.max(1, parseFloat(quantity) || 1);
-      const gSales = sPrice * pQty;
-      const cPct = parseFloat(commissionPercent) || 20;
-      setSettlementAmount(String(Math.round(gSales * (1 - cPct / 100))));
       if (prod.supplierId) {
         const sup = suppliers.find((s) => s.id === prod.supplierId || s.name === prod.supplierId);
         if (sup) {
@@ -275,8 +325,13 @@ export function OrderModal({
   };
 
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
+    setSaveError("");
+    try {
+    if (quickRateSelection && (quickFeeRateBps === null || !Number.isSafeInteger(quickFeeRateBps) || quickFeeRateBps < 0 || quickFeeRateBps > 10000))
+      throw new Error("Enter a valid quick commission rate from 0% to 100%.");
 
     if (mode === "edit" && initialOrder) {
       const isNowReturned = isReturned;
@@ -294,13 +349,13 @@ export function OrderModal({
         ...initialOrder,
         channelOrderId: channelOrderId.trim() || initialOrder.channelOrderId,
         marketplace,
+        fulfilmentMode: fulfilmentMode.trim() || undefined,
+        quickFeeRateBps,
         orderDate,
         status: updatedStatus,
         customerName: initialOrder.customerName || "Customer",
-        marketplaceChargesEstimate: commissionDeduction,
+        marketplaceChargesEstimate: initialOrder.marketplaceChargesEstimate,
         settlementAmount: parsedSettlementAmount,
-        settlementPercent: parsedSettlementPercent,
-        commissionPercent: parsedCommissionPercent,
         supplierName: supplierName || undefined,
         supplierId: suppliers.find((s) => s.name === supplierName)?.id || initialOrder.supplierId,
         notes,
@@ -314,7 +369,7 @@ export function OrderModal({
             quantity: parsedQty,
             sellingPrice: parsedSellingPrice,
             discount: initialOrder.items[0]?.discount || 0,
-            taxAmount: Math.round(parsedSellingPrice * parsedQty * 0.18 * 100) / 100,
+            taxAmount: formTaxAmount,
             snapshotUnitCost: parsedUnitCost,
             returnedQuantity: isNowReturned ? parsedQty : 0,
           },
@@ -322,7 +377,7 @@ export function OrderModal({
         ],
       };
 
-      onUpdateOrder?.(updatedOrder);
+      await onUpdateOrder?.(updatedOrder);
 
       // If return is enabled in edit mode, log/update the return and optional claim
       if (isNowReturned && onAddReturn) {
@@ -374,32 +429,6 @@ export function OrderModal({
         onAddReturn(newReturnRecord);
       }
 
-      // Optional settlement payout in edit mode
-      if (parsedSettlementAmount > 0 && onAddSettlement && !isNowReturned) {
-        const existingSettlementId =
-          (initialOrder.settlementIds && initialOrder.settlementIds[0]) || `SETTLE-${updatedOrder.id}`;
-        const createdSettlement: Settlement = {
-          id: existingSettlementId,
-          settlementBatchId: `BATCH-${Date.now().toString().slice(-4)}`,
-          marketplace,
-          settlementDate: orderDate,
-          orderId: updatedOrder.id,
-          grossAmount: grossSales,
-          deductions: [
-            {
-              category: "COMMISSION",
-              name: "Marketplace Commission",
-              amount: commissionDeduction,
-            },
-          ],
-          tcsTdsTax: 0,
-          netSettlement: parsedSettlementAmount,
-          reconciliationStatus: "RECONCILED",
-          bankTxRef: `BANK-DEP-${updatedOrder.id.slice(-4)}`,
-        };
-        onAddSettlement(createdSettlement);
-      }
-
       onClose();
       return;
     }
@@ -413,6 +442,8 @@ export function OrderModal({
       id: finalOrderId,
       channelOrderId: finalChannelRef,
       marketplace,
+      fulfilmentMode: fulfilmentMode.trim() || undefined,
+      quickFeeRateBps,
       orderDate,
       status: isReturned
         ? (returnType === "RTO" ? "RTO" : isDamagedClaim ? "CLAIM_PENDING" : "CUSTOMER_RETURN")
@@ -421,10 +452,10 @@ export function OrderModal({
       customerCity: "Mumbai",
       customerState: "Maharashtra",
       shippingFeeCharged: 0,
-      marketplaceChargesEstimate: commissionDeduction,
+      marketplaceChargesEstimate: 0,
+      feeEstimateStatus: "NOT_CONFIGURED",
+      feeEstimateTotalPaise: null,
       settlementAmount: parsedSettlementAmount,
-      settlementPercent: parsedSettlementPercent,
-      commissionPercent: parsedCommissionPercent,
       supplierName: supplierName || undefined,
       supplierId: suppliers.find((s) => s.name === supplierName)?.id,
       notes,
@@ -438,38 +469,14 @@ export function OrderModal({
           quantity: parsedQty,
           sellingPrice: parsedSellingPrice,
           discount: 0,
-          taxAmount: Math.round(parsedSellingPrice * parsedQty * 0.18 * 100) / 100,
+          taxAmount: 0,
           snapshotUnitCost: parsedUnitCost,
           returnedQuantity: isReturned ? parsedQty : 0,
         },
       ],
     };
 
-    onAddOrder?.(newOrder);
-
-    // Optional settlement remittance
-    if (parsedSettlementAmount > 0 && onAddSettlement && !isReturned) {
-      const createdSettlement: Settlement = {
-        id: `SETTLE-${newOrder.id}`,
-        settlementBatchId: `BATCH-${Date.now().toString().slice(-4)}`,
-        marketplace,
-        settlementDate: orderDate,
-        orderId: newOrder.id,
-        grossAmount: grossSales,
-        deductions: [
-          {
-            category: "COMMISSION",
-            name: "Marketplace Commission",
-            amount: commissionDeduction,
-          },
-        ],
-        tcsTdsTax: 0,
-        netSettlement: parsedSettlementAmount,
-        reconciliationStatus: "RECONCILED",
-        bankTxRef: `BANK-DEP-${finalOrderId.slice(-4)}`,
-      };
-      onAddSettlement(createdSettlement);
-    }
+    await onAddOrder?.(newOrder);
 
     // Optional return record & dispute claim
     if (isReturned && onAddReturn) {
@@ -526,11 +533,17 @@ export function OrderModal({
     }
 
     onClose();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Order could not be saved. Please retry.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!isOpen || !mounted) return null;
 
-  return createPortal(
+  return <>
+    {createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-150"
       onClick={onClose}
@@ -567,21 +580,44 @@ export function OrderModal({
 
           {/* 1. Channel & Order Reference */}
           <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.25fr)_minmax(180px,0.75fr)]">
+              <div>
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Marketplace channel</label>
+                <div className="flex flex-col gap-1">
+                  <FormMarketplaceDropdown selected={marketplace} onChange={(mp) => {
+                    setMarketplace(mp);
+                    setQuickRateSelection("");
+                    setCustomQuickRate("");
+                    setQuickRateSaveError("");
+                  }} />
+                  <button type="button" onClick={() => setIsFeeRulesOpen(true)} className="self-end rounded-full px-2 py-1 text-[10px] font-semibold text-[#0071E3] hover:bg-blue-50">Manage fee rules</button>
+                </div>
+              </div>
+              <div>
+                <label htmlFor="quick-fee-rate" className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Quick commission rate (%)</label>
+                <div className="flex flex-col gap-2">
+                <select id="quick-fee-rate" value={quickRateSelection} onChange={event => {
+                  setQuickRateSelection(event.target.value);
+                  setCustomQuickRate("");
+                  setQuickRateSaveError("");
+                }} className="w-full max-w-[220px] px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black">
+                    <option value="">No quick override</option>
+                  {savedQuickRates.map(rate => <option key={rate} value={rate}>{formatQuickRate(rate)}</option>)}
+                  <option value="CUSTOM">Add custom rate…</option>
+                  </select>
+                {quickRateSelection === "CUSTOM" && <div className="flex gap-2">
+                  <NumericInput aria-label="Custom quick commission rate in percent" inputMode="decimal" step="0.01" min="0" max="100" required value={customQuickRate} onChange={event => setCustomQuickRate(event.target.value)} className="min-w-0 flex-1 px-3 py-2 bg-white border border-black/[0.08] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black" />
+                  <button type="button" disabled={savingQuickRate || !customQuickRate.trim()} onClick={saveCustomQuickRate} className="shrink-0 rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-[11px] font-semibold text-[#0071E3] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50">
+                    {savingQuickRate ? "Saving…" : "Save rate"}
+                  </button>
+                </div>}
+                {quickRateSaveError && <p role="alert" className="text-[10px] text-[#D70015]">{quickRateSaveError}</p>}
+                </div>
+              </div>
+            </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
-                Marketplace channel
-              </label>
-              <FormMarketplaceDropdown
-                selected={marketplace}
-                onChange={(mp, estComm) => {
-                  setMarketplace(mp);
-                  const comm = estComm > 0 ? estComm : 20;
-                  setCommissionPercent(String(comm));
-                  const pPrice = Math.max(0, parseFloat(sellingPrice) || 0);
-                  const pQty = Math.max(1, parseFloat(quantity) || 1);
-                  setSettlementAmount(String(Math.round(pPrice * pQty * (1 - comm / 100))));
-                }}
-              />
+              <label htmlFor="order-fulfilment-mode" className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Fulfilment mode (optional)</label>
+              <input id="order-fulfilment-mode" type="text" value={fulfilmentMode} onChange={event => setFulfilmentMode(event.target.value)} placeholder="Match the value used by your fee rule" className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -700,8 +736,7 @@ export function OrderModal({
                 <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
                   Quantity
                 </label>
-                <input
-                  type="number"
+                <NumericInput
                   min="1"
                   value={quantity}
                   onFocus={(e) => e.target.select()}
@@ -721,7 +756,7 @@ export function OrderModal({
                 Wholesale cost (COGS)
               </span>
               <span className="text-xs font-medium text-[#86868B]">
-                Total COGS: <span className="text-[#1D1D1F] font-semibold tabular-nums">{formatINR(totalWholesaleCost)}</span>
+                Total COGS: <span className="text-[#1D1D1F] font-semibold tabular-nums">{estimatedCogs === null ? "Unavailable" : formatINR(estimatedCogs)}</span>
               </span>
             </div>
 
@@ -749,8 +784,7 @@ export function OrderModal({
                 <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
                   Unit purchase cost (₹)
                 </label>
-                <input
-                  type="number"
+                <NumericInput
                   step="any"
                   min="0"
                   value={unitCost}
@@ -772,13 +806,12 @@ export function OrderModal({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
                   Unit selling price (₹)
                 </label>
-                <input
-                  type="number"
+                <NumericInput
                   step="any"
                   min="0"
                   value={sellingPrice}
@@ -792,33 +825,15 @@ export function OrderModal({
 
               <div>
                 <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
-                  Commission (%)
+                  Recorded settlement (₹)
                 </label>
-                <input
-                  type="number"
-                  step="any"
-                  min="0"
-                  max="100"
-                  value={commissionPercent}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => handleCommissionPercentChange(e.target.value)}
-                  placeholder="20"
-                  className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-semibold tabular-nums transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
-                  Settlement amount (₹)
-                </label>
-                <input
-                  type="number"
+                <NumericInput
                   step="any"
                   min="0"
                   value={settlementAmount}
                   onFocus={(e) => e.target.select()}
-                  onChange={(e) => handleSettlementAmountChange(e.target.value)}
-                  placeholder="750"
+                  onChange={(e) => setSettlementAmount(e.target.value)}
+                  placeholder="Enter actual amount"
                   className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black font-semibold tabular-nums transition-all"
                 />
               </div>
@@ -829,29 +844,29 @@ export function OrderModal({
               <div className="bg-[#F5F5F7] p-2.5 rounded-xl border border-black/[0.04]">
                 <span className="text-[10px] font-medium text-[#86868B] block">Gross sales</span>
                 <span className="font-semibold text-[#1D1D1F] tabular-nums tracking-tight">
-                  {formatINR(grossSales)}
+                  {estimatedGross === null ? "Unavailable" : formatINR(estimatedGross)}
                 </span>
               </div>
               <div className="bg-[#F5F5F7] p-2.5 rounded-xl border border-black/[0.04]">
-                <span className="text-[10px] font-medium text-[#86868B] block">Est. platform fee</span>
+                <span className="text-[10px] font-medium text-[#86868B] block">{quickRateSelection ? "Quick fee estimate" : "Estimated fees"}</span>
                 <span className="font-semibold text-[#D70015] tabular-nums tracking-tight">
-                  −{formatINR(commissionDeduction)}
+                  {!previewInputsValid ? "Unavailable" : estimatedFeeAmount === null ? "Not configured" : `−${formatINR(estimatedFeeAmount)}`}
                 </span>
               </div>
               <div className="bg-[#F5F5F7] p-2.5 rounded-xl border border-black/[0.04]">
                 <span className="text-[10px] font-medium text-[#86868B] block">Expected payout</span>
                 <span className="font-semibold text-[#0071E3] tabular-nums tracking-tight">
-                  {formatINR(expectedSettlement)}
+                  {estimatedSettlement === null ? "Unavailable" : formatINR(estimatedSettlement)}
                 </span>
               </div>
               <div className="bg-[#F5F5F7] p-2.5 rounded-xl border border-black/[0.04]">
                 <span className="text-[10px] font-medium text-[#86868B] block">Est. true profit</span>
                 <span
                   className={`font-semibold tabular-nums tracking-tight ${
-                    estimatedTrueProfit >= 0 ? "text-[#288548]" : "text-[#D70015]"
+                    estimatedTrueProfit !== null && estimatedTrueProfit >= 0 ? "text-[#288548]" : "text-[#D70015]"
                   }`}
                 >
-                  {formatINR(estimatedTrueProfit)}
+                  {estimatedTrueProfit === null ? "Unavailable" : formatINR(estimatedTrueProfit)}
                 </span>
               </div>
             </div>
@@ -894,8 +909,7 @@ export function OrderModal({
                     <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">
                       Return fee / logistics deduction (₹)
                     </label>
-                    <input
-                      type="number"
+                    <NumericInput
                       step="any"
                       min="0"
                       value={returnFee}
@@ -946,8 +960,7 @@ export function OrderModal({
                         <label className="text-[10px] font-semibold text-[#B25E00] block mb-1">
                           Claim amount filed
                         </label>
-                        <input
-                          type="number"
+                        <NumericInput
                           step="any"
                           min="0"
                           value={claimAmount}
@@ -982,8 +995,7 @@ export function OrderModal({
                         <label className="text-[10px] font-semibold text-[#B25E00] block mb-1">
                           Approved reimbursement
                         </label>
-                        <input
-                          type="number"
+                        <NumericInput
                           step="any"
                           min="0"
                           value={approvedReimbursement}
@@ -1017,9 +1029,9 @@ export function OrderModal({
           {/* Sticky Actions Footer */}
           <div className="pt-3 border-t border-black/[0.06] flex items-center justify-between gap-3">
             <div className="text-xs text-[#86868B]">
-              <span className="font-semibold text-[#1D1D1F]">{parsedQty} unit{parsedQty === 1 ? "" : "s"}</span>
+              <span className="font-semibold text-[#1D1D1F]">{estimatedUnits} unit{estimatedUnits === 1 ? "" : "s"}</span>
               <span className="mx-1.5 text-black/20">·</span>
-              <span>Gross: <strong className="text-[#1D1D1F] tabular-nums font-semibold">{formatINR(grossSales)}</strong></span>
+              <span>Gross: <strong className="text-[#1D1D1F] tabular-nums font-semibold">{estimatedGross === null ? "Unavailable" : formatINR(estimatedGross)}</strong></span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -1032,15 +1044,20 @@ export function OrderModal({
               </button>
               <button
                 type="submit"
+                disabled={saving}
                 className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-xl text-xs font-medium shadow-apple-sm btn-press transition cursor-pointer"
               >
-                {mode === "edit" ? "Update order" : "Submit order"}
+                {saving ? "Saving…" : mode === "edit" ? "Update order" : "Submit order"}
               </button>
             </div>
           </div>
+          {saveError && <p role="alert" className="text-xs text-[#D70015]">{saveError}</p>}
         </form>
       </div>
     </div>,
     document.body
-  );
+  )}
+  <MarketplaceFeeRulesModal isOpen={isFeeRulesOpen} onClose={() => setIsFeeRulesOpen(false)} marketplace={marketplace}
+    products={products} onRulesChange={setFeeRules} />
+  </>;
 }

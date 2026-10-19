@@ -131,6 +131,10 @@ export interface Order {
   items: OrderItem[];
   shippingFeeCharged: number;
   marketplaceChargesEstimate: number;
+  feeEstimateStatus?: "CONFIGURED" | "NOT_CONFIGURED" | "LEGACY";
+  feeEstimateTotalPaise?: number | null;
+  quickFeeRateBps?: number | null;
+  fulfilmentMode?: string;
   settlementAmount?: number;
   settlementPercent?: number;
   commissionPercent?: number;
@@ -192,6 +196,9 @@ export interface Settlement {
   discrepancyAmount?: number;
   bankTxRef?: string;
   sourceDocument?: string;
+  feeReconciliation?: import("./marketplace-fees").FeeReconciliationResult;
+  feeReconciliationScope?: "ORDER";
+  netVariancePaise?: number;
 }
 
 // Partition 5: Claims & Recoveries
@@ -359,9 +366,9 @@ export interface ClaimsSummary {
 
 // Dashboard Settlement Summary Card Metrics
 export interface SettlementSummary {
-  expectedSettlement: number;
+  expectedSettlement: number | null;
   actualReceived: number;
-  pendingSettlement: number;
+  pendingSettlement: number | null;
   totalDeductions: number;
 }
 

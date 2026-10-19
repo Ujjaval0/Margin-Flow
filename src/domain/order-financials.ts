@@ -63,7 +63,10 @@ export function getOrderFinancialFacts(order: Order, returns: ReturnRecord[], se
   const sum = (key: "gross" | "discount" | "refunded" | "netSales" | "cogs" | "quantity" | "returnedUnits" | "damagedUnits" | "rtoUnits" | "damageLoss") => money(lines.reduce((value, line) => value + line[key], 0));
   const deductions = linkedSettlements.flatMap(settlement => settlement.deductions || []);
   const feeDeductions = deductions.filter(deduction => deduction.category !== "TAX_TCS" && deduction.category !== "TAX_TDS");
-  const fees = revenueRecognised ? money(feeDeductions.length ? feeDeductions.reduce((value, deduction) => value + deduction.amount, 0) : order.marketplaceChargesEstimate || 0) : 0;
+  const feeStatus = feeDeductions.length ? "ACTUAL" : order.feeEstimateStatus === "CONFIGURED" ? "ESTIMATE" : order.feeEstimateStatus === "LEGACY" || (!order.feeEstimateStatus && order.marketplaceChargesEstimate > 0) ? "LEGACY" : "UNKNOWN";
+  const fees = revenueRecognised ? feeDeductions.length
+    ? money(feeDeductions.reduce((value, deduction) => value + deduction.amount, 0))
+    : feeStatus === "ESTIMATE" || feeStatus === "LEGACY" ? money(order.marketplaceChargesEstimate || 0) : 0 : 0;
   const shippingFees = revenueRecognised ? money(feeDeductions.filter(deduction => deduction.category === "LOGISTICS").reduce((value, deduction) => value + deduction.amount, 0)) : 0;
   const returnCosts = active ? money(linkedReturns.reduce((value, record) => value + (record.customerReturnFee || 0) + (record.returnShippingCost || 0) + (record.otherReturnCosts || 0), 0)) : 0;
   const claimRecovery = active ? money(linkedClaims.filter(claim => ["APPROVED", "RECOVERED", "PARTIALLY_RECOVERED"].includes(claim.status)).reduce((value, claim) => value + claim.amountRecovered, 0)) : 0;
@@ -71,10 +74,11 @@ export function getOrderFinancialFacts(order: Order, returns: ReturnRecord[], se
   const netSales = sum("netSales");
   const cogs = sum("cogs");
   const retainedTax = revenueRecognised ? order.items.reduce((value, item, index) => value + (item.taxAmount || 0) * (item.quantity ? (item.quantity - lines[index].returnedUnits) / item.quantity : 0), 0) : 0;
-  const expectedPayout = revenueRecognised ? money(netSales + retainedTax + (netSales > 0 ? order.shippingFeeCharged || 0 : 0) - fees) : 0;
+  const expectedPayout = !revenueRecognised ? 0 : feeStatus === "ACTUAL" || feeStatus === "ESTIMATE"
+    ? money(netSales + retainedTax + (netSales > 0 ? order.shippingFeeCharged || 0 : 0) - fees) : null;
   return { active, revenueRecognised, lines, grossSales: sum("gross"), discounts: sum("discount"), refundedSales: sum("refunded"), netSales, cogs,
-    grossProfit: money(netSales - cogs), fees, shippingFees, returnCosts, claimRecovery, cash,
-    outstanding: Math.max(0, money(expectedPayout - cash)),
+    grossProfit: money(netSales - cogs), fees, feeStatus, expectedPayout, shippingFees, returnCosts, claimRecovery, cash,
+    outstanding: expectedPayout === null ? null : Math.max(0, money(expectedPayout - cash)),
     contributionProfit: money(netSales - cogs - fees - returnCosts + claimRecovery),
     units: sum("quantity"), returnedUnits: sum("returnedUnits"), damagedUnits: sum("damagedUnits"), rtoUnits: sum("rtoUnits"), damageLoss: sum("damageLoss"),
     isSettled: active && (linkedSettlements.length > 0 || order.settlementAmount !== undefined), linkedReturns,

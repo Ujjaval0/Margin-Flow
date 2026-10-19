@@ -1,5 +1,6 @@
 "use client";
 
+import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { AIStagedDocument } from "@/domain/types";
@@ -325,7 +326,7 @@ export function AIStagingView() {
         <div className="flex items-center gap-2.5 flex-wrap">
           {verifiedPendingIds.length > 1 && (
             <button
-              onClick={() => batchApproveStagedDocuments(verifiedPendingIds)}
+              onClick={() => void batchApproveStagedDocuments(verifiedPendingIds).catch(error => window.alert(error instanceof Error ? error.message : "Document could not be approved."))}
               className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#288548]/10 hover:bg-[#288548]/15 text-[#288548] text-xs font-medium rounded-full border border-[#288548]/20 shadow-apple-sm btn-press transition cursor-pointer"
               title="Post all balanced documents at once"
             >
@@ -777,8 +778,7 @@ export function AIStagingView() {
                         <label className="font-medium text-[#1D1D1F] block mb-1">
                           Quantity
                         </label>
-                        <input
-                          type="number"
+                        <NumericInput
                           min="1"
                           value={selectedDoc.extractedData.quantity?.value || 1}
                           onChange={(e) =>
@@ -792,8 +792,7 @@ export function AIStagingView() {
                         <label className="font-medium text-[#1D1D1F] block mb-1">
                           Unit rate (₹)
                         </label>
-                        <input
-                          type="number"
+                        <NumericInput
                           step="0.01"
                           value={selectedDoc.extractedData.unitPrice?.value || 0}
                           onChange={(e) =>
@@ -815,8 +814,7 @@ export function AIStagingView() {
                         <label className="font-medium text-[#1D1D1F] block mb-1">
                           Discount (₹)
                         </label>
-                        <input
-                          type="number"
+                        <NumericInput
                           step="0.01"
                           value={selectedDoc.extractedData.discount?.value || 0}
                           onChange={(e) =>
@@ -830,8 +828,7 @@ export function AIStagingView() {
                         <label className="font-medium text-[#1D1D1F] block mb-1">
                           Taxes / GST (₹)
                         </label>
-                        <input
-                          type="number"
+                        <NumericInput
                           step="0.01"
                           value={selectedDoc.extractedData.taxAmount?.value || 0}
                           onChange={(e) =>
@@ -845,8 +842,7 @@ export function AIStagingView() {
                         <label className="font-semibold text-[#1D1D1F] block mb-1">
                           Declared total (₹)
                         </label>
-                        <input
-                          type="number"
+                        <NumericInput
                           step="0.01"
                           value={selectedDoc.extractedData.totalAmount?.value || 0}
                           onChange={(e) =>
@@ -903,7 +899,7 @@ export function AIStagingView() {
                     </span>
                   ) : (
                     <button
-                      onClick={() => approveStagedDocument(selectedDoc.id)}
+                      onClick={() => void approveStagedDocument(selectedDoc.id).catch(error => window.alert(error instanceof Error ? error.message : "Document could not be approved."))}
                       disabled={!selectedDoc.arithmeticValidation.passed}
                       className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-full text-xs font-medium shadow-apple-sm transition flex items-center gap-1.5 active:scale-[0.98] btn-press cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                     >

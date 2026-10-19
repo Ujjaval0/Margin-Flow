@@ -204,18 +204,6 @@ function createOrderFromExtractedData(
     const customerCity = parsedData.customerCity?.trim() || "Mumbai";
     const customerState = parsedData.customerState?.trim() || "Maharashtra";
 
-    // Commission & Settlement (Personal Website / direct D2C has 0% marketplace commission)
-    const comm =
-      matchedMarketplace === "Amazon India" ? 18 :
-      matchedMarketplace === "Flipkart" ? 17 :
-      matchedMarketplace === "Meesho" ? 5 :
-      matchedMarketplace === "Myntra" ? 22 :
-      (matchedMarketplace === "Personal Website" || matchedMarketplace === "WooCommerce") ? 0 : 0;
-
-    const gSales = grossSellingPrice * qty;
-    const commDeduction = Math.round(gSales * (comm / 100));
-    const netSettlement = Math.max(0, gSales - commDeduction);
-
     const sup = matchedProd?.supplierId
       ? suppliers.find((s) => s.id === matchedProd?.supplierId || s.name === matchedProd?.supplierId)
       : suppliers[0];
@@ -232,10 +220,9 @@ function createOrderFromExtractedData(
       customerCity,
       customerState,
       shippingFeeCharged: Number(parsedData.shippingFee) || 0,
-      marketplaceChargesEstimate: commDeduction,
-      settlementAmount: netSettlement,
-      settlementPercent: 100 - comm,
-      commissionPercent: comm,
+      marketplaceChargesEstimate: 0,
+      feeEstimateStatus: "NOT_CONFIGURED",
+      feeEstimateTotalPaise: null,
       supplierName: sup?.name,
       supplierId: sup?.id,
       notes: `Auto-parsed from invoice file: ${fileName}`,
@@ -357,6 +344,7 @@ function parseTextToOrder(
   const parsedPriceVal = priceMatch
     ? Math.max(0, parseFloat(priceMatch[1].replace(/,/g, "")))
     : (matchedProd ? Math.round(matchedProd.currentCostPrice * 2.5) : 499);
+  const gSales = parsedPriceVal * parsedQtyVal;
 
   // 6. Indian Customer State & City Detection
   const stateKeywords = [
@@ -376,16 +364,6 @@ function parseTextToOrder(
 
   const nameMatch = text.match(/(?:bill\s*to|ship\s*to|buyer\s*name|customer\s*name)[:.\s]*([A-Za-z\s]{3,25})/i);
   const customerName = nameMatch ? nameMatch[1].trim() : "Direct Buyer";
-
-  const comm =
-    matchedMarketplace === "Amazon India" ? 18 :
-    matchedMarketplace === "Flipkart" ? 17 :
-    matchedMarketplace === "Meesho" ? 5 :
-    matchedMarketplace === "Myntra" ? 22 :
-    (matchedMarketplace === "Personal Website" || matchedMarketplace === "WooCommerce") ? 0 : 0;
-  const gSales = parsedPriceVal * parsedQtyVal;
-  const commDeduction = Math.round(gSales * (comm / 100));
-  const netSettlement = Math.round(gSales * (1 - comm / 100));
 
   const taxMatch = text.match(/(?:tax|gst|igst|cgst\s*\+\s*sgst)\s*(?:amount|value)?[:.\s]*₹?\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/i);
   const taxRateMatch = text.match(/(?:tax|gst|igst|cgst\s*\+\s*sgst)\s*(?:rate|slab|%)?[:.\s]*([0-9]{1,2})\s*%/i);
@@ -409,10 +387,9 @@ function parseTextToOrder(
     customerCity: detectedCity,
     customerState: detectedState,
     shippingFeeCharged: 0,
-    marketplaceChargesEstimate: commDeduction,
-    settlementAmount: netSettlement,
-    settlementPercent: 100 - comm,
-    commissionPercent: comm,
+    marketplaceChargesEstimate: 0,
+    feeEstimateStatus: "NOT_CONFIGURED",
+    feeEstimateTotalPaise: null,
     supplierName: sup?.name,
     supplierId: sup?.id,
     notes: `Auto-parsed from invoice file: ${fileName}`,
@@ -655,7 +632,8 @@ export function InvoiceAutoParseModal({
     (sum, item) => sum + item.order.items.reduce((iSum, i) => iSum + i.sellingPrice * i.quantity, 0),
     0
   );
-  const totalSettlement = parsedItems.reduce((sum, item) => sum + (item.order.settlementAmount || 0), 0);
+  const totalSettlement = parsedItems.some(item => item.order.settlementAmount === undefined) ? null
+    : parsedItems.reduce((sum, item) => sum + (item.order.settlementAmount || 0), 0);
 
   return createPortal(
     <div
@@ -903,7 +881,7 @@ export function InvoiceAutoParseModal({
                           </span>
                           <span className="text-black/[0.15]">|</span>
                           <span className="text-[#6E6E73]">
-                            Settlement: <strong className="text-emerald-700 font-semibold">{formatINR(item.order.settlementAmount || 0)}</strong>
+                            Settlement: <strong className="text-emerald-700 font-semibold">{item.order.settlementAmount === undefined ? "Unavailable" : formatINR(item.order.settlementAmount)}</strong>
                           </span>
                         </div>
                       </div>
@@ -929,7 +907,7 @@ export function InvoiceAutoParseModal({
                 </span>
                 <span className="text-black/[0.2]">•</span>
                 <span className="text-[#6E6E73]">
-                  Net Settlement: <strong className="text-emerald-700">{formatINR(totalSettlement)}</strong>
+                  Net Settlement: <strong className="text-emerald-700">{totalSettlement === null ? "Unavailable" : formatINR(totalSettlement)}</strong>
                 </span>
               </div>
             ) : (

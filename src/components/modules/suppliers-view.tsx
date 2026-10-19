@@ -1,5 +1,6 @@
 "use client";
 
+import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Supplier } from "@/domain/types";
@@ -776,8 +777,7 @@ export function SuppliersView() {
                 <label className="font-medium text-[#6E6E73] block mb-1">
                   Payout Amount (₹) *
                 </label>
-                <input
-                  type="number"
+                <NumericInput
                   step="any"
                   min="1"
                   value={payoutAmount}

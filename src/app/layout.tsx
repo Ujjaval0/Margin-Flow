@@ -38,8 +38,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${plusJakarta.variable} ${geistMono.variable} h-full scroll-smooth`}>
-      <body className={`${inter.className} bg-[#F5F5F7] text-[#1D1D1F] min-h-full font-sans antialiased selection:bg-neutral-900 selection:text-white m-0 p-0`}>
+    <html lang="en" className={`${inter.variable} ${plusJakarta.variable} ${geistMono.variable} h-full scroll-smooth`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                if (window.location.pathname !== '/' && localStorage.getItem('marginflow_theme') === 'dark') {
+                  document.documentElement.classList.add('dark');
+                }
+              } catch (_) {}
+            `,
+          }}
+        />
+      </head>
+      <body className={`${inter.className} bg-[#F5F5F7] dark:bg-[#0A0A0C] text-[#1D1D1F] dark:text-[#F5F5F7] min-h-full font-sans antialiased selection:bg-neutral-900 selection:text-white m-0 p-0`}>
         <PlatformProvider>{children}</PlatformProvider>
       </body>
     </html>

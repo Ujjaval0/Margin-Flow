@@ -37,7 +37,8 @@ export interface ProfitabilityMetrics {
   netOperatingMargin: number;
 
   actualSettlementsReceived: number;
-  outstandingSettlementEstimated: number;
+  outstandingSettlementEstimated: number | null;
+  unknownFeeOrders: number;
   totalOrders: number;
   totalUnitsSold: number;
   totalReturns: number;
@@ -284,7 +285,8 @@ function financialFacts(order: Order, returns: ReturnRecord[], settlements: Sett
 export function calculateBusinessProfitability(orders: Order[], returns: ReturnRecord[], settlements: Settlement[], claims: Claim[], expenses: Expense[]): ProfitabilityMetrics {
   const maps = buildFinancialMaps(returns, settlements, claims);
   const facts = orders.filter(order => order.status !== "CANCELLED").map(order => financialFacts(order, returns, settlements, claims, maps));
-  const sum = (key: "grossSales" | "discounts" | "refundedSales" | "netSales" | "cogs" | "grossProfit" | "fees" | "shippingFees" | "returnCosts" | "claimRecovery" | "cash" | "outstanding" | "units" | "returnedUnits" | "rtoUnits" | "damagedUnits" | "damageLoss" | "contributionProfit") => money(facts.reduce((value, fact) => value + fact[key], 0));
+  const sum = (key: "grossSales" | "discounts" | "refundedSales" | "netSales" | "cogs" | "grossProfit" | "fees" | "shippingFees" | "returnCosts" | "claimRecovery" | "cash" | "units" | "returnedUnits" | "rtoUnits" | "damagedUnits" | "damageLoss" | "contributionProfit") => money(facts.reduce((value, fact) => value + fact[key], 0));
+  const unknownPayoutOrders = facts.filter(fact => fact.revenueRecognised && fact.expectedPayout === null).length;
   const grossSales = sum("grossSales"), netSales = sum("netSales"), cogs = sum("cogs"), grossProfit = sum("grossProfit");
   const contributionProfit = sum("contributionProfit");
   const operatingExpenses = money(expenses.reduce((value, expense) => value + expense.amount, 0));
@@ -302,7 +304,8 @@ export function calculateBusinessProfitability(orders: Order[], returns: ReturnR
     damageLosses: sum("damageLoss"), claimRecoveries: sum("claimRecovery"), contributionProfit,
     contributionMargin: netSales > 0 ? contributionProfit / netSales : 0, operatingExpenses, netOperatingProfit,
     netOperatingMargin: netSales > 0 ? netOperatingProfit / netSales : 0,
-    actualSettlementsReceived: sum("cash"), outstandingSettlementEstimated: sum("outstanding"),
+    actualSettlementsReceived: sum("cash"), outstandingSettlementEstimated: unknownPayoutOrders ? null : money(facts.reduce((value, fact) => value + (fact.outstanding || 0), 0)),
+    unknownFeeOrders: facts.filter(fact => fact.revenueRecognised && fact.feeStatus === "UNKNOWN").length,
     totalOrders: activeOrders.length, totalUnitsSold: sum("units"),
     totalReturns: new Set(facts.flatMap(fact => fact.linkedReturns.map(ret => ret.id))).size,
     returnRate: sum("units") > 0 ? sum("returnedUnits") / sum("units") : 0,
@@ -737,7 +740,10 @@ export function calculateSettlementAging(
   claims: Claim[] = []
 ): SettlementAgingSummary {
   const anchor = new Date(anchorDateStr);
-  const unsettled = orders.filter(order => getOrderFinancialFacts(order, returns, settlements, claims).outstanding > 0 && Number.isFinite(Date.parse(order.orderDate)) && order.orderDate.slice(0, 10) <= anchorDateStr);
+  const unsettled = orders.filter(order => {
+    const outstanding = getOrderFinancialFacts(order, returns, settlements, claims).outstanding;
+    return outstanding !== null && outstanding > 0 && Number.isFinite(Date.parse(order.orderDate)) && order.orderDate.slice(0, 10) <= anchorDateStr;
+  });
 
   const onScheduleList: SettlementAgingBracket["orders"] = [];
   const pendingList: SettlementAgingBracket["orders"] = [];
@@ -748,7 +754,7 @@ export function calculateSettlementAging(
     const diffTime = Math.max(0, anchor.getTime() - orderDate.getTime());
     const daysOutstanding = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    const estimatedPayout = getOrderFinancialFacts(o, returns, settlements, claims).outstanding;
+    const estimatedPayout = getOrderFinancialFacts(o, returns, settlements, claims).outstanding ?? 0;
 
     const entry = {
       orderId: o.id,

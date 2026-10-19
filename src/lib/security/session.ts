@@ -17,6 +17,7 @@ export interface SessionPayload {
   phone?: string;
   accountType?: string;
   companyName?: string;
+  avatarUrl?: string;
   iat: number;
   exp: number;
 }
@@ -59,6 +60,10 @@ export async function getSessionUser(req: NextRequest | Request): Promise<Sessio
       );
       if (result.rows.length === 1) {
         const account = result.rows[0];
+        const userMetadata = claims.user_metadata;
+        const avatarUrl = userMetadata && typeof userMetadata === "object" && !Array.isArray(userMetadata)
+          ? (userMetadata as Record<string, unknown>).avatarUrl
+          : undefined;
         const now = Math.floor(Date.now() / 1000);
         return {
           sid: authUserId,
@@ -67,6 +72,7 @@ export async function getSessionUser(req: NextRequest | Request): Promise<Sessio
           name: account.name,
           accountType: account.account_type,
           companyName: account.company_name,
+          avatarUrl: typeof avatarUrl === "string" && avatarUrl ? avatarUrl : undefined,
           phone: account.phone || "",
           iat: now,
           exp: now + 3600,

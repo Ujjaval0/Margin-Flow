@@ -14,6 +14,11 @@ const NotificationBell = dynamic(
   { ssr: false }
 );
 
+const ThemeToggle = dynamic(
+  () => import("@/components/layout/theme-toggle").then((m) => m.ThemeToggle),
+  { ssr: false }
+);
+
 interface NavbarProps {
   selectedMarketplace?: Marketplace | "ALL";
   onSelectMarketplace?: (mp: Marketplace | "ALL") => void;
@@ -47,7 +52,7 @@ export function Navbar({
     { id: "Amazon India", label: "Amazon" },
     { id: "Flipkart", label: "Flipkart" },
     { id: "Myntra", label: "Myntra" },
-    { id: "Meesho", label: "Meesho" },
+    { id: "Personal Website", label: "Shopify" },
   ];
 
   const navMeta = getModuleNavMeta(activeModule);
@@ -113,6 +118,9 @@ export function Navbar({
             );
           })}
         </div>
+
+        {/* Theme Toggle (Day / Dark Mode) */}
+        <ThemeToggle />
 
         {/* Notification Bell */}
         <NotificationBell />

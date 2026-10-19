@@ -1,5 +1,6 @@
 "use client";
 
+import { NumericInput } from "@/components/ui/numeric-input";
 import { businessDate } from "@/domain/report-scope";
 import { downloadCsv } from "@/lib/csv";
 import React, { useState, useMemo, useEffect } from "react";
@@ -1386,8 +1387,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="font-semibold text-[#1D1D1F] block mb-1">Units</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     min="1"
                     value={quantity}
                     onChange={(e) => setQuantity(Number(e.target.value))}
@@ -1398,8 +1398,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Freight (₹)
                   </label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={returnShipping}
                     onChange={(e) => setReturnShipping(Number(e.target.value))}
                     className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] font-semibold text-[#D70015] tabular-nums"
@@ -1409,8 +1408,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Scrap/Salvage (₹)
                   </label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={recoveryValue}
                     onChange={(e) => setRecoveryValue(Number(e.target.value))}
                     className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] font-semibold text-[#288548] tabular-nums"
@@ -1508,8 +1506,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Returned Units
                   </label>
-                  <input
-                    type="number"
+                  <NumericInput
                     min="1"
                     value={editingReturn.quantity}
                     onChange={(e) =>
@@ -1569,8 +1566,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Freight Fee (₹)
                   </label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={editingReturn.returnShippingCost}
                     onChange={(e) =>
                       setEditingReturn({
@@ -1585,8 +1581,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                   <label className="font-semibold text-[#1D1D1F] block mb-1">
                     Salvage Value (₹)
                   </label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={editingReturn.inventoryRecoveryValue}
                     onChange={(e) =>
                       setEditingReturn({

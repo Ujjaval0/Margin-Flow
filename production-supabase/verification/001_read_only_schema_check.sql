@@ -82,7 +82,8 @@ WHERE n.nspname = 'public'
     'purchase_bills','expenses','ai_staged_documents','ai_staged_fields',
     'financial_audit_logs','customer_complaints','background_jobs',
     'marketplace_connections','marketplace_sync_logs','oauth_states','file_import_logs',
-    'webhook_receipts','ledger_archives','auth_sessions'
+    'webhook_receipts','ledger_archives','auth_sessions','marketplace_fee_rules',
+    'marketplace_fee_rule_components','order_fee_estimates','order_fee_estimate_components'
   )
   AND NOT c.relrowsecurity
 ORDER BY c.relname;
@@ -101,15 +102,16 @@ FROM (VALUES
   ('uq_expenses_user_display'),
   ('uq_customer_complaints_owner_ticket'),
   ('uq_financial_audit_logs_owner_display')
+  ,('uq_orders_owner_id')
 ) AS required(index_name)
 LEFT JOIN pg_class i ON i.relname = required.index_name
 LEFT JOIN pg_namespace n ON n.oid = i.relnamespace AND n.nspname = 'public'
 WHERE i.oid IS NULL OR n.oid IS NULL
 ORDER BY required.index_name;
 
--- 8. Supabase CLI migration history should contain all three package versions.
+-- 8. Supabase CLI migration history should contain all package versions.
 SELECT required.version
-FROM (VALUES ('20261017000100'), ('20261017000200'), ('20261017000300')) AS required(version)
+FROM (VALUES ('20261017000100'), ('20261017000200'), ('20261017000300'), ('20261018000100')) AS required(version)
 LEFT JOIN supabase_migrations.schema_migrations applied USING (version)
 WHERE applied.version IS NULL
 ORDER BY required.version;

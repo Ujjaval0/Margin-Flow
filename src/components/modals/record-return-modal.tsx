@@ -1,5 +1,6 @@
 "use client";
 
+import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { RotateCcw, X } from "lucide-react";
@@ -193,8 +194,7 @@ export function RecordReturnModal({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <div>
               <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Return qty</label>
-              <input
-                type="number"
+              <NumericInput
                 min="1"
                 value={returnQty}
                 onChange={(e) => setReturnQty(Math.max(1, parseInt(e.target.value) || 1))}
@@ -203,8 +203,7 @@ export function RecordReturnModal({
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Freight (₹)</label>
-              <input
-                type="number"
+              <NumericInput
                 min="0"
                 value={returnShipping}
                 onChange={(e) => setReturnShipping(Math.max(0, parseInt(e.target.value) || 0))}
@@ -213,8 +212,7 @@ export function RecordReturnModal({
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Return fee (₹)</label>
-              <input
-                type="number"
+              <NumericInput
                 min="0"
                 disabled={returnType === "RTO"}
                 value={returnType === "RTO" ? 0 : customerReturnFee}
@@ -225,8 +223,7 @@ export function RecordReturnModal({
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Scrap (₹)</label>
-              <input
-                type="number"
+              <NumericInput
                 min="0"
                 value={returnRecovery}
                 onChange={(e) => setReturnRecovery(Math.max(0, parseInt(e.target.value) || 0))}

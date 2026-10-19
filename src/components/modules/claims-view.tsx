@@ -1,5 +1,6 @@
 "use client";
 
+import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Claim, ClaimStatus, Marketplace } from "@/domain/types";
@@ -524,8 +525,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                 <label className="font-medium text-[#6E6E73] block mb-1">
                   Reimbursed Credit Amount (₹)
                 </label>
-                <input
-                  type="number"
+                <NumericInput
                   min="0"
                   max={selectedClaim.amountClaimed}
                   value={recoveryAmount}
@@ -635,8 +635,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Claimed Amount (₹)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     min="0"
                     value={editFields.amountClaimed}
                     onChange={(e) => setEditFields((f) => ({ ...f, amountClaimed: Number(e.target.value) }))}
@@ -646,8 +645,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                 </div>
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Recovered Amount (₹)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     min="0"
                     value={editFields.amountRecovered}
                     onChange={(e) => setEditFields((f) => ({ ...f, amountRecovered: Number(e.target.value) }))}

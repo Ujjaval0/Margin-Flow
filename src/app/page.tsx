@@ -25,6 +25,13 @@ export default function LandingPage() {
   const router = useRouter();
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  // Marketing page strictly operates in light mode
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
   const handleGoogleSignIn = () => {
     setIsAuthenticating(true);
     router.push("/login");
@@ -165,7 +172,7 @@ export default function LandingPage() {
             <button
               onClick={handleGoogleSignIn}
               disabled={isAuthenticating}
-              className="px-8 py-4 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-sm font-semibold transition-all shadow-[0_0_35px_rgba(0,174,59,0.4)] cursor-pointer flex items-center gap-2"
+              className="px-8 py-4 rounded-full bg-[#124b20] hover:bg-[#1b6235] active:scale-95 border border-white/20 backdrop-blur-sm text-white text-sm font-semibold transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_0_28px_rgba(18,75,32,0.4)] cursor-pointer flex items-center gap-2"
             >
               <span>{isAuthenticating ? "Connecting..." : "Audit Your Store Free"}</span>
               <ArrowUpRight className="w-4 h-4" />

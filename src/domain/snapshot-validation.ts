@@ -3,8 +3,8 @@ import type { Product, Order, ReturnRecord, Settlement, Claim, Supplier, Purchas
 
 const text = z.string().max(20000);
 const id = z.string().min(1).max(500);
-const amount = z.number().finite().min(0).max(1e12);
-const signed = z.number().finite().min(-1e12).max(1e12);
+const amount = z.number().finite().min(0).max(1e12).refine(value => Number.isSafeInteger(Math.round(value * 100)) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-7);
+const signed = z.number().finite().min(-1e12).max(1e12).refine(value => Number.isSafeInteger(Math.round(value * 100)) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-7);
 const units = z.number().int().min(0).max(1e9);
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}(?:T.*)?$/).refine(value => Number.isFinite(Date.parse(value)) && new Date(value.slice(0, 10)).toISOString().slice(0, 10) === value.slice(0, 10));
 const marketplace = z.enum(["Amazon India", "Flipkart", "Meesho", "Personal Website", "Myntra", "WooCommerce", "B2B Wholesale", "Other"]);
@@ -16,6 +16,8 @@ const orderItem = object({ id, sku: id, productName: text, quantity: units.posit
 export const orderSchema = object({ ...identified, channelOrderId: id, marketplace, orderDate: date,
   status: z.enum(["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED", "RTO", "RETURNED", "CUSTOMER_RETURN", "DAMAGED_RETURN", "CLAIM_PENDING", "CLAIM_APPROVED", "PARTIALLY_RETURNED"]),
   customerName: text, customerCity: text, customerState: text, items: list(orderItem).min(1), shippingFeeCharged: amount, marketplaceChargesEstimate: amount,
+  fulfilmentMode: z.string().max(80).optional(),
+  quickFeeRateBps: z.number().int().min(0).max(10000).nullable().optional(),
   settlementAmount: signed.optional(), settlementPercent: amount.max(100).optional(), commissionPercent: amount.max(100).optional(),
   supplierName: optionalText, supplierId: optionalText, notes: optionalText,
   documentIds: list(id).optional(), settlementIds: list(id).optional(), returnIds: list(id).optional(), claimIds: list(id).optional(),

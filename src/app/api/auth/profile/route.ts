@@ -26,7 +26,8 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ error: "Sign in to update your profile." }, { status: 401 });
 
     const body = await readJsonBody(request, 16 * 1024);
-    const { name, companyName, phone, businessRole, customRole } = body;
+    const { name, companyName, phone, businessRole, customRole, avatarUrl } = body;
+    const avatarWasProvided = Object.prototype.hasOwnProperty.call(body, "avatarUrl");
     if (typeof name !== "string" || !name.trim() || name.trim().length > 200) {
       return NextResponse.json({ error: "Enter a valid name." }, { status: 400 });
     }
@@ -42,11 +43,34 @@ export async function POST(request: Request) {
     if (businessRole === "OTHER" && (typeof customRole !== "string" || !customRole.trim() || customRole.trim().length > 100)) {
       return NextResponse.json({ error: "Enter your business role." }, { status: 400 });
     }
+    if (avatarWasProvided && avatarUrl !== null && typeof avatarUrl !== "string") {
+      return NextResponse.json({ error: "Choose a valid profile photo." }, { status: 400 });
+    }
+    if (typeof avatarUrl === "string" && avatarUrl.length > 2048) {
+      return NextResponse.json({ error: "Choose a valid profile photo." }, { status: 400 });
+    }
 
     const supabase = await createSupabaseServerClient();
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData.user || authData.user.id !== session.sid) {
       return NextResponse.json({ error: "Your session expired. Please sign in again." }, { status: 401 });
+    }
+
+    const currentAvatarUrl = typeof authData.user.user_metadata?.avatarUrl === "string"
+      ? authData.user.user_metadata.avatarUrl
+      : null;
+    if (typeof avatarUrl === "string") {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/, "");
+      const expectedAvatarUrl = `${supabaseUrl}/storage/v1/object/public/profile-avatars/${authData.user.id}/avatar`;
+      let parsedAvatarUrl: URL;
+      try {
+        parsedAvatarUrl = new URL(avatarUrl);
+      } catch {
+        return NextResponse.json({ error: "Choose a valid profile photo." }, { status: 400 });
+      }
+      if (`${parsedAvatarUrl.origin}${parsedAvatarUrl.pathname}` !== expectedAvatarUrl || !/^\?v=\d+$/.test(parsedAvatarUrl.search)) {
+        return NextResponse.json({ error: "Choose a valid profile photo." }, { status: 400 });
+      }
     }
 
     const roleLabel = businessRole === "OTHER" ? customRole.trim() : ROLE_LABELS[businessRole];
@@ -66,11 +90,21 @@ export async function POST(request: Request) {
     if (!saved.rows.length) return NextResponse.json({ error: "Account not found." }, { status: 404 });
 
     const { error: metadataError } = await supabase.auth.updateUser({
-      data: { onboardingPreferences: preferences },
+      data: {
+        onboardingPreferences: preferences,
+        ...(avatarWasProvided ? { avatarUrl } : {}),
+      },
     });
     if (metadataError) {
       console.error("[Profile Metadata Error]:", metadataError);
       return NextResponse.json({ error: "Profile details could not be fully saved." }, { status: 503 });
+    }
+
+    if (avatarWasProvided && avatarUrl === null) {
+      const { error: removeError } = await supabase.storage
+        .from("profile-avatars")
+        .remove([`${authData.user.id}/avatar`]);
+      if (removeError) console.warn("[Profile Avatar Cleanup Error]:", removeError.message);
     }
 
     return NextResponse.json({
@@ -82,6 +116,7 @@ export async function POST(request: Request) {
         companyName: saved.rows[0].company_name,
         phone: saved.rows[0].phone || "",
         email: authData.user.email,
+        avatarUrl: avatarWasProvided ? avatarUrl : currentAvatarUrl,
         onboardingPreferences: preferences,
       },
     });

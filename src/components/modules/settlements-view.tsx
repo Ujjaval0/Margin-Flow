@@ -1,5 +1,6 @@
 "use client";
 
+import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -11,7 +12,7 @@ import { usePlatform } from "@/domain/store";
 import { formatINR } from "@/lib/utils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { Plus, X, Clock, AlertCircle, CheckCircle2, ChevronRight, Banknote } from "lucide-react";
+import { Plus, X, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
 import { FormMarketplaceDropdown } from "@/components/ui/marketplace-dropdown";
 
 interface SettlementsViewProps {
@@ -312,7 +313,6 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
             </div>
             <div className="pt-2 border-t border-black/[0.04] flex items-center justify-between text-[10px]">
               <span className="text-emerald-800 font-medium">Normal Processing</span>
-              <ChevronRight className="w-3 h-3 text-[#86868B]" />
             </div>
           </div>
 
@@ -343,7 +343,6 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
             </div>
             <div className="pt-2 border-t border-black/[0.04] flex items-center justify-between text-[10px]">
               <span className="text-amber-800 font-medium">Pending Next Settlement</span>
-              <ChevronRight className="w-3 h-3 text-[#86868B]" />
             </div>
           </div>
 
@@ -374,65 +373,9 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
             </div>
             <div className="pt-2 border-t border-black/[0.04] flex items-center justify-between text-[10px]">
               <span className="text-rose-800 font-medium">Audit Required</span>
-              <ChevronRight className="w-3 h-3 text-[#86868B]" />
             </div>
           </div>
         </div>
-
-        {/* Selected Aging Tab Expanded Drawer */}
-        {selectedAgingTab !== "ALL" && (
-          <div className="apple-card p-4 rounded-2xl border border-black/[0.06] shadow-apple-md space-y-2 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between text-xs pb-1 border-b border-black/[0.04]">
-              <span className="font-semibold text-[#1D1D1F]">
-                Orders in {selectedAgingTab === "0-7" ? "0–7 Days Bracket" : selectedAgingTab === "8-14" ? "8–14 Days Bracket" : "Overdue (>14 Days) Bracket"}
-              </span>
-              <button
-                onClick={() => setSelectedAgingTab("ALL")}
-                className="text-[#86868B] hover:text-[#1D1D1F] text-[11px] cursor-pointer"
-              >
-                Close breakdown ✕
-              </button>
-            </div>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 text-xs">
-              {(selectedAgingTab === "0-7"
-                ? settlementAging.onSchedule.orders
-                : selectedAgingTab === "8-14"
-                ? settlementAging.pending.orders
-                : settlementAging.overdue.orders
-              ).map((ord) => (
-                <div
-                  key={ord.orderId}
-                  className="p-2.5 rounded-xl bg-white border border-black/[0.04] flex items-center justify-between"
-                >
-                  <div>
-                    <span className="font-semibold text-[#1D1D1F] tracking-tight tabular-nums block text-[11px]">
-                      {ord.orderId} • {ord.channelOrderId}
-                    </span>
-                    <span className="text-[10px] text-[#86868B]">
-                      {ord.marketplace} • Dispatched {ord.orderDate} ({ord.daysOutstanding} days ago)
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums block">
-                      {formatINR(ord.estimatedPayout)}
-                    </span>
-                    <span
-                      className={`text-[10px] font-semibold ${
-                        ord.daysOutstanding > 14
-                          ? "text-rose-600"
-                          : ord.daysOutstanding > 7
-                          ? "text-amber-600"
-                          : "text-emerald-600"
-                      }`}
-                    >
-                      {ord.daysOutstanding > 14 ? "Overdue" : "In Cycle"}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       <DataTable
@@ -506,6 +449,14 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                   ))}
                 </div>
               </div>
+
+              {selectedSettlement.feeReconciliation && <div className="p-4 bg-[#FAFAFC] rounded-2xl border border-black/[0.04] space-y-2">
+                <span className="text-xs font-semibold text-[#1D1D1F] block">Order-level estimate vs cumulative actual fees</span>
+                <div className="flex justify-between text-[11px] text-[#6E6E73]"><span>Estimate</span><span>{selectedSettlement.feeReconciliation.estimatedTotalPaise === null ? "Unavailable" : formatINR(selectedSettlement.feeReconciliation.estimatedTotalPaise / 100)}</span></div>
+                <div className="flex justify-between text-[11px] text-[#6E6E73]"><span>Actual deductions</span><span>{selectedSettlement.feeReconciliation.actualTotalPaise === null ? "Not reported" : formatINR(selectedSettlement.feeReconciliation.actualTotalPaise / 100)}</span></div>
+                <div className="flex justify-between text-[11px] text-[#6E6E73]"><span>Variance · {selectedSettlement.feeReconciliation.status.replaceAll("_", " ").toLowerCase()}</span><span>{selectedSettlement.feeReconciliation.variancePaise === null ? "Unavailable" : formatINR(selectedSettlement.feeReconciliation.variancePaise / 100)}</span></div>
+                <div className="flex justify-between text-[11px] text-[#6E6E73]"><span>Gross-to-net variance</span><span>{selectedSettlement.netVariancePaise === undefined ? "Unavailable" : formatINR(selectedSettlement.netVariancePaise / 100)}</span></div>
+              </div>}
             </div>
 
             <div className="px-6 py-4 border-t border-black/[0.05] bg-[#FAFAFC] flex justify-end shrink-0">
@@ -584,8 +535,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Gross Payout (₹)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={grossAmount}
                     onChange={(e) => setGrossAmount(Number(e.target.value))}
                     className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
@@ -594,8 +544,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                 </div>
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Commission (₹)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={commission}
                     onChange={(e) => setCommission(Number(e.target.value))}
                     className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
@@ -606,8 +555,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Logistics (₹)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={logistics}
                     onChange={(e) => setLogistics(Number(e.target.value))}
                     className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
@@ -615,8 +563,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                 </div>
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Fixed Fee (₹)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={fixedFee}
                     onChange={(e) => setFixedFee(Number(e.target.value))}
                     className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
@@ -624,8 +571,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                 </div>
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Tax (₹)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={tcsTds}
                     onChange={(e) => setTcsTds(Number(e.target.value))}
                     className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
@@ -637,8 +583,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                 <label className="font-medium text-[#6E6E73] block mb-1">
                   Net Bank Deposit Received (₹)
                 </label>
-                <input
-                  type="number"
+                <NumericInput
                   value={declaredNetPayout}
                   onChange={(e) => setDeclaredNetPayout(Number(e.target.value))}
                   className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"

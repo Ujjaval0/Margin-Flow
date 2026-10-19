@@ -224,3 +224,256 @@ button, a {
   }
 }
 
+/* =========================================================================
+   APPLE DARK MODE DESIGN SYSTEM (Scoped to .dark inside Dashboard)
+   ========================================================================= */
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  color: #F5F5F7;
+  background-color: #0A0A0C;
+}
+
+/* Base Canvas Surfaces */
+.dark .bg-\[\#F5F5F7\],
+.dark .bg-\[\#FAFAFC\],
+.dark .bg-\[\#FBFBFD\],
+.dark .bg-apple-canvas,
+.dark .bg-apple-subtle {
+  background-color: #141416;
+}
+
+/* Elevated Cards & Modals */
+.dark .apple-card {
+  background-color: #1C1C1E;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.35), 0 1px 2px -1px rgba(0, 0, 0, 0.25);
+}
+
+.dark .apple-card-sm {
+  background-color: #1C1C1E;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.dark .apple-card-hover:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.dark .bg-white {
+  background-color: #1C1C1E;
+}
+
+/* Translucent Dropdowns, Floating Panels & Modals */
+.dark .bg-white\/95,
+.dark .bg-white\/85,
+.dark .bg-white\/80 {
+  background-color: rgba(28, 28, 30, 0.92);
+}
+
+/* Translucent Navbar & Sidebar Bars */
+.dark header {
+  background-color: rgba(22, 22, 24, 0.85) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark aside {
+  background-color: #161618 !important;
+  border-right-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Sidebar Active & Hover Navigation Items */
+.dark aside a.bg-white {
+  background-color: #242426 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #F5F5F7 !important;
+}
+
+.dark aside a:not(.bg-white):hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: #F5F5F7 !important;
+}
+
+/* Segmented Control Containers & Selected Pills */
+.dark .bg-\[\#F1F3F5\] {
+  background-color: #18181A !important;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark .bg-\[\#F1F3F5\] button.bg-white,
+.dark .bg-\[\#F5F5F7\] button.bg-white {
+  background-color: #2C2C2E !important;
+  color: #F5F5F7 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Text Hierarchy */
+.dark .text-\[\#1D1D1F\],
+.dark .text-apple-text,
+.dark .text-neutral-900,
+.dark .text-gray-900 {
+  color: #F5F5F7 !important;
+}
+
+.dark .text-\[\#6E6E73\],
+.dark .text-\[\#86868B\],
+.dark .text-\[\#515154\],
+.dark .text-apple-secondary,
+.dark .text-gray-500,
+.dark .text-neutral-500 {
+  color: #A1A1A6 !important;
+}
+
+/* Border & Divider Invariants */
+.dark [class*="border-black\/"] {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark [class*="divide-black\/"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Subtle Interactive & Hover Overlays */
+.dark [class*="bg-black\/\[0.0"] {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.dark [class*="hover\:bg-black\/"]:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .hover\:bg-\[\#F5F5F7\]:hover {
+  background-color: #242426;
+}
+
+.dark .hover\:text-\[\#1D1D1F\]:hover {
+  color: #F5F5F7 !important;
+}
+
+/* Primary Action Buttons */
+.dark button.bg-\[\#1D1D1F\],
+.dark a.bg-\[\#1D1D1F\],
+.dark [role="button"].bg-\[\#1D1D1F\] {
+  background-color: #F5F5F7 !important;
+  color: #1D1D1F !important;
+}
+
+.dark button.bg-\[\#1D1D1F\]:hover,
+.dark a.bg-\[\#1D1D1F\]:hover,
+.dark [role="button"].bg-\[\#1D1D1F\]:hover {
+  background-color: #FFFFFF !important;
+}
+
+.dark button.bg-\[\#1D1D1F\] *,
+.dark a.bg-\[\#1D1D1F\] *,
+.dark [role="button"].bg-\[\#1D1D1F\] * {
+  color: #1D1D1F !important;
+}
+
+/* Form Controls & Inputs */
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark select,
+.dark textarea {
+  background-color: #242426 !important;
+  color: #F5F5F7 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #8E8E93 !important;
+}
+
+.dark select option {
+  background-color: #1C1C1E;
+  color: #F5F5F7;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  background-color: #28282B !important;
+  border-color: #0071E3 !important;
+}
+
+/* Table Headers, Alternating Rows & Dividers */
+.dark thead {
+  background-color: #18181A;
+}
+
+.dark th {
+  color: #A1A1A6 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark td {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark tbody tr:hover td {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Recharts & Telemetry Charts */
+.dark .recharts-default-tooltip {
+  background-color: #1C1C1E !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #F5F5F7 !important;
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark .recharts-tooltip-label,
+.dark .recharts-tooltip-item {
+  color: #F5F5F7 !important;
+}
+
+.dark .recharts-cartesian-grid line {
+  stroke: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .recharts-text {
+  fill: #8E8E93 !important;
+}
+
+/* Floating Tooltips */
+.dark [role="tooltip"] {
+  background-color: #1C1C1E !important;
+  color: #F5F5F7 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark [role="tooltip"] > span.border-r-white\/95 {
+  border-right-color: #1C1C1E !important;
+}
+
+/* Scrollbars in Dark Mode */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Skeletons & Slate Elements in Dark Mode */
+.dark .bg-slate-50 {
+  background-color: #141416 !important;
+}
+
+.dark .bg-slate-100 {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark [class*="bg-slate-200"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark [class*="border-slate-100"],
+.dark [class*="border-slate-200"] {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+

@@ -503,7 +503,6 @@ export function MarginFlowRouteComparison() {
 
           {/* Bottom Checklist Strip */}
           <div className="timeaxis-st">
-            <div className="sh">ON UPLOAD, ALL FOUR RUN AUTOMATICALLY</div>
             <div>
               <b>
                 <i className="timeaxis-ck">

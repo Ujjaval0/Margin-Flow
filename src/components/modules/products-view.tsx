@@ -1,5 +1,6 @@
 "use client";
 
+import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Product } from "@/domain/types";
@@ -444,8 +445,7 @@ export function ProductsView() {
                 <label className="font-medium text-[#6E6E73] block mb-1">
                   New Unit Purchasing Cost (₹)
                 </label>
-                <input
-                  type="number"
+                <NumericInput
                   min="1"
                   step="0.01"
                   value={newCost}
@@ -505,14 +505,9 @@ export function ProductsView() {
                 <span className="w-8 h-8 rounded-xl bg-black/[0.04] text-[#1D1D1F] flex items-center justify-center">
                   <Package className="w-4 h-4" />
                 </span>
-                <div>
-                  <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">
-                    Add New Catalog Product
-                  </h2>
-                  <p className="text-[11px] text-[#86868B]">
-                    Configure master SKU, wholesale purchasing supplier, and default costs.
-                  </p>
-                </div>
+                <h2 className="text-sm font-semibold text-[#1D1D1F] tracking-tight">
+                  Add New Catalog Product
+                </h2>
               </div>
               <button
                 type="button"
@@ -635,8 +630,7 @@ export function ProductsView() {
                   <label className="font-medium text-[#6E6E73] block mb-1">
                     Unit Purchase Cost (₹) *
                   </label>
-                  <input
-                    type="number"
+                  <NumericInput
                     step="any"
                     min="0"
                     placeholder="350"
@@ -650,8 +644,7 @@ export function ProductsView() {
                   <label className="font-medium text-[#6E6E73] block mb-1">
                     Warehouse Stock (Units)
                   </label>
-                  <input
-                    type="number"
+                  <NumericInput
                     min="0"
                     placeholder="100"
                     value={newStockQty}

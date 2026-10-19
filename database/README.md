@@ -1,12 +1,12 @@
 # MarginFlow Database Setup Guide
 
-Phase 2 update (15 October 2026): `00_run_all.sql` is for a **fresh, disposable database** only. It applies schema migrations through 19 and does not run the demo seed. For an existing database, review and apply only unapplied numbered migrations after backup; do not rerun the bootstrap. Request handlers never execute DDL. Migration 19 was manually applied only to the isolated queue-acceptance database documented below.
+Phase 2 update (18 October 2026): `00_run_all.sql` is for a **fresh, disposable database** only. It applies schema migrations through 19 and 21 and does not run the demo seed. Migration 20 is Supabase Storage-specific and is not part of local PostgreSQL setup. For an existing database, review and apply only unapplied numbered migrations after backup; do not rerun the bootstrap. Request handlers never execute DDL.
 
-API handlers now perform read-only readiness checks. Apply migrations 14 and 15 explicitly before testing webhook receipts, document ownership and per-tenant display IDs. Existing records without proven ownership are not assigned to a default merchant. Resolve ambiguous ownership before production use.
+API handlers now perform read-only readiness checks. Apply migrations 13–19 and 21 in order to an existing local database after backup. Migration 21 is the local PostgreSQL adaptation of the production fee-engine migration; it keeps tenant IDs as text to match the local schema. Existing records without proven ownership are not assigned to a default merchant. Resolve ambiguous ownership before production use.
 
-Phase 4 requires `16_connector_sync_and_oauth.sql` for separate order/finance checkpoints and durable, bound OAuth state. Configure `FLIPKART_APP_ID`, `FLIPKART_APP_SECRET`, and `FLIPKART_REDIRECT_URI` on the server; production callbacks must use the registered HTTPS URI. Pending OAuth flows from before this migration must be restarted. No database was mutated during implementation.
+Phase 4 requires `16_connector_sync_and_oauth.sql` for separate order/finance checkpoints and durable, bound OAuth state. Configure `FLIPKART_APP_ID`, `FLIPKART_APP_SECRET`, and `FLIPKART_REDIRECT_URI` on the server; production callbacks must use the registered HTTPS URI. Pending OAuth flows from before this migration must be restarted. The local `marginflow_dev` database has migrations 13–19 and 21 applied after a verified backup; the production Supabase database was not changed.
 
-For Supabase, the revised `07_rls_supabase.sql` runs **after** the numbered migrations and denies direct business-table access to `anon` and `authenticated` by default. Any direct-access ownership policies need separate verification against the real Supabase identity mapping. See `../pending.md` for outstanding database and provider tests.
+For Supabase, use the separately reviewed migrations in `../production-supabase/migrations/`; do not apply the local text-owner migration 21 to Supabase. The revised `07_rls_supabase.sql` runs **after** local numbered migrations and denies direct business-table access to `anon` and `authenticated` by default. Any direct-access ownership policies need separate verification against the real Supabase identity mapping. See `../pending.md` for outstanding database and provider tests.
 
 ## Local PostgreSQL (Testing Phase)
 
@@ -53,6 +53,7 @@ psql -U postgres -d marginflow_dev -c "SELECT display_id, marketplace, status FR
 | `05_views.sql` | 6 computed SQL views | Requires tables |
 | `06_seed.sql` | Mock data from `mock-data.ts` | Requires all above |
 | `07_rls_supabase.sql` | Supabase RLS policies | **Supabase only** |
+| `21_marketplace_fee_engine.sql` | Local fee rules, saved per-marketplace quick rates, per-order overrides, estimates, and immutable fee snapshots | Local PostgreSQL; text tenant IDs |
 
 ---
 
@@ -120,3 +121,7 @@ Before release, verify real SQL issuance, copied cookie/Bearer revocation, selec
 Apply `19_durable_jobs.sql` after migration 18 to an approved database. It adds enqueue idempotency keys, retry limits, scheduling, priority and worker leases to `background_jobs`; job records are deleted with their owner account. The application does not apply this migration automatically. The migration was applied and rerun against the isolated `marginflow_phase2_acceptance_20261015` database; evidence is in `../phase6-queue-postgres-check.json`.
 
 The worker lifecycle uses PostgreSQL row locking, bounded retries and lease recovery. Set `MARGINFLOW_JOB_WORKER=1` only on a persistent Node.js host to start a worker from Next.js instrumentation; serverless request instances are not a durable worker runtime. CSV order imports and tenant-scoped financial summary reports have real processors. Reconciliation and batch IDP remain unavailable until their business contracts are implemented. Only registered job types can be enqueued. Verify worker supervision and shutdown/restart behavior on the selected host before production use.
+
+## Supabase profile avatar storage
+
+For an existing Supabase project, apply `20_profile_avatars.sql` after migrations 01–19. It creates the public `profile-avatars` bucket with a 2 MB image limit and JPEG, PNG and WebP allowlist. Authenticated users can upload, replace or delete only their own `<auth-user-id>/avatar` object; public reads are enabled so the profile image can render in the dashboard. The Supabase fresh setup script includes the same bucket and policies. No service-role key is required by the application.

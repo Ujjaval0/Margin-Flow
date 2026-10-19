@@ -154,7 +154,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
             <button
               onClick={onSignIn}
               disabled={isAuthenticating}
-              className="flex items-center gap-1.5 px-3 sm:px-5 py-2 rounded-full bg-[#00ae3b] hover:bg-[#008f36] active:scale-95 text-white text-xs sm:text-[13px] font-sans font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(0,174,59,0.3)] cursor-pointer shrink-0 whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3 sm:px-5 py-2 rounded-full bg-[#124b20] hover:bg-[#1b6235] active:scale-95 border border-white/20 backdrop-blur-sm text-white text-xs sm:text-[13px] font-sans font-semibold transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_0_16px_rgba(18,75,32,0.35)] cursor-pointer shrink-0 whitespace-nowrap"
             >
               <span>
                 {isAuthenticating ? (
@@ -272,7 +272,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
                 setIsMobileMenuOpen(false);
                 onSignIn();
               }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#00ae3b] text-white text-xs font-semibold"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#124b20] active:scale-95 border border-white/20 backdrop-blur-sm text-white text-xs font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_0_16px_rgba(18,75,32,0.35)]"
             >
               <span>Audit Your Store Free</span>
               <ArrowUpRight className="w-3.5 h-3.5" />

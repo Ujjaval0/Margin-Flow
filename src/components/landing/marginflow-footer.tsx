@@ -94,13 +94,13 @@ export function MarginFlowFooter({ onSignIn, isAuthenticating }: MarginFlowFoote
 
         {/* Monumental Architectural Watermark with increased generous spacing */}
         <div className="pt-16 sm:pt-24 pb-12 sm:pb-16 flex items-center justify-center overflow-hidden pointer-events-none select-none">
-          <span className="text-[14vw] font-bold tracking-[-0.05em] text-white/[0.035] leading-none whitespace-nowrap block text-center font-sans">
+          <span className="text-[14vw] font-bold tracking-[-0.05em] text-white/[0.06] leading-none whitespace-nowrap block text-center font-sans">
             MARGINFLOW
           </span>
         </div>
 
         {/* Legal & Meta Bottom Bar */}
-        <div className="pt-6 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-mono text-[#687d6e] text-center sm:text-left">
+        <div className="pt-6 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-sans text-[#9ab1a1] text-center sm:text-left">
           <p>© {new Date().getFullYear()} MarginFlow Technologies Pvt. Ltd. All rights reserved.</p>
         </div>
 

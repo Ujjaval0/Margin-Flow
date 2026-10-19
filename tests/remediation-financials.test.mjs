@@ -20,7 +20,8 @@ const settlement = (changes = {}) => ({ id: 'settlement-1', orderId: 'order-1', 
 test('unpaid delivered revenue is a receivable, never fabricated cash or a fee', () => {
   const result = engine.calculateBusinessProfitability([order()], [], [], [], []);
   assert.equal(result.actualSettlementsReceived, 0);
-  assert.equal(result.outstandingSettlementEstimated, 180);
+  assert.equal(result.outstandingSettlementEstimated, null);
+  assert.equal(result.unknownFeeOrders, 1);
   assert.equal(result.netSales, 180);
   assert.equal(result.cogs, 80);
   assert.equal(result.grossProfit, 100);
@@ -28,8 +29,32 @@ test('unpaid delivered revenue is a receivable, never fabricated cash or a fee',
   assert.equal(result.marketplaceCharges, 0);
 });
 
+test('configured estimates produce a forecast and actual settlement deductions replace rather than add to estimates', () => {
+  const configured = order({ feeEstimateStatus: 'CONFIGURED', marketplaceChargesEstimate: 30 });
+  const forecast = facts.getOrderFinancialFacts(configured, [], [], []);
+  assert.equal(forecast.fees, 30);
+  assert.equal(forecast.feeStatus, 'ESTIMATE');
+  assert.equal(forecast.expectedPayout, 150);
+  const actual = facts.getOrderFinancialFacts(configured, [], [settlement({ deductions: [
+    { category: 'COMMISSION', name: 'Commission', amount: 20 },
+    { category: 'LOGISTICS', name: 'Shipping', amount: 5 },
+    { category: 'TAX_TCS', name: 'TCS', amount: 2 },
+  ] })], []);
+  assert.equal(actual.fees, 25);
+  assert.equal(actual.feeStatus, 'ACTUAL');
+  assert.equal(actual.expectedPayout, 155);
+});
+
+test('explicit no-rule status ignores any preserved legacy numeric fee and withholds payout', () => {
+  const result = facts.getOrderFinancialFacts(order({ feeEstimateStatus: 'NOT_CONFIGURED', marketplaceChargesEstimate: 999 }), [], [], []);
+  assert.equal(result.fees, 0);
+  assert.equal(result.feeStatus, 'UNKNOWN');
+  assert.equal(result.expectedPayout, null);
+  assert.equal(result.outstanding, null);
+});
+
 test('percentage and fee estimates never become observed cash', () => {
-  const result = engine.calculateOrderProfitability(order({ settlementPercent: 75, marketplaceChargesEstimate: 30 }), [], [], []);
+  const result = engine.calculateOrderProfitability(order({ settlementPercent: 75, marketplaceChargesEstimate: 30, feeEstimateStatus: 'LEGACY' }), [], [], []);
   assert.equal(result.settledAmount, 0);
   assert.equal(result.isSettled, false);
   assert.equal(result.contributionProfit, 70);
@@ -74,7 +99,7 @@ test('duplicate return records and oversized quantities cannot double-count same
 test('actual partial settlements preserve an outstanding balance and do not invent fees', () => {
   const result = engine.calculateBusinessProfitability([order()], [], [settlement()], [], []);
   assert.equal(result.actualSettlementsReceived, 150);
-  assert.equal(result.outstandingSettlementEstimated, 30);
+  assert.equal(result.outstandingSettlementEstimated, null);
   assert.equal(result.marketplaceCharges, 0);
   assert.equal(result.contributionProfit, 100);
 });

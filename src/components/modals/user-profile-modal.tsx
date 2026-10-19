@@ -14,6 +14,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { usePlatform } from "@/domain/store";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export interface UserProfileModalProps {
   isOpen: boolean;
@@ -36,6 +37,8 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   // Form states
   const [name, setName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+  const [avatarChanged, setAvatarChanged] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -75,7 +78,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed?.name) initialName = parsed.name;
-          if (parsed?.avatarUrl) initialAvatar = parsed.avatarUrl;
+          if (parsed?.avatarUrl && !initialAvatar) initialAvatar = parsed.avatarUrl;
           if (parsed?.companyName) initialCompany = parsed.companyName;
           if (parsed?.email) initialEmail = parsed.email;
           if (parsed?.phone !== undefined) initialPhone = parsed.phone || "";
@@ -87,6 +90,8 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
     setName(initialName);
     setAvatarUrl(initialAvatar);
+    setSelectedAvatarFile(null);
+    setAvatarChanged(false);
     setCompanyName(initialCompany);
     setUserEmail(initialEmail);
     setUserPhone(initialPhone);
@@ -150,17 +155,29 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 2 * 1024 * 1024) {
+      setProfileError("Choose a JPG, PNG, or WebP image under 2 MB.");
+      e.target.value = "";
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (ev) => {
       const result = ev.target?.result as string;
       setAvatarUrl(result);
+      setSelectedAvatarFile(file);
+      setAvatarChanged(true);
       setHasChanges(true);
+      setProfileError(null);
     };
+    reader.onerror = () => setProfileError("The selected photo could not be read.");
     reader.readAsDataURL(file);
   };
 
   const handleRemovePhoto = () => {
     setAvatarUrl(null);
+    setSelectedAvatarFile(null);
+    setAvatarChanged(true);
     setHasChanges(true);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -174,27 +191,60 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
     setProfileError(null);
     setProfileNotice(null);
     try {
+      let savedAvatarUrl = avatarUrl;
+      if (selectedAvatarFile) {
+        const supabase = createSupabaseBrowserClient();
+        const { data: authData, error: authError } = await supabase.auth.getUser();
+        if (authError || !authData.user) throw new Error("Sign in again before changing your profile photo.");
+
+        const objectPath = `${authData.user.id}/avatar`;
+        const { error: uploadError } = await supabase.storage
+          .from("profile-avatars")
+          .upload(objectPath, selectedAvatarFile, {
+            cacheControl: "0",
+            contentType: selectedAvatarFile.type,
+            upsert: true,
+          });
+        if (uploadError) {
+          if (uploadError.message.toLowerCase().includes("bucket not found")) {
+            throw new Error("Profile photo storage is not configured. Apply database/20_profile_avatars.sql and retry.");
+          }
+          throw new Error("Profile photo upload failed. Please retry.");
+        }
+        const publicUrl = supabase.storage.from("profile-avatars").getPublicUrl(objectPath).data.publicUrl;
+        savedAvatarUrl = `${publicUrl}?v=${Date.now()}`;
+      }
+
       const response = await fetch("/api/auth/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ name: cleanName, companyName, phone: userPhone, businessRole, customRole }),
+        body: JSON.stringify({
+          name: cleanName,
+          companyName,
+          phone: userPhone,
+          businessRole,
+          customRole,
+          ...(avatarChanged ? { avatarUrl: savedAvatarUrl } : {}),
+        }),
       });
       const result = await response.json();
       if (!response.ok || !result.success) throw new Error(result.error || "Profile could not be saved.");
 
-      const updatedUser = { ...currentUser, ...result.user, avatarUrl: avatarUrl || undefined };
+      const updatedUser = { ...currentUser, ...result.user, avatarUrl: result.user.avatarUrl || undefined };
       setCurrentUser(updatedUser);
       try {
         const raw = localStorage.getItem("marginflow_session");
         const currentSession = raw ? JSON.parse(raw) : {};
-        localStorage.setItem("marginflow_session", JSON.stringify({ ...currentSession, ...result.user, avatarUrl: avatarUrl || undefined }));
+        localStorage.setItem("marginflow_session", JSON.stringify({ ...currentSession, ...result.user, avatarUrl: result.user.avatarUrl || undefined }));
       } catch {}
 
       setName(cleanName);
       setUserEmail(result.user.email || userEmail);
       setIsSaved(true);
       setHasChanges(false);
+      setSelectedAvatarFile(null);
+      setAvatarChanged(false);
       setIsEditingName(false);
       setIsEditingProfile(false);
       initialProfile.current = { name: cleanName, companyName, email: result.user.email || userEmail, phone: userPhone, businessRole, customRole };
@@ -278,7 +328,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={handlePhotoUpload}
               className="hidden"
             />

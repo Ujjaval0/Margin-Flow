@@ -118,9 +118,9 @@ interface PlatformContextType {
   restoreArchivedRecord: (id: string) => Promise<void>;
 
   // Actions
-  addOrder: (order: Order) => void;
+  addOrder: (order: Order) => Promise<Order>;
   syncExternalOrders: (incomingOrders: Order[]) => Promise<{ added: number; updated: number }>;
-  updateOrder: (order: Order) => void;
+  updateOrder: (order: Order) => Promise<Order>;
   deleteOrder: (orderId: string) => void;
   deleteOrders: (orderIds: string[]) => void;
   updateOrderStatus: (orderId: string, status: Order["status"]) => void;
@@ -160,8 +160,8 @@ interface PlatformContextType {
   ) => void;
   addStagedDocument: (doc: AIStagedDocument) => void;
   addStagedDocuments: (docs: AIStagedDocument[]) => void;
-  approveStagedDocument: (docId: string) => void;
-  batchApproveStagedDocuments: (docIds: string[]) => void;
+  approveStagedDocument: (docId: string) => Promise<void>;
+  batchApproveStagedDocuments: (docIds: string[]) => Promise<void>;
   updateStagedDocumentField: (
     docId: string,
     field: keyof AIStagedDocument["extractedData"],
@@ -632,7 +632,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       totalDeductions += s.tcsTdsTax || 0;
     });
 
-    const expectedSettlement = Math.round(
+    const hasUnknownFees = currentDataset.orders.some(order => ["DELIVERED", "PARTIALLY_RETURNED", "RETURNED", "CUSTOMER_RETURN", "DAMAGED_RETURN", "RTO", "CLAIM_PENDING", "CLAIM_APPROVED"].includes(order.status) && order.feeEstimateStatus !== "CONFIGURED");
+    const expectedSettlement = hasUnknownFees ? null : Math.round(
       (profitability.grossSales - profitability.marketplaceCharges - profitability.shippingLogisticsCosts) * 100
     ) / 100;
 
@@ -645,26 +646,31 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, [currentDataset.settlements, profitability]);
 
   // Actions
-  const addOrder = useCallback((order: Order) => {
-    let assignedId = order.id;
-    setOrders((prev) => {
-      let uniqueId = order.id;
-      if (prev.some((o) => o.id === uniqueId)) {
-        uniqueId = `${order.id}_dup_${Date.now().toString().slice(-4)}_${Math.floor(Math.random() * 1000)}`;
-      }
-      assignedId = uniqueId;
-      const normalizedOrder: Order = {
-        ...order,
-        id: uniqueId,
-        status: order.status || "DELIVERED",
-      };
-      return [normalizedOrder, ...prev];
+  const addOrder = useCallback(async (order: Order) => {
+    const owner = verifiedOwner.current;
+    if (!owner) throw new Error("Authentication required to save an order.");
+    let uniqueId = order.id;
+    if (liveLedger.current.orders.some((existing) => existing.id === uniqueId)) {
+      uniqueId = `${order.id}_dup_${Date.now().toString().slice(-4)}_${Math.floor(Math.random() * 1000)}`;
+    }
+    const normalizedOrder: Order = { ...order, id: uniqueId, status: order.status || "DELIVERED" };
+    const response = await fetch("/api/orders", {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
+      body: JSON.stringify({ orders: [normalizedOrder] }),
     });
+    const saved = await response.json();
+    if (!response.ok || saved.success !== true) throw new Error(saved.error || "Order could not be saved. Please retry.");
+    if (verifiedOwner.current !== owner) throw new Error("Account changed while saving the order.");
+    const fee = saved.feeEstimates?.[0];
+    const persistedOrder = { ...normalizedOrder, id: saved.orderIds?.[0] || uniqueId,
+      feeEstimateStatus: fee?.status || "NOT_CONFIGURED", feeEstimateTotalPaise: fee?.totalPaise ?? null } as Order;
+    liveLedger.current = { ...liveLedger.current, orders: [persistedOrder, ...liveLedger.current.orders] };
+    setOrders(liveLedger.current.orders);
 
     // Inventory Engine: Sale = inventory - quantity
     setProducts((prev) =>
       prev.map((p) => {
-        const item = order.items.find((i) => i.sku === p.sku);
+        const item = persistedOrder.items.find((i) => i.sku === p.sku);
         if (item) {
           return {
             ...p,
@@ -679,24 +685,16 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString(),
       entityType: "ORDER",
-      entityId: assignedId,
+      entityId: persistedOrder.id,
       fieldName: "status",
       oldValue: "N/A",
-      newValue: order.status,
+      newValue: persistedOrder.status,
       modifiedBy: "Operator (Manual/Import)",
       reason: "Order created in system and stock deducted",
     };
     setAuditLogs((prev) => [log, ...prev]);
 
-    // Persist to multi-tenant backend PostgreSQL
-    if (typeof window !== "undefined") {
-      fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ orders: [{ ...order, id: assignedId }] }),
-      }).catch((e) => console.warn("[PlatformStore] Async order persistence deferred:", e));
-    }
+    return persistedOrder;
   }, []);
 
   const syncExternalOrders = useCallback(async (incomingOrders: Order[]) => {
@@ -758,44 +756,44 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const updateOrder = useCallback((updatedOrder: Order) => {
-    setOrders((prev) => {
-      const oldOrder = prev.find((o) => o.id === updatedOrder.id);
-      if (oldOrder) {
-        // State-aware Inventory Delta: adjust inventory based on delta of ordered quantities
-        setProducts((pList) =>
-          pList.map((p) => {
-            const oldItem = oldOrder.items.find((i) => i.sku === p.sku);
-            const newItem = updatedOrder.items.find((i) => i.sku === p.sku);
-            const oldQty = oldItem ? oldItem.quantity : 0;
-            const newQty = newItem ? newItem.quantity : 0;
-            const delta = newQty - oldQty;
-            if (delta !== 0) {
-              // If newQty > oldQty, additional stock sold (-delta). If newQty < oldQty, stock restored.
-              return {
-                ...p,
-                stockQuantity: Math.max(0, (p.stockQuantity ?? 0) - delta),
-              };
-            }
-            return p;
-          })
-        );
-      }
-      return prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
+  const updateOrder = useCallback(async (updatedOrder: Order) => {
+    const owner = verifiedOwner.current;
+    if (!owner) throw new Error("Authentication required to update an order.");
+    const response = await fetch("/api/orders", {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
+      body: JSON.stringify({ orders: [updatedOrder] }),
     });
+    const saved = await response.json();
+    if (!response.ok || saved.success !== true) throw new Error(saved.error || "Order could not be saved. Please retry.");
+    if (verifiedOwner.current !== owner) throw new Error("Account changed while saving the order.");
+    const fee = saved.feeEstimates?.[0];
+    const persistedOrder = { ...updatedOrder, feeEstimateStatus: fee?.status || "NOT_CONFIGURED",
+      feeEstimateTotalPaise: fee?.totalPaise ?? null } as Order;
+    const oldOrder = liveLedger.current.orders.find((order) => order.id === persistedOrder.id);
+    if (oldOrder) {
+      setProducts((list) => list.map((product) => {
+        const oldItem = oldOrder.items.find((item) => item.sku === product.sku);
+        const newItem = persistedOrder.items.find((item) => item.sku === product.sku);
+        const delta = (newItem?.quantity || 0) - (oldItem?.quantity || 0);
+        return delta ? { ...product, stockQuantity: Math.max(0, (product.stockQuantity ?? 0) - delta) } : product;
+      }));
+    }
+    liveLedger.current = { ...liveLedger.current, orders: liveLedger.current.orders.map(order => order.id === persistedOrder.id ? persistedOrder : order) };
+    setOrders(liveLedger.current.orders);
 
     const log: FinancialAuditLog = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString(),
       entityType: "ORDER",
-      entityId: updatedOrder.id,
+      entityId: persistedOrder.id,
       fieldName: "all",
       oldValue: "Previous state",
-      newValue: `Updated: ${updatedOrder.marketplace}, ${updatedOrder.items[0]?.productName || ""}`,
+      newValue: `Updated: ${persistedOrder.marketplace}, ${persistedOrder.items[0]?.productName || ""}`,
       modifiedBy: "Operator",
       reason: "Order manually edited with delta recalculation",
     };
     setAuditLogs((prev) => [log, ...prev]);
+    return persistedOrder;
   }, []);
 
   const deleteOrder = useCallback((orderId: string) => {
@@ -1558,67 +1556,77 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setAuditLogs((prev) => [...newLogs, ...prev]);
   }, []);
 
-  const approveStagedDocument = useCallback((docId: string) => {
+  const approveStagedDocument = useCallback(async (docId: string) => {
+    const owner = verifiedOwner.current;
+    const doc = liveLedger.current.aiDocuments.find((document) => document.id === docId);
+    if (!doc) return;
+    if (doc.fileType === "INVOICE" && doc.extractedData.orderId?.value) {
+      const orderId = `ORD-${Date.now().toString().slice(-4)}`;
+      const newOrder: Order = {
+        id: orderId,
+        channelOrderId: doc.extractedData.orderId.value,
+        marketplace: doc.extractedData.marketplace?.value || "Personal Website",
+        orderDate: doc.extractedData.orderDate?.value || new Date().toISOString().split("T")[0],
+        status: "CONFIRMED",
+        customerName: "Extracted Customer",
+        customerCity: "Mumbai",
+        customerState: "Maharashtra",
+        shippingFeeCharged: 0,
+        marketplaceChargesEstimate: 0,
+        feeEstimateStatus: "NOT_CONFIGURED",
+        feeEstimateTotalPaise: null,
+        items: [{
+          id: `ITEM-${Date.now().toString().slice(-3)}`,
+          sku: doc.extractedData.sku?.value || "ELEC-WEM-01",
+          productName: doc.extractedData.productName?.value || "Extracted Item",
+          quantity: Number(doc.extractedData.quantity?.value || 1),
+          sellingPrice: Number(doc.extractedData.unitPrice?.value || 0),
+          discount: Number(doc.extractedData.discount?.value || 0),
+          taxAmount: Number(doc.extractedData.taxAmount?.value || 0),
+          snapshotUnitCost: 380,
+          returnedQuantity: 0,
+        }],
+        documentIds: [doc.id],
+      };
+      const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" },
+        credentials: "same-origin", body: JSON.stringify({ orders: [newOrder] }) });
+      const saved = await response.json();
+      if (!response.ok || saved.success !== true) throw new Error(saved.error || "Invoice order could not be saved.");
+      if (!owner || verifiedOwner.current !== owner) throw new Error("Account changed while saving the invoice order.");
+      const fee = saved.feeEstimates?.[0];
+      const persistedOrder = { ...newOrder, id: saved.orderIds?.[0] || newOrder.id,
+        feeEstimateStatus: fee?.status || "NOT_CONFIGURED", feeEstimateTotalPaise: fee?.totalPaise ?? null };
+      liveLedger.current = { ...liveLedger.current, orders: [persistedOrder, ...liveLedger.current.orders] };
+      setOrders(liveLedger.current.orders);
+    }
     setAiDocuments((prevDocs) => {
-      const doc = prevDocs.find((d) => d.id === docId);
-      if (!doc) return prevDocs;
-
-      // Convert staged document into an Order if it's an Invoice
-      if (doc.fileType === "INVOICE" && doc.extractedData.orderId?.value) {
-        const orderId = `ORD-${Date.now().toString().slice(-4)}`;
-        const newOrder: Order = {
-          id: orderId,
-          channelOrderId: doc.extractedData.orderId.value,
-          marketplace: doc.extractedData.marketplace?.value || "Personal Website",
-          orderDate: doc.extractedData.orderDate?.value || new Date().toISOString().split("T")[0],
-          status: "CONFIRMED",
-          customerName: "Extracted Customer",
-          customerCity: "Mumbai",
-          customerState: "Maharashtra",
-          shippingFeeCharged: 0,
-          marketplaceChargesEstimate: Math.round(Number(doc.extractedData.totalAmount?.value || 0) * 0.15),
-          items: [
-            {
-              id: `ITEM-${Date.now().toString().slice(-3)}`,
-              sku: doc.extractedData.sku?.value || "ELEC-WEM-01",
-              productName: doc.extractedData.productName?.value || "Extracted Item",
-              quantity: Number(doc.extractedData.quantity?.value || 1),
-              sellingPrice: Number(doc.extractedData.unitPrice?.value || 0),
-              discount: Number(doc.extractedData.discount?.value || 0),
-              taxAmount: Number(doc.extractedData.taxAmount?.value || 0),
-              snapshotUnitCost: 380, // Snapshot preserved
-              returnedQuantity: 0,
-            },
-          ],
-          documentIds: [doc.id],
-        };
-        setOrders((prev) => [newOrder, ...prev]);
-      }
+      const stagedDoc = prevDocs.find((document) => document.id === docId);
+      if (!stagedDoc) return prevDocs;
 
       // Convert staged document into a PurchaseBill if it's a Supplier Bill
-      if (doc.fileType === "SUPPLIER_BILL") {
+      if (stagedDoc.fileType === "SUPPLIER_BILL") {
         const purchaseId = `PUR-${Date.now().toString().slice(-4)}`;
-        const unitCost = Number(doc.extractedData.unitPrice?.value || 0);
-        const sku = doc.extractedData.sku?.value || "ELEC-WEM-01";
+        const unitCost = Number(stagedDoc.extractedData.unitPrice?.value || 0);
+        const sku = stagedDoc.extractedData.sku?.value || "ELEC-WEM-01";
         const newPurchase: PurchaseBill = {
           id: purchaseId,
           supplierId: "SUP-001",
           supplierName: "Apex Components Ltd",
-          invoiceNumber: doc.extractedData.invoiceNumber?.value || `BILL-${Date.now()}`,
-          invoiceDate: doc.extractedData.orderDate?.value || new Date().toISOString().split("T")[0],
+          invoiceNumber: stagedDoc.extractedData.invoiceNumber?.value || `BILL-${Date.now()}`,
+          invoiceDate: stagedDoc.extractedData.orderDate?.value || new Date().toISOString().split("T")[0],
           sku: sku,
-          quantity: Number(doc.extractedData.quantity?.value || 1),
+          quantity: Number(stagedDoc.extractedData.quantity?.value || 1),
           unitCost: unitCost,
-          taxes: Number(doc.extractedData.taxAmount?.value || 0),
-          totalAmount: Number(doc.extractedData.totalAmount?.value || 0),
+          taxes: Number(stagedDoc.extractedData.taxAmount?.value || 0),
+          totalAmount: Number(stagedDoc.extractedData.totalAmount?.value || 0),
           paymentStatus: "PAID",
-          documentUrl: doc.fileName,
+          documentUrl: stagedDoc.fileName,
         };
         setPurchases((prev) => [newPurchase, ...prev]);
 
         // If unitCost is positive, update product historical cost basis
         if (unitCost > 0) {
-          updateProductCost(sku, unitCost, `Supplier Bill Approved (${doc.fileName})`);
+          updateProductCost(sku, unitCost, `Supplier Bill Approved (${stagedDoc.fileName})`);
         }
       }
 
@@ -1626,18 +1634,18 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       const log: FinancialAuditLog = {
         id: `AUD-${Date.now()}`,
         timestamp: new Date().toISOString(),
-        entityType: doc.fileType === "SUPPLIER_BILL" ? "PURCHASE" : "ORDER",
-        entityId: doc.extractedData.invoiceNumber?.value || doc.id,
+        entityType: stagedDoc.fileType === "SUPPLIER_BILL" ? "PURCHASE" : "ORDER",
+        entityId: stagedDoc.extractedData.invoiceNumber?.value || stagedDoc.id,
         fieldName: "status",
         oldValue: "STAGED_AI_EXTRACTION",
         newValue: "COMMITTED_TO_LEDGER",
         modifiedBy: "Human Reviewer (Operator)",
         reason: "Confirmed AI extraction fields and passed invariant check",
-        sourceDocumentId: doc.fileName,
+        sourceDocumentId: stagedDoc.fileName,
       };
       setAuditLogs((prev) => [log, ...prev]);
 
-      return prevDocs.map((d) => (d.id === docId ? { ...d, status: "APPROVED_POSTED" as const } : d));
+      return prevDocs.map((document) => (document.id === docId ? { ...document, status: "APPROVED_POSTED" as const } : document));
     });
   }, [updateProductCost]);
 
@@ -1648,8 +1656,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const batchApproveStagedDocuments = useCallback(
-    (docIds: string[]) => {
-      docIds.forEach((id) => approveStagedDocument(id));
+    async (docIds: string[]) => {
+      await Promise.all(docIds.map((id) => approveStagedDocument(id)));
     },
     [approveStagedDocument]
   );

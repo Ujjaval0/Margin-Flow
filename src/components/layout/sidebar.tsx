@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { createPortal } from "react-dom";
 import {
   Store,
   ShoppingCart,
@@ -67,6 +68,29 @@ export function Sidebar({
   const { currentUser } = usePlatform();
   const pathname = usePathname();
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
+  const [tooltipPortalReady, setTooltipPortalReady] = React.useState(false);
+  const [activeTooltip, setActiveTooltip] = React.useState<{
+    item: SidebarNavItem;
+    top: number;
+    left: number;
+  } | null>(null);
+
+  React.useEffect(() => {
+    setTooltipPortalReady(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (isOpen) setActiveTooltip(null);
+  }, [isOpen]);
+
+  const showNavTooltip = (
+    event: React.MouseEvent<HTMLAnchorElement> | React.FocusEvent<HTMLAnchorElement>,
+    item: SidebarNavItem
+  ) => {
+    if (isOpen) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    setActiveTooltip({ item, top: rect.top + rect.height / 2, left: rect.right + 10 });
+  };
 
   const userName = currentUser?.name || "E-Commerce";
   const userSubtitle = currentUser?.companyName || currentUser?.email || "Brand Owner";
@@ -92,6 +116,7 @@ export function Sidebar({
   }, [propActiveModule, pathname]);
 
   const handleNavClick = (id: NavModule) => {
+    setActiveTooltip(null);
     onSelectModule?.(id);
     if (typeof window !== "undefined" && window.innerWidth < 768 && isOpen) {
       onToggle?.();
@@ -217,6 +242,8 @@ export function Sidebar({
     return true;
   }), [currentUser?.accountType]);
 
+  const ActiveTooltipIcon = activeTooltip?.item.icon ?? Store;
+
   return (
     <>
       {/* Mobile Backdrop when drawer is open */}
@@ -284,6 +311,12 @@ export function Sidebar({
               href={item.href}
               prefetch={true}
               onClick={() => handleNavClick(item.id)}
+              onMouseEnter={(event) => showNavTooltip(event, item)}
+              onMouseLeave={() => setActiveTooltip(null)}
+              onFocus={(event) => showNavTooltip(event, item)}
+              onBlur={() => setActiveTooltip(null)}
+              aria-label={!isOpen ? item.label : undefined}
+              aria-describedby={!isOpen && activeTooltip?.item.id === item.id ? `sidebar-tooltip-${item.id}` : undefined}
               className={`group relative w-full flex items-center ${
                 isOpen ? "justify-between px-3" : "justify-center px-0"
               } py-2 rounded-xl text-xs font-medium border transition-colors duration-150 active:scale-[0.985] ${
@@ -317,17 +350,6 @@ export function Sidebar({
                 </span>
               )}
 
-              {/* Floating Tooltip for Collapsed Sidebar */}
-              {!isOpen && (
-                <div className="absolute left-full ml-3 px-2.5 py-1 bg-[#1D1D1F] text-white text-[11px] font-medium rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 -translate-x-1 transition-all whitespace-nowrap shadow-apple-md z-50">
-                  {item.label}
-                  {item.badge !== undefined && (
-                    <span className="ml-1 px-1.5 py-0.2 rounded-full bg-[#0071E3] text-white text-[9px]">
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-              )}
             </Link>
           );
         })}
@@ -391,6 +413,27 @@ export function Sidebar({
           </div>
         )}
       </div>
+
+      {tooltipPortalReady && !isOpen && activeTooltip && createPortal(
+        <div
+          id={`sidebar-tooltip-${activeTooltip.item.id}`}
+          role="tooltip"
+          className="fixed z-[100] flex items-center gap-2 rounded-xl border border-black/[0.08] bg-white/95 px-2.5 py-2 text-xs font-semibold tracking-tight text-[#1D1D1F] shadow-[0_8px_24px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.08)] backdrop-blur-sm animate-in fade-in slide-in-from-left-1 duration-150 motion-reduce:animate-none pointer-events-none whitespace-nowrap"
+          style={{ top: activeTooltip.top, left: activeTooltip.left, transform: "translateY(-50%)" }}
+        >
+          <span className={`flex h-6 w-6 items-center justify-center rounded-lg ${activeTooltip.item.bgTint} ${activeTooltip.item.iconColor}`}>
+            <ActiveTooltipIcon className="h-3.5 w-3.5" strokeWidth={1.9} />
+          </span>
+          <span>{activeTooltip.item.label}</span>
+          {activeTooltip.item.badge !== undefined && (
+            <span className="ml-0.5 rounded-md bg-[#0071E3]/10 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[#005BBB]">
+              {activeTooltip.item.badge}
+            </span>
+          )}
+          <span className="absolute right-full top-1/2 -mr-px -translate-y-1/2 border-y-[5px] border-y-transparent border-r-[5px] border-r-white/95" />
+        </div>,
+        document.body
+      )}
 
       {/* User Profile & Onboarding Info Modal */}
       <UserProfileModal
