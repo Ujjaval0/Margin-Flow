@@ -406,9 +406,6 @@ export function Sidebar({
                   {userInitials}
                 </div>
               )}
-              <div className="absolute left-full ml-3 px-2.5 py-1 bg-[#1D1D1F] text-white text-[11px] font-medium rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-all whitespace-nowrap shadow-apple-md z-50">
-                {userName} <span className="text-white/60">• Profile</span>
-              </div>
             </button>
           </div>
         )}

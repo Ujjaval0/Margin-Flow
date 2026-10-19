@@ -1,3 +1,4 @@
+import { money, sumMoney } from "@/domain/order-financials";
 import { z } from "zod";
 import { Order, OrderItem } from "@/domain/types";
 
@@ -6,9 +7,9 @@ export const WooLineItemSchema = z.object({
   name: z.string().default("WooCommerce Product"),
   product_id: z.number().or(z.string()).transform(String),
   sku: z.string().default(""),
-  quantity: z.number().int().positive().default(1),
-  subtotal: z.string().or(z.number()).transform(Number).default(0),
-  total: z.string().or(z.number()).transform(Number).default(0),
+  quantity: z.number().int().positive(),
+  subtotal: z.string().or(z.number()).transform(Number).pipe(z.number().finite()),
+  total: z.string().or(z.number()).transform(Number).pipe(z.number().finite()),
   total_tax: z.string().or(z.number()).transform(Number).default(0),
   price: z.number().or(z.string()).transform(Number).default(0),
 });
@@ -17,8 +18,12 @@ export const WooCommerceOrderWebhookSchema = z.object({
   id: z.number().or(z.string()).transform(String),
   number: z.string().default("1001"),
   status: z.string().default("processing"),
-  date_created: z.string().optional().default(() => new Date().toISOString()),
+  date_created: z.string(),
+  date_modified:z.string().optional(),date_completed:z.string().nullable().optional(),currency:z.string(),
+  fee_lines:z.array(z.object({total:z.string().or(z.number()).transform(Number),total_tax:z.string().or(z.number()).transform(Number).default(0)})).default([]),
+  refunds:z.array(z.unknown()).default([]),
   total: z.string().or(z.number()).transform(Number).default(0),
+  shipping_tax: z.string().or(z.number()).transform(Number).default(0),
   shipping_total: z.string().or(z.number()).transform(Number).default(0),
   total_tax: z.string().or(z.number()).transform(Number).default(0),
   discount_total: z.string().or(z.number()).transform(Number).default(0),
@@ -51,6 +56,8 @@ export function mapWooCommerceOrderToDomain(
   payload: WooCommerceOrderWebhookPayload,
   catalogCostLookup?: Record<string, number>
 ): Order {
+  if(payload.currency!=='INR')throw Error('Unsupported currency: only INR invoices can be posted.');
+  if(payload.refunds.length || payload.status==='refunded')throw Error('WooCommerce refunds require dated refund/return reconciliation before import. No records were posted.');
   const customerName = payload.billing
     ? `${payload.billing.first_name || ""} ${payload.billing.last_name || ""}`.trim() || "WooCommerce Buyer"
     : "WooCommerce Buyer";
@@ -60,24 +67,26 @@ export function mapWooCommerceOrderToDomain(
   const orderDate = payload.date_created ? payload.date_created.split("T")[0] : new Date().toISOString().split("T")[0];
 
   const items: OrderItem[] = (payload.line_items || []).map((item, idx) => {
-    const unitPrice = item.price || (item.quantity > 0 ? item.total / item.quantity : item.total);
+    const unitPrice = item.quantity > 0 ? money(item.subtotal / item.quantity) : 0;
     const sku = item.sku || `SKU-WC-${item.product_id}`;
     const unitCost = catalogCostLookup?.[sku] ?? 0;
 
     return {
-      id: `ITEM-WC-${payload.id}-${idx + 1}`,
+      id: `ITEM-WC-${payload.id}-${item.id}`,
       sku,
       productName: item.name,
       quantity: item.quantity,
       sellingPrice: unitPrice,
+      lineSubtotal: money(item.subtotal),
       discount: item.subtotal > item.total ? item.subtotal - item.total : 0,
       taxAmount: item.total_tax,
       snapshotUnitCost: unitCost,
+      costEvidence:catalogCostLookup?.[sku]!==undefined?'RECORDED':'UNKNOWN',
       returnedQuantity: 0,
     };
   });
 
-  const gatewayFee = Math.round(payload.total * 0.02 * 100) / 100;
+
 
   let status: Order["status"] = "CONFIRMED";
   const st = (payload.status || "").toLowerCase();
@@ -87,18 +96,26 @@ export function mapWooCommerceOrderToDomain(
   else if (st === "pending") status = "PENDING";
   else status = "CONFIRMED";
 
+  const customerCharges=sumMoney(payload.fee_lines.map(f=>f.total)),customerChargesTax=sumMoney(payload.fee_lines.map(f=>f.total_tax));
+  const sourceCalculated=sumMoney([sumMoney(items.map(item=>sumMoney([item.lineSubtotal||0,-item.discount,item.taxAmount]))),payload.shipping_total,payload.shipping_tax,customerCharges,customerChargesTax]);
+  if(Math.abs(sumMoney([sourceCalculated,-payload.total]))>0.01)throw Error('WooCommerce line/fee/tax/shipping totals do not reconcile to source total.');
   return {
     id: `ORD-WC-${payload.id}`,
     channelOrderId: `WC-${payload.number || payload.id}`,
     marketplace: "WooCommerce",
     orderDate,
+    currency:'INR',sourceTotal:payload.total,sourceUpdatedAt:payload.date_modified,
+    revenueRecognisedDate:payload.date_completed?.slice(0,10),customerCharges,customerChargesTax,
     status,
     customerName,
     customerCity: city,
     customerState: state,
     items,
-    shippingFeeCharged: payload.shipping_total,
-    marketplaceChargesEstimate: gatewayFee,
+    shippingFeeCharged: sumMoney([payload.shipping_total, payload.shipping_tax]),
+    shippingTaxAmount: payload.shipping_tax,
+    pricesIncludeTax: false,
+    feeEstimateStatus: "NOT_CONFIGURED",
+    marketplaceChargesEstimate: 0,
     notes: `WooCommerce Order | Method: ${payload.payment_method_title}`,
   };
 }

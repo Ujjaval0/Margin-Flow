@@ -1,3 +1,4 @@
+import { createRecordId } from "./record-id";
 import { AIStagedDocument, ExtractedField, Marketplace } from "./types";
 import { validateDocumentArithmetic } from "./guardrails";
 
@@ -36,13 +37,13 @@ export function processDocumentOCR(
     text.match(/(?:invoice|bill|tax invoice|ref|voucher)\s*(?:no|number|#)?[:.\s]*([A-Z0-9\-_/]+)/i) ||
     text.match(/([A-Z]{2,4}-[0-9]{4,8})/i) ||
     text.match(/INV[0-9]+/i);
-  const invoiceNumber = invMatch ? invMatch[1].trim() : `BILL-${Math.floor(100000 + Math.random() * 900000)}`;
+  const invoiceNumber = invMatch ? invMatch[1].trim() : "";
 
   // Extract Date
   const dateMatch =
     text.match(/(?:date|dated|invoice date|bill date)[:.\s]*([0-9]{4}[-/][0-9]{2}[-/][0-9]{2})/i) ||
     text.match(/(?:date|dated)[:.\s]*([0-9]{2}[-/][0-9]{2}[-/][0-9]{4})/i);
-  let orderDate = new Date().toISOString().split("T")[0];
+  let orderDate = "";
   if (dateMatch) {
     const rawDate = dateMatch[1];
     if (rawDate.includes("-") && rawDate.length === 10 && rawDate.startsWith("202")) {
@@ -66,7 +67,7 @@ export function processDocumentOCR(
   const vendorMatch =
     text.match(/(?:vendor|supplier|seller|billed by|m\/s|company)[:.\s]*([A-Za-z0-9\s.,&]+?)(?:\n|gst|address|phone|email)/i) ||
     text.match(/^([A-Za-z\s]+(?:Enterprises|Electronics|Tech|Solutions|Pvt Ltd|Industries|Wholesale))/m);
-  const vendorName = vendorMatch ? vendorMatch[1].trim() : (fileType === "SUPPLIER_BILL" ? "Apex Components Ltd" : "D2C Direct Store");
+  const vendorName = vendorMatch ? vendorMatch[1].trim() : "";
 
   // Check if document content is an unparsed binary scan or sparse text
   const isBinaryScan =
@@ -129,10 +130,14 @@ export function processDocumentOCR(
     declaredTotal
   );
 
-  const docId = `DOC-AI-${Date.now().toString().slice(-4)}`;
+  if(!dateMatch || !Number.isFinite(Date.parse(orderDate)) || new Date(orderDate).toISOString().slice(0,10)!==orderDate)orderDate='';
+  const docId = createRecordId('DOC-AI');
+  const currency=/\bINR\b|₹|\bRs\.?\s/i.test(text)?'INR':undefined;
+  const pricesIncludeTax=/tax(?:es)?\s*inclusive|including\s*(?:gst|tax)/i.test(text)?true:/tax(?:es)?\s*exclusive|excluding\s*(?:gst|tax)/i.test(text)?false:undefined;
+  if(!invoiceNumber || !orderDate || !currency)arithmeticValidation.passed=false;
 
   const stagedDocument: AIStagedDocument = {
-    id: docId,
+    id: docId,currency,pricesIncludeTax,
     fileName,
     fileType,
     uploadDate: new Date().toISOString().split("T")[0],
@@ -226,7 +231,7 @@ export function processDocumentOCR(
         provenance: "AI_EXTRACTED",
       },
       totalAmount: {
-        value: declaredTotal !== undefined ? declaredTotal : arithmeticValidation.calculatedTotal,
+        value: declaredTotal !== undefined ? declaredTotal : 0,
         confidence: declaredTotal !== undefined ? 0.98 : 0,
         provenance: declaredTotal !== undefined ? "AI_EXTRACTED" : "MANUALLY_ENTERED",
         isFlaggedAnomaly: !arithmeticValidation.passed,

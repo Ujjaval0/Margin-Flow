@@ -7,15 +7,15 @@ const ledger = load('src/domain/ledger-engine.ts');
 const facts = load('src/domain/order-financials.ts');
 const purchases = load('src/domain/purchase-accounting.ts');
 const item = (changes = {}) => ({ id: 'line-1', sku: 'SKU', productName: 'Item', quantity: 2, sellingPrice: 100,
-  discount: 20, taxAmount: 0, snapshotUnitCost: 40, returnedQuantity: 0, ...changes });
+  discount: 20, taxAmount: 0, snapshotUnitCost: 40, costEvidence: 'RECORDED', returnedQuantity: 0, ...changes });
 const order = (changes = {}) => ({ id: 'order-1', channelOrderId: 'channel-1', marketplace: 'WooCommerce',
   orderDate: '2026-10-15', status: 'DELIVERED', items: [item()], shippingFeeCharged: 0, marketplaceChargesEstimate: 0, ...changes });
 const returned = (changes = {}) => ({ id: 'return-1', orderId: 'order-1', channelOrderId: 'channel-1', marketplace: 'WooCommerce',
-  returnDate: '2026-10-15', returnType: 'CUSTOMER_RETURN', sku: 'SKU', quantity: 1, condition: 'SELLABLE',
+  returnDate: '2026-10-15', returnType: 'CUSTOMER_RETURN', sku: 'SKU', quantity: 1, condition: 'SELLABLE', restockStatus: 'RESTOCKED', receivedDate: '2026-10-15',
   returnShippingCost: 0, customerReturnFee: 0, otherReturnCosts: 0, inventoryRecoveryValue: 0, lossAmount: 0, ...changes });
 const settlement = (changes = {}) => ({ id: 'settlement-1', orderId: 'order-1', marketplace: 'WooCommerce',
   settlementDate: '2026-10-15', settlementBatchId: 'batch', grossAmount: 180, netSettlement: 150,
-  deductions: [], tcsTdsTax: 0, reconciliationStatus: 'RECONCILED', ...changes });
+  deductions: [], tcsTdsTax: 0, evidenceType: 'BANK_RECEIPT', feeCoverage: 'COMPLETE', reconciliationStatus: 'RECONCILED', ...changes });
 
 test('unpaid delivered revenue is a receivable, never fabricated cash or a fee', () => {
   const result = engine.calculateBusinessProfitability([order()], [], [], [], []);
@@ -150,8 +150,8 @@ test('supplier partial payments accumulate against remaining balances and alloca
 test('ledger recognises discounted goods revenue without an invented 65/35 fee split', () => {
   const journals = ledger.generateGeneralLedger([order({ marketplaceChargesEstimate: 20 })], [], [], [], []);
   assert.equal(journals[0].lines.find(line => line.accountCode === '4010').credit, 180);
-  assert.equal(journals[0].lines.find(line => line.accountCode === '6020').debit, 0);
-  assert.equal(journals[0].lines.find(line => line.accountCode === '6010').debit, 0);
+  assert.equal((journals[0].lines.find(line => line.accountCode === '6020')?.debit ?? 0), 0);
+  assert.equal((journals[0].lines.find(line => line.accountCode === '6010')?.debit ?? 0), 0);
   assert.ok(journals.every(journal => journal.isBalanced));
 });
 
@@ -171,29 +171,42 @@ function hooks() {
 
 test('actual purchase action adds stock exactly once for a repeated bill', async () => {
   const harness = hooks();
-  const app = load('src/domain/store.tsx', { react: harness.react }, {
-    window: {}, localStorage: { getItem: () => null }, fetch: async (url, options) => {
-      if (url === '/api/auth/me') return Response.json({ user: { id: 'tenant-A' } });
-      if (url.startsWith('/api/orders')) return Response.json({ orders: [] });
-      if (url.startsWith('/api/products') && options?.method !== 'POST') return Response.json({ products: [] });
-      if (url.startsWith('/api/settlements')) return Response.json({ settlements: [] });
-      if (url === '/api/recycle-bin?recovered=true') return Response.json({ recovered: { returns: [], claims: [], expenses: [] } });
-      return Response.json({ success: true });
-    },
-  });
+  const backend = load.makeLedgerBackend({ suppliers: [{ id: 's', name: 'Supplier', contactPerson: '', email: '', phone: '', address: '' }] });
+  const app = load('src/domain/store.tsx', { react: harness.react }, { crypto: globalThis.crypto, structuredClone, window: {}, localStorage: { getItem: () => null, removeItem() {} }, fetch: backend.fetch });
   const render = () => harness.render(() => app.PlatformProvider({ children: null }).props.value);
   await render().refreshFromDatabase();
   await render().addProduct({ id: 'p', sku: 'SKU', name: 'Item', currentCostPrice: 40, costHistory: [], channelAliases: {}, active: true, supplierId: 's', stockQuantity: 5 });
   const state = render();
   const bill = { id: 'purchase', supplierId: 's', supplierName: 'Supplier', invoiceDate: '2026-10-15', invoiceNumber: 'INV',
     sku: 'SKU', quantity: 3, unitCost: 40, taxes: 0, totalAmount: 120, paymentStatus: 'PENDING' };
-  state.addPurchase(bill);
-  state.addPurchase(bill);
+  await state.addPurchase(bill);
+  await state.addPurchase(bill);
   assert.equal(render().products[0].stockQuantity, 8);
   assert.equal(render().purchases.length, 1);
 });
 
-test('purchase modal preserves zero GST and rounds fractional tax to cents', () => {
+test('supplier payment action preserves successive allocations and excess in the exported tenant ledger', async () => {
+  const harness = hooks();
+  const backend = load.makeLedgerBackend();
+  const app = load('src/domain/store.tsx', { react: harness.react }, { crypto: globalThis.crypto, structuredClone, window: {}, localStorage: { getItem: () => null, removeItem() {} }, fetch: backend.fetch });
+  const render = () => harness.render(() => app.PlatformProvider({ children: null }).props.value);
+  await render().refreshFromDatabase();
+  await render().addProduct({ id: 'p', sku: 'SKU', name: 'Item', currentCostPrice: 40, costHistory: [], channelAliases: {}, active: true, supplierId: 's', stockQuantity: 0 });
+  await render().addSupplier({ id: 's', name: 'Supplier', totalPaid: 0, contactPerson: '', email: '', phone: '', address: '' });
+  await render().addPurchase({ id: 'bill', supplierId: 's', supplierName: 'Supplier', invoiceDate: '2026-10-01', invoiceNumber: 'I',
+    sku: 'SKU', quantity: 1, unitCost: 40, taxes: 0, totalAmount: 40, paymentStatus: 'PENDING' });
+  const state = render();
+  await state.recordSupplierPayment('s', 25, 'UPI', 'UTR-1');
+  await state.recordSupplierPayment('s', 25, 'UPI', 'UTR-2');
+  const result = render();
+  assert.equal(result.purchases[0].paidAmount, 40);
+  assert.equal(result.suppliers[0].totalPaid, 50);
+  assert.equal(result.supplierPayments.length, 2);
+  assert.equal(result.supplierPayments[1].advanceAmount, 10);
+  assert.equal(JSON.parse(result.exportLedgerSnapshot()).data.supplierPayments[1].reference, 'UTR-2');
+});
+
+test('purchase modal preserves zero GST and rounds fractional tax to cents', async () => {
   const harness = hooks();
   const modal = load('src/components/modals/add-purchase-modal.tsx', {
     react: harness.react, 'react-dom': { createPortal: element => element },
@@ -209,14 +222,15 @@ test('purchase modal preserves zero GST and rounds fractional tax to cents', () 
     return [element, ...descendants(element.props?.children)];
   };
   let nodes = descendants(render());
-  nodes.find(node => node.type === 'input' && node.props.type === 'number').props.onChange({ target: { value: '2' } });
-  const taxSelect = () => descendants(render()).find(node => node.type === 'select' && descendants(node).some(child => child.type === 'option' && child.props.value === 0));
+  nodes.find(node => node.type === 'input' && node.props.placeholder === 'e.g. INV-9921').props.onChange({ target: { value: 'INV-REAL' } });
+  nodes.find(node => node.type?.name === 'NumericInput' && node.props.step === undefined).props.onChange({ target: { value: '2' } });
+  const taxSelect = () => descendants(render()).find(node => node.type?.name === 'NumericInput' && node.props.max === 100);
   taxSelect().props.onChange({ target: { value: '0' } });
-  descendants(render()).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+  await descendants(render()).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(bill.taxes, 0);
   assert.equal(bill.totalAmount, 24.68);
   taxSelect().props.onChange({ target: { value: '5' } });
-  descendants(render()).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+  await descendants(render()).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(bill.taxes, 1.23);
   assert.equal(bill.totalAmount, 25.91);
 });

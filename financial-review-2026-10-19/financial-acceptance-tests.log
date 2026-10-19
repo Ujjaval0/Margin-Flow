@@ -1,0 +1,270 @@
+TAP version 13
+# Subtest: invoice import preserves every source line and reconciles 100 + 200 + 54 tax to 354
+ok 1 - invoice import preserves every source line and reconciles 100 + 200 + 54 tax to 354
+  ---
+  duration_ms: 34.804
+  ...
+# Subtest: invoice import rejects missing currency, date, SKU, unit price and unknown taxable price basis
+ok 2 - invoice import rejects missing currency, date, SKU, unit price and unknown taxable price basis
+  ---
+  duration_ms: 3.2917
+  ...
+# Subtest: invoice import rejects fractional paise instead of rounding source totals into validity
+ok 3 - invoice import rejects fractional paise instead of rounding source totals into validity
+  ---
+  duration_ms: 4.9426
+  ...
+# Subtest: structured IDP verifies all lines and keeps its 354 proposal staged for human review
+ok 4 - structured IDP verifies all lines and keeps its 354 proposal staged for human review
+  ---
+  duration_ms: 371.2226
+  ...
+# Subtest: structured IDP does not verify an invoice whose currency or source date is missing
+ok 5 - structured IDP does not verify an invoice whose currency or source date is missing
+  ---
+  duration_ms: 653.8665
+  ...
+# Subtest: structured IDP cannot mark a missing price or SKU as a verified zero-value line
+ok 6 - structured IDP cannot mark a missing price or SKU as a verified zero-value line
+  ---
+  duration_ms: 763.2477
+  ...
+# Subtest: CSV preserves both CGST and SGST and rejects inconsistent aggregate GST
+ok 7 - CSV preserves both CGST and SGST and rejects inconsistent aggregate GST
+  ---
+  duration_ms: 16.4825
+  ...
+# Subtest: CSV rejects fractional-paise GST and price input as a complete batch
+ok 8 - CSV rejects fractional-paise GST and price input as a complete batch
+  ---
+  duration_ms: 6.7569
+  ...
+# Subtest: generic source extended amount 200 for quantity two stays 200 instead of becoming 400
+ok 9 - generic source extended amount 200 for quantity two stays 200 instead of becoming 400
+  ---
+  duration_ms: 27.8674
+  ...
+# Subtest: generic source requires explicit currency, date, price or extended amount, SKU and positive quantity
+ok 10 - generic source requires explicit currency, date, price or extended amount, SKU and positive quantity
+  ---
+  duration_ms: 3.3464
+  ...
+# Subtest: Shopify allocated 20 discount reduces a 100 item to the evidenced 80 total
+ok 11 - Shopify allocated 20 discount reduces a 100 item to the evidenced 80 total
+  ---
+  duration_ms: 15.4141
+  ...
+# Subtest: WooCommerce customer fee line 20 preserves a 100 sale plus 20 revenue as 120
+ok 12 - WooCommerce customer fee line 20 preserves a 100 sale plus 20 revenue as 120
+  ---
+  duration_ms: 13.5564
+  ...
+# Subtest: official webshop schemas reject omitted currency and source creation dates
+ok 13 - official webshop schemas reject omitted currency and source creation dates
+  ---
+  duration_ms: 2.2535
+  ...
+# Subtest: Amazon negative refund and positive fee reversal survive as signed financial evidence without bank cash
+ok 14 - Amazon negative refund and positive fee reversal survive as signed financial evidence without bank cash
+  ---
+  duration_ms: 58.5471
+  ...
+# Subtest: Amazon unsupported account-level events retain the raw source plus a reconciliation issue
+ok 15 - Amazon unsupported account-level events retain the raw source plus a reconciliation issue
+  ---
+  duration_ms: 3.5441
+  ...
+# Subtest: Amazon unsupported currency and fractional-paise event amounts stay unresolved with their source retained
+ok 16 - Amazon unsupported currency and fractional-paise event amounts stay unresolved with their source retained
+  ---
+  duration_ms: 2.8645
+  ...
+# Subtest: display collision cannot reassign another external order or delete its lines
+ok 17 - display collision cannot reassign another external order or delete its lines
+  ---
+  duration_ms: 1872.1949
+  ...
+# Subtest: settlement batch has one transaction and rolls back earlier rows on a later failure
+ok 18 - settlement batch has one transaction and rolls back earlier rows on a later failure
+  ---
+  duration_ms: 624.9432
+  ...
+# Subtest: split records for one batch/order retain distinct IDs and replay the same receipt
+ok 19 - split records for one batch/order retain distinct IDs and replay the same receipt
+  ---
+  duration_ms: 355.5408
+  ...
+# Subtest: settlement API rejects fractional paise and invalid batches before persistence
+ok 20 - settlement API rejects fractional paise and invalid batches before persistence
+  ---
+  duration_ms: 888.5113
+  ...
+# Subtest: a supplier audit entry survives snapshot validation without losing the books
+ok 21 - a supplier audit entry survives snapshot validation without losing the books
+  ---
+  duration_ms: 510.9391
+  ...
+# Subtest: internal IDs remain distinct at the same clock time
+ok 22 - internal IDs remain distinct at the same clock time
+  ---
+  duration_ms: 15.1606
+  ...
+# Subtest: financial hydration includes records after the 2000 row boundary and rejects incomplete reads
+ok 23 - financial hydration includes records after the 2000 row boundary and rejects incomplete reads
+  ---
+  duration_ms: 34.6253
+  ...
+# Subtest: manual settlement does not enter state when persistence fails, and uses acknowledged ID on success
+ok 24 - manual settlement does not enter state when persistence fails, and uses acknowledged ID on success
+  ---
+  duration_ms: 2187.8389
+  ...
+# Subtest: actual settlement form retains failed input identity, prevents concurrent save, and invents no bank evidence
+ok 25 - actual settlement form retains failed input identity, prevents concurrent save, and invents no bank evidence
+  ---
+  duration_ms: 1122.1668
+  ...
+# Subtest: period flows retain older order context and recognize receipt, restock and recovery dates independently
+ok 26 - period flows retain older order context and recognize receipt, restock and recovery dates independently
+  ---
+  duration_ms: 64.3175
+  ...
+# Subtest: adjacent periods and event months conserve every monetary P&L flow and gross-to-net bridge
+ok 27 - adjacent periods and event months conserve every monetary P&L flow and gross-to-net bridge
+  ---
+  duration_ms: 126.5445
+  ...
+# Subtest: bank cash includes unmatched and cancelled-order receipts but excludes marketplace finance events
+ok 28 - bank cash includes unmatched and cancelled-order receipts but excludes marketplace finance events
+  ---
+  duration_ms: 6.3443
+  ...
+# Subtest: period return rates use matching bounded shipment cohorts even when old returns exceed current shipments
+ok 29 - period return rates use matching bounded shipment cohorts even when old returns exceed current shipments
+  ---
+  duration_ms: 39.6146
+  ...
+# Subtest: SKU return costs and claim recoveries stay on the affected SKU as later returns arrive
+ok 30 - SKU return costs and claim recoveries stay on the affected SKU as later returns arrive
+  ---
+  duration_ms: 67.1457
+  ...
+# Subtest: explicit return claim links and multiple claims allocate once; closing never erases dated recovery
+ok 31 - explicit return claim links and multiple claims allocate once; closing never erases dated recovery
+  ---
+  duration_ms: 16.5221
+  ...
+# Subtest: separate one-paise fee events retain their original SKU allocation across periods
+ok 32 - separate one-paise fee events retain their original SKU allocation across periods
+  ---
+  duration_ms: 30.74
+  ...
+# Subtest: linked bank deductions clear source financial-event accruals once in every period and SKU
+ok 33 - linked bank deductions clear source financial-event accruals once in every period and SKU
+  ---
+  duration_ms: 53.1985
+  ...
+# Subtest: partial claim recovery events retain their dates and original return/SKU rounding allocations
+ok 34 - partial claim recovery events retain their dates and original return/SKU rounding allocations
+  ---
+  duration_ms: 112.4111
+  ...
+# Subtest: unknown partial-payment receivables remain in aging and radar; known amounts use discounts and partial receipts
+ok 35 - unknown partial-payment receivables remain in aging and radar; known amounts use discounts and partial receipts
+  ---
+  duration_ms: 30.1375
+  ...
+# Subtest: grounded assistant distinguishes contribution and OPEX and does not subtract return costs twice
+ok 36 - grounded assistant distinguishes contribution and OPEX and does not subtract return costs twice
+  ---
+  duration_ms: 28.8273
+  ...
+# Subtest: return radar uses bounded facts and recorded reverse freight once instead of stale raw loss fields
+ok 37 - return radar uses bounded facts and recorded reverse freight once instead of stale raw loss fields
+  ---
+  duration_ms: 9.0711
+  ...
+# Subtest: retained unmapped-source and pending-migration issues survive all-time and dated projections
+ok 38 - retained unmapped-source and pending-migration issues survive all-time and dated projections
+  ---
+  duration_ms: 10.3812
+  ...
+# Subtest: actual Reports view uses full financialContext and reportRange in both exports and shows the complete bridge
+ok 39 - actual Reports view uses full financialContext and reportRange in both exports and shows the complete bridge
+  ---
+  duration_ms: 1037.8292
+  ...
+# Subtest: tax point is independent of revenue recognition, including invoiced shipped goods
+ok 40 - tax point is independent of revenue recognition, including invoiced shipped goods
+  ---
+  duration_ms: 65.09
+  ...
+# Subtest: unresolved price basis suppresses speculative sales while preserving known tax and cost evidence
+ok 41 - unresolved price basis suppresses speculative sales while preserving known tax and cost evidence
+  ---
+  duration_ms: 8.8639
+  ...
+# Subtest: actual fees and eligible input GST post at settlement date, including cancelled order fees
+ok 42 - actual fees and eligible input GST post at settlement date, including cancelled order fees
+  ---
+  duration_ms: 11.3846
+  ...
+# Subtest: regular registration alone grants no fee ITC and explicit zero partial credit stays zero
+ok 43 - regular registration alone grants no fee ITC and explicit zero partial credit stays zero
+  ---
+  duration_ms: 1.7499
+  ...
+# Subtest: purchase GST requires evidence; ineligible tax is inventory cost and partial tax remains unresolved
+ok 44 - purchase GST requires evidence; ineligible tax is inventory cost and partial tax remains unresolved
+  ---
+  duration_ms: 7.2226
+  ...
+# Subtest: GST credit-note adjustment uses note period and never infers eligibility from a return
+ok 45 - GST credit-note adjustment uses note period and never infers eligibility from a return
+  ---
+  duration_ms: 37.1825
+  ...
+# Subtest: late or invalid-calendar credit-note evidence cannot reduce output GST
+ok 46 - late or invalid-calendar credit-note evidence cannot reduce output GST
+  ---
+  duration_ms: 17.5273
+  ...
+# Subtest: stock is restored only on evidenced receipt date and undated paid totals never invent bank movement
+ok 47 - stock is restored only on evidenced receipt date and undated paid totals never invent bank movement
+  ---
+  duration_ms: 12.7331
+  ...
+# Subtest: financial events do not fabricate bank receipts and GST TCS stays separate from income-tax TDS
+ok 48 - financial events do not fabricate bank receipts and GST TCS stays separate from income-tax TDS
+  ---
+  duration_ms: 4.6118
+  ...
+# Subtest: signed refunds normalize journal sides and finite-value validation rejects NaN
+ok 49 - signed refunds normalize journal sides and finite-value validation rejects NaN
+  ---
+  duration_ms: 9.8383
+  ...
+# Subtest: dated shipping refunds reverse commercial shipping without assuming a GST credit note
+ok 50 - dated shipping refunds reverse commercial shipping without assuming a GST credit note
+  ---
+  duration_ms: 14.4406
+  ...
+# Subtest: closed or rejected claims preserve recorded recoveries; missing dates remain visibly provisional
+ok 51 - closed or rejected claims preserve recorded recoveries; missing dates remain visibly provisional
+  ---
+  duration_ms: 15.2478
+  ...
+# Subtest: withholding advisory uses independent evidenced events and does not guess TDS applicability
+ok 52 - withholding advisory uses independent evidenced events and does not guess TDS applicability
+  ---
+  duration_ms: 2.6496
+  ...
+1..52
+# tests 52
+# suites 0
+# pass 52
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8622.9273

@@ -1,4 +1,5 @@
 "use client";
+import { money } from '@/domain/money';
 
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -51,11 +52,11 @@ export function SkuDrawer({
 
   if (!skuData || !mounted) return null;
 
-  const realizedUnitPrice = Math.round(skuData.revenue / (skuData.unitsSold || 1));
-  const unitCogs = Math.round(skuData.cogs / (skuData.unitsSold || 1));
-  const unitMarketplace = Math.round(skuData.marketplaceCharges / (skuData.unitsSold || 1));
-  const unitReturnLoss = Math.round(skuData.returnLosses / (skuData.unitsSold || 1));
-  const unitProfit = Math.round(skuData.profit / (skuData.unitsSold || 1));
+  const realizedUnitPrice = money(skuData.revenue / (skuData.unitsSold || 1));
+  const unitCogs = money(skuData.cogs / (skuData.unitsSold || 1));
+  const unitMarketplace = money(skuData.marketplaceCharges / (skuData.unitsSold || 1));
+  const unitReturnLoss = money(skuData.returnLosses / (skuData.unitsSold || 1));
+  const unitProfit = money(skuData.profit / (skuData.unitsSold || 1));
 
   const handleCopySummary = async () => {
     const summaryText = [

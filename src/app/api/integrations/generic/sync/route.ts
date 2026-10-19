@@ -1,3 +1,4 @@
+import { mapGenericSourceOrder } from '@/lib/integrations/generic-order';
 import { collectPages, nextLink } from "@/lib/integrations/provider-pagination";
 import { NextRequest, NextResponse } from "next/server";
 import { Order, OrderItem } from "@/domain/types";
@@ -168,39 +169,8 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const domainOrders: Order[] = fetchedOrders.map((o, idx) => {
-        const channelOrderId = o.channelOrderId || o.orderId || o.id || `POS-${1000 + idx}`;
-        const total = parseFloat(o.total || o.amount || o.sellingPrice || "0");
+      const domainOrders = fetchedOrders.map((source:any)=>mapGenericSourceOrder(source,'Personal Website'));
 
-        return {
-          id: `ORD-GEN-${channelOrderId}`,
-          channelOrderId: String(channelOrderId),
-          marketplace: "Personal Website" as const,
-          orderDate: o.orderDate || new Date().toISOString().split("T")[0],
-          status: "CONFIRMED" as const,
-          customerName: o.customerName || "Retail POS Customer",
-          customerCity: o.customerCity || "Mumbai",
-          customerState: o.customerState || "Maharashtra",
-          items: [
-            {
-              id: `ITEM-GEN-${channelOrderId}-1`,
-              sku: o.sku || "POS-RETAIL-01",
-              productName: o.productName || "Direct Store Sale Item",
-              quantity: Number(o.quantity || 1),
-              sellingPrice: total,
-              taxAmount: Number(o.taxAmount || 0),
-              snapshotUnitCost: 0, // Invariant: Zero financial guesswork! Resolved strictly through catalog COGS
-              discount: Number(o.discount || 0),
-              returnedQuantity: 0,
-            },
-          ],
-          shippingFeeCharged: Number(o.shippingFeeCharged || 0),
-          marketplaceChargesEstimate: 0,
-          notes: `Custom Ingestion Synced | Order: ${channelOrderId}`,
-        };
-      });
-
-      // Atomic Database Upsert into PostgreSQL (TASK-3.5 / TASK-6.2 Point 8)
       const dbResult = await upsertOrders(userId, domainOrders);
 
       await updateSyncStatus(userId, "Personal Website", "SUCCEEDED", {

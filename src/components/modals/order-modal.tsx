@@ -1,5 +1,10 @@
 "use client";
 
+import { businessDate } from "@/domain/report-scope";
+
+import { createRecordId } from "@/domain/record-id";
+import { getManualReturnCosts } from "@/domain/order-financials";
+
 import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -8,6 +13,7 @@ import {
   Order,
   Marketplace,
   ReturnType,
+  ReturnRecord,
   Claim,
   Product,
   Supplier,
@@ -29,8 +35,8 @@ export interface OrderModalProps {
   suppliers: Supplier[];
   onAddOrder?: (order: Order) => Promise<Order>;
   onUpdateOrder?: (order: Order) => Promise<Order>;
-  onAddReturn?: (ret: any) => void;
-  onAddClaim?: (claim: Claim) => void;
+  onAddReturn?: (ret: ReturnRecord) => Promise<void>;
+  onAddClaim?: (claim: Claim) => Promise<void>;
 }
 
 export function OrderModal({
@@ -84,10 +90,14 @@ export function OrderModal({
   const [productName, setProductName] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [supplierName, setSupplierName] = useState("");
-  const [unitCost, setUnitCost] = useState("350");
-  const [sellingPrice, setSellingPrice] = useState("1000");
+  const [unitCost, setUnitCost] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [taxAmount, setTaxAmount] = useState("");
+  const [priceBasis, setPriceBasis] = useState("");
+  const [recognitionDate, setRecognitionDate] = useState("");
   const [settlementAmount, setSettlementAmount] = useState("");
   const [fulfilmentMode, setFulfilmentMode] = useState("");
+  const [accountingPolicies, setAccountingPolicies] = useState<{ marketplace: string; effective_from: string; effective_to?: string; prices_include_tax?: boolean; marketplace_fee_gst_rate_bps?: number; gst_registration_type?: string }[]>([]);
   const [feeRules, setFeeRules] = useState<MarketplaceFeeRule[]>([]);
   const [savedQuickRates, setSavedQuickRates] = useState<number[]>([]);
   const [quickRateSelection, setQuickRateSelection] = useState("");
@@ -99,6 +109,14 @@ export function OrderModal({
   const [notes, setNotes] = useState("");
 
   // Return / RTO Sub-Form (mainly for create mode)
+  const saveInFlight = useRef(false);
+  const draftIds = useRef({ order: "", line: "", returned: "", claim: "" });
+  const openIdentity = useRef("");
+  const savedDraftOrder = useRef<Order | null>(null);
+  const savedDraftReturn = useRef<ReturnRecord | null>(null);
+  const savedDraftFingerprint = useRef("");
+  const pendingReturnRequested = useRef(false);
+  const [returnDate, setReturnDate] = useState("");
   const [isReturned, setIsReturned] = useState(false);
   const [returnType, setReturnType] = useState<ReturnType>("CUSTOMER_RETURN");
   const [returnFee, setReturnFee] = useState("0");
@@ -110,7 +128,14 @@ export function OrderModal({
 
   // Sync state on open or change of initialOrder
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) { openIdentity.current = ""; return; }
+    const identity = mode + ":" + (initialOrder?.id || "new");
+    if (openIdentity.current === identity) return;
+    openIdentity.current = identity;
+    draftIds.current = { order: createRecordId("ORD"), line: createRecordId("ITEM"), returned: createRecordId("RET"), claim: createRecordId("CLM") };
+    savedDraftOrder.current = null; savedDraftReturn.current = null; savedDraftFingerprint.current = ""; pendingReturnRequested.current = false;
+    setReturnDate("");
+    setSaveError("");
 
     if (mode === "edit" && initialOrder) {
       setMarketplace(initialOrder.marketplace);
@@ -127,6 +152,9 @@ export function OrderModal({
       const sPrice = firstItem?.sellingPrice || 0;
       const sQty = firstItem?.quantity || 1;
       setSellingPrice(String(sPrice));
+      setTaxAmount(initialOrder.taxEvidenceStatus === "RECORDED" || initialOrder.items.length > 1 ? String(firstItem?.taxAmount ?? 0) : "");
+      setPriceBasis(initialOrder.pricesIncludeTax === undefined ? "" : initialOrder.pricesIncludeTax ? "INCLUSIVE" : "EXCLUSIVE");
+      setRecognitionDate(initialOrder.revenueRecognisedDate || "");
       const isReturnedOrder = initialOrder.status === "CUSTOMER_RETURN" || initialOrder.status === "RETURNED" || initialOrder.status === "RTO";
       setSettlementAmount(initialOrder.settlementAmount === undefined || isReturnedOrder ? "" : String(initialOrder.settlementAmount));
       setFulfilmentMode(initialOrder.fulfilmentMode || "");
@@ -138,19 +166,20 @@ export function OrderModal({
       setIsReturned(initialOrder.status === "RETURNED" || initialOrder.status === "RTO" || initialOrder.status === "CUSTOMER_RETURN" || initialOrder.status === "DAMAGED_RETURN");
     } else {
       // Create mode defaults
-      const randomId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
-      setOrderId(randomId);
-      setChannelOrderId(`REF-${randomId.replace("ORD-", "")}`);
-      setOrderDate(new Date().toISOString().split("T")[0]);
+      setOrderId("");
+      setChannelOrderId("");
+      setOrderDate(businessDate());
       const initialProd = products[0];
       setSku(initialProd?.sku || "");
       setMfn(initialProd?.mfn || "");
       setMfn1(initialProd?.mfn1 || "");
       setProductName(initialProd?.name || "");
       setQuantity("1");
-      setUnitCost(String(initialProd?.currentCostPrice || 400));
-      const defSellingPrice = initialProd ? Math.round(initialProd.currentCostPrice * 2.5) : 1000;
-      setSellingPrice(String(defSellingPrice));
+      setUnitCost(initialProd ? String(initialProd.currentCostPrice) : "");
+      setSellingPrice("");
+      setTaxAmount("");
+      setPriceBasis("");
+      setRecognitionDate("");
       setSettlementAmount("");
       setFulfilmentMode("");
       setQuickRateSelection("");
@@ -175,7 +204,7 @@ export function OrderModal({
     let active = true;
     fetch("/api/marketplace-fee-rules", { credentials: "same-origin", cache: "no-store" })
       .then(response => response.ok ? response.json() : null)
-      .then(result => { if (active && Array.isArray(result?.rules)) setFeeRules(result.rules); })
+      .then(result => { if (active && Array.isArray(result?.rules)) { setFeeRules(result.rules); setAccountingPolicies(result.accountingPolicies || []); } })
       .catch(() => { if (active) setFeeRules([]); });
     return () => { active = false; };
   }, [isOpen]);
@@ -232,16 +261,22 @@ export function OrderModal({
   const parsedSettlementAmount = settlementAmount.trim() && Number.isFinite(Number(settlementAmount))
     ? Number(settlementAmount)
     : undefined;
-  const formTaxAmount = mode === "edit" ? Number(initialOrder?.items[0]?.taxAmount || 0) : 0;
+  const formTaxAmount = taxAmount.trim() ? Number(taxAmount) : 0;
   const formDiscountAmount = mode === "edit" ? Number(initialOrder?.items[0]?.discount || 0) : 0;
+  const preservedLineSubtotal = initialOrder?.items[0]?.quantity === parsedQty && initialOrder?.items[0]?.sellingPrice === parsedSellingPrice ? initialOrder.items[0].lineSubtotal : undefined;
   const feeOrderItems = mode === "edit" && initialOrder ? [
     { ...(initialOrder.items[0] || { id: "preview" }), sku: sku || "SKU-CUSTOM", productName: productName || "Order Item",
-      quantity: parsedQty, sellingPrice: parsedSellingPrice, discount: formDiscountAmount, taxAmount: formTaxAmount, snapshotUnitCost: parsedUnitCost },
+      quantity: parsedQty, sellingPrice: parsedSellingPrice, lineSubtotal: preservedLineSubtotal, discount: formDiscountAmount, taxAmount: formTaxAmount, snapshotUnitCost: parsedUnitCost },
     ...initialOrder.items.slice(1),
   ] : [{
     id: "preview", sku: sku || "CUSTOM-SKU", productName: productName || "Custom Order Item", quantity: parsedQty,
-    sellingPrice: parsedSellingPrice, discount: 0, taxAmount: 0, snapshotUnitCost: parsedUnitCost,
+    sellingPrice: parsedSellingPrice, discount: 0, taxAmount: formTaxAmount, snapshotUnitCost: parsedUnitCost,
   }];
+  const accountingPolicy = accountingPolicies.filter(policy => policy.marketplace === marketplace && String(policy.effective_from).slice(0, 10) <= orderDate &&
+    (!policy.effective_to || String(policy.effective_to).slice(0, 10) >= orderDate)).sort((a, b) => String(b.effective_from).localeCompare(String(a.effective_from)))[0];
+  const pricesIncludeTax = initialOrder?.pricesIncludeTax ?? (priceBasis === "INCLUSIVE" ? true : priceBasis === "EXCLUSIVE" ? false : undefined);
+  const feeGstRateBps = initialOrder?.marketplaceFeeGstRateBps ?? accountingPolicy?.marketplace_fee_gst_rate_bps ?? 1800;
+  const registrationType = initialOrder?.gstRegistrationType ?? accountingPolicy?.gst_registration_type;
   let feeEstimate: FeeEstimateResult = { status: "NOT_CONFIGURED", totalPaise: null, components: [], reason: "No fee rule is configured." };
   let feeLines: FeeOrderLineInput[] = [];
   let estimatedGrossPaise = 0;
@@ -258,19 +293,20 @@ export function OrderModal({
       quickFeeRateBps = Number(quickRateSelection);
     }
     const categoriesBySku = new Map(products.map(product => [product.sku, product.category || ""]));
-    feeLines = buildFeeOrderLineInputs(feeOrderItems, categoriesBySku, fulfilmentMode.trim() || null);
-    estimatedGrossPaise = feeOrderItems.reduce((sum, item) => sum + decimalRupeesToPaise(String(item.sellingPrice)) * item.quantity, 0);
+    feeLines = buildFeeOrderLineInputs(feeOrderItems, categoriesBySku, fulfilmentMode.trim() || null, pricesIncludeTax);
+    estimatedGrossPaise = feeOrderItems.reduce((sum, item) => sum + (!("lineSubtotal" in item) || item.lineSubtotal === undefined ? decimalRupeesToPaise(String(item.sellingPrice)) * item.quantity : decimalRupeesToPaise(String(item.lineSubtotal))), 0);
     estimatedDiscountPaise = feeOrderItems.reduce((sum, item) => sum + decimalRupeesToPaise(String(item.discount || 0)), 0);
     estimatedTaxPaise = feeOrderItems.reduce((sum, item) => sum + decimalRupeesToPaise(String(item.taxAmount || 0)), 0);
     estimatedCogsPaise = feeOrderItems.reduce((sum, item) => sum + decimalRupeesToPaise(String(item.snapshotUnitCost)) * item.quantity, 0);
-    feeEstimate = calculateMarketplaceFeeEstimate(feeRules, feeLines, marketplace, orderDate, quickFeeRateBps);
+    feeEstimate = calculateMarketplaceFeeEstimate(feeRules, feeLines, marketplace, orderDate, quickFeeRateBps, feeGstRateBps);
   } catch { previewInputsValid = false; }
   const estimatedFeeAmount = previewInputsValid && feeEstimate.status === "CONFIGURED" ? feeEstimate.totalPaise / 100 : null;
   const estimatedUnits = feeOrderItems.reduce((sum, item) => sum + item.quantity, 0);
   const orderShippingPaise = mode === "edit" && initialOrder ? decimalRupeesToPaise(String(initialOrder.shippingFeeCharged || 0)) : 0;
-  const estimatedSettlementPaise = isReturned || !previewInputsValid || feeEstimate.status !== "CONFIGURED" ? null
-    : estimatedGrossPaise - estimatedDiscountPaise + estimatedTaxPaise + orderShippingPaise - feeEstimate.totalPaise;
-  const estimatedTrueProfitPaise = estimatedSettlementPaise === null ? null : estimatedSettlementPaise - estimatedCogsPaise;
+  const estimatedSettlementPaise = isReturned || !previewInputsValid || (estimatedTaxPaise > 0 && pricesIncludeTax === undefined) || feeEstimate.status !== "CONFIGURED" ? null
+    : estimatedGrossPaise - estimatedDiscountPaise + (pricesIncludeTax ? 0 : estimatedTaxPaise) + orderShippingPaise - feeEstimate.totalPaise;
+  const estimatedTrueProfitPaise = estimatedSettlementPaise === null ? null : estimatedSettlementPaise - estimatedTaxPaise - decimalRupeesToPaise(String(initialOrder?.shippingTaxAmount || 0)) - estimatedCogsPaise
+    + (registrationType === "REGULAR" && feeEstimate.status === "CONFIGURED" ? feeEstimate.components.reduce((sum, component) => sum + component.taxPaise, 0) : 0);
   const estimatedGross = previewInputsValid ? estimatedGrossPaise / 100 : null;
   const estimatedCogs = previewInputsValid ? estimatedCogsPaise / 100 : null;
   const estimatedSettlement = estimatedSettlementPaise === null ? null : estimatedSettlementPaise / 100;
@@ -295,8 +331,7 @@ export function OrderModal({
       setMfn1(prod.mfn1 || "");
       setSku(prod.sku);
 
-      const sPrice = Math.round(prod.currentCostPrice * 2.5);
-      setSellingPrice(String(sPrice));
+
 
       if (prod.supplierId) {
         const sup = suppliers.find((s) => s.id === prod.supplierId || s.name === prod.supplierId);
@@ -313,8 +348,7 @@ export function OrderModal({
       setUnitCost(String(prod.currentCostPrice));
       if (prod.mfn) setMfn(prod.mfn);
       if (prod.mfn1) setMfn1(prod.mfn1);
-      const sPrice = Math.round(prod.currentCostPrice * 2.5);
-      setSellingPrice(String(sPrice));
+
       if (prod.supplierId) {
         const sup = suppliers.find((s) => s.id === prod.supplierId || s.name === prod.supplierId);
         if (sup) {
@@ -327,217 +361,71 @@ export function OrderModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
     setSaving(true);
     setSaveError("");
     try {
-    if (quickRateSelection && (quickFeeRateBps === null || !Number.isSafeInteger(quickFeeRateBps) || quickFeeRateBps < 0 || quickFeeRateBps > 10000))
-      throw new Error("Enter a valid quick commission rate from 0% to 100%.");
-
-    if (mode === "edit" && initialOrder) {
-      const isNowReturned = isReturned;
-      const updatedStatus: Order["status"] = isNowReturned
-        ? returnType === "RTO"
-          ? "RTO"
-          : isDamagedClaim
-          ? "CLAIM_PENDING"
-          : "CUSTOMER_RETURN"
-        : initialOrder.status === "RETURNED" || initialOrder.status === "RTO" || initialOrder.status === "CUSTOMER_RETURN" || initialOrder.status === "DAMAGED_RETURN"
-        ? "DELIVERED"
-        : initialOrder.status;
-
-      const updatedOrder: Order = {
-        ...initialOrder,
-        channelOrderId: channelOrderId.trim() || initialOrder.channelOrderId,
-        marketplace,
-        fulfilmentMode: fulfilmentMode.trim() || undefined,
-        quickFeeRateBps,
-        orderDate,
-        status: updatedStatus,
-        customerName: initialOrder.customerName || "Customer",
-        marketplaceChargesEstimate: initialOrder.marketplaceChargesEstimate,
-        settlementAmount: parsedSettlementAmount,
-        supplierName: supplierName || undefined,
-        supplierId: suppliers.find((s) => s.name === supplierName)?.id || initialOrder.supplierId,
-        notes,
-        items: [
-          {
-            ...(initialOrder.items[0] || { id: `ITEM-${Date.now().toString().slice(-4)}` }),
-            sku: sku || "SKU-CUSTOM",
-            mfn: mfn || undefined,
-            mfn1: mfn1 || undefined,
-            productName: productName || "Order Item",
-            quantity: parsedQty,
-            sellingPrice: parsedSellingPrice,
-            discount: initialOrder.items[0]?.discount || 0,
-            taxAmount: formTaxAmount,
-            snapshotUnitCost: parsedUnitCost,
-            returnedQuantity: isNowReturned ? parsedQty : 0,
-          },
-          ...initialOrder.items.slice(1),
-        ],
-      };
-
-      await onUpdateOrder?.(updatedOrder);
-
-      // If return is enabled in edit mode, log/update the return and optional claim
-      if (isNowReturned && onAddReturn) {
-        const retId = `RET-${Date.now().toString().slice(-4)}`;
-        const parsedFee = parseFloat(returnFee) || 0;
-        const parsedClaim = parseFloat(claimAmount) || 0;
-        const parsedReimbursement = parseFloat(approvedReimbursement) || 0;
-
+      if (quickRateSelection && (quickFeeRateBps === null || !Number.isSafeInteger(quickFeeRateBps) || quickFeeRateBps < 0 || quickFeeRateBps > 10000)) throw new Error("Enter a valid quick commission rate from 0% to 100%.");
+      const hasRecordedReturn = !!initialOrder && (!!initialOrder.returnIds?.length || initialOrder.items.some(item => item.returnedQuantity > 0) || ["RETURNED", "RTO", "CUSTOMER_RETURN", "DAMAGED_RETURN", "PARTIALLY_RETURNED", "CLAIM_PENDING", "CLAIM_APPROVED"].includes(initialOrder.status));
+      const postReturn = savedDraftOrder.current ? pendingReturnRequested.current : isReturned && !hasRecordedReturn;
+      const fingerprint = JSON.stringify([orderId, channelOrderId, marketplace, orderDate, sku, mfn, mfn1, productName, parsedQty, parsedSellingPrice, parsedUnitCost, parsedSettlementAmount, supplierName, notes, isReturned, returnDate, returnType, returnFee, returnReason, isDamagedClaim, claimAmount, claimStatus, taxAmount, priceBasis, recognitionDate]);
+      if (savedDraftOrder.current && savedDraftFingerprint.current !== fingerprint) throw new Error("Part of this draft is already saved. Retry the unchanged draft, then edit its saved records.");
+      if (postReturn && (!returnDate || returnDate < orderDate)) throw new Error("Enter the actual return date, on or after the order date.");
+      const needsRecognitionDate = mode === "create" ? !(postReturn && returnType === "RTO") : initialOrder?.status === "DELIVERED" || !!initialOrder?.revenueRecognisedDate || postReturn && returnType !== "RTO";
+      if (needsRecognitionDate && (!recognitionDate || recognitionDate < orderDate || recognitionDate > businessDate() || postReturn && recognitionDate > returnDate)) throw new Error("Enter the actual delivery / revenue recognition date, between the order date and today (and no later than its return).");
+      if (!taxAmount.trim() || !Number.isFinite(formTaxAmount) || formTaxAmount < 0) throw new Error("Enter the tax amount from the original order, including explicit zero where applicable.");
+      if (pricesIncludeTax === undefined) throw new Error("Confirm whether the original selling price includes tax.");
+      if (!unitCost.trim() || !Number.isFinite(Number(unitCost)) || Number(unitCost) < 0) throw new Error("Enter the recorded unit cost.");
+      if (!sellingPrice.trim() || !Number.isFinite(Number(sellingPrice)) || Number(sellingPrice) < 0) throw new Error("Enter the recorded selling price.");
+      if (postReturn && !onAddReturn) throw new Error("Return recording is unavailable. The order has not been saved.");
+      if (postReturn && Number(approvedReimbursement) > 0) throw new Error("Record the dated reimbursement in Claims after saving this return.");
+      if (!sku || !Number.isSafeInteger(parsedQty) || parsedQty <= 0) throw new Error("A catalog SKU and whole quantity are required.");
+      let savedOrder: Order;
+      if (savedDraftOrder.current) { savedOrder = savedDraftOrder.current; }
+      else if (mode === "edit" && initialOrder) {
+        if (!onUpdateOrder) throw new Error("Order editing is unavailable.");
+        savedOrder = await onUpdateOrder({
+          ...initialOrder, channelOrderId: channelOrderId.trim() || initialOrder.channelOrderId,
+          marketplace, fulfilmentMode: fulfilmentMode.trim() || undefined, quickFeeRateBps, orderDate,
+          status: initialOrder.status, settlementAmount: parsedSettlementAmount,
+          currency: "INR", taxEvidenceStatus: initialOrder.items.length > 1 ? initialOrder.taxEvidenceStatus : "RECORDED", pricesIncludeTax, revenueRecognisedDate: recognitionDate || initialOrder.revenueRecognisedDate,
+          supplierName: supplierName || undefined, supplierId: suppliers.find(supplier => supplier.name === supplierName)?.id || initialOrder.supplierId, notes,
+          items: [{ ...(initialOrder.items[0] || { id: draftIds.current.line }), sku, mfn: mfn || undefined, mfn1: mfn1 || undefined, productName: productName || "Order Item",
+            quantity: parsedQty, sellingPrice: parsedSellingPrice, lineSubtotal: preservedLineSubtotal, discount: formDiscountAmount, taxAmount: formTaxAmount, snapshotUnitCost: parsedUnitCost,
+            returnedQuantity: initialOrder.items[0]?.returnedQuantity || 0 }, ...initialOrder.items.slice(1)],
+        });
+      } else {
+        if (!onAddOrder) throw new Error("Order creation is unavailable.");
+        if (!orderId.trim()) throw new Error("The original order reference is required.");
+        savedOrder = await onAddOrder({
+          id: draftIds.current.order, channelOrderId: orderId.trim(), marketplace, fulfilmentMode: fulfilmentMode.trim() || undefined, quickFeeRateBps, orderDate,
+          currency: "INR", taxEvidenceStatus: "RECORDED", pricesIncludeTax, revenueRecognisedDate: needsRecognitionDate ? recognitionDate : undefined,
+          status: postReturn && returnType === "RTO" ? "SHIPPED" : "DELIVERED", customerName: "Direct Buyer", customerCity: "", customerState: "",
+          shippingFeeCharged: 0, marketplaceChargesEstimate: 0, feeEstimateStatus: "NOT_CONFIGURED", feeEstimateTotalPaise: null, settlementAmount: parsedSettlementAmount,
+          supplierName: supplierName || undefined, supplierId: suppliers.find(supplier => supplier.name === supplierName)?.id, notes,
+          items: [{ id: draftIds.current.line, sku, mfn: mfn || undefined, mfn1: mfn1 || undefined, productName: productName || "Custom Order Item", quantity: parsedQty, sellingPrice: parsedSellingPrice,
+            discount: 0, taxAmount: formTaxAmount, snapshotUnitCost: parsedUnitCost, returnedQuantity: 0 }],
+        });
+      }
+      savedDraftOrder.current = savedOrder; savedDraftFingerprint.current = fingerprint; pendingReturnRequested.current = postReturn;
+      // Persist dated return evidence before its dependent claim; retries retain the same identities.
+      if (postReturn && onAddReturn) {
+        const damaged = isDamagedClaim || returnType === "DAMAGED_RETURN" || returnType === "LOST_RETURN";
+        const record: ReturnRecord = { id: draftIds.current.returned, orderId: savedOrder.id, channelOrderId: savedOrder.channelOrderId,
+          marketplace, returnDate, returnType, returnReason: returnReason || "Return recorded by operator", sku, quantity: parsedQty, condition: damaged ? "DAMAGED" : "SELLABLE",
+          restockStatus: damaged ? "WRITTEN_OFF" : "PENDING_RESTOCK", ...getManualReturnCosts(parsedUnitCost, parsedQty, damaged, Number(returnFee) || 0) };
+        if (!savedDraftReturn.current) { await onAddReturn(record); savedDraftReturn.current = record; }
         if (isDamagedClaim && onAddClaim) {
-          const claimId = `CLM-${Date.now().toString().slice(-4)}`;
-          let mappedClaimStatus: Claim["status"] = "FILED";
-          if (claimStatus === "Draft") mappedClaimStatus = "NOT_FILED";
-          else if (claimStatus === "Approved") mappedClaimStatus = "APPROVED";
-          else if (claimStatus === "Rejected") mappedClaimStatus = "REJECTED";
-
-          const newClaim: Claim = {
-            id: claimId,
-            orderId: updatedOrder.id,
-            returnId: retId,
-            marketplace,
-            claimType: returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
-            claimDate: orderDate,
-            amountClaimed: parsedClaim > 0 ? parsedClaim : parsedUnitCost * parsedQty,
-            amountRecovered: parsedReimbursement,
-            status: mappedClaimStatus,
-            notes: `Claim from Order Edit (${returnType})`,
-          };
-          onAddClaim(newClaim);
+          const status: Claim["status"] = claimStatus === "Draft" ? "NOT_FILED" : claimStatus === "Approved" ? "APPROVED" : claimStatus === "Rejected" ? "REJECTED" : "FILED";
+          await onAddClaim({ id: draftIds.current.claim, orderId: savedOrder.id, returnId: record.id, marketplace,
+            claimType: returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE", claimDate: returnDate,
+            amountClaimed: Number(claimAmount) > 0 ? Number(claimAmount) : parsedUnitCost * parsedQty, amountRecovered: 0, status, notes: "Claim linked to recorded return" });
         }
-
-        const newReturnRecord = {
-          id: retId,
-          orderId: updatedOrder.id,
-          channelOrderId: updatedOrder.channelOrderId,
-          marketplace,
-          returnDate: orderDate,
-          returnType,
-          returnReason: returnReason || "Return recorded via Order Edit",
-          sku: sku || "CUSTOM-SKU",
-          quantity: parsedQty,
-          condition: isDamagedClaim ? ("DAMAGED" as const) : ("SELLABLE" as const),
-          returnShippingCost: returnType === "RTO" ? 0 : Math.round(parsedFee * 0.6),
-          customerReturnFee: returnType === "RTO" ? 0 : parsedFee,
-          otherReturnCosts: 0,
-          inventoryRecoveryValue: parsedReimbursement,
-          lossAmount: returnType === "RTO" ? 0 : isDamagedClaim ? Math.max(0, parsedUnitCost * parsedQty - parsedReimbursement + parsedFee) : parsedFee,
-        };
-
-        onAddReturn(newReturnRecord);
       }
-
       onClose();
-      return;
-    }
-
-    // Create Mode
-    const finalOrderId = orderId.trim() || `ORD-${Date.now().toString().slice(-6)}`;
-    const finalChannelRef =
-      channelOrderId.trim() || `REF-${finalOrderId.replace("ORD-", "")}`;
-
-    const newOrder: Order = {
-      id: finalOrderId,
-      channelOrderId: finalChannelRef,
-      marketplace,
-      fulfilmentMode: fulfilmentMode.trim() || undefined,
-      quickFeeRateBps,
-      orderDate,
-      status: isReturned
-        ? (returnType === "RTO" ? "RTO" : isDamagedClaim ? "CLAIM_PENDING" : "CUSTOMER_RETURN")
-        : "DELIVERED",
-      customerName: "Direct Buyer",
-      customerCity: "Mumbai",
-      customerState: "Maharashtra",
-      shippingFeeCharged: 0,
-      marketplaceChargesEstimate: 0,
-      feeEstimateStatus: "NOT_CONFIGURED",
-      feeEstimateTotalPaise: null,
-      settlementAmount: parsedSettlementAmount,
-      supplierName: supplierName || undefined,
-      supplierId: suppliers.find((s) => s.name === supplierName)?.id,
-      notes,
-      items: [
-        {
-          id: `ITEM-${Date.now().toString().slice(-4)}`,
-          sku: sku || "CUSTOM-SKU",
-          mfn: mfn || undefined,
-          mfn1: mfn1 || undefined,
-          productName: productName || "Custom Order Item",
-          quantity: parsedQty,
-          sellingPrice: parsedSellingPrice,
-          discount: 0,
-          taxAmount: 0,
-          snapshotUnitCost: parsedUnitCost,
-          returnedQuantity: isReturned ? parsedQty : 0,
-        },
-      ],
-    };
-
-    await onAddOrder?.(newOrder);
-
-    // Optional return record & dispute claim
-    if (isReturned && onAddReturn) {
-      const retId = `RET-${Date.now().toString().slice(-4)}`;
-      const parsedFee = parseFloat(returnFee) || 0;
-      const parsedClaim = parseFloat(claimAmount) || 0;
-      const parsedReimbursement = parseFloat(approvedReimbursement) || 0;
-
-      let claimIdToLink: string | undefined = undefined;
-
-      if (isDamagedClaim && onAddClaim) {
-        claimIdToLink = `CLM-${Date.now().toString().slice(-4)}`;
-        let mappedClaimStatus: Claim["status"] = "FILED";
-        if (claimStatus === "Draft") mappedClaimStatus = "NOT_FILED";
-        else if (claimStatus === "Approved") mappedClaimStatus = "APPROVED";
-        else if (claimStatus === "Rejected") mappedClaimStatus = "REJECTED";
-
-        const newClaim: Claim = {
-          id: claimIdToLink,
-          orderId: newOrder.id,
-          returnId: retId,
-          marketplace,
-          claimType: returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
-          claimDate: orderDate,
-          amountClaimed: parsedClaim > 0 ? parsedClaim : parsedUnitCost * parsedQty,
-          amountRecovered: parsedReimbursement,
-          status: mappedClaimStatus,
-          notes: `Auto-generated claim from Order Creation (${returnType})`,
-        };
-        onAddClaim(newClaim);
-      }
-
-      const newReturnRecord = {
-        id: retId,
-        orderId: newOrder.id,
-        channelOrderId: newOrder.channelOrderId,
-        marketplace,
-        returnDate: orderDate,
-        returnType,
-        returnReason: returnReason || "Customer return recorded at ingestion",
-        sku: sku || "CUSTOM-SKU",
-        quantity: parsedQty,
-        condition: isDamagedClaim ? "DAMAGED" : "SELLABLE",
-        returnShippingCost: parsedFee,
-        customerReturnFee: (returnType === 'RTO') ? 0 : parsedFee,
-        otherReturnCosts: 0,
-        inventoryRecoveryValue: parsedReimbursement,
-        lossAmount: isDamagedClaim
-          ? parsedUnitCost * parsedQty + parsedFee - parsedReimbursement
-          : parsedFee,
-      };
-
-      onAddReturn(newReturnRecord);
-    }
-
-    onClose();
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Order could not be saved. Please retry.");
-    } finally {
-      setSaving(false);
-    }
+    } catch (error) { setSaveError(error instanceof Error ? error.message : "Order could not be saved. Please retry."); }
+    finally { saveInFlight.current = false; setSaving(false); }
   };
 
   if (!isOpen || !mounted) return null;
@@ -839,6 +727,25 @@ export function OrderModal({
               </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Recorded item tax (₹)</label>
+                <NumericInput min="0" step="0.01" value={taxAmount} onChange={event => setTaxAmount(event.target.value)} readOnly={(initialOrder?.items.length || 0) > 1} required className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Original selling price tax basis</label>
+                <select value={initialOrder?.pricesIncludeTax === undefined ? priceBasis : initialOrder.pricesIncludeTax ? "INCLUSIVE" : "EXCLUSIVE"} onChange={event => setPriceBasis(event.target.value)} disabled={initialOrder?.pricesIncludeTax !== undefined} required className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black">
+                  <option value="">Confirm from the original order</option>
+                  <option value="INCLUSIVE">Tax included in selling price</option>
+                  <option value="EXCLUSIVE">Tax added to selling price</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Actual delivery / revenue recognition date</label>
+              <input type="date" value={recognitionDate} min={orderDate} max={businessDate()} onChange={event => setRecognitionDate(event.target.value)} required={!(isReturned && returnType === "RTO") && (mode === "create" || initialOrder?.status === "DELIVERED" || !!initialOrder?.revenueRecognisedDate)} className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black" />
+            </div>
+
             {/* Live Financial Breakdown Bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-black/[0.06] text-xs">
               <div className="bg-[#F5F5F7] p-2.5 rounded-xl border border-black/[0.04]">
@@ -888,6 +795,10 @@ export function OrderModal({
 
             {isReturned && (
               <div className="space-y-3.5 pt-1 animate-in fade-in duration-150">
+                <div>
+                  <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">Actual return date</label>
+                  <input type="date" value={returnDate} min={orderDate} onChange={event => setReturnDate(event.target.value)} className="w-full px-3 py-2 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:ring-1 focus:ring-black" />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[11px] font-semibold text-[#1D1D1F] block mb-1">

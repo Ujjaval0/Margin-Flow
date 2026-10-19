@@ -2,6 +2,8 @@ import { orderSchema } from "@/domain/snapshot-validation";
 import type { Order } from "@/domain/types";
 import { upsertOrders } from "@/lib/integrations/order-persistence";
 import { PermanentJobError, registerJobProcessor } from "./queue-manager";
+import { readCanonicalLedger } from '@/lib/canonical-ledger';
+import { calculatePeriodProfitability } from '@/domain/financial-period';
 
 function reportDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -40,18 +42,10 @@ registerJobProcessor("GENERATE_FINANCIAL_REPORT", async ({ job, client, updatePr
   const end = Date.parse(`${payload.endDate}T00:00:00Z`);
   if (end - start > 366 * 24 * 60 * 60 * 1000) throw new PermanentJobError("Report range cannot exceed 367 calendar days.");
   await updateProgress(10);
-  const rows = await client.query(
-    `SELECT v.marketplace, COUNT(DISTINCT v.order_id)::int AS order_count,
-       COALESCE(SUM(v.gross_sales), 0)::numeric AS gross_sales,
-       COALESCE(SUM(v.total_cogs), 0)::numeric AS total_cogs,
-       COALESCE(SUM(v.contribution_profit), 0)::numeric AS contribution_profit,
-       COALESCE(SUM(v.settled_amount), 0)::numeric AS settled_amount
-     FROM v_order_profitability v
-     JOIN orders o ON o.id = v.order_id
-     WHERE o.user_id = $1 AND o.order_date >= $2::date AND o.order_date <= $3::date
-     GROUP BY v.marketplace ORDER BY v.marketplace`,
-    [job.ownerId, payload.startDate, payload.endDate],
-  );
+  const data=await readCanonicalLedger(client,job.ownerId!);
+  const byMarketplace=Array.from(new Set([...data.orders.map(o=>o.marketplace),...data.settlements.map(s=>s.marketplace)])).sort().map(marketplace=>({marketplace,
+    ...calculatePeriodProfitability({orders:data.orders.filter(o=>o.marketplace===marketplace),returns:data.returns.filter(r=>r.marketplace===marketplace),settlements:data.settlements.filter(s=>s.marketplace===marketplace),claims:data.claims.filter(c=>c.marketplace===marketplace),expenses:data.expenses.filter(e=>e.marketplace===marketplace)},
+      {startDate:payload.startDate as string,endDate:payload.endDate as string})}));
   await updateProgress(90);
-  return { startDate: payload.startDate, endDate: payload.endDate, byMarketplace: rows.rows };
+  return { startDate: payload.startDate, endDate: payload.endDate, byMarketplace };
 });

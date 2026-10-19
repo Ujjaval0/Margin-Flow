@@ -5,7 +5,7 @@ import { usePlatform } from "@/domain/store";
 import { formatINR, formatPercent } from "@/lib/utils";
 import { scopeReport } from "@/domain/report-scope";
 import { downloadCsv } from "@/lib/csv";
-import { calculateBusinessProfitability, calculateMarketplaceProfitability, calculateSkuProfitability, calculateOrderProfitability } from "@/domain/profitability-engine";
+import { calculatePeriodProfitability, periodMarketplace, periodSku, monthlyFinancialTrend } from "@/domain/financial-period";
 import {
   Package,
   AlertTriangle,
@@ -40,7 +40,7 @@ import {
 } from "recharts";
 
 export function ReportsView() {
-  const { reportDataset, products, selectedMarketplace } = usePlatform();
+  const { reportDataset, selectedMarketplace } = usePlatform();
 
   // All projections and exports share the same channel and global date scope.
   const [activeTab, setActiveTab] = useState<"analytics" | "pnl">("analytics");
@@ -48,186 +48,64 @@ export function ReportsView() {
   useEffect(() => {
     setSelectedChannel(selectedMarketplace === "ALL" ? "All Channels" : selectedMarketplace === "Amazon India" ? "Amazon" : selectedMarketplace === "Personal Website" ? "Website" : selectedMarketplace);
   }, [selectedMarketplace]);
-  const { orders, returns, settlements, claims, expenses } = useMemo(() => scopeReport(reportDataset, selectedChannel), [reportDataset, selectedChannel]);
-  const channelFilteredOrders = orders;
-  const channelFilteredReturns = returns;
-  const profitability = useMemo(() => calculateBusinessProfitability(orders, returns, settlements, claims, expenses), [orders, returns, settlements, claims, expenses]);
-  const marketplaceBreakdown = useMemo(() => calculateMarketplaceProfitability(orders, returns, settlements, claims, expenses), [orders, returns, settlements, claims, expenses]);
-  const skuBreakdown = useMemo(() => calculateSkuProfitability(orders, returns, settlements, claims, expenses), [orders, returns, settlements, claims, expenses]);
+  const financialData = useMemo(() => {
+    const context = reportDataset.financialContext || reportDataset;
+    return { ...scopeReport(context, selectedChannel), financialIssues: 'financialIssues' in context && Array.isArray(context.financialIssues) ? context.financialIssues as string[] : [] };
+  }, [reportDataset, selectedChannel]);
+  const { orders } = financialData;
+  const reportRange = reportDataset.reportRange;
+  const profitability = useMemo(() => calculatePeriodProfitability(financialData, reportRange), [financialData, reportRange]);
+  const marketplaceBreakdown = useMemo(() => periodMarketplace(financialData, reportRange), [financialData, reportRange]);
+  const skuBreakdown = useMemo(() => periodSku(financialData, reportRange), [financialData, reportRange]);
 
-  // ─── 1. Top Executive KPI Metrics ───
-  const uniqueProductsCount = useMemo(() => {
-    const activeOrderSkus = new Set(channelFilteredOrders.flatMap((o) => o.items.map((i) => i.sku)));
-    return activeOrderSkus.size;
-  }, [channelFilteredOrders, products, selectedChannel]);
+  const shareOfNetSales = (amount: number) => profitability.netSales > 0 ? formatPercent(amount / profitability.netSales) : "—";
 
-  const overallReturnMetrics = useMemo(() => {
-    const totalOrdersCount = channelFilteredOrders.length;
-    const customerReturns = channelFilteredReturns.filter((r) => r.returnType === "CUSTOMER_RETURN").length;
-    const rtos = channelFilteredReturns.filter((r) => r.returnType === "RTO").length;
+  // Counts are dated events; rates compare returned units with their shipment cohort.
+  const uniqueProductsCount = useMemo(() => skuBreakdown.filter(row => row.unitsSold || row.revenue || row.profit || row.returnedUnits).length, [skuBreakdown]);
+  const overallReturnMetrics = useMemo(() => ({
+    customerReturns: profitability.customerReturnCount,
+    rtos: profitability.rtoCount,
+    returnRate: (profitability.customerReturnRate || 0) * 100,
+    rtoRate: (profitability.rtoRate || 0) * 100,
+    denominator: profitability.returnRateDenominator || 0,
+  }), [profitability]);
 
-    const returnRate = totalOrdersCount > 0 ? (customerReturns / totalOrdersCount) * 100 : 0;
-    const rtoRate = totalOrdersCount > 0 ? (rtos / totalOrdersCount) * 100 : 0;
+  const topProducts = useMemo(() => [...skuBreakdown].sort((a, b) => b.profit - a.profit).map((item, index) => ({
+    rank: index + 1, sku: item.sku, productName: item.productName,
+    platforms: Array.from(new Set(orders.filter(order => order.items.some(line => line.sku === item.sku)).map(order => order.marketplace))),
+    orders: orders.filter(order => order.status !== 'CANCELLED' && (!reportRange || order.orderDate.slice(0, 10) >= reportRange.startDate && order.orderDate.slice(0, 10) <= reportRange.endDate) && order.items.some(line => line.sku === item.sku)).length,
+    unitsSold: item.unitsSold, revenue: item.revenue, profit: item.profit,
+    margin: item.margin, returnsCount: item.returnedUnits || 0, returnRate: item.returnRate * 100,
+  })), [skuBreakdown, orders, reportRange]);
 
-    return {
-      customerReturns,
-      rtos,
-      returnRate,
-      rtoRate,
-    };
-  }, [channelFilteredOrders, channelFilteredReturns]);
+  const platformProfitData = useMemo(() => marketplaceBreakdown.map(row => ({
+    platform: row.marketplace.replace(" India", ""), fullName: row.marketplace, profit: row.contributionProfit,
+    revenue: row.revenue, cogs: row.cogs, fees: row.fees, margin: Number((row.margin * 100).toFixed(1)), ordersCount: row.orderCount,
+  })), [marketplaceBreakdown]);
 
-  // ─── 2. Top Products (Ranked by Profit) ───
-  const topProducts = useMemo(() => {
-    let list = [...skuBreakdown];
-    if (selectedChannel !== "All Channels") {
-      list = list.filter((item) => {
-        const itemOrders = channelFilteredOrders.filter((o) => o.items.some((i) => i.sku === item.sku));
-        return itemOrders.length > 0;
-      });
-    }
+  const platformReturnRates = useMemo(() => marketplaceBreakdown.map(row => ({
+    platform: row.marketplace.replace(" India", ""), fullName: row.marketplace,
+    returnRate: row.returnRateDenominator ? Number(((row.customerReturnRate || 0) * 100).toFixed(1)) : null,
+    rtoRate: row.returnRateDenominator ? Number(((row.rtoRate || 0) * 100).toFixed(1)) : null,
+    totalOrders: row.orderCount,
+  })), [marketplaceBreakdown]);
 
-    return list
-      .sort((a, b) => b.profit - a.profit)
-      .map((item, idx) => {
-        const itemOrders = orders.filter((o) => o.items.some((i) => i.sku === item.sku));
-        const platforms = Array.from(new Set(itemOrders.map((o) => o.marketplace)));
-        const itemReturns = returns.filter((r) => r.sku === item.sku);
+  const monthlyData = useMemo(() => monthlyFinancialTrend(financialData, reportRange), [financialData, reportRange]);
 
-        return {
-          rank: idx + 1,
-          sku: item.sku,
-          productName: item.productName,
-          platforms,
-          orders: itemOrders.length || item.unitsSold,
-          unitsSold: item.unitsSold,
-          revenue: item.revenue,
-          profit: item.profit,
-          margin: item.margin,
-          returnsCount: itemReturns.length,
-          returnRate: item.unitsSold > 0 ? (itemReturns.length / item.unitsSold) * 100 : 0,
-        };
-      });
-  }, [skuBreakdown, orders, returns, selectedChannel, channelFilteredOrders]);
-
-  // ─── 3. Platform Profit Comparison Data ───
-  const platformProfitData = useMemo(() => {
-    return marketplaceBreakdown.map((m) => {
-      const mOrders = orders.filter((o) => o.marketplace === m.marketplace);
-      return {
-        platform: m.marketplace.replace(" India", ""),
-        fullName: m.marketplace,
-        profit: m.contributionProfit,
-        revenue: m.revenue,
-        cogs: m.cogs,
-        fees: m.fees,
-        margin: Number((m.margin * 100).toFixed(1)),
-        ordersCount: mOrders.length,
-      };
-    });
-  }, [marketplaceBreakdown, orders]);
-
-  // ─── 4. Return & RTO Rate by Platform Data ───
-  const platformReturnRates = useMemo(() => {
-    return marketplaceBreakdown.map((m) => {
-      const mOrders = orders.filter((o) => o.marketplace === m.marketplace);
-      const mReturns = returns.filter((r) => r.marketplace === m.marketplace);
-      const customerReturns = mReturns.filter((r) => r.returnType === "CUSTOMER_RETURN").length;
-      const rtos = mReturns.filter((r) => r.returnType === "RTO").length;
-
-      const returnRate = mOrders.length > 0 ? (customerReturns / mOrders.length) * 100 : 0;
-      const rtoRate = mOrders.length > 0 ? (rtos / mOrders.length) * 100 : 0;
-
-      return {
-        platform: m.marketplace.replace(" India", ""),
-        fullName: m.marketplace,
-        returnRate: Number(returnRate.toFixed(1)),
-        rtoRate: Number(rtoRate.toFixed(1)),
-        totalOrders: mOrders.length,
-        customerReturns,
-        rtos,
-      };
-    });
-  }, [marketplaceBreakdown, orders, returns]);
-
-  // ─── 5. Monthly Profit & Revenue Trend Data ───
-  const monthlyData = useMemo(() => {
-    const monthsMap: Record<
-      string,
-      { month: string; sortKey: string; revenue: number; profit: number; cogs: number; ordersCount: number }
-    > = {};
-
-    orders.forEach((o) => {
-      const d = new Date(o.orderDate);
-      if (isNaN(d.getTime())) return;
-      const monthKey = d.toLocaleString("en-US", { month: "short", year: "numeric" }); // e.g. "Sep 2026"
-      const sortKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-
-      if (!monthsMap[sortKey]) {
-        monthsMap[sortKey] = {
-          month: monthKey,
-          sortKey,
-          revenue: 0,
-          profit: 0,
-          cogs: 0,
-          ordersCount: 0,
-        };
-      }
-
-      const pnl = calculateOrderProfitability(o, returns, settlements, claims);
-      monthsMap[sortKey].revenue += pnl.grossSales;
-      monthsMap[sortKey].profit += pnl.contributionProfit;
-      monthsMap[sortKey].cogs += pnl.cogs;
-      monthsMap[sortKey].ordersCount += 1;
-    });
-
-    const list = Object.values(monthsMap).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-    return list;
-  }, [orders, returns, settlements, claims]);
-
-  // ─── 6. Platform Summary Ledger ───
   const platformSummary = useMemo(() => {
-    const summary = marketplaceBreakdown.map((m) => {
-      const mOrders = orders.filter((o) => o.marketplace === m.marketplace);
-      const mReturns = returns.filter((r) => r.marketplace === m.marketplace);
-      const mSettlements = settlements.filter((s) => s.marketplace === m.marketplace);
-
-      const grossSales = m.revenue;
-      const actualSettled = mSettlements.reduce((sum, s) => sum + s.netSettlement, 0);
-      const cogs = m.cogs;
-      const returnsCount = mReturns.length;
-      const returnRate = mOrders.length > 0 ? (returnsCount / mOrders.length) * 100 : 0;
-
-      return {
-        platform: m.marketplace,
-        ordersCount: mOrders.length,
-        grossSales,
-        settlement: actualSettled,
-        cogs,
-        profit: m.contributionProfit,
-        margin: m.margin * 100,
-        returnsCount,
-        returnRate,
-      };
-    });
-
-    const totals = summary.reduce(
-      (acc, curr) => ({
-        ordersCount: acc.ordersCount + curr.ordersCount,
-        grossSales: acc.grossSales + curr.grossSales,
-        settlement: acc.settlement + curr.settlement,
-        cogs: acc.cogs + curr.cogs,
-        profit: acc.profit + curr.profit,
-        returnsCount: acc.returnsCount + curr.returnsCount,
-      }),
-      { ordersCount: 0, grossSales: 0, settlement: 0, cogs: 0, profit: 0, returnsCount: 0 }
-    );
-
-    const totalMargin = totals.grossSales > 0 ? (totals.profit / totals.grossSales) * 100 : 0;
-    const totalReturnRate = totals.ordersCount > 0 ? (totals.returnsCount / totals.ordersCount) * 100 : 0;
-
-    return { summary, totals: { ...totals, margin: totalMargin, returnRate: totalReturnRate } };
-  }, [marketplaceBreakdown, orders, returns, settlements]);
+    const summary = marketplaceBreakdown.map(row => ({
+      platform: row.marketplace, ordersCount: row.orderCount, grossSales: row.revenue,
+      settlement: row.actualSettlementsReceived || 0, cogs: row.cogs, profit: row.contributionProfit,
+      margin: row.margin, returnsCount: row.returnedUnits || 0, returnRate: row.returnRate * 100, rateDenominator: row.returnRateDenominator || 0,
+    }));
+    const totals = {
+      ordersCount: profitability.totalOrders, grossSales: profitability.netSales,
+      settlement: profitability.actualSettlementsReceived, cogs: profitability.cogs,
+      profit: profitability.contributionProfit, returnsCount: profitability.customerReturnCount + profitability.rtoCount,
+      margin: profitability.contributionMargin * 100, returnRate: profitability.returnRate * 100,
+    };
+    return { summary, totals };
+  }, [marketplaceBreakdown, profitability]);
 
   // Brand color mapping
   const getPlatformBadge = (platformName: string) => {
@@ -267,7 +145,7 @@ export function ReportsView() {
   // CSV Export Handler
   const handleExportCSV = () => {
     if (activeTab === "analytics") {
-      const headers = ["Rank", "SKU", "Product", "Orders", "Revenue", "Profit", "Margin", "Returns"];
+      const headers = ["Rank", "SKU", "Product", "Active Orders Placed", "Net Revenue", "Contribution Profit", "Contribution Margin", "Returned Units"];
       const rows = topProducts.map((p) => [
         p.rank,
         p.sku,
@@ -282,16 +160,20 @@ export function ReportsView() {
     } else {
       const headers = ["Metric", "Accounting Treatment", "Amount", "% Net Sales"];
       const rows = [
-        ["Gross Sales", "Order Selling Price x Units", profitability.grossSales.toFixed(2), "100.0%"],
-        ["Discounts", "Coupons & Promotional Deductions", (-profitability.discounts).toFixed(2), formatPercent(profitability.discounts / Math.max(1, profitability.grossSales))],
-        ["Net Sales", "Gross Sales - Discounts", profitability.netSales.toFixed(2), "100.0%"],
-        ["COGS", "Historical Snapshot Purchasing Cost", (-profitability.cogs).toFixed(2), formatPercent(profitability.cogs / Math.max(1, profitability.netSales))],
+        ["Gross Sales", "Recorded line totals before discounts", profitability.grossSales.toFixed(2), formatPercent(profitability.netSales > 0 ? profitability.grossSales / profitability.netSales : 0)],
+        ["Discounts", "Coupons & Promotional Deductions", (-profitability.discounts).toFixed(2), shareOfNetSales(profitability.discounts)],
+        ["Sales Refunds", "Bounded returned units at original discounted price", (-profitability.refundedSales).toFixed(2), formatPercent(profitability.netSales > 0 ? profitability.refundedSales / profitability.netSales : 0)],
+        ["Included Output GST", "Retained GST included in gross selling prices", (-(profitability.outputTaxExcluded || 0)).toFixed(2), formatPercent(profitability.netSales > 0 ? (profitability.outputTaxExcluded || 0) / profitability.netSales : 0)],
+        ["Shipping & Customer Charges", "Recognized charges excluding GST and dated refunds", (profitability.shippingRevenue || 0).toFixed(2), formatPercent(profitability.netSales > 0 ? (profitability.shippingRevenue || 0) / profitability.netSales : 0)],
+        ["Net Sales", "Gross - discounts - refunds - included GST + shipping and charges", profitability.netSales.toFixed(2), profitability.netSales > 0 ? "100.0%" : "—"],
+        ["COGS", "Historical Snapshot Purchasing Cost", (-profitability.cogs).toFixed(2), shareOfNetSales(profitability.cogs)],
         ["Gross Profit", "Net Sales - COGS", profitability.grossProfit.toFixed(2), formatPercent(profitability.grossMargin)],
-        ["Marketplace Fees", "Commissions and Fixed Closing Fees", (-profitability.marketplaceCharges).toFixed(2), formatPercent(profitability.marketplaceCharges / Math.max(1, profitability.netSales))],
-        ["Return & RTO Losses", "Freight + Damage Write-offs", (-profitability.returnLosses - profitability.rtoLosses).toFixed(2), formatPercent((profitability.returnLosses + profitability.rtoLosses) / Math.max(1, profitability.netSales))],
-        ["Dispute Claims", "SAFE-T and Carrier Recoveries", profitability.claimRecoveries.toFixed(2), formatPercent(profitability.claimRecoveries / Math.max(1, profitability.netSales))],
-        ["Contribution Profit", "Gross Profit - Fees - Returns + Claims", profitability.contributionProfit.toFixed(2), formatPercent(profitability.contributionMargin)],
-        ["Operating Overhead", "Advertising, Software, Fixed Overhead", (-profitability.operatingExpenses).toFixed(2), formatPercent(profitability.operatingExpenses / Math.max(1, profitability.netSales))],
+        ["Marketplace Fees", "Platform and logistics expenses", (-(profitability.marketplaceCharges+profitability.shippingLogisticsCosts)).toFixed(2), shareOfNetSales((profitability.marketplaceCharges+profitability.shippingLogisticsCosts))],
+        ["Direct Return Costs", "Return fees and logistics; inventory cost already in COGS", (-(profitability.directReturnCosts||0)).toFixed(2), shareOfNetSales(((profitability.directReturnCosts||0)))],
+        ["Dispute Claims", "Dated marketplace reimbursement evidence", profitability.claimRecoveries.toFixed(2), shareOfNetSales(profitability.claimRecoveries)],
+        ["Recovered Inventory Cost", "Salvage carrying value capped at original cost", (profitability.salvageRecovery || 0).toFixed(2), shareOfNetSales((profitability.salvageRecovery || 0))],
+        ["Contribution Profit", "Gross Profit - Fees - Direct Returns + Claims + Recovered Inventory", profitability.contributionProfit.toFixed(2), formatPercent(profitability.contributionMargin)],
+        ["Operating Overhead", "Advertising, Software, Fixed Overhead", (-profitability.operatingExpenses).toFixed(2), shareOfNetSales(profitability.operatingExpenses)],
         ["Net Operating Profit", "Contribution Profit - Operating Overhead", profitability.netOperatingProfit.toFixed(2), formatPercent(profitability.netOperatingMargin)],
       ];
       downloadCsv([headers, ...rows], "pnl-statement-" + new Date().toISOString().slice(0, 10) + ".csv");
@@ -376,13 +258,13 @@ export function ReportsView() {
             <div className="apple-card p-5 rounded-2xl border border-black/[0.06] shadow-apple-md flex items-center justify-between">
               <div className="space-y-1">
                 <span className="text-xs text-[#86868B] font-medium block">
-                  Overall Return Rate
+                  Customer Return Rate
                 </span>
                 <div className="text-2xl font-semibold text-amber-600 tracking-tight tabular-nums">
-                  {overallReturnMetrics.returnRate.toFixed(1)}%
+                  {overallReturnMetrics.denominator ? overallReturnMetrics.returnRate.toFixed(1) + "%" : "—"}
                 </div>
                 <span className="text-[11px] text-[#86868B] block">
-                  {overallReturnMetrics.customerReturns} customer returns logged
+                  {overallReturnMetrics.customerReturns} units returned; rate uses shipment cohort
                 </span>
               </div>
               <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 flex items-center justify-center shrink-0">
@@ -397,10 +279,10 @@ export function ReportsView() {
                   Overall RTO Delivery Failure
                 </span>
                 <div className="text-2xl font-semibold text-rose-600 tracking-tight tabular-nums">
-                  {overallReturnMetrics.rtoRate.toFixed(1)}%
+                  {overallReturnMetrics.denominator ? overallReturnMetrics.rtoRate.toFixed(1) + "%" : "—"}
                 </div>
                 <span className="text-[11px] text-[#86868B] block">
-                  {overallReturnMetrics.rtos} courier rejections in transit
+                  {overallReturnMetrics.rtos} RTO units; rate uses shipment cohort
                 </span>
               </div>
               <div className="w-11 h-11 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 flex items-center justify-center shrink-0">
@@ -417,11 +299,11 @@ export function ReportsView() {
                   <BarChart3 className="w-4 h-4" />
                 </div>
                 <h3 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
-                  Top Products (Ranked by Profit)
+                  Top Products (Contribution Profit)
                 </h3>
               </div>
               <p className="text-xs text-[#86868B] mt-1">
-                SKU-level profit analysis across all platforms
+                SKU contribution before shared operating overhead
               </p>
             </div>
 
@@ -438,11 +320,11 @@ export function ReportsView() {
                       <th className="py-3 px-4">SKU</th>
                       <th className="py-3 px-4">PRODUCT</th>
                       <th className="py-3 px-4">PLATFORM</th>
-                      <th className="py-3 px-4 text-right">ORDERS</th>
+                      <th className="py-3 px-4 text-right">ORDERS PLACED</th>
                       <th className="py-3 px-4 text-right">REVENUE</th>
-                      <th className="py-3 px-4 text-right">PROFIT</th>
+                      <th className="py-3 px-4 text-right">CONTRIBUTION</th>
                       <th className="py-3 px-4 text-right">MARGIN</th>
-                      <th className="py-3 px-4 text-right">RETURNS</th>
+                      <th className="py-3 px-4 text-right">RETURNED UNITS</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/[0.04] text-[#1D1D1F]">
@@ -506,7 +388,7 @@ export function ReportsView() {
                             {p.returnsCount > 0 ? (
                               <span className="text-[#D70015] font-semibold">
                                 {p.returnsCount}{" "}
-                                <span className="text-[10px] text-[#86868B] font-normal">({p.returnRate.toFixed(1)}%)</span>
+                                <span className="text-[10px] text-[#86868B] font-normal">({p.unitsSold ? p.returnRate.toFixed(1) + "%" : "—"})</span>
                               </span>
                             ) : (
                               <span className="text-[#86868B] font-normal">0</span>
@@ -564,7 +446,7 @@ export function ReportsView() {
                           boxShadow: "0 4px 12px -2px rgba(0, 0, 0, 0.03)",
                           fontSize: "12px",
                         }}
-                        formatter={(value: any) => [formatINR(Number(value)), "Net Profit"]}
+                        formatter={(value: any) => [formatINR(Number(value)), "Contribution Profit"]}
                         labelStyle={{ fontWeight: 600, color: "#1D1D1F" }}
                       />
                       <Bar dataKey="profit" radius={[6, 6, 0, 0]}>
@@ -585,7 +467,7 @@ export function ReportsView() {
                   Return &amp; RTO Rate by Platform
                 </h3>
                 <p className="text-xs text-[#86868B] mt-0.5">
-                  Percentage of orders returned or RTO&apos;d per platform
+                  Returned units / recognized shipment-cohort units, through period end
                 </p>
               </div>
 
@@ -693,7 +575,7 @@ export function ReportsView() {
                       }}
                       formatter={(value: any, name: any) => [
                         formatINR(Number(value)),
-                        name === "revenue" ? "Gross Revenue" : "Net Profit",
+                        name === "revenue" ? "Net Revenue" : "Net Operating Profit",
                       ]}
                       labelStyle={{ fontWeight: 600, color: "#1D1D1F" }}
                     />
@@ -701,7 +583,7 @@ export function ReportsView() {
                       verticalAlign="top"
                       align="right"
                       wrapperStyle={{ paddingBottom: "10px", fontSize: "11px" }}
-                      formatter={(value) => (value === "revenue" ? "Gross Revenue" : "Net Profit")}
+                      formatter={(value) => (value === "revenue" ? "Net Revenue" : "Net Operating Profit")}
                     />
                     <Area
                       type="monotone"
@@ -734,7 +616,7 @@ export function ReportsView() {
                 Platform Summary
               </h3>
               <p className="text-xs text-[#86868B] mt-0.5">
-                Consolidated performance metrics per marketplace
+                Active placed-order counts; return rates use the same shipment cohort
               </p>
             </div>
 
@@ -748,11 +630,11 @@ export function ReportsView() {
                   <thead className="bg-[#FAFAFC] text-[#86868B] uppercase text-[10px] font-semibold tracking-wider border-y border-black/[0.04]">
                     <tr>
                       <th className="py-3 px-4">PLATFORM</th>
-                      <th className="py-3 px-4 text-right">ORDERS</th>
-                      <th className="py-3 px-4 text-right">GROSS SALES</th>
+                      <th className="py-3 px-4 text-right">ORDERS PLACED</th>
+                      <th className="py-3 px-4 text-right">NET REVENUE</th>
                       <th className="py-3 px-4 text-right">SETTLEMENT</th>
                       <th className="py-3 px-4 text-right">COGS</th>
-                      <th className="py-3 px-4 text-right">PROFIT</th>
+                      <th className="py-3 px-4 text-right">CONTRIBUTION</th>
                       <th className="py-3 px-4 text-right">MARGIN</th>
                       <th className="py-3 px-4 text-right">RETURNS</th>
                     </tr>
@@ -806,10 +688,10 @@ export function ReportsView() {
                             {row.returnsCount > 0 ? (
                               <span className="text-[#D70015] font-semibold">
                                 {row.returnsCount}{" "}
-                                <span className="text-[10px] text-[#86868B] font-normal">({row.returnRate.toFixed(1)}%)</span>
+                                <span className="text-[10px] text-[#86868B] font-normal">({row.rateDenominator ? row.returnRate.toFixed(1) + "%" : "—"})</span>
                               </span>
                             ) : (
-                              <span className="text-[#86868B] font-normal">0 (0.0%)</span>
+                              <span className="text-[#86868B] font-normal">0 ({row.rateDenominator ? "0.0%" : "—"})</span>
                             )}
                           </td>
                         </tr>
@@ -829,7 +711,7 @@ export function ReportsView() {
                         {formatINR(platformSummary.totals.cogs)}
                       </td>
                       <td className="py-3 px-4 text-right text-sm font-semibold text-[#288548] tracking-tight tabular-nums">
-                        +{formatINR(platformSummary.totals.profit)}
+                        {formatINR(platformSummary.totals.profit)}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-950 tabular-nums">
@@ -839,7 +721,7 @@ export function ReportsView() {
                       <td className="py-3 px-4 text-right text-xs font-medium tabular-nums text-[#6E6E73]">
                         {platformSummary.totals.returnsCount}{" "}
                         <span className="text-[10px] text-[#86868B] font-normal">
-                          ({platformSummary.totals.returnRate.toFixed(1)}%)
+                          ({profitability.returnRateDenominator ? platformSummary.totals.returnRate.toFixed(1) + "%" : "—"})
                         </span>
                       </td>
                     </tr>
@@ -860,14 +742,14 @@ export function ReportsView() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-black/[0.05] pb-4">
               <div>
                 <h3 className="text-base font-semibold text-[#1D1D1F] tracking-tight">
-                  Statement of Profit &amp; Loss (GAAP Ledger)
+                  Statement of Profit &amp; Loss
                 </h3>
                 <p className="text-xs text-[#86868B] mt-0.5">
-                  Audit-ready financial waterfall statement with standardized accounting treatment.
+                  {profitability.isComplete === false ? "Provisional: " + (profitability.issues?.join("; ") || "financial evidence is incomplete") : "Operational statement based on recorded financial evidence."}
                 </p>
               </div>
               <span className="text-xs text-[#288548] bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full font-semibold tabular-nums">
-                Net Margin: {formatPercent(profitability.netOperatingMargin)}
+                Operating Margin: {formatPercent(profitability.netOperatingMargin)}
               </span>
             </div>
 
@@ -884,34 +766,46 @@ export function ReportsView() {
                 <tbody className="divide-y divide-slate-100 text-[#1D1D1F]">
                   <tr>
                     <td className="py-3 px-4 font-semibold">Gross Sales</td>
-                    <td className="py-3 px-4 text-[#86868B]">Order Selling Price × Units</td>
+                    <td className="py-3 px-4 text-[#86868B]">Recorded line totals before discounts</td>
                     <td className="py-3 px-4 text-right text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">{formatINR(profitability.grossSales)}</td>
-                    <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">100.0%</td>
+                    <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">{formatPercent(profitability.netSales > 0 ? profitability.grossSales / profitability.netSales : 0)}</td>
                   </tr>
                   <tr>
                     <td className="py-3 px-4 text-slate-600">Discounts &amp; Promotions</td>
                     <td className="py-3 px-4 text-[#86868B]">Channel coupon allowances</td>
                     <td className="py-3 px-4 text-right text-sm font-semibold text-slate-600 tracking-tight tabular-nums">
-                      -{formatINR(profitability.discounts)}
+                      {formatINR(-profitability.discounts)}
                     </td>
                     <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">
-                      {formatPercent(profitability.discounts / Math.max(1, profitability.grossSales))}
+                      {shareOfNetSales(profitability.discounts)}
                     </td>
                   </tr>
+                  {[
+                    ["Sales Refunds", "Bounded returned units at original discounted price", -profitability.refundedSales],
+                    ["Included Output GST", "Retained GST included in gross selling prices", -(profitability.outputTaxExcluded || 0)],
+                    ["Shipping & Customer Charges", "Recognized charges excluding GST and dated refunds", profitability.shippingRevenue || 0],
+                  ].map(([label, treatment, amount]) => (
+                    <tr key={String(label)}>
+                      <td className="py-3 px-4 text-slate-600">{label}</td>
+                      <td className="py-3 px-4 text-[#86868B]">{treatment}</td>
+                      <td className="py-3 px-4 text-right text-sm font-semibold text-slate-600 tracking-tight tabular-nums">{formatINR(Number(amount))}</td>
+                      <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">{profitability.netSales > 0 ? formatPercent(Number(amount) / profitability.netSales) : "—"}</td>
+                    </tr>
+                  ))}
                   <tr className="bg-slate-50/70 font-semibold">
                     <td className="py-3 px-4">Net Sales</td>
-                    <td className="py-3 px-4 text-[#86868B] font-normal">Gross Sales - Discounts</td>
+                    <td className="py-3 px-4 text-[#86868B] font-normal">Gross - Discounts - Refunds - Included GST + Shipping &amp; Charges</td>
                     <td className="py-3 px-4 text-right text-sm font-semibold text-[#1D1D1F] tracking-tight tabular-nums">{formatINR(profitability.netSales)}</td>
-                    <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">100.0%</td>
+                    <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">{profitability.netSales > 0 ? "100.0%" : "—"}</td>
                   </tr>
                   <tr>
                     <td className="py-3 px-4 text-slate-600">Cost of Goods Sold (COGS)</td>
                     <td className="py-3 px-4 text-[#86868B]">Snapshot historical purchasing cost</td>
                     <td className="py-3 px-4 text-right text-sm font-semibold text-[#D70015] tracking-tight tabular-nums">
-                      -{formatINR(profitability.cogs)}
+                      {formatINR(-profitability.cogs)}
                     </td>
                     <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">
-                      {formatPercent(profitability.cogs / Math.max(1, profitability.netSales))}
+                      {shareOfNetSales(profitability.cogs)}
                     </td>
                   </tr>
                   <tr className="bg-emerald-50/40 font-semibold">
@@ -928,36 +822,42 @@ export function ReportsView() {
                     <td className="py-3 px-4 text-slate-600">Marketplace Fees &amp; Deductions</td>
                     <td className="py-3 px-4 text-[#86868B]">Commissions and fixed closing fees</td>
                     <td className="py-3 px-4 text-right text-sm font-semibold text-[#D70015] tracking-tight tabular-nums">
-                      -{formatINR(profitability.marketplaceCharges)}
+                      {formatINR(-(profitability.marketplaceCharges+profitability.shippingLogisticsCosts))}
                     </td>
                     <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">
-                      {formatPercent(profitability.marketplaceCharges / Math.max(1, profitability.netSales))}
+                      {shareOfNetSales((profitability.marketplaceCharges+profitability.shippingLogisticsCosts))}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-3 px-4 text-slate-600">Return, RTO &amp; Damage Losses</td>
-                    <td className="py-3 px-4 text-[#86868B]">Reverse logistics shipping + write-offs</td>
+                    <td className="py-3 px-4 text-slate-600">Direct Return Costs</td>
+                    <td className="py-3 px-4 text-[#86868B]">Return fees and logistics; inventory cost already in COGS</td>
                     <td className="py-3 px-4 text-right text-sm font-semibold text-[#D70015] tracking-tight tabular-nums">
-                      -{formatINR(profitability.returnLosses + profitability.rtoLosses)}
+                      {formatINR(-(profitability.directReturnCosts||0))}
                     </td>
                     <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">
-                      {formatPercent((profitability.returnLosses + profitability.rtoLosses) / Math.max(1, profitability.netSales))}
+                      {shareOfNetSales(((profitability.directReturnCosts||0)))}
                     </td>
                   </tr>
                   <tr>
                     <td className="py-3 px-4 text-slate-600">Dispute Claim Recoveries</td>
-                    <td className="py-3 px-4 text-[#86868B]">SAFE-T and carrier reimbursements</td>
+                    <td className="py-3 px-4 text-[#86868B]">Dated marketplace reimbursement evidence</td>
                     <td className="py-3 px-4 text-right text-sm font-semibold text-[#288548] tracking-tight tabular-nums">
-                      +{formatINR(profitability.claimRecoveries)}
+                      {formatINR(profitability.claimRecoveries)}
                     </td>
                     <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">
-                      {formatPercent(profitability.claimRecoveries / Math.max(1, profitability.netSales))}
+                      {shareOfNetSales(profitability.claimRecoveries)}
                     </td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 px-4 text-slate-600">Recovered Inventory Cost</td>
+                    <td className="py-3 px-4 text-[#86868B]">Salvage carrying value capped at original cost</td>
+                    <td className="py-3 px-4 text-right text-sm font-semibold text-[#288548] tracking-tight tabular-nums">{formatINR(profitability.salvageRecovery || 0)}</td>
+                    <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">{profitability.netSales > 0 ? formatPercent((profitability.salvageRecovery || 0) / profitability.netSales) : "—"}</td>
                   </tr>
                   <tr className="bg-slate-50/70 font-semibold">
                     <td className="py-3 px-4 text-[#1D1D1F]">Contribution Profit</td>
                     <td className="py-3 px-4 text-[#86868B] font-normal">
-                      Gross Profit - Fees - Return Losses + Claims
+                      Gross Profit - Fees - Direct Returns + Claims + Recovered Inventory
                     </td>
                     <td className={`py-3 px-4 text-right text-sm font-semibold tracking-tight tabular-nums ${profitability.contributionProfit >= 0 ? "text-[#288548]" : "text-[#D70015]"}`}>
                       {formatINR(profitability.contributionProfit)}
@@ -970,10 +870,10 @@ export function ReportsView() {
                     <td className="py-3 px-4 text-slate-600">Operating Overhead (OPEX)</td>
                     <td className="py-3 px-4 text-[#86868B]">Advertising, rent, software, team</td>
                     <td className="py-3 px-4 text-right text-sm font-semibold text-[#D70015] tracking-tight tabular-nums">
-                      -{formatINR(profitability.operatingExpenses)}
+                      {formatINR(-profitability.operatingExpenses)}
                     </td>
                     <td className="py-3 px-4 text-right text-xs font-semibold text-[#86868B] tracking-tight tabular-nums">
-                      {formatPercent(profitability.operatingExpenses / Math.max(1, profitability.netSales))}
+                      {shareOfNetSales(profitability.operatingExpenses)}
                     </td>
                   </tr>
                   <tr className="bg-slate-100/90 border-t-2 border-b border-slate-300 font-bold text-xs text-[#1D1D1F]">

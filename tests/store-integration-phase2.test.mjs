@@ -32,11 +32,13 @@ describe('Store Integration Phase 2 Verification Suite', () => {
       assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS marketplace_sync_logs'), 'Must create marketplace_sync_logs table');
     });
 
-    test('src/lib/db.ts exports ensureMarketplaceTables migration helper', () => {
+    test('src/lib/db.ts exports a cached read-only readiness check and never migrates on requests', () => {
       const dbContent = readProjectFile('src/lib/db.ts');
-      assert.ok(dbContent.includes('export async function ensureMarketplaceTables'), 'Must export ensureMarketplaceTables');
-      assert.ok(dbContent.includes('marketplace_connections'), 'Must execute DDL for marketplace_connections');
-      assert.ok(dbContent.includes('marketplace_sync_logs'), 'Must execute DDL for marketplace_sync_logs');
+      assert.match(dbContent, /export function ensureMarketplaceTables\(\): Promise<void>/);
+      assert.ok(dbContent.includes('marketplace_connections') && dbContent.includes('marketplace_sync_logs'), 'Readiness must verify connector schema');
+      assert.ok(dbContent.includes('information_schema.columns') && dbContent.includes('cached.expiresAt > Date.now()'), 'Verify schema and cache only successful readiness');
+      assert.ok(dbContent.includes('global._marketplaceSchemaReadiness = undefined'), 'Failed readiness must allow a retry');
+      assert.doesNotMatch(dbContent, /CREATE TABLE|ALTER TABLE|CREATE INDEX/);
     });
   });
 

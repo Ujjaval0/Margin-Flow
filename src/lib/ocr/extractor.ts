@@ -126,10 +126,10 @@ export async function processAndStageDocument(
   if (detectedSku) {
     try {
       const prodRes = await query(
-        `SELECT sku, name FROM products WHERE user_id = $1 AND active = TRUE AND deleted_at IS NULL AND (sku ILIKE $2 OR name ILIKE $2) LIMIT 1`,
-        [userId, `%${detectedSku}%`]
+        `SELECT sku, name FROM products WHERE user_id = $1 AND active = TRUE AND deleted_at IS NULL AND lower(sku)=lower($2) LIMIT 2`,
+        [userId, detectedSku]
       );
-      if (prodRes.rows.length > 0) {
+      if (prodRes.rows.length === 1) {
         catalogMatchedSku = prodRes.rows[0].sku;
         stagedDoc.catalogValidation = {
           skuMatched: true,
@@ -153,9 +153,9 @@ export async function processAndStageDocument(
     const displayId = `DOC-${crypto.randomUUID()}`;
     const declaredTotal = stagedDoc.extractedData.totalAmount?.value || 0;
     const calculatedTotal =
-      stagedDoc.arithmeticValidation?.calculatedTotal || declaredTotal;
+      stagedDoc.arithmeticValidation?.calculatedTotal ?? declaredTotal;
     const diff = stagedDoc.arithmeticValidation?.difference || 0;
-    const passed = stagedDoc.arithmeticValidation?.passed ?? true;
+    const passed = stagedDoc.arithmeticValidation?.passed ?? false;
     const diffMsg = stagedDoc.arithmeticValidation?.message || null;
 
     const docInsertRes = await client.query(
@@ -191,6 +191,7 @@ export async function processAndStageDocument(
     if (docInsertRes.rows.length > 0) {
       dbRecordId = docInsertRes.rows[0].id;
       stagedDoc.id = docInsertRes.rows[0].display_id;
+      await client.query('UPDATE ai_staged_documents SET record_data=$3::jsonb WHERE user_id=$1 AND id=$2',[userId,dbRecordId,JSON.stringify(stagedDoc)]);
 
       // Insert individual extracted fields
       const fields = Object.entries(stagedDoc.extractedData) as [
@@ -225,7 +226,7 @@ export async function processAndStageDocument(
             dbRecordId,
             fieldName,
             String(fieldData.value),
-            fieldData.confidence || 0.9,
+            fieldData.confidence ?? 0,
             provenance,
             fieldData.isFlaggedAnomaly || false,
             fieldData.anomalyMessage || null,

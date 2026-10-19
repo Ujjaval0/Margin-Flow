@@ -1,7 +1,10 @@
 "use client";
 
+import { money, sumMoney } from "@/domain/order-financials";
+
+
 import { NumericInput } from "@/components/ui/numeric-input";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   Settlement,
@@ -9,6 +12,7 @@ import {
   DeductionCategory,
 } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
+import { businessDate } from "@/domain/report-scope";
 import { formatINR } from "@/lib/utils";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -33,6 +37,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
   const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null);
   const [selectedAgingTab, setSelectedAgingTab] = useState<"ALL" | "0-7" | "8-14" | "14+">("ALL");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const settlementSave = useRef({ busy: false, id: "" });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -46,23 +51,29 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
   }, [selectedSettlement, isCreateOpen]);
 
   // New settlement state
-  const [settlementBatchId, setSettlementBatchId] = useState("AZ-SEP-BATCH-02");
+  const [settlementBatchId, setSettlementBatchId] = useState("");
   const [marketplace, setMarketplace] = useState<Marketplace>("Amazon India");
   const [orderId, setOrderId] = useState(orders[0]?.id || "");
-  const [grossAmount, setGrossAmount] = useState<number>(1000);
-  const [commission, setCommission] = useState<number>(120);
-  const [logistics, setLogistics] = useState<number>(65);
-  const [fixedFee, setFixedFee] = useState<number>(25);
+  const [settlementDate,setSettlementDate]=useState('');
+  const [bankTxRef,setBankTxRef]=useState('');
+  const [completeFees,setCompleteFees]=useState(false);
+  const [grossAmount, setGrossAmount] = useState<string|number>('');
+  const [commission, setCommission] = useState<number>(0);
+  const [logistics, setLogistics] = useState<number>(0);
+  const [fixedFee, setFixedFee] = useState<number>(0);
   const [returnFee, setReturnFee] = useState<number>(0);
-  const [tcsTds, setTcsTds] = useState<number>(11);
-  const [declaredNetPayout, setDeclaredNetPayout] = useState<number>(779);
+  const [tcsTds, setTcsTds] = useState<number>(0);
+  const [declaredNetPayout, setDeclaredNetPayout] = useState<string|number>('');
 
   const filteredSettlements = settlements.filter(
     (s) => selectedMarketplace === "ALL" || s.marketplace === selectedMarketplace
   );
 
-  const handleCreateSettlement = (e: React.FormEvent) => {
+  const handleCreateSettlement = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (settlementSave.current.busy) return;
+    settlementSave.current.busy = true;
+    if (!settlementSave.current.id) settlementSave.current.id = `SET-${crypto.randomUUID()}`;
 
     const deductions = [
       { category: "COMMISSION" as DeductionCategory, name: "Marketplace Commission", amount: Number(commission) },
@@ -77,27 +88,31 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
       });
     }
 
-    const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-    const calculatedNet = grossAmount - totalDeductions - tcsTds;
-    const isMatched = Math.abs(calculatedNet - declaredNetPayout) <= 0.05;
+    const totalDeductions=sumMoney(deductions.map(d=>d.amount));
+    const calculatedNet=sumMoney([Number(grossAmount),-totalDeductions,-Number(tcsTds)]);
+    const isMatched=calculatedNet===Number(declaredNetPayout);
 
     const newSettlement: Settlement = {
-      id: `SET-${Date.now().toString().slice(-4)}`,
+      id: settlementSave.current.id,
       settlementBatchId,
       marketplace,
-      settlementDate: new Date().toISOString().split("T")[0],
+      settlementDate,bankTxRef:bankTxRef.trim()||undefined,evidenceType:"BANK_RECEIPT",feeCoverage:completeFees?"COMPLETE":"PARTIAL",
       orderId,
       grossAmount: Number(grossAmount),
       deductions,
       tcsTdsTax: Number(tcsTds),
       netSettlement: Number(declaredNetPayout),
-      reconciliationStatus: isMatched ? "RECONCILED" : "MISMATCH_FLAGGED",
-      discrepancyAmount: isMatched ? 0 : Math.round(Math.abs(calculatedNet - declaredNetPayout) * 100) / 100,
-      bankTxRef: `CMS-HDFC-${Date.now().toString().slice(-6)}`,
+      reconciliationStatus: isMatched ? "PENDING_RECON" : "MISMATCH_FLAGGED",
+      discrepancyAmount: isMatched ? 0 : money(Math.abs(calculatedNet - Number(declaredNetPayout))),
     };
 
-    addSettlement(newSettlement);
-    setIsCreateOpen(false);
+    try {
+      await addSettlement(newSettlement);
+      settlementSave.current.id = "";
+      setIsCreateOpen(false);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Settlement could not be saved. Please retry.");
+    } finally { settlementSave.current.busy = false; }
   };
 
   const columns: ColumnDef<Settlement>[] = [
@@ -185,7 +200,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
               }`}
             />
             <span className="text-[#1D1D1F] font-medium">
-              {isReconciled ? "Balanced" : "Flagged"}
+              {isReconciled ? "Reconciled" : row.original.reconciliationStatus==='PENDING_RECON'?"Pending bank reconciliation":"Flagged"}
             </span>
           </div>
         );
@@ -237,7 +252,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
               Settlement Aging &amp; Cash Flow Pipeline
             </h2>
             <p className="text-[11px] text-[#86868B] mt-0.5">
-              {settlementAging.totalUnsettledOrders} orders pending payout • Total Outstanding: {formatINR(settlementAging.totalOutstandingAmount)}
+              {settlementAging.totalUnsettledOrders} orders pending payout • Total Outstanding: {(settlementAging.totalOutstandingAmount === null ? "Unknown" : formatINR(settlementAging.totalOutstandingAmount))}
             </p>
           </div>
           <div className="bg-black/[0.04] p-1 rounded-full border border-black/[0.06] inline-flex items-center gap-1 text-xs overflow-x-auto max-w-full">
@@ -305,7 +320,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
             </div>
             <div className="my-2">
               <span className="text-xl font-semibold text-[#1D1D1F] tracking-tight tabular-nums block">
-                {formatINR(settlementAging.onSchedule.totalEstimatedAmount)}
+                {(settlementAging.onSchedule.totalEstimatedAmount === null ? "Unknown" : formatINR(settlementAging.onSchedule.totalEstimatedAmount))}
               </span>
               <span className="text-xs text-[#86868B] mt-0.5 block">
                 {settlementAging.onSchedule.orderCount} orders on standard payout cycle
@@ -335,7 +350,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
             </div>
             <div className="my-2">
               <span className="text-xl font-semibold text-[#1D1D1F] tracking-tight tabular-nums block">
-                {formatINR(settlementAging.pending.totalEstimatedAmount)}
+                {(settlementAging.pending.totalEstimatedAmount === null ? "Unknown" : formatINR(settlementAging.pending.totalEstimatedAmount))}
               </span>
               <span className="text-xs text-[#86868B] mt-0.5 block">
                 {settlementAging.pending.orderCount} orders due in upcoming disbursement
@@ -365,7 +380,7 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
             </div>
             <div className="my-2">
               <span className="text-xl font-semibold text-[#D70015] tracking-tight tabular-nums block">
-                {formatINR(settlementAging.overdue.totalEstimatedAmount)}
+                {(settlementAging.overdue.totalEstimatedAmount === null ? "Unknown" : formatINR(settlementAging.overdue.totalEstimatedAmount))}
               </span>
               <span className="text-xs text-[#86868B] mt-0.5 block">
                 {settlementAging.overdue.orderCount} orders past normal payment window
@@ -532,6 +547,9 @@ export function SettlementsView({ selectedMarketplace: propMarketplace }: Settle
                 </select>
               </div>
 
+                  <label className="text-xs font-medium text-[#6E6E73]">Bank receipt date<input type="date" required value={settlementDate} onChange={e=>setSettlementDate(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-black/[0.03] border border-black/[0.08] text-sm" /></label>
+                  <label className="text-xs font-medium text-[#6E6E73]">Bank reference<input value={bankTxRef} onChange={e=>setBankTxRef(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-black/[0.03] border border-black/[0.08] text-sm" /></label>
+                  <label className="text-xs font-medium text-[#6E6E73]"><input type="checkbox" checked={completeFees} onChange={e=>setCompleteFees(e.target.checked)} /> All order fee categories are covered by this evidence</label>
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="font-medium text-[#6E6E73] block mb-1">Gross Payout (₹)</label>

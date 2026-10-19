@@ -13,13 +13,15 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import { createRecordId } from "@/domain/record-id";
 import { Product } from "@/domain/types";
+import { businessDate } from "@/domain/report-scope";
 import { formatINR } from "@/lib/utils";
 
 export interface ProductBulkUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onBulkAddProducts: (products: Product[]) => void;
+  onBulkAddProducts: (products: Product[]) => Promise<void>;
   existingProducts: Product[];
 }
 
@@ -32,7 +34,7 @@ interface ParsedProductRow {
   brand: string;
   costPrice: number;
   supplierId: string;
-  stockQuantity: number;
+  stockQuantity?: number;
   aliasAmazon: string;
   aliasFlipkart: string;
   aliasMeesho: string;
@@ -46,6 +48,8 @@ export function ProductBulkUploadModal({
   onBulkAddProducts,
   existingProducts,
 }: ProductBulkUploadModalProps) {
+  const saveInFlight = React.useRef(false);
+  const draftIds = React.useRef(new Map<string, string>());
   const [mounted, setMounted] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [parsedRows, setParsedRows] = useState<ParsedProductRow[]>([]);
@@ -59,6 +63,7 @@ export function ProductBulkUploadModal({
   }, []);
 
   const handleReset = () => {
+    draftIds.current.clear();
     setFiles([]);
     setParsedRows([]);
     setIsProcessing(false);
@@ -158,19 +163,21 @@ export function ProductBulkUploadModal({
           const rawMfn = mfnIdx !== -1 ? row[mfnIdx] : "";
           const rawMfn1 = mfn1Idx !== -1 ? row[mfn1Idx] : "";
           const rawName = nameIdx !== -1 ? row[nameIdx] : "";
-          const rawCost = costIdx !== -1 ? parseFloat(row[costIdx]?.replace(/[^0-9.]/g, "")) : 0;
+          const costText = costIdx !== -1 ? (row[costIdx] || "").replace(/[₹,\s]/g, "") : "";
+          const rawCost = costText !== "" ? Number(costText) : Number.NaN;
           const rawCat = catIdx !== -1 && row[catIdx] ? row[catIdx] : "General";
           const rawBrand = brandIdx !== -1 && row[brandIdx] ? row[brandIdx] : "Catalog";
-          const rawSupplier = supplierIdx !== -1 && row[supplierIdx] ? row[supplierIdx] : "Direct Supplier";
-          const rawStock = stockIdx !== -1 ? parseInt(row[stockIdx]?.replace(/[^0-9]/g, ""), 10) || 50 : 50;
+          const rawSupplier = supplierIdx !== -1 && row[supplierIdx] ? row[supplierIdx] : "";
+          const stockText = stockIdx !== -1 ? (row[stockIdx] || "").replace(/[,\s]/g, "") : "";
+          const rawStock = stockText !== "" ? Number(stockText) : undefined;
 
-          const sku = rawSku.trim().toUpperCase() || (rawName ? `SKU-${rawName.replace(/[^a-zA-Z0-9]/g, "").slice(0, 10).toUpperCase()}` : `SKU-${i}`);
-          const name = rawName.trim() || `Item (${sku})`;
-          const cost = isNaN(rawCost) || rawCost <= 0 ? 350 : rawCost;
+          const sku = rawSku.trim().toUpperCase();
+          const name = rawName.trim();
+          const cost = rawCost;
 
-          const aliasAz = azIdx !== -1 && row[azIdx] ? row[azIdx] : sku;
-          const aliasFk = fkIdx !== -1 && row[fkIdx] ? row[fkIdx] : sku;
-          const aliasMsh = mshIdx !== -1 && row[mshIdx] ? row[mshIdx] : sku;
+          const aliasAz = azIdx !== -1 && row[azIdx] ? row[azIdx] : "";
+          const aliasFk = fkIdx !== -1 && row[fkIdx] ? row[fkIdx] : "";
+          const aliasMsh = mshIdx !== -1 && row[mshIdx] ? row[mshIdx] : "";
 
           let isValid = true;
           let error = "";
@@ -181,9 +188,12 @@ export function ProductBulkUploadModal({
           } else if (!name) {
             isValid = false;
             error = "Missing Product Title";
-          } else if (cost <= 0) {
+          } else if (!Number.isFinite(cost) || cost < 0) {
             isValid = false;
-            error = "Cost price must be > 0";
+            error = "Enter a recorded, nonnegative unit cost";
+          } else if (rawStock !== undefined && (!Number.isSafeInteger(rawStock) || rawStock < 0)) {
+            isValid = false;
+            error = "Stock quantity must be a nonnegative whole number";
           }
 
           if (!seenSkus.has(sku)) {
@@ -288,12 +298,16 @@ export function ProductBulkUploadModal({
     document.body.removeChild(link);
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     const validRows = parsedRows.filter((r) => r.isValid);
     if (validRows.length === 0) return;
 
     const productsToImport: Product[] = validRows.map((r) => {
-      const generatedId = `PROD-${Date.now().toString().slice(-4)}-${Math.floor(100 + Math.random() * 900)}`;
+      const generatedId = existingProducts.find(product => product.sku === r.sku)?.id || draftIds.current.get(r.sku) || createRecordId("PROD");
+      draftIds.current.set(r.sku, generatedId);
       return {
         id: generatedId,
         sku: r.sku,
@@ -303,18 +317,18 @@ export function ProductBulkUploadModal({
         category: r.category,
         brand: r.brand,
         currentCostPrice: r.costPrice,
-        supplierId: r.supplierId,
+        supplierId: r.supplierId || existingProducts.find(product => product.sku === r.sku)?.supplierId || "",
         active: true,
-        stockQuantity: r.stockQuantity,
+        stockQuantity: r.stockQuantity ?? existingProducts.find(product => product.sku === r.sku)?.stockQuantity,
         channelAliases: {
-          "Amazon India": r.aliasAmazon || r.sku,
-          Flipkart: r.aliasFlipkart || r.sku,
-          Meesho: r.aliasMeesho || r.sku,
-          "Personal Website": r.sku,
+          ...existingProducts.find(product => product.sku === r.sku)?.channelAliases,
+          ...(r.aliasAmazon ? { "Amazon India": r.aliasAmazon } : {}),
+          ...(r.aliasFlipkart ? { Flipkart: r.aliasFlipkart } : {}),
+          ...(r.aliasMeesho ? { Meesho: r.aliasMeesho } : {}),
         },
         costHistory: [
           {
-            validFrom: new Date().toISOString().split("T")[0],
+            validFrom: businessDate(),
             costPrice: r.costPrice,
             notes: "Imported via bulk product SKU upload",
           },
@@ -322,8 +336,10 @@ export function ProductBulkUploadModal({
       };
     });
 
-    onBulkAddProducts(productsToImport);
+    await onBulkAddProducts(productsToImport);
     handleClose();
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   if (!isOpen || !mounted) return null;

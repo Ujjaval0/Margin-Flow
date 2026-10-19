@@ -1,0 +1,167 @@
+{
+  "rtoDisplay": {
+    "recordedShipping": 20,
+    "returnLosses": 20,
+    "rtoLosses": 20,
+    "displayedLoss": 40,
+    "contribution": -20,
+    "aiLoss": 40
+  },
+  "archivePendingOrder": {
+    "stockBefore": 9,
+    "stockAfter": 10
+  },
+  "returnRates": {
+    "engineUnitReturnRate": 1,
+    "displayedPercentTexts": [
+      "0 (0.0%)",
+      "0 (0.0%)",
+      "0 (0.0%)",
+      "0 (0.0%)",
+      "0 (0.0%)"
+    ],
+    "chartData": [
+      [
+        {
+          "platform": "Amazon",
+          "fullName": "Amazon India",
+          "returnRate": 0,
+          "rtoRate": 0,
+          "totalOrders": 0,
+          "customerReturns": 0,
+          "rtos": 0
+        },
+        {
+          "platform": "Flipkart",
+          "fullName": "Flipkart",
+          "returnRate": 0,
+          "rtoRate": 0,
+          "totalOrders": 0,
+          "customerReturns": 0,
+          "rtos": 0
+        },
+        {
+          "platform": "Myntra",
+          "fullName": "Myntra",
+          "returnRate": 0,
+          "rtoRate": 0,
+          "totalOrders": 0,
+          "customerReturns": 0,
+          "rtos": 0
+        },
+        {
+          "platform": "Meesho",
+          "fullName": "Meesho",
+          "returnRate": 0,
+          "rtoRate": 0,
+          "totalOrders": 0,
+          "customerReturns": 0,
+          "rtos": 0
+        },
+        {
+          "platform": "Personal Website",
+          "fullName": "Personal Website",
+          "returnRate": 0,
+          "rtoRate": 0,
+          "totalOrders": 0,
+          "customerReturns": 0,
+          "rtos": 0
+        },
+        {
+          "platform": "WooCommerce",
+          "fullName": "WooCommerce",
+          "returnRate": 200,
+          "rtoRate": 0,
+          "totalOrders": 1,
+          "customerReturns": 2,
+          "rtos": 0
+        }
+      ]
+    ]
+  },
+  "damagedPnlCsv": {
+    "rows": [
+      [
+        "Metric",
+        "Accounting Treatment",
+        "Amount",
+        "% Net Sales"
+      ],
+      [
+        "Gross Sales",
+        "Order Selling Price x Units",
+        "200.00",
+        "100.0%"
+      ],
+      [
+        "Discounts",
+        "Coupons & Promotional Deductions",
+        "0.00",
+        "0.0%"
+      ],
+      [
+        "Net Sales",
+        "Gross Sales - Discounts",
+        "100.00",
+        "100.0%"
+      ],
+      [
+        "COGS",
+        "Historical Snapshot Purchasing Cost",
+        "-80.00",
+        "80.0%"
+      ],
+      [
+        "Gross Profit",
+        "Net Sales - COGS",
+        "20.00",
+        "20.0%"
+      ],
+      [
+        "Marketplace Fees",
+        "Commissions and Fixed Closing Fees",
+        "0.00",
+        "0.0%"
+      ],
+      [
+        "Return & RTO Losses",
+        "Freight + Damage Write-offs",
+        "-40.00",
+        "40.0%"
+      ],
+      [
+        "Dispute Claims",
+        "SAFE-T and Carrier Recoveries",
+        "0.00",
+        "0.0%"
+      ],
+      [
+        "Contribution Profit",
+        "Gross Profit - Fees - Returns + Claims",
+        "20.00",
+        "20.0%"
+      ],
+      [
+        "Operating Overhead",
+        "Advertising, Software, Fixed Overhead",
+        "0.00",
+        "0.0%"
+      ],
+      [
+        "Net Operating Profit",
+        "Contribution Profit - Operating Overhead",
+        "20.00",
+        "20.0%"
+      ]
+    ],
+    "filename": "pnl-statement-2026-10-19.csv"
+  },
+  "publishedBridge": {
+    "grossProfit": 20,
+    "marketplaceFees": 0,
+    "returnLosses": -40,
+    "claimRecoveries": 0,
+    "bridgeSum": -20,
+    "publishedContribution": 20
+  }
+}

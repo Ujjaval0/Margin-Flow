@@ -3,23 +3,7 @@ import { readFormBody, RequestBodyError } from "@/lib/security/request-body";
 import { checkProcessingBudget } from "@/lib/security/api-guard";
 import { getSessionUser } from "@/lib/security/session";
 
-interface ExtractedInvoiceData {
-  orderId: string;
-  invoiceNumber: string;
-  orderDate: string;
-  marketplace: string;
-  customerName: string;
-  customerCity: string;
-  customerState: string;
-  productName: string;
-  sku: string;
-  quantity: number;
-  unitPrice: number;
-  taxRate?: number;
-  taxAmount: number;
-  totalAmount: number;
-  shippingFee: number;
-}
+import type { InvoiceSource as ExtractedInvoiceData } from "@/domain/invoice-order";
 
 export async function POST(req: NextRequest) {
   try {
@@ -184,6 +168,8 @@ Return strict JSON matching this exact structure:
               const geminiSchema = {
                 type: "OBJECT",
                 properties: {
+                  currency:{type:'STRING'},pricesIncludeTax:{type:'BOOLEAN'},
+                  lineItems:{type:'ARRAY',items:{type:'OBJECT',properties:{id:{type:'STRING'},sku:{type:'STRING'},productName:{type:'STRING'},quantity:{type:'NUMBER'},unitPrice:{type:'NUMBER'},discount:{type:'NUMBER'},taxAmount:{type:'NUMBER'}},required:['sku','quantity','unitPrice','discount','taxAmount']}},
                   orderId: { type: "STRING" },
                   invoiceNumber: { type: "STRING" },
                   orderDate: { type: "STRING" },
@@ -244,18 +230,18 @@ Return strict JSON matching this exact structure:
                     parsedData = {
                       orderId: String(parsed.orderId || ""),
                       invoiceNumber: String(parsed.invoiceNumber || parsed.orderId || ""),
-                      orderDate: String(parsed.orderDate || new Date().toISOString().split("T")[0]),
+                      orderDate: String(parsed.orderDate || ""),
                       marketplace: String(parsed.marketplace || "Personal Website"),
                       customerName: String(parsed.customerName || "Customer"),
-                      customerCity: String(parsed.customerCity || "Mumbai"),
-                      customerState: String(parsed.customerState || "Maharashtra"),
+                      customerCity: String(parsed.customerCity || ""),
+                      customerState: String(parsed.customerState || ""),
                       productName: String(parsed.productName || "Invoiced Product"),
-                      sku: String(parsed.sku || "SKU-AUTO"),
-                      quantity: Number(parsed.quantity) || 1,
-                      unitPrice: Number(parsed.unitPrice) || Number(parsed.totalAmount) || 0,
+                      sku: String(parsed.sku || ""),
+                      quantity: Number(parsed.quantity),
+                      unitPrice: Number(parsed.unitPrice),
                       taxRate: parsed.taxRate !== undefined ? Number(parsed.taxRate) : undefined,
-                      taxAmount: Number(parsed.taxAmount) || 0,
-                      totalAmount: Number(parsed.totalAmount) || Number(parsed.unitPrice) || 0,
+                      taxAmount: Number(parsed.taxAmount),
+                      totalAmount: Number(parsed.totalAmount),
                       shippingFee: Number(parsed.shippingFee) || 0,
                     };
                     extractedText = rawJsonText;
@@ -291,6 +277,8 @@ Return strict JSON matching this exact structure:
                       schema: {
                         type: "object",
                         properties: {
+                          currency:{type:'string'},pricesIncludeTax:{type:['boolean','null']},
+                          lineItems:{type:'array',items:{type:'object',properties:{id:{type:'string'},sku:{type:'string'},productName:{type:'string'},quantity:{type:'number'},unitPrice:{type:'number'},discount:{type:'number'},taxAmount:{type:'number'}},required:['id','sku','productName','quantity','unitPrice','discount','taxAmount'],additionalProperties:false}},
                           orderId: { type: "string" },
                           invoiceNumber: { type: "string" },
                           orderDate: { type: "string" },
@@ -311,7 +299,7 @@ Return strict JSON matching this exact structure:
                           "orderId", "invoiceNumber", "orderDate", "marketplace",
                           "customerName", "customerCity", "customerState", "productName",
                           "sku", "quantity", "unitPrice", "taxRate", "taxAmount",
-                          "totalAmount", "shippingFee"
+                          "totalAmount", "shippingFee", "currency", "pricesIncludeTax", "lineItems"
                         ],
                         additionalProperties: false,
                       },
@@ -333,18 +321,18 @@ Return strict JSON matching this exact structure:
                     parsedData = {
                       orderId: String(parsed.orderId || ""),
                       invoiceNumber: String(parsed.invoiceNumber || parsed.orderId || ""),
-                      orderDate: String(parsed.orderDate || new Date().toISOString().split("T")[0]),
+                      orderDate: String(parsed.orderDate || ""),
                       marketplace: String(parsed.marketplace || "Personal Website"),
                       customerName: String(parsed.customerName || "Customer"),
-                      customerCity: String(parsed.customerCity || "Mumbai"),
-                      customerState: String(parsed.customerState || "Maharashtra"),
+                      customerCity: String(parsed.customerCity || ""),
+                      customerState: String(parsed.customerState || ""),
                       productName: String(parsed.productName || "Invoiced Product"),
-                      sku: String(parsed.sku || "SKU-AUTO"),
-                      quantity: Number(parsed.quantity) || 1,
-                      unitPrice: Number(parsed.unitPrice) || Number(parsed.totalAmount) || 0,
+                      sku: String(parsed.sku || ""),
+                      quantity: Number(parsed.quantity),
+                      unitPrice: Number(parsed.unitPrice),
                       taxRate: parsed.taxRate !== undefined ? Number(parsed.taxRate) : undefined,
-                      taxAmount: Number(parsed.taxAmount) || 0,
-                      totalAmount: Number(parsed.totalAmount) || Number(parsed.unitPrice) || 0,
+                      taxAmount: Number(parsed.taxAmount),
+                      totalAmount: Number(parsed.totalAmount),
                       shippingFee: Number(parsed.shippingFee) || 0,
                     };
                     extractedText = rawJsonText;

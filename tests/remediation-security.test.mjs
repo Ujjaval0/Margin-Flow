@@ -13,14 +13,19 @@ const nextRequest = (body = {}, url = 'https://app.example/api/test') => new Req
 });
 
 test('OAuth-only accounts cannot obtain password sessions', async () => {
-  let signed = false;
+  let mapped = false;
   const route = load('src/app/api/auth/login/route.ts', {
-    [db]: { query: async () => ({ rows: [{ id: 'victim', password_hash: null }] }) },
-    [session]: { signSessionToken: () => { signed = true; }, getSessionCookieOptions: () => ({}) },
+    '@/lib/supabase/server': { createSupabaseServerClient: async () => ({ auth: {
+      signInWithPassword: async credentials => {
+        assert.equal(credentials.email, 'victim@example.com');
+        return { data: { user: null }, error: { message: 'Invalid login credentials' } };
+      },
+    } }) },
+    '@/lib/auth/supabase-account': { ensureMarginFlowAccount: async () => { mapped = true; } },
   });
   const response = await route.POST(nextRequest({ email: 'victim@example.com', password: 'anything' }));
   assert.equal(response.status, 401);
-  assert.equal(signed, false);
+  assert.equal(mapped, false);
   assert.equal(response.headers.get('set-cookie'), null);
 });
 
@@ -36,17 +41,29 @@ test('password hashes verify safely and legacy hashes remain upgradeable', async
   assert.equal(await auth.verifyPassword('old-pass', legacy), true);
 });
 
-test('Google sign-in fails closed without configured audience', async () => {
-  const route = load('src/app/api/auth/google/route.ts', { [db]: { query: () => assert.fail('No DB call expected') } });
-  assert.equal((await route.POST(nextRequest({ credential: 'opaque' }))).status, 503);
+test('OAuth callback rejects missing authorization codes before accessing Auth or account storage', async () => {
+  const route = load('src/app/auth/callback/route.ts', {
+    '@/lib/supabase/server': { createSupabaseServerClient: () => assert.fail('Missing code must not reach Auth') },
+    '@/lib/auth/supabase-account': { ensureMarginFlowAccount: () => assert.fail('No identity to map') },
+  });
+  const response = await route.GET(new Request('https://app.example/auth/callback'));
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), 'https://app.example/login');
 });
 
-test('Google tokens issued to a different audience are rejected', async () => {
-  const route = load('src/app/api/auth/google/route.ts', { [db]: { query: () => assert.fail('No DB call expected') } }, {
-    process: { env: { NODE_ENV: 'production', GOOGLE_CLIENT_ID: 'expected-client' } },
-    fetch: async () => Response.json({ email: 'merchant@example.com', email_verified: true, aud: 'other-client' }),
+test('OAuth callback refuses failed Supabase PKCE exchanges before mapping a merchant', async () => {
+  const route = load('src/app/auth/callback/route.ts', {
+    '@/lib/supabase/server': { createSupabaseServerClient: async () => ({ auth: {
+      exchangeCodeForSession: async code => {
+        assert.equal(code, 'invalid-code');
+        return { data: { user: null }, error: { message: 'Invalid code verifier' } };
+      },
+    } }) },
+    '@/lib/auth/supabase-account': { ensureMarginFlowAccount: () => assert.fail('Rejected Auth must not map an account') },
   });
-  assert.equal((await route.POST(nextRequest({ credential: 'opaque' }))).status, 403);
+  const response = await route.GET(new Request('https://app.example/auth/callback?code=invalid-code'));
+  assert.equal(response.status, 307);
+  assert.equal(response.headers.get('location'), 'https://app.example/login');
 });
 
 test('invoice extraction refuses unknown providers rather than reusing server keys', async () => {
@@ -182,7 +199,7 @@ test('failed order writes reject instead of counting imports', async () => {
   const persistence = load('src/lib/integrations/order-persistence.ts', {
     [db]: { ensureMarketplaceTables: async () => {}, pool: { connect: async () => { throw Error('offline'); } } },
   });
-  await assert.rejects(persistence.upsertOrders('owner', [{ id: 'order-1', marketplace: 'Shopify', items: [] }]), /Order persistence failed/);
+  await assert.rejects(persistence.upsertOrders('owner', [{ id: 'order-1', channelOrderId: 'source-1', marketplace: 'WooCommerce', orderDate: '2026-10-01', status: 'CONFIRMED', customerName: '', customerCity: '', customerState: '', shippingFeeCharged: 0, marketplaceChargesEstimate: 0, items: [{ id: 'line', sku: 'SKU', productName: 'Item', quantity: 1, sellingPrice: 100, discount: 0, taxAmount: 0, snapshotUnitCost: 0, returnedQuantity: 0 }] }]), /Order persistence failed/);
 });
 
 test('webhook failure rolls back the receipt and releases its transaction', async () => {

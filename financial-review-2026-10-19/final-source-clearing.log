@@ -1,0 +1,90 @@
+TAP version 13
+# Subtest: production migrations and canonical financial workflows execute against disposable PostgreSQL
+ok 1 - production migrations and canonical financial workflows execute against disposable PostgreSQL
+  ---
+  duration_ms: 4082.216
+  ...
+# Subtest: documented fresh local bootstrap executes without demo seeds or stale financial views
+ok 2 - documented fresh local bootstrap executes without demo seeds or stale financial views
+  ---
+  duration_ms: 1349.5817
+  ...
+# Subtest: period flows retain older order context and recognize receipt, restock and recovery dates independently
+ok 3 - period flows retain older order context and recognize receipt, restock and recovery dates independently
+  ---
+  duration_ms: 15.2108
+  ...
+# Subtest: adjacent periods and event months conserve every monetary P&L flow and gross-to-net bridge
+ok 4 - adjacent periods and event months conserve every monetary P&L flow and gross-to-net bridge
+  ---
+  duration_ms: 26.9798
+  ...
+# Subtest: bank cash includes unmatched and cancelled-order receipts but excludes marketplace finance events
+ok 5 - bank cash includes unmatched and cancelled-order receipts but excludes marketplace finance events
+  ---
+  duration_ms: 1.0796
+  ...
+# Subtest: period return rates use matching bounded shipment cohorts even when old returns exceed current shipments
+ok 6 - period return rates use matching bounded shipment cohorts even when old returns exceed current shipments
+  ---
+  duration_ms: 6.3853
+  ...
+# Subtest: SKU return costs and claim recoveries stay on the affected SKU as later returns arrive
+ok 7 - SKU return costs and claim recoveries stay on the affected SKU as later returns arrive
+  ---
+  duration_ms: 11.562
+  ...
+# Subtest: explicit return claim links and multiple claims allocate once; closing never erases dated recovery
+ok 8 - explicit return claim links and multiple claims allocate once; closing never erases dated recovery
+  ---
+  duration_ms: 2.3497
+  ...
+# Subtest: separate one-paise fee events retain their original SKU allocation across periods
+ok 9 - separate one-paise fee events retain their original SKU allocation across periods
+  ---
+  duration_ms: 5.9323
+  ...
+# Subtest: linked bank deductions clear source financial-event accruals once in every period and SKU
+ok 10 - linked bank deductions clear source financial-event accruals once in every period and SKU
+  ---
+  duration_ms: 12.1333
+  ...
+# Subtest: partial claim recovery events retain their dates and original return/SKU rounding allocations
+ok 11 - partial claim recovery events retain their dates and original return/SKU rounding allocations
+  ---
+  duration_ms: 22.1491
+  ...
+# Subtest: unknown partial-payment receivables remain in aging and radar; known amounts use discounts and partial receipts
+ok 12 - unknown partial-payment receivables remain in aging and radar; known amounts use discounts and partial receipts
+  ---
+  duration_ms: 6.0598
+  ...
+# Subtest: grounded assistant distinguishes contribution and OPEX and does not subtract return costs twice
+ok 13 - grounded assistant distinguishes contribution and OPEX and does not subtract return costs twice
+  ---
+  duration_ms: 7.0619
+  ...
+# Subtest: return radar uses bounded facts and recorded reverse freight once instead of stale raw loss fields
+ok 14 - return radar uses bounded facts and recorded reverse freight once instead of stale raw loss fields
+  ---
+  duration_ms: 2.0002
+  ...
+# Subtest: retained unmapped-source and pending-migration issues survive all-time and dated projections
+ok 15 - retained unmapped-source and pending-migration issues survive all-time and dated projections
+  ---
+  duration_ms: 2.1535
+  ...
+# Subtest: actual Reports view uses full financialContext and reportRange in both exports and shows the complete bridge
+ok 16 - actual Reports view uses full financialContext and reportRange in both exports and shows the complete bridge
+  ---
+  duration_ms: 277.8115
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5778.3381

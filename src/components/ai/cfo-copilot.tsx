@@ -372,6 +372,7 @@ export function CfoCopilot() {
         returns: platform.returns,
         claims: platform.claims,
         orders: platform.orders,
+        settlements:platform.settlements,
       });
 
       // 2. Fetch from secure ephemeral proxy

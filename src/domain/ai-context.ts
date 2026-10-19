@@ -3,12 +3,15 @@ import {
   ReturnRecord,
   Claim,
   Order,
+  Settlement,
 } from "./types";
+import { isDamagedReturn } from './order-financials';
 import {
   ProfitabilityMetrics,
   MarketplaceProfitability,
   SkuProfitability,
   SettlementAgingSummary,
+  computeReturnFinancials,
 } from "./profitability-engine";
 
 export interface AIActionChip {
@@ -19,11 +22,17 @@ export interface AIActionChip {
 }
 
 export interface GroundedFinancialContext {
+  evidence?: { isComplete: boolean; issues: string[] };
   marketplace: Marketplace | "ALL";
   datePreset: string;
   waterfall: {
     grossSales: number;
     discounts: number;
+    refundedSales?: number;
+    outputTaxExcluded?: number;
+    shippingRevenue?: number;
+    inventoryDamageLoss?: number;
+    salvageRecovery?: number;
     netRevenue: number;
     cogs: number;
     grossProfit: number;
@@ -54,7 +63,7 @@ export interface GroundedFinancialContext {
     sku: string;
     productName: string;
     netSales: number;
-    netProfit: number;
+    contributionProfit: number;
     marginPercent: number;
     unitsSold: number;
     poas: number;
@@ -63,7 +72,7 @@ export interface GroundedFinancialContext {
     sku: string;
     productName: string;
     netSales: number;
-    netProfit: number;
+    contributionProfit: number;
     marginPercent: number;
     returnRate: number;
     adSpend: number;
@@ -71,16 +80,16 @@ export interface GroundedFinancialContext {
   }[];
   channelComparison: {
     channel: Marketplace;
-    grossRevenue: number;
-    netProfit: number;
+    netRevenue: number;
+    contributionProfit: number;
     marginPercent: number;
     adSpend: number;
     poas: number;
   }[];
   settlementAging: {
-    within7DaysAmount: number;
-    between8And14DaysAmount: number;
-    over14DaysOverdueAmount: number;
+    within7DaysAmount: number | null;
+    between8And14DaysAmount: number | null;
+    over14DaysOverdueAmount: number | null;
     overdueOrderCount: number;
   };
   damagedReturnsToClaim: {
@@ -113,6 +122,7 @@ export function serializeFinancialContext(params: {
   returns: ReturnRecord[];
   claims: Claim[];
   orders: Order[];
+  settlements?: Settlement[];
 }): GroundedFinancialContext {
   const {
     selectedMarketplace,
@@ -125,13 +135,13 @@ export function serializeFinancialContext(params: {
     returns,
   } = params;
 
-  // Top 3 hero SKUs by net profit
+  // SKU and channel profit is contribution before shared operating overhead.
   const sortedByProfit = [...skuBreakdown].sort((a, b) => b.profit - a.profit);
   const heroSkus = sortedByProfit.slice(0, 3).map((s) => ({
     sku: s.sku,
     productName: s.productName,
     netSales: s.revenue,
-    netProfit: s.profit,
+    contributionProfit: s.profit,
     marginPercent: s.margin,
     unitsSold: s.unitsSold,
     poas: s.poas || 0,
@@ -146,7 +156,7 @@ export function serializeFinancialContext(params: {
       sku: s.sku,
       productName: s.productName,
       netSales: s.revenue,
-      netProfit: s.profit,
+      contributionProfit: s.profit,
       marginPercent: s.margin,
       returnRate: s.returnRate,
       adSpend: s.adSpend || 0,
@@ -156,8 +166,8 @@ export function serializeFinancialContext(params: {
   // Channels
   const channelComparison = marketplaceBreakdown.map((m) => ({
     channel: m.marketplace,
-    grossRevenue: m.revenue,
-    netProfit: m.contributionProfit,
+    netRevenue: m.revenue,
+    contributionProfit: m.contributionProfit,
     marginPercent: m.margin,
     adSpend: m.adSpend,
     poas: m.poas,
@@ -165,30 +175,38 @@ export function serializeFinancialContext(params: {
 
   // Damaged or unclaimed returns needing SAFE-T claim
   const damagedReturnsToClaim = returns
-    .filter((r) => (r.condition === "DAMAGED" || r.returnType === "DAMAGED_RETURN") && !r.claimId)
+    .filter(isDamagedReturn)
+    .map(record => ({ record, financials: computeReturnFinancials(record, params.orders, [], params.claims, params.settlements || [], returns) }))
+    .filter(({ financials }) => !financials.claim && financials.netLoss > 0)
     .slice(0, 5)
-    .map((r) => ({
-      returnId: r.id,
-      orderId: r.orderId,
-      sku: r.sku,
-      marketplace: r.marketplace,
-      lossAmount: r.lossAmount,
-      claimDeadline: r.claimDeadline,
+    .map(({ record, financials }) => ({
+      returnId: record.id,
+      orderId: record.orderId,
+      sku: record.sku,
+      marketplace: record.marketplace,
+      lossAmount: financials.netLoss,
+      claimDeadline: record.claimDeadline,
     }));
 
   return {
+    evidence: { isComplete: profitability.isComplete !== false, issues: profitability.issues || [] },
     marketplace: selectedMarketplace,
     datePreset,
     waterfall: {
       grossSales: profitability.grossSales,
       discounts: profitability.discounts,
+      refundedSales: profitability.refundedSales,
+      outputTaxExcluded: profitability.outputTaxExcluded || 0,
+      shippingRevenue: profitability.shippingRevenue || 0,
+      inventoryDamageLoss: profitability.damageLosses,
+      salvageRecovery: profitability.salvageRecovery || 0,
       netRevenue: profitability.netSales,
       cogs: profitability.cogs,
       grossProfit: profitability.grossProfit,
       grossMarginPercent: profitability.grossMargin,
       marketplaceFees: profitability.marketplaceCharges,
       logisticsCost: profitability.shippingLogisticsCosts,
-      returnAndRtoLoss: profitability.returnLosses + profitability.rtoLosses,
+      returnAndRtoLoss: profitability.directReturnCosts || 0,
       disputeRecoveries: profitability.claimRecoveries,
       contributionProfit: profitability.contributionProfit,
       contributionMarginPercent: profitability.contributionMargin,
@@ -239,6 +257,10 @@ STRICT FORMATTING & STYLE RULES:
 4. ZERO MATH HALLUCINATIONS:
    - NEVER calculate or invent numbers yourself. All numbers are pre-calculated in the GROUNDED_FINANCIAL_CONTEXT below.
    - Quote numbers exactly as given using the rupee symbol (₹) and percentage (%).
+   - SKU and channel contributionProfit is before shared OPEX; never call it net profit.
+   - The revenue bridge is gross less discounts, sales refunds and included GST, plus shipping/customer charges.
+   - Direct return costs exclude inventory damage already included in COGS. Do not subtract RTO losses a second time.
+   - When evidence.isComplete is false, describe monetary results as provisional and identify the supplied unresolved evidence. Missing evidence is not zero.
 5. ACTION CHIPS:
    - Do NOT suggest action chips unless strictly necessary for a concrete transaction audit.
    - Keep the chat clean, uncluttered, and focused.

@@ -13,7 +13,7 @@ const item = (changes = {}) => ({ id: 'line', sku: 'SKU', productName: 'Item', q
 const order = (id = 'one', changes = {}) => ({ id, channelOrderId: id, marketplace: 'WooCommerce', orderDate: '2026-10-01', status: 'DELIVERED', customerName: '', customerCity: '', customerState: '', shippingFeeCharged: 0, marketplaceChargesEstimate: 0, items: [item()], ...changes });
 const product = (changes = {}) => ({ id: 'product', sku: 'SKU', name: 'Item', category: '', brand: '', supplierId: '', currentCostPrice: 20, costHistory: [], channelAliases: {}, active: true, stockQuantity: 5, ...changes });
 const settlement = (id = 'receipt', changes = {}) => ({ id, marketplace: 'WooCommerce', orderId: 'one', settlementBatchId: id, settlementDate: '2026-10-10', grossAmount: 200, netSettlement: 50, deductions: [], tcsTdsTax: 0, reconciliationStatus: 'RECONCILED', ...changes });
-const returned = (changes = {}) => ({ id: 'return', orderId: 'one', channelOrderId: 'one', marketplace: 'WooCommerce', returnDate: '2026-10-02', returnType: 'CUSTOMER_RETURN', returnReason: '', sku: 'SKU', quantity: 1, condition: 'SELLABLE', restockStatus: 'RESTOCKED', returnShippingCost: 0, customerReturnFee: 0, otherReturnCosts: 0, inventoryRecoveryValue: 0, lossAmount: 0, ...changes });
+const returned = (changes = {}) => ({ id: 'return', orderId: 'one', channelOrderId: 'one', marketplace: 'WooCommerce', returnDate: '2026-10-02', returnType: 'CUSTOMER_RETURN', returnReason: '', sku: 'SKU', quantity: 1, condition: 'SELLABLE', restockStatus: 'RESTOCKED', receivedDate: '2026-10-02', returnShippingCost: 0, customerReturnFee: 0, otherReturnCosts: 0, inventoryRecoveryValue: 0, lossAmount: 0, ...changes });
 const claim = (id, changes = {}) => ({ id, orderId: 'one', marketplace: 'WooCommerce', claimType: 'FEE_DISPUTE', claimDate: '2026-10-02', amountClaimed: 5, amountRecovered: 0, status: 'FILED', ...changes });
 const plain = value => JSON.parse(JSON.stringify(value));
 
@@ -79,14 +79,15 @@ test('F49: multiple files consolidate lines but reject contradictory prices and 
 });
 
 test('F52: aging includes partial balances, honors marketplace and recognizes no guessed fees', () => {
-  const result = engine.calculateSettlementAging([order(), order('pending', { status: 'PENDING' })], [settlement(), settlement('foreign', { marketplace: 'Flipkart', netSettlement: 999 })], '2026-10-15');
+  const result = engine.calculateSettlementAging([order('one', { feeEstimateStatus: 'CONFIGURED', marketplaceChargesEstimate: 0 }), order('pending', { status: 'PENDING' })], [settlement(), settlement('foreign', { marketplace: 'Flipkart', netSettlement: 999 })], '2026-10-15');
   assert.equal(result.totalOutstandingAmount, 150);
   assert.equal(result.totalUnsettledOrders, 1);
+  assert.equal(result.pending.orders[0].estimatedPayout, 150);
   assert.equal(result.pending.orders[0].daysOutstanding, 14);
 });
 test('F52: aging uses return units and excludes future orders', () => {
   const result = engine.calculateSettlementAging([order(), order('future', { orderDate: '2026-11-01' })], [], '2026-10-15', [returned()]);
-  assert.equal(result.totalOutstandingAmount, 100);
+  assert.equal(result.totalOutstandingAmount, null);
   assert.equal(result.totalUnsettledOrders, 1);
 });
 test('F52: business date observes India midnight and report channel matching is exact', () => {
@@ -122,7 +123,7 @@ test('F55: CSV round-trips commas, quotes, CR/LF and formula-like text safely', 
 });
 
 test('F47: order archival recovers cascade records and exact inventory, including repeated-SKU lines', () => {
-  const data = { ...recovery.emptyLedger(), products: [product()], orders: [order('one', { items: [item({ id: 'a', quantity: 1, returnedQuantity: 1 }), item({ id: 'b', quantity: 1 })] })], returns: [returned()], settlements: [settlement()], claims: [claim('claim')] };
+  const data = { ...recovery.emptyLedger(), products: [product()], orders: [order('one', { physicalDispatchRecorded: true, items: [item({ id: 'a', quantity: 1, returnedQuantity: 1 }), item({ id: 'b', quantity: 1 })] })], returns: [returned()], settlements: [settlement()], claims: [claim('claim')] };
   const patch = recovery.archiveRecords(data, 'orders', ['one']);
   const deleted = recovery.applyArchivePatch(data, patch);
   assert.equal(deleted.products[0].stockQuantity, 6);
@@ -145,7 +146,7 @@ test('F47: return archival removes only linked claims; restock reversal is exact
   assert.throws(() => recovery.archiveRecords({ ...data, products: [product({ stockQuantity: 0 })] }, 'returns', ['return']));
 });
 test('F47: later edits and SKU collisions prevent recovery from overwriting newer state', () => {
-  const data = { ...recovery.emptyLedger(), products: [product()], orders: [order()] };
+  const data = { ...recovery.emptyLedger(), products: [product()], orders: [order('one', { physicalDispatchRecorded: true })] };
   const patch = recovery.archiveRecords(data, 'orders', ['one']);
   const deleted = recovery.applyArchivePatch(data, patch);
   assert.throws(() => recovery.applyArchivePatch({ ...deleted, products: [product({ stockQuantity: 100 })] }, patch, true));
@@ -169,7 +170,7 @@ test('F47: archive write failure rolls back relational changes and never reports
   let changed = false;
   const statements = [];
   const client = { query: async sql => { statements.push(sql); if (sql.includes('INSERT INTO ledger_archives')) throw Error('offline'); return { rows: [] }; }, release() {} };
-  const route = load('src/app/api/recycle-bin/route.ts', { [session]: { getSessionUserId: () => 'A' }, [db]: { pool: { connect: async () => client } }, '@/lib/recycle-persistence': { persistArchivePatch: async () => { changed = true; } } });
+  const route = load('src/app/api/recycle-bin/route.ts', { [session]: { getSessionUserId: () => 'A' }, [db]: { pool: { connect: async () => client } }, '@/lib/canonical-ledger': { readCanonicalLedger: async () => data }, '@/lib/recycle-persistence': { persistArchivePatch: async () => { changed = true; } } });
   const data = { ...recovery.emptyLedger(), products: [product()] };
   const response = await route.POST(new Request('https://app.example', { method: 'POST', body: JSON.stringify({ action: 'archive', type: 'products', ids: ['product'], patch: recovery.archiveRecords(data, 'products', ['product']) }) }));
   assert.equal(response.status, 409);
@@ -214,27 +215,22 @@ function hooks() {
   const react = { createContext: () => ({ Provider: 'Provider' }), useState: initial => { const i = cursor++; if (!(i in slots)) slots[i] = initial; return [slots[i], value => { slots[i] = typeof value === 'function' ? value(slots[i]) : value; }]; }, useRef: initial => { const i = cursor++; return slots[i] ?? (slots[i] = { current: initial }); }, useMemo: fn => fn(), useCallback: fn => fn, useEffect() {} };
   return { react, render: fn => { cursor = 0; return fn(); } };
 }
-function providerHarness() {
-  const harness = hooks(); let reject = false, owner = 'A';
+function providerHarness(initial = {}) {
+  const harness = hooks(); let owner = 'A';
   const alerts = [];
-  const app = load('src/domain/store.tsx', { react: harness.react }, { structuredClone, window: {}, localStorage: { getItem: () => null }, alert: message => alerts.push(message), fetch: async (url, options) => {
-    if (url === '/api/auth/me') return Response.json({ user: { id: owner } });
-    if (url === '/api/recycle-bin?recovered=true') return Response.json({ success: true, recovered: { returns: [], claims: [], expenses: [] } });
-    if (options?.method === 'POST') return Response.json({ success: !reject, orderIds: ['canonical'] }, { status: reject ? 503 : 200 });
-    if (url.startsWith('/api/orders')) return Response.json({ orders: [order()] });
-    if (url.startsWith('/api/products')) return Response.json({ products: [product()] });
-    return Response.json({ settlements: [] });
-  } });
-  return { render: () => harness.render(() => app.PlatformProvider({ children: null }).props.value), reject: value => { reject = value; }, owner: value => { owner = value; }, alerts };
+  const backend = load.makeLedgerBackend({ orders: [order()], products: [product()], ...initial }, { owner: () => owner });
+  const app = load('src/domain/store.tsx', { react: harness.react }, { structuredClone, window: {}, localStorage: { getItem: () => null, removeItem() {} }, alert: message => alerts.push(message), fetch: backend.fetch });
+  return { render: () => harness.render(() => app.PlatformProvider({ children: null }).props.value), reject: value => backend.reject(value), owner: value => { owner = value; }, alerts };
 }
+
 test('F54: actual provider leaves every collection untouched on a rejected snapshot and exports owner binding', async () => {
   const app = providerHarness(); await app.render().refreshFromDatabase();
   const before = app.render().exportLedgerSnapshot();
   const data = JSON.parse(before).data;
   assert.equal(JSON.parse(before).ownerId, 'A');
-  assert.equal(app.render().importLedgerSnapshot(snapshot({ ...data, products: [product({ name: 'Must not apply' })], orders: [order('bad', { items: null })] })), false);
+  assert.equal(await app.render().importLedgerSnapshot(snapshot({ ...data, products: [product({ name: 'Must not apply' })], orders: [order('bad', { items: null })] })), false);
   assert.deepEqual(JSON.parse(app.render().exportLedgerSnapshot()).data, data);
-  assert.equal(app.render().importLedgerSnapshot(before), true);
+  assert.equal(await app.render().importLedgerSnapshot(before), true);
 });
 test('F48/F49: actual provider rejects failed saves, uses canonical IDs and deduplicates consecutive imports', async () => {
   const app = providerHarness(); await app.render().refreshFromDatabase();
@@ -261,27 +257,27 @@ test('F22/F40: product creation waits for server acknowledgement before updating
 test('F47: failed archival leaves actual provider inventory and records untouched', async () => {
   const app = providerHarness(); await app.render().refreshFromDatabase();
   app.reject(true);
-  app.render().deleteOrder('one');
+  await assert.rejects(app.render().deleteOrder('one'));
   await new Promise(resolve => setTimeout(resolve, 10));
   assert.equal(app.render().orders.length, 1);
   assert.equal(app.render().products[0].stockQuantity, 5);
-  assert.equal(app.alerts.length, 1);
+  assert.equal(app.alerts.length, 0);
 });
 test('F51: restocking is idempotent and missing products remain pending', async () => {
-  const app = providerHarness(); await app.render().refreshFromDatabase();
+  const app = providerHarness({ orders: [order('one', { items: [item(), item({ id: 'unknown-line', sku: 'UNKNOWN', quantity: 1 })] })] }); await app.render().refreshFromDatabase();
   const actions = app.render();
-  actions.addReturn(returned({ id: 'pending-restock', quantity: 2, restockStatus: 'PENDING_RESTOCK' }));
+  await actions.addReturn(returned({ id: 'pending-restock', quantity: 2, restockStatus: 'PENDING_RESTOCK' }));
   const before = app.render();
   assert.equal(before.products[0].stockQuantity, 5);
   const restock = before.restockReturn;
-  restock('pending-restock');
-  restock('pending-restock');
+  await restock('pending-restock');
+  await restock('pending-restock');
   const after = app.render();
   assert.equal(after.products[0].stockQuantity, 7);
   assert.equal(after.returns.find(record => record.id === 'pending-restock').restockStatus, 'RESTOCKED');
 
-  after.addReturn(returned({ id: 'missing-product', sku: 'UNKNOWN', restockStatus: 'PENDING_RESTOCK' }));
-  app.render().restockReturn('missing-product');
+  await after.addReturn(returned({ id: 'missing-product', sku: 'UNKNOWN', restockStatus: 'PENDING_RESTOCK' }));
+  await assert.rejects(app.render().restockReturn('missing-product'), /Inventory movement/);
   const missing = app.render();
   assert.equal(missing.products[0].stockQuantity, 7);
   assert.equal(missing.returns.find(record => record.id === 'missing-product').restockStatus, 'PENDING_RESTOCK');

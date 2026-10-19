@@ -863,27 +863,27 @@ export function DashboardView({
             </div>
           </div>
 
-          {/* Card 2: True Profit */}
+          {/* Card 2: Contribution Profit */}
           <div className="bg-white p-6 rounded-2xl border border-black/[0.06] shadow-apple-md flex flex-col justify-between relative">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-medium text-[#86868B]">
-                True Profit
+                Contribution Profit{profitability.isComplete===false?" (provisional)":""}
               </span>
               <button
                 onClick={() => setActiveLogicModal(trueProfitLogic)}
                 className="w-7 h-7 rounded-lg bg-black/[0.03] hover:bg-black/[0.06] text-[#86868B] hover:text-[#1D1D1F] flex items-center justify-center transition-colors cursor-pointer active:scale-95"
-                title="View True Profit calculation logic"
-                aria-label="View True Profit calculation logic"
+                title="View Contribution Profit calculation logic"
+                aria-label="View Contribution Profit calculation logic"
               >
                 <Info className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="my-3">
               <div className="text-3xl font-semibold text-[#288548] tracking-[-0.02em] tabular-nums">
-                {formatINR(profitability.trueProfit)}
+                {formatINR(profitability.contributionProfit)}
               </div>
               <div className="text-xs text-[#288548] font-semibold mt-1">
-                {formatPercent(profitability.grossSales > 0 ? profitability.trueProfit / profitability.grossSales : 0)} margin on sales
+                {formatPercent(profitability.grossSales > 0 ? profitability.contributionProfit / profitability.grossSales : 0)} margin on sales
               </div>
             </div>
             <div className="text-xs text-[#86868B] pt-3 border-t border-black/[0.04]">
@@ -949,7 +949,7 @@ export function DashboardView({
             <div className="text-xs text-[#86868B] pt-3 border-t border-black/[0.04] flex items-center justify-between">
               <span>Return fees &amp; losses</span>
               <span className="text-[#D70015] font-semibold tabular-nums">
-                -{formatINR(profitability.returnLosses + profitability.rtoLosses)}
+                -{formatINR(profitability.returnLosses)}
               </span>
             </div>
           </div>
@@ -1255,7 +1255,7 @@ export function DashboardView({
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-medium text-[#86868B]">Returns</span>
               </div>
-              <div className="text-xl font-semibold text-[#B25E00] tracking-tight tabular-nums">{formatINR(profitability.returnLosses + profitability.rtoLosses)}</div>
+              <div className="text-xl font-semibold text-[#B25E00] tracking-tight tabular-nums">{formatINR(profitability.returnLosses)}</div>
               <div className="text-[11px] text-[#6E6E73]">Return + RTO loss</div>
               <div className="mt-auto pt-2 border-t border-black/[0.04] flex items-center justify-between"><span className="text-[10px] font-semibold text-amber-800">Rate: {formatPercent(profitability.returnRate)}</span></div>
             </div>

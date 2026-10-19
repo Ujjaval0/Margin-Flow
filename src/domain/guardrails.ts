@@ -1,3 +1,5 @@
+import { validateStatutoryWithholding, getSettlementWithholding } from "./accounting-policy";
+import { money, sumMoney } from "@/domain/order-financials";
 import {
   Order,
   ReturnRecord,
@@ -28,7 +30,7 @@ export function runSystemGuardrailDiagnostics(
   orders.forEach((o) => {
     o.items.forEach((item) => {
       const prod = products.find((p) => p.sku === item.sku);
-      if (prod && item.snapshotUnitCost <= 0) {
+      if (item.costEvidence==='UNKNOWN' || item.snapshotUnitCost===0 && item.costEvidence!=='RECORDED') {
         p1Violations++;
       }
     });
@@ -40,7 +42,7 @@ export function runSystemGuardrailDiagnostics(
     details:
       p1Violations === 0
         ? "All order line items have locked, immutable historical unit costs."
-        : `${p1Violations} line items have missing or zero historical cost snapshots.`,
+        : `${p1Violations} line items have unresolved historical cost snapshots.`,
     count: p1Violations,
   });
 
@@ -69,19 +71,19 @@ export function runSystemGuardrailDiagnostics(
   // P3 Guardrail: Cumulative Return Quantity Ceiling (Cannot return more than ordered)
   const cumulativeReturnsByItem = new Map<string, number>();
   returns.forEach((ret) => {
-    const key = `${ret.orderId || ret.channelOrderId}:${ret.sku}`;
+    const key = `${ret.marketplace}:${ret.orderId || ret.channelOrderId}:${ret.sku}`;
     cumulativeReturnsByItem.set(key, (cumulativeReturnsByItem.get(key) || 0) + ret.quantity);
   });
 
   let overReturnCount = 0;
   orders.forEach((o) => {
-    o.items.forEach((item) => {
-      const keyId = `${o.id}:${item.sku}`;
-      const keyChannel = o.channelOrderId ? `${o.channelOrderId}:${item.sku}` : "";
+    Array.from(new Set(o.items.map(item=>item.sku))).forEach((sku) => {
+      const keyId = `${o.marketplace}:${o.id}:${sku}`;
+      const keyChannel = o.channelOrderId ? `${o.marketplace}:${o.channelOrderId}:${sku}` : "";
       const totalReturned =
         (cumulativeReturnsByItem.get(keyId) || 0) +
         (keyChannel && keyChannel !== keyId ? cumulativeReturnsByItem.get(keyChannel) || 0 : 0);
-      if (totalReturned > item.quantity) {
+      if (totalReturned > o.items.filter(item=>item.sku===sku).reduce((sum,item)=>sum+item.quantity,0)) {
         overReturnCount++;
       }
     });
@@ -100,8 +102,9 @@ export function runSystemGuardrailDiagnostics(
   // P4 Guardrail: Settlement Balance Invariant (Gross - Deductions - Taxes == Net)
   let reconDiscrepancies = 0;
   settlements.forEach((s) => {
-    const totalDeductions = s.deductions.reduce((sum, d) => sum + d.amount, 0);
-    const calculatedNet = s.grossAmount - totalDeductions - s.tcsTdsTax;
+    const totalDeductions = sumMoney(s.deductions.filter(deduction => !["TAX_TCS", "TAX_TDS"].includes(deduction.category)).map(deduction => deduction.amount));
+    const withholding = getSettlementWithholding(s);
+    const calculatedNet = sumMoney([s.grossAmount, -totalDeductions, -withholding]);
     const diff = Math.abs(calculatedNet - s.netSettlement);
     if (diff > 0.05) {
       reconDiscrepancies++;
@@ -180,6 +183,25 @@ export function runSystemGuardrailDiagnostics(
     count: arithmeticFailedDocs.length,
   });
 
+  const unknownTaxBasis = orders.filter(order => order.status !== "CANCELLED" && order.pricesIncludeTax === undefined && order.items.some(item => item.taxAmount > 0));
+  if (unknownTaxBasis.length) results.push({ partition: "P6: Profitability Ledger", name: "Order Price Tax Basis",
+    status: "WARNING", count: unknownTaxBasis.length, details: `${unknownTaxBasis.length} orders need a verified inclusive/exclusive price basis; historical profit remains provisional and payout estimates are withheld.` });
+  const withholdingWarnings = settlements.flatMap(settlement => {
+    if (settlement.tcsTaxableValue === undefined && settlement.tdsGrossAmount === undefined) return [];
+    return validateStatutoryWithholding({ date: settlement.tcsCollectionDate, netTaxableValue: settlement.tcsTaxableValue || 0,
+      grossExcludingGst: settlement.tdsGrossAmount || 0,
+      tdsDate: settlement.tdsCreditOrPaymentDate, tdsApplicability: settlement.withholdingApplicability,
+      tcsTax: settlement.tcsTaxableValue === undefined ? undefined : settlement.tcsTax,
+      tdsTax: settlement.tdsGrossAmount === undefined ? undefined : settlement.tdsTax, rates: settlement.withholdingRates });
+  });
+  if (withholdingWarnings.length) results.push({ partition: "P4: Settlements & Deductions", name: "Statutory Withholding Rates",
+    status: "WARNING", count: withholdingWarnings.length, details: withholdingWarnings.map(warning => warning.message).join(" ") });
+  const unresolvedWithholding = settlements.filter(settlement =>
+    settlement.tcsTaxableValue !== undefined && !settlement.tcsCollectionDate ||
+    settlement.tdsGrossAmount !== undefined && (settlement.withholdingApplicability === undefined || settlement.withholdingApplicability === "UNKNOWN" ||
+      settlement.withholdingApplicability === "VERIFIED_APPLICABLE" && !settlement.tdsCreditOrPaymentDate));
+  if (unresolvedWithholding.length) results.push({ partition: "P4: Settlements & Deductions", name: "Statutory Withholding Evidence",
+    status: "WARNING", count: unresolvedWithholding.length, details: "Withholding event dates or applicability remain unverified; affected statutory rate comparisons are withheld." });
   return results;
 }
 
@@ -210,9 +232,9 @@ export function validateDocumentArithmetic(
   const passed = difference <= 0.05; // 5 paise rounding tolerance
   return {
     passed,
-    calculatedTotal: Math.round(calculatedTotal * 100) / 100,
+    calculatedTotal: money(calculatedTotal),
     declaredTotal,
-    difference: Math.round(difference * 100) / 100,
+    difference: money(difference),
     message: passed
       ? "Arithmetic invariant verified (Qty × Price - Discount + Tax ≡ Total)."
       : `Discrepancy detected: AI declared ₹${declaredTotal}, but formula yielded ₹${calculatedTotal.toFixed(2)} (diff ₹${difference.toFixed(2)}). Quarantined for review.`,

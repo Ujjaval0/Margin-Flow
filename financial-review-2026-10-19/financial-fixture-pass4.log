@@ -1,0 +1,215 @@
+TAP version 13
+# Subtest: A1: decimal halves round away from zero, including exponent notation, without negative zero
+ok 1 - A1: decimal halves round away from zero, including exponent notation, without negative zero
+  ---
+  duration_ms: 5.5921
+  ...
+# Subtest: A2/A3: partial returns reconcile ledger revenue, snapshot COGS and receivables with operational facts
+ok 2 - A2/A3: partial returns reconcile ledger revenue, snapshot COGS and receivables with operational facts
+  ---
+  duration_ms: 75.4357
+  ...
+# Subtest: A3: oversized and duplicate returns cannot restore more than dispatched cost
+ok 3 - A3: oversized and duplicate returns cannot restore more than dispatched cost
+  ---
+  duration_ms: 8.8898
+  ...
+# Subtest: returns on different dates retain their own journal dates and conserve fractional refunds
+ok 4 - returns on different dates retain their own journal dates and conserve fractional refunds
+  ---
+  duration_ms: 20.1619
+  ...
+# Subtest: A4/A5: return fee components reach the ledger, settlement reverse shipping wins exactly once
+ok 5 - A4/A5: return fee components reach the ledger, settlement reverse shipping wins exactly once
+  ---
+  duration_ms: 14.844
+  ...
+# Subtest: A6/B14: supplier payments retain dates, references and excess advances without duplicate cash postings
+ok 6 - A6/B14: supplier payments retain dates, references and excess advances without duplicate cash postings
+  ---
+  duration_ms: 9.2199
+  ...
+# Subtest: A7: one-paisa imbalances fail both journal and trial balance validation
+ok 7 - A7: one-paisa imbalances fail both journal and trial balance validation
+  ---
+  duration_ms: 2.1648
+  ...
+# Subtest: A8: discounted SKU weights allocate paise exactly
+ok 8 - A8: discounted SKU weights allocate paise exactly
+  ---
+  duration_ms: 8.5063
+  ...
+# Subtest: B1: one entered return fee is recorded once and reimbursements never become salvage or loss offsets
+ok 9 - B1: one entered return fee is recorded once and reimbursements never become salvage or loss offsets
+  ---
+  duration_ms: 1.4255
+  ...
+# Subtest: B2: customer shipping revenue offsets recorded logistics and only explicit refunds reduce it
+ok 10 - B2: customer shipping revenue offsets recorded logistics and only explicit refunds reduce it
+  ---
+  duration_ms: 13.5301
+  ...
+# Subtest: B3: inclusive and exclusive representations of one invoice produce identical sales and payout
+ok 11 - B3: inclusive and exclusive representations of one invoice produce identical sales and payout
+  ---
+  duration_ms: 29.0995
+  ...
+# Subtest: B4: used/lost returns, RTO costs and salvage follow the same return and order policy
+ok 12 - B4: used/lost returns, RTO costs and salvage follow the same return and order policy
+  ---
+  duration_ms: 54.4592
+  ...
+# Subtest: B5/B6: commission GST changes cash and eligible expense separately; unconfirmed registration grants no credit
+ok 13 - B5/B6: commission GST changes cash and eligible expense separately; unconfirmed registration grants no credit
+  ---
+  duration_ms: 16.0056
+  ...
+# Subtest: B7: webhook fees remain unknown, Shopify shipping is recorded and Woo discounts apply once
+ok 14 - B7: webhook fees remain unknown, Shopify shipping is recorded and Woo discounts apply once
+  ---
+  duration_ms: 953.7269
+  ...
+# Subtest: B8: weight warnings require recorded weights, configured slabs and actual LOGISTICS deductions
+ok 15 - B8: weight warnings require recorded weights, configured slabs and actual LOGISTICS deductions
+  ---
+  duration_ms: 512.1128
+  ...
+# Subtest: B9/B10/B11: unknown payouts stay in aging, ratios use percentage points and contribution has no net-profit alias
+ok 16 - B9/B10/B11: unknown payouts stay in aging, ratios use percentage points and contribution has no net-profit alias
+  ---
+  duration_ms: 12.3929
+  ...
+# Subtest: B13: statutory warnings use dated rates, separate TCS/TDS, and never block or rewrite amounts
+ok 17 - B13: statutory warnings use dated rates, separate TCS/TDS, and never block or rewrite amounts
+  ---
+  duration_ms: 348.5564
+  ...
+# Subtest: supplier payment snapshots round-trip and old snapshots default to an empty payment history
+ok 18 - supplier payment snapshots round-trip and old snapshots default to an empty payment history
+  ---
+  duration_ms: 598.802
+  ...
+# Subtest: ledger and operational outstanding agree after return fees, withholding, GST and recorded claims
+ok 19 - ledger and operational outstanding agree after return fees, withholding, GST and recorded claims
+  ---
+  duration_ms: 17.5183
+  ...
+# Subtest: tax policy is tenant-scoped, dated, snapshotted and used by server-side commission calculations
+ok 20 - tax policy is tenant-scoped, dated, snapshotted and used by server-side commission calculations
+  ---
+  duration_ms: 325.455
+  ...
+# Subtest: C: cent allocation conserves totals for signed and uneven orders
+ok 21 - C: cent allocation conserves totals for signed and uneven orders
+  ---
+  duration_ms: 5.6842
+  ...
+# Subtest: C: ledger contribution reconciles to report facts across tax bases, quantities and return conditions
+ok 22 - C: ledger contribution reconciles to report facts across tax bases, quantities and return conditions
+  ---
+  duration_ms: 540.8474
+  ...
+# Subtest: unpaid delivered revenue is a receivable, never fabricated cash or a fee
+ok 23 - unpaid delivered revenue is a receivable, never fabricated cash or a fee
+  ---
+  duration_ms: 15.0307
+  ...
+# Subtest: configured estimates produce a forecast and actual settlement deductions replace rather than add to estimates
+ok 24 - configured estimates produce a forecast and actual settlement deductions replace rather than add to estimates
+  ---
+  duration_ms: 5.5758
+  ...
+# Subtest: explicit no-rule status ignores any preserved legacy numeric fee and withholds payout
+ok 25 - explicit no-rule status ignores any preserved legacy numeric fee and withholds payout
+  ---
+  duration_ms: 2.4949
+  ...
+# Subtest: percentage and fee estimates never become observed cash
+ok 26 - percentage and fee estimates never become observed cash
+  ---
+  duration_ms: 2.8923
+  ...
+# Subtest: pending and cancelled orders do not recognise revenue or COGS
+ok 27 - pending and cancelled orders do not recognise revenue or COGS
+  ---
+  duration_ms: 27.9385
+  ...
+# Subtest: partial sellable return reverses only returned revenue and COGS despite a stale whole-order status
+ok 28 - partial sellable return reverses only returned revenue and COGS despite a stale whole-order status
+  ---
+  duration_ms: 6.9222
+  ...
+# Subtest: damaged partial return retains damaged cost without refunding all units
+ok 29 - damaged partial return retains damaged cost without refunding all units
+  ---
+  duration_ms: 3.8288
+  ...
+# Subtest: duplicate return records and oversized quantities cannot double-count same-SKU lines
+ok 30 - duplicate return records and oversized quantities cannot double-count same-SKU lines
+  ---
+  duration_ms: 7.4481
+  ...
+# Subtest: actual partial settlements preserve an outstanding balance and do not invent fees
+ok 31 - actual partial settlements preserve an outstanding balance and do not invent fees
+  ---
+  duration_ms: 4.9663
+  ...
+# Subtest: settlements from another marketplace cannot attach by a coincident order ID
+ok 32 - settlements from another marketplace cannot attach by a coincident order ID
+  ---
+  duration_ms: 2.554
+  ...
+# Subtest: recorded cash and fee refunds retain their signs and duplicate receipts are not summed twice
+ok 33 - recorded cash and fee refunds retain their signs and duplicate receipts are not summed twice
+  ---
+  duration_ms: 2.4643
+  ...
+# Subtest: business, order and SKU totals agree on discounted multi-line partial returns
+ok 34 - business, order and SKU totals agree on discounted multi-line partial returns
+  ---
+  duration_ms: 22.2067
+  ...
+# Subtest: cent allocation is deterministic and reconciles signed totals
+ok 35 - cent allocation is deterministic and reconciles signed totals
+  ---
+  duration_ms: 1.4255
+  ...
+# Subtest: supplier partial payments accumulate against remaining balances and allocate oldest-first
+ok 36 - supplier partial payments accumulate against remaining balances and allocate oldest-first
+  ---
+  duration_ms: 44.324
+  ...
+# Subtest: ledger recognises discounted goods revenue without an invented 65/35 fee split
+ok 37 - ledger recognises discounted goods revenue without an invented 65/35 fee split
+  ---
+  duration_ms: 7.302
+  ...
+# Subtest: actual purchase action adds stock exactly once for a repeated bill
+ok 38 - actual purchase action adds stock exactly once for a repeated bill
+  ---
+  duration_ms: 2648.4725
+  ...
+# Subtest: supplier payment action preserves successive allocations and excess in the exported tenant ledger
+ok 39 - supplier payment action preserves successive allocations and excess in the exported tenant ledger
+  ---
+  duration_ms: 1506.2653
+  ...
+# Subtest: purchase modal preserves zero GST and rounds fractional tax to cents
+ok 40 - purchase modal preserves zero GST and rounds fractional tax to cents
+  ---
+  duration_ms: 469.6758
+  ...
+# Subtest: Suppliers view tolerates a catalog product without an assigned supplier
+ok 41 - Suppliers view tolerates a catalog product without an assigned supplier
+  ---
+  duration_ms: 282.6332
+  ...
+1..41
+# tests 41
+# suites 0
+# pass 41
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8176.5492

@@ -1,0 +1,1 @@
+{"productionServer":true,"checks":6,"passed":6,"databaseWrites":0,"scope":"Unauthenticated and cross-origin compiled-route smoke checks only"}

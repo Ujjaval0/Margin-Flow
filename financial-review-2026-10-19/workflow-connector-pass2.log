@@ -1,0 +1,441 @@
+TAP version 13
+# Subtest: order persistence recalculates quick commission server-side and snapshots its rate and components
+ok 1 - order persistence recalculates quick commission server-side and snapshots its rate and components
+  ---
+  duration_ms: 1494.6324
+  ...
+# Subtest: order persistence preserves unknown fees when neither rules nor quick rate are present
+ok 2 - order persistence preserves unknown fees when neither rules nor quick rate are present
+  ---
+  duration_ms: 412.2712
+  ...
+# Subtest: Amazon finance split events have distinct repeatable identities across pages and replays
+ok 3 - Amazon finance split events have distinct repeatable identities across pages and replays
+  ---
+  duration_ms: 1134.5408
+  ...
+# Subtest: Amazon exhausts order and item tokens before a single tenant-owned write
+ok 4 - Amazon exhausts order and item tokens before a single tenant-owned write
+  ---
+  duration_ms: 575.8529
+  ...
+# Subtest: Amazon http item response never manufactures or persists an order
+ok 5 - Amazon http item response never manufactures or persists an order
+  ---
+  duration_ms: 341.2398
+  ...
+# Subtest: Amazon empty item response never manufactures or persists an order
+ok 6 - Amazon empty item response never manufactures or persists an order
+  ---
+  duration_ms: 243.5771
+  ...
+# Subtest: Amazon malformed item response never manufactures or persists an order
+ok 7 - Amazon malformed item response never manufactures or persists an order
+  ---
+  duration_ms: 274.7716
+  ...
+# Subtest: Shopify follows same-origin Link pages on the supported version
+ok 8 - Shopify follows same-origin Link pages on the supported version
+  ---
+  duration_ms: 740.2102
+  ...
+# Subtest: Shopify never forwards tokens to a foreign next-page origin
+ok 9 - Shopify never forwards tokens to a foreign next-page origin
+  ---
+  duration_ms: 356.7679
+  ...
+# Subtest: WooCommerce exhausts numbered pages with secrets only in Authorization
+ok 10 - WooCommerce exhausts numbered pages with secrets only in Authorization
+  ---
+  duration_ms: 490.0781
+  ...
+# Subtest: a later WooCommerce page failure does not persist or advance the checkpoint
+ok 11 - a later WooCommerce page failure does not persist or advance the checkpoint
+  ---
+  duration_ms: 365.0525
+  ...
+# Subtest: custom connector follows documented next URL and rejects incomplete cursor-only results
+ok 12 - custom connector follows documented next URL and rejects incomplete cursor-only results
+  ---
+  duration_ms: 669.0505
+  ...
+# Subtest: custom verification rejects 404
+ok 13 - custom verification rejects 404
+  ---
+  duration_ms: 379.725
+  ...
+# Subtest: custom verification rejects 500
+ok 14 - custom verification rejects 500
+  ---
+  duration_ms: 381.8236
+  ...
+# Subtest: custom verification rejects unusable JSON
+ok 15 - custom verification rejects unusable JSON
+  ---
+  duration_ms: 301.1758
+  ...
+# Subtest: Amazon token exchange alone does not verify Orders or Finances access
+ok 16 - Amazon token exchange alone does not verify Orders or Finances access
+  ---
+  duration_ms: 335.0661
+  ...
+# Subtest: Flipkart uses shipment contract, follows pages and preserves sibling order items
+ok 17 - Flipkart uses shipment contract, follows pages and preserves sibling order items
+  ---
+  duration_ms: 215.5459
+  ...
+# Subtest: pagination rejects repeated cursors and a bounded incomplete run explicitly
+ok 18 - pagination rejects repeated cursors and a bounded incomplete run explicitly
+  ---
+  duration_ms: 65.6679
+  ...
+# Subtest: OAuth state requires durable storage and atomically binds owner, client, redirect and expiry
+ok 19 - OAuth state requires durable storage and atomically binds owner, client, redirect and expiry
+  ---
+  duration_ms: 37.1407
+  ...
+# Subtest: Finances pagination reads its own checkpoint and cannot advance the Orders stream
+ok 20 - Finances pagination reads its own checkpoint and cannot advance the Orders stream
+  ---
+  duration_ms: 93.4585
+  ...
+# Subtest: checkpoint updates persist independent streams under the owner and one active connection guard
+ok 21 - checkpoint updates persist independent streams under the owner and one active connection guard
+  ---
+  duration_ms: 25.1557
+  ...
+# Subtest: Flipkart refresh persists rotated tokens before using the new access token
+ok 22 - Flipkart refresh persists rotated tokens before using the new access token
+  ---
+  duration_ms: 182.9261
+  ...
+# Subtest: Flipkart OAuth callback binds the session and ignores caller credential/redirect overrides
+ok 23 - Flipkart OAuth callback binds the session and ignores caller credential/redirect overrides
+  ---
+  duration_ms: 51.3737
+  ...
+# Subtest: an unbound continuation or single-order finance fetch cannot advance a global checkpoint
+ok 24 - an unbound continuation or single-order finance fetch cannot advance a global checkpoint
+  ---
+  duration_ms: 210.7835
+  ...
+# Subtest: connection screen reuses vaulted credentials after reload without fetching secrets
+ok 25 - connection screen reuses vaulted credentials after reload without fetching secrets
+  ---
+  duration_ms: 1087.7721
+  ...
+# Failed to vault credentials on server: Error: Could not save marketplace connection.
+#     at vaultCredentialsOnServer (C:\\Users\\freak\\Desktop\\Unified platform\\src\\components\\modules\\webhook-simulator.tsx:311:23)
+#     at async Object.handleTestShopifyConnection [as onClick] (C:\\Users\\freak\\Desktop\\Unified platform\\src\\components\\modules\\webhook-simulator.tsx:835:21)
+#     at async TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/remediation-connectors.test.mjs:320:3)
+#     at async Test.run (node:internal/test_runner/test:980:9)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+# Subtest: connection screen does not mark a new connection active when the vault rejects its save
+ok 26 - connection screen does not mark a new connection active when the vault rejects its save
+  ---
+  duration_ms: 333.2407
+  ...
+# Subtest: OAuth-only accounts cannot obtain password sessions
+ok 27 - OAuth-only accounts cannot obtain password sessions
+  ---
+  duration_ms: 1002.1806
+  ...
+# Subtest: password hashes verify safely and legacy hashes remain upgradeable
+ok 28 - password hashes verify safely and legacy hashes remain upgradeable
+  ---
+  duration_ms: 2165.1942
+  ...
+# Subtest: OAuth callback rejects missing authorization codes before accessing Auth or account storage
+ok 29 - OAuth callback rejects missing authorization codes before accessing Auth or account storage
+  ---
+  duration_ms: 45.2192
+  ...
+# Subtest: OAuth callback refuses failed Supabase PKCE exchanges before mapping a merchant
+ok 30 - OAuth callback refuses failed Supabase PKCE exchanges before mapping a merchant
+  ---
+  duration_ms: 33.0884
+  ...
+# Subtest: invoice extraction refuses unknown providers rather than reusing server keys
+ok 31 - invoice extraction refuses unknown providers rather than reusing server keys
+  ---
+  duration_ms: 320.3314
+  ...
+# Subtest: public health executes only a constant query and hides internal errors
+ok 32 - public health executes only a constant query and hides internal errors
+  ---
+  duration_ms: 23.9067
+  ...
+# Subtest: merchant document directories are distinct and contain no raw user paths
+ok 33 - merchant document directories are distinct and contain no raw user paths
+  ---
+  duration_ms: 19.9433
+  ...
+# Subtest: document stream cannot read another owner directory
+ok 34 - document stream cannot read another owner directory
+  ---
+  duration_ms: 60.6333
+  ...
+# Subtest: anonymous AI and jobs requests are rejected before side effects
+ok 35 - anonymous AI and jobs requests are rejected before side effects
+  ---
+  duration_ms: 810.1206
+  ...
+# Subtest: job listing and cancellation enforce owner identity
+ok 36 - job listing and cancellation enforce owner identity
+  ---
+  duration_ms: 53.7105
+  ...
+# Subtest: Shopify domains reject suffix, path, credentials, scheme and IP tricks
+ok 37 - Shopify domains reject suffix, path, credentials, scheme and IP tricks
+  ---
+  duration_ms: 15.5826
+  ...
+# Subtest: outbound guard blocks private IPv4 and mapped IPv6 without network access
+ok 38 - outbound guard blocks private IPv4 and mapped IPv6 without network access
+  ---
+  duration_ms: 101.7636
+  ...
+# Subtest: request limits reject chunked oversize and malformed JSON
+ok 39 - request limits reject chunked oversize and malformed JSON
+  ---
+  duration_ms: 58.0565
+  ...
+# Subtest: outbound transport pins validated DNS and refuses redirects
+ok 40 - outbound transport pins validated DNS and refuses redirects
+  ---
+  duration_ms: 82.4217
+  ...
+# Subtest: processing budgets and cross-origin rejection run before provider calls
+ok 41 - processing budgets and cross-origin rejection run before provider calls
+  ---
+  duration_ms: 77.6105
+  ...
+# Subtest: webhook owner cannot be selected using user_id or a wrong routing key
+ok 42 - webhook owner cannot be selected using user_id or a wrong routing key
+  ---
+  duration_ms: 87.6333
+  ...
+# Subtest: failed order writes reject instead of counting imports
+ok 43 - failed order writes reject instead of counting imports
+  ---
+  duration_ms: 1240.8623
+  ...
+# Subtest: webhook failure rolls back the receipt and releases its transaction
+ok 44 - webhook failure rolls back the receipt and releases its transaction
+  ---
+  duration_ms: 21.0699
+  ...
+# Subtest: F48: inserts do not shift indexes for subsequent updates or repeated batch identities
+ok 45 - F48: inserts do not shift indexes for subsequent updates or repeated batch identities
+  ---
+  duration_ms: 5.1218
+  ...
+# Subtest: F48: marketplace scopes external identities and immutable line costs survive updates
+ok 46 - F48: marketplace scopes external identities and immutable line costs survive updates
+  ---
+  duration_ms: 0.8533
+  ...
+# Subtest: F48: separate receipts on an order remain distinct; a later update targets only its receipt
+ok 47 - F48: separate receipts on an order remain distinct; a later update targets only its receipt
+  ---
+  duration_ms: 1.2381
+  ...
+# Subtest: F49: absent and malformed unit prices, quantities and dates fail without invented financials
+ok 48 - F49: absent and malformed unit prices, quantities and dates fail without invented financials
+  ---
+  duration_ms: 15.3891
+  ...
+# Subtest: F49: a legitimate zero price and zero tax survive; dates and IDs are repeatable
+ok 49 - F49: a legitimate zero price and zero tax survive; dates and IDs are repeatable
+  ---
+  duration_ms: 6.1624
+  ...
+# Subtest: F49: multi-line orders group; repeated rows do not duplicate units; explicit same-SKU line IDs remain separate
+ok 50 - F49: multi-line orders group; repeated rows do not duplicate units; explicit same-SKU line IDs remain separate
+  ---
+  duration_ms: 1.6084
+  ...
+# Subtest: F49: conflicting duplicate lines and settlement payouts are rejected as sales
+ok 51 - F49: conflicting duplicate lines and settlement payouts are rejected as sales
+  ---
+  duration_ms: 1.9508
+  ...
+# Subtest: F49: historical imports use the cost valid on the order date
+ok 52 - F49: historical imports use the cost valid on the order date
+  ---
+  duration_ms: 1.5153
+  ...
+# Subtest: F49: multiple files consolidate lines but reject contradictory prices and quantities
+ok 53 - F49: multiple files consolidate lines but reject contradictory prices and quantities
+  ---
+  duration_ms: 2.6571
+  ...
+# Subtest: F52: aging includes partial balances, honors marketplace and recognizes no guessed fees
+ok 54 - F52: aging includes partial balances, honors marketplace and recognizes no guessed fees
+  ---
+  duration_ms: 12.7952
+  ...
+# Subtest: F52: aging uses return units and excludes future orders
+ok 55 - F52: aging uses return units and excludes future orders
+  ---
+  duration_ms: 7.9268
+  ...
+# Subtest: F52: business date observes India midnight and report channel matching is exact
+ok 56 - F52: business date observes India midnight and report channel matching is exact
+  ---
+  duration_ms: 71.3957
+  ...
+# Subtest: F54: valid snapshots pass; foreign, partial, wrong-version and malformed domain data fail atomically
+ok 57 - F54: valid snapshots pass; foreign, partial, wrong-version and malformed domain data fail atomically
+  ---
+  duration_ms: 45.3961
+  ...
+# Subtest: F54: prototype keys, numeric strings and oversized snapshots are rejected
+ok 58 - F54: prototype keys, numeric strings and oversized snapshots are rejected
+  ---
+  duration_ms: 1.4224
+  ...
+# Subtest: F55: CSV round-trips commas, quotes, CR/LF and formula-like text safely
+ok 59 - F55: CSV round-trips commas, quotes, CR/LF and formula-like text safely
+  ---
+  duration_ms: 11.9896
+  ...
+# Subtest: F47: order archival recovers cascade records and exact inventory, including repeated-SKU lines
+not ok 60 - F47: order archival recovers cascade records and exact inventory, including repeated-SKU lines
+  ---
+  duration_ms: 7.5598
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\remediation-workflows.test.mjs:125:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    5 !== 6
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 6
+  actual: 5
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/remediation-workflows.test.mjs:129:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:979:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:677:18)
+    Test.postRun (node:internal/test_runner/test:1090:19)
+    Test.run (node:internal/test_runner/test:1018:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: F47: return archival removes only linked claims; restock reversal is exact and cannot silently clamp stock
+ok 61 - F47: return archival removes only linked claims; restock reversal is exact and cannot silently clamp stock
+  ---
+  duration_ms: 7.9103
+  ...
+# Subtest: F47: later edits and SKU collisions prevent recovery from overwriting newer state
+not ok 62 - F47: later edits and SKU collisions prevent recovery from overwriting newer state
+  ---
+  duration_ms: 1.8216
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\remediation-workflows.test.mjs:148:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/remediation-workflows.test.mjs:152:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:979:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:677:18)
+    Test.postRun (node:internal/test_runner/test:1090:19)
+    Test.run (node:internal/test_runner/test:1018:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: F47: SQL scope, expiry, row lock and failed recovery keep receipt unconsumed
+ok 63 - F47: SQL scope, expiry, row lock and failed recovery keep receipt unconsumed
+  ---
+  duration_ms: 1668.1052
+  ...
+# Subtest: F47: archive write failure rolls back relational changes and never reports success
+not ok 64 - F47: archive write failure rolls back relational changes and never reports success
+  ---
+  duration_ms: 1296.7923
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\remediation-workflows.test.mjs:169:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/remediation-workflows.test.mjs:177:10)
+    async Test.run (node:internal/test_runner/test:980:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: F47/F49: unauthenticated routes reject before database or parser work
+ok 65 - F47/F49: unauthenticated routes reject before database or parser work
+  ---
+  duration_ms: 1708.1391
+  ...
+# Subtest: F49: actual upload ignores caller counts, commits orders and audit on the same connection
+ok 66 - F49: actual upload ignores caller counts, commits orders and audit on the same connection
+  ---
+  duration_ms: 410.773
+  ...
+# Subtest: F57: landing acquisition routes to real login without a fabricated session or contact success
+ok 67 - F57: landing acquisition routes to real login without a fabricated session or contact success
+  ---
+  duration_ms: 4.0937
+  ...
+# Subtest: F54: actual provider leaves every collection untouched on a rejected snapshot and exports owner binding
+ok 68 - F54: actual provider leaves every collection untouched on a rejected snapshot and exports owner binding
+  ---
+  duration_ms: 1308.3444
+  ...
+# Subtest: F48/F49: actual provider rejects failed saves, uses canonical IDs and deduplicates consecutive imports
+ok 69 - F48/F49: actual provider rejects failed saves, uses canonical IDs and deduplicates consecutive imports
+  ---
+  duration_ms: 826.3014
+  ...
+# Subtest: F22/F40: product creation waits for server acknowledgement before updating local state
+ok 70 - F22/F40: product creation waits for server acknowledgement before updating local state
+  ---
+  duration_ms: 732.9427
+  ...
+# Subtest: F47: failed archival leaves actual provider inventory and records untouched
+ok 71 - F47: failed archival leaves actual provider inventory and records untouched
+  ---
+  duration_ms: 736.9823
+  ...
+# Subtest: F51: restocking is idempotent and missing products remain pending
+ok 72 - F51: restocking is idempotent and missing products remain pending
+  ---
+  duration_ms: 810.274
+  ...
+# Subtest: F47: canonical recovered records retain tenant-scoped identities and numeric amounts
+ok 73 - F47: canonical recovered records retain tenant-scoped identities and numeric amounts
+  ---
+  duration_ms: 21.8567
+  ...
+# Subtest: F47: actual relational recovery refuses a conflicting stock balance before any write
+ok 74 - F47: actual relational recovery refuses a conflicting stock balance before any write
+  ---
+  duration_ms: 325.1693
+  ...
+# Subtest: F52/F55: actual Reports view and both export tabs use only the scoped dataset
+ok 75 - F52/F55: actual Reports view and both export tabs use only the scoped dataset
+  ---
+  duration_ms: 357.3081
+  ...
+1..75
+# tests 75
+# suites 0
+# pass 72
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14070.4523

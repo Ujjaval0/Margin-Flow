@@ -1,3 +1,4 @@
+import { money, sumMoney, toPaise } from "@/domain/order-financials";
 import { collectPages } from "@/lib/integrations/provider-pagination";
 import { NextRequest, NextResponse } from "next/server";
 import { Order, OrderItem } from "@/domain/types";
@@ -136,7 +137,7 @@ async function fetchShipments(accessToken: string, fromDate: string, toDate: str
     });
     for (const shipment of shipments) {
       if (!Array.isArray(shipment.orderItems)) throw new Error("Flipkart omitted shipment items.");
-      items.push(...shipment.orderItems);
+      items.push(...shipment.orderItems.map((item:any)=>({...item,updatedAt:item.updatedAt||shipment.updatedAt})));
     }
     if (!verifyOnly && shipments.length >= 5000) throw new Error("Flipkart retrieval limit reached; retry with a smaller date window.");
   }
@@ -340,14 +341,18 @@ export async function POST(req: NextRequest) {
         const channelOrderId = ro.orderId;
         if (!channelOrderId || !ro.orderItemId) throw new Error("Flipkart omitted order identity.");
         const fsn = ro.fsn || ro.orderItems?.[0]?.fsn;
-        const sku = ro.sku || ro.orderItems?.[0]?.sku || fsn || `SKU-FK-${idx + 1}`;
+        const sku = ro.sku; if(!sku || !ro.orderDate)throw Error('Flipkart omitted SKU or source order date.');
         const orderItemId = ro.orderItemId || ro.orderItems?.[0]?.orderItemId || `ITEM-${idx + 1}`;
-        const price = Number(ro.priceComponents?.sellingPrice || ro.sellingPrice) || 0;
+        const price=Number(ro.priceComponents?.sellingPrice); if(!Number.isFinite(price))throw Error('Flipkart omitted sellingPrice.');
         const qty = Math.max(1, Number(ro.quantity || ro.orderItems?.[0]?.quantity || 1));
         const tax = Number(ro.priceComponents?.totalTax || ro.priceComponents?.tax || 0);
-        const discount = Number(ro.priceComponents?.customerDiscount || ro.priceComponents?.discount || 0);
+        const customerPrice=Number(ro.priceComponents?.customerPrice);
+        const discount=Number.isFinite(customerPrice)?sumMoney([price,-customerPrice]):Number(ro.priceComponents?.promotionDiscount??0);
+        if(discount<0)throw Error('Flipkart promotion discount does not reconcile.');
         const shippingFeeCharged = Number(ro.priceComponents?.shippingCharge || 0);
 
+        const total=Number(ro.priceComponents?.totalPrice);
+        if(!Number.isFinite(total) || toPaise(sumMoney([price,-discount,shippingFeeCharged]))!==toPaise(total))throw Error('Flipkart source price components do not reconcile.');
         let status: Order["status"] = "CONFIRMED";
         const rawStatus = (ro.status || "").toUpperCase();
         if (rawStatus === "DELIVERED" || rawStatus === "COMPLETED") {
@@ -358,7 +363,7 @@ export async function POST(req: NextRequest) {
           status = "RETURNED";
         } else if (rawStatus === "RTO") {
           status = "RTO";
-        } else if (rawStatus === "SHIPPED" || rawStatus === "DISPATCHED" || rawStatus === "PACKED") {
+        } else if (rawStatus === "SHIPPED" || rawStatus === "DISPATCHED" || rawStatus === "PICKUP_COMPLETE") {
           status = "SHIPPED";
         }
 
@@ -368,10 +373,10 @@ export async function POST(req: NextRequest) {
           mfn: fsn || undefined,
           productName: ro.title || `Flipkart Product (${sku})`,
           quantity: qty,
-          sellingPrice: Math.round(price * 100) / 100,
-          discount: Math.round(discount * 100) / 100,
-          taxAmount: Math.round(tax * 100) / 100,
-          snapshotUnitCost: 0, // Invariant: Zero financial guesswork! Strictly 0 until matched with catalog COGS.
+          sellingPrice: money(price/qty),lineSubtotal:money(price),
+          discount: money(discount),
+          taxAmount: money(tax),
+          snapshotUnitCost: 0,costEvidence:"UNKNOWN", // Dated owned catalog cost is resolved at persistence.
           returnedQuantity: status === "RETURNED" || status === "RTO" ? qty : 0,
         };
 
@@ -397,7 +402,7 @@ export async function POST(req: NextRequest) {
         const previous = grouped.get(order.channelOrderId);
         if (previous) {
           for (const item of order.items) if (!previous.items.some(existing => existing.id === item.id)) previous.items.push(item);
-          previous.shippingFeeCharged += order.shippingFeeCharged;
+          previous.shippingFeeCharged=sumMoney([previous.shippingFeeCharged,order.shippingFeeCharged]);
         } else grouped.set(order.channelOrderId, order);
       }
       const completeOrders = [...grouped.values()];

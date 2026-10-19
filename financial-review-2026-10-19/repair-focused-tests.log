@@ -1,0 +1,437 @@
+TAP version 13
+# Subtest: display collision cannot reassign another external order or delete its lines
+ok 1 - display collision cannot reassign another external order or delete its lines
+  ---
+  duration_ms: 909.9509
+  ...
+# Subtest: settlement batch has one transaction and rolls back earlier rows on a later failure
+ok 2 - settlement batch has one transaction and rolls back earlier rows on a later failure
+  ---
+  duration_ms: 395.0266
+  ...
+# Subtest: split records for one batch/order retain distinct IDs and replay the same receipt
+ok 3 - split records for one batch/order retain distinct IDs and replay the same receipt
+  ---
+  duration_ms: 186.0926
+  ...
+# Subtest: settlement API rejects fractional paise and invalid batches before persistence
+ok 4 - settlement API rejects fractional paise and invalid batches before persistence
+  ---
+  duration_ms: 416.2508
+  ...
+# Subtest: a supplier audit entry survives snapshot validation without losing the books
+ok 5 - a supplier audit entry survives snapshot validation without losing the books
+  ---
+  duration_ms: 127.6311
+  ...
+# Subtest: internal IDs remain distinct at the same clock time
+ok 6 - internal IDs remain distinct at the same clock time
+  ---
+  duration_ms: 10.3655
+  ...
+# Subtest: financial hydration includes records after the 2000 row boundary and rejects incomplete reads
+ok 7 - financial hydration includes records after the 2000 row boundary and rejects incomplete reads
+  ---
+  duration_ms: 9.7974
+  ...
+# Subtest: manual settlement does not enter state when persistence fails, and uses acknowledged ID on success
+ok 8 - manual settlement does not enter state when persistence fails, and uses acknowledged ID on success
+  ---
+  duration_ms: 397.6374
+  ...
+# Subtest: actual settlement form retains failed input identity, prevents concurrent save, and invents no bank evidence
+ok 9 - actual settlement form retains failed input identity, prevents concurrent save, and invents no bank evidence
+  ---
+  duration_ms: 1477.6995
+  ...
+# Subtest: Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite
+    # Subtest: AI provider keys are isolated by verified owner and the legacy shared vault is discarded
+    ok 1 - AI provider keys are isolated by verified owner and the legacy shared vault is discarded
+      ---
+      duration_ms: 202.6375
+      ...
+    # Subtest: Suite 1: Database DDL & Schema Multi-Tenant Isolation
+        # Subtest: 1.1 Migration file 13_multitenant_isolation.sql exists with user_id columns
+        ok 1 - 1.1 Migration file 13_multitenant_isolation.sql exists with user_id columns
+          ---
+          duration_ms: 3.6429
+          ...
+        # Subtest: 1.2 Composite unique constraints are scoped to user_id
+        ok 2 - 1.2 Composite unique constraints are scoped to user_id
+          ---
+          duration_ms: 3.6439
+          ...
+        # Subtest: 1.3 schema readiness checks are read-only and fail closed
+        ok 3 - 1.3 schema readiness checks are read-only and fail closed
+          ---
+          duration_ms: 4.4585
+          ...
+        # Subtest: 1.4 Supabase direct access defaults to deny for every sensitive table
+        ok 4 - 1.4 Supabase direct access defaults to deny for every sensitive table
+          ---
+          duration_ms: 8.8628
+          ...
+        1..4
+    ok 2 - Suite 1: Database DDL & Schema Multi-Tenant Isolation
+      ---
+      duration_ms: 22.7299
+      type: 'suite'
+      ...
+    # Subtest: Suite 2: Multi-Tenant Persistence Layer
+        # Subtest: 2.1 upsertOrders requires userId parameter and binds it in SQL
+        ok 1 - 2.1 upsertOrders requires userId parameter and binds it in SQL
+          ---
+          duration_ms: 3.2877
+          ...
+        # Subtest: 2.2 upsertSettlements requires userId parameter and binds it in SQL
+        ok 2 - 2.2 upsertSettlements requires userId parameter and binds it in SQL
+          ---
+          duration_ms: 1.4818
+          ...
+        # Subtest: 2.3 Linked order lookups in settlements are scoped to tenant
+        ok 3 - 2.3 Linked order lookups in settlements are scoped to tenant
+          ---
+          duration_ms: 1.6638
+          ...
+        1..3
+    ok 3 - Suite 2: Multi-Tenant Persistence Layer
+      ---
+      duration_ms: 7.0572
+      type: 'suite'
+      ...
+    # Subtest: Suite 3: Server-Side Multi-Tenant API Routes
+        # Subtest: 3.1 GET & POST /api/orders enforces session and filters by user_id
+        ok 1 - 3.1 GET & POST /api/orders enforces session and filters by user_id
+          ---
+          duration_ms: 1.6795
+          ...
+        # Subtest: 3.2 GET & POST /api/settlements enforces session and filters by user_id
+        ok 2 - 3.2 GET & POST /api/settlements enforces session and filters by user_id
+          ---
+          duration_ms: 7.2025
+          ...
+        # Subtest: 3.3 GET & POST /api/products enforces session and filters by user_id
+        ok 3 - 3.3 GET & POST /api/products enforces session and filters by user_id
+          ---
+          duration_ms: 1.587
+          ...
+        1..3
+    ok 4 - Suite 3: Server-Side Multi-Tenant API Routes
+      ---
+      duration_ms: 10.8764
+      type: 'suite'
+      ...
+    # Subtest: Suite 4: Client Store Hydration & Single Source of Truth
+        # Subtest: 4.1 store.tsx exposes refreshFromDatabase and isSyncingWithDb in context
+        ok 1 - 4.1 store.tsx exposes refreshFromDatabase and isSyncingWithDb in context
+          ---
+          duration_ms: 2.1448
+          ...
+        # Subtest: 4.2 refreshFromDatabase hydrates orders, settlements, and products from server APIs
+        ok 2 - 4.2 refreshFromDatabase hydrates orders, settlements, and products from server APIs
+          ---
+          duration_ms: 2.144
+          ...
+        # Subtest: 4.3 caches are selected only using verified tenant identity
+        ok 3 - 4.3 caches are selected only using verified tenant identity
+          ---
+          duration_ms: 1.7814
+          ...
+        # Subtest: 4.4 Store action mutations asynchronously persist to backend APIs
+        ok 4 - 4.4 Store action mutations asynchronously persist to backend APIs
+          ---
+          duration_ms: 1.6055
+          ...
+        1..4
+    ok 5 - Suite 4: Client Store Hydration & Single Source of Truth
+      ---
+      duration_ms: 8.8765
+      type: 'suite'
+      ...
+    # Subtest: Suite 5: Actual writer parameter binding with isolated adapters (not PostgreSQL isolation proof)
+        # Subtest: 5.1 Actual order and catalog writers bind each tenant for coincident source identifiers
+        ok 1 - 5.1 Actual order and catalog writers bind each tenant for coincident source identifiers
+          ---
+          duration_ms: 1596.2979
+          ...
+        1..1
+    ok 6 - Suite 5: Actual writer parameter binding with isolated adapters (not PostgreSQL isolation proof)
+      ---
+      duration_ms: 1596.4958
+      type: 'suite'
+      ...
+    1..6
+ok 10 - Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite
+  ---
+  duration_ms: 1850.841
+  type: 'suite'
+  ...
+# Subtest: order persistence recalculates quick commission server-side and snapshots its rate and components
+ok 11 - order persistence recalculates quick commission server-side and snapshots its rate and components
+  ---
+  duration_ms: 1047.2762
+  ...
+# Subtest: order persistence preserves unknown fees when neither rules nor quick rate are present
+ok 12 - order persistence preserves unknown fees when neither rules nor quick rate are present
+  ---
+  duration_ms: 231.9509
+  ...
+# Subtest: Amazon finance split events have distinct repeatable identities across pages and replays
+ok 13 - Amazon finance split events have distinct repeatable identities across pages and replays
+  ---
+  duration_ms: 832.8502
+  ...
+# Subtest: Amazon exhausts order and item tokens before a single tenant-owned write
+ok 14 - Amazon exhausts order and item tokens before a single tenant-owned write
+  ---
+  duration_ms: 323.5236
+  ...
+# Subtest: Amazon http item response never manufactures or persists an order
+ok 15 - Amazon http item response never manufactures or persists an order
+  ---
+  duration_ms: 248.5749
+  ...
+# Subtest: Amazon empty item response never manufactures or persists an order
+ok 16 - Amazon empty item response never manufactures or persists an order
+  ---
+  duration_ms: 108.7311
+  ...
+# Subtest: Amazon malformed item response never manufactures or persists an order
+ok 17 - Amazon malformed item response never manufactures or persists an order
+  ---
+  duration_ms: 128.4189
+  ...
+# Subtest: Shopify follows same-origin Link pages on the supported version
+ok 18 - Shopify follows same-origin Link pages on the supported version
+  ---
+  duration_ms: 427.4691
+  ...
+# Subtest: Shopify never forwards tokens to a foreign next-page origin
+ok 19 - Shopify never forwards tokens to a foreign next-page origin
+  ---
+  duration_ms: 148.0071
+  ...
+# Subtest: WooCommerce exhausts numbered pages with secrets only in Authorization
+ok 20 - WooCommerce exhausts numbered pages with secrets only in Authorization
+  ---
+  duration_ms: 96.7157
+  ...
+# Subtest: a later WooCommerce page failure does not persist or advance the checkpoint
+ok 21 - a later WooCommerce page failure does not persist or advance the checkpoint
+  ---
+  duration_ms: 86.0666
+  ...
+# Subtest: custom connector follows documented next URL and rejects incomplete cursor-only results
+ok 22 - custom connector follows documented next URL and rejects incomplete cursor-only results
+  ---
+  duration_ms: 85.2101
+  ...
+# Subtest: custom verification rejects 404
+ok 23 - custom verification rejects 404
+  ---
+  duration_ms: 32.9369
+  ...
+# Subtest: custom verification rejects 500
+ok 24 - custom verification rejects 500
+  ---
+  duration_ms: 85.5984
+  ...
+# Subtest: custom verification rejects unusable JSON
+ok 25 - custom verification rejects unusable JSON
+  ---
+  duration_ms: 132.7606
+  ...
+# Subtest: Amazon token exchange alone does not verify Orders or Finances access
+ok 26 - Amazon token exchange alone does not verify Orders or Finances access
+  ---
+  duration_ms: 619.5258
+  ...
+# Subtest: Flipkart uses shipment contract, follows pages and preserves sibling order items
+ok 27 - Flipkart uses shipment contract, follows pages and preserves sibling order items
+  ---
+  duration_ms: 276.607
+  ...
+# Subtest: pagination rejects repeated cursors and a bounded incomplete run explicitly
+ok 28 - pagination rejects repeated cursors and a bounded incomplete run explicitly
+  ---
+  duration_ms: 185.3135
+  ...
+# Subtest: OAuth state requires durable storage and atomically binds owner, client, redirect and expiry
+ok 29 - OAuth state requires durable storage and atomically binds owner, client, redirect and expiry
+  ---
+  duration_ms: 57.6514
+  ...
+# Subtest: Finances pagination reads its own checkpoint and cannot advance the Orders stream
+ok 30 - Finances pagination reads its own checkpoint and cannot advance the Orders stream
+  ---
+  duration_ms: 460.2326
+  ...
+# Subtest: checkpoint updates persist independent streams under the owner and one active connection guard
+ok 31 - checkpoint updates persist independent streams under the owner and one active connection guard
+  ---
+  duration_ms: 93.3519
+  ...
+# Subtest: Flipkart refresh persists rotated tokens before using the new access token
+ok 32 - Flipkart refresh persists rotated tokens before using the new access token
+  ---
+  duration_ms: 859.1823
+  ...
+# Subtest: Flipkart OAuth callback binds the session and ignores caller credential/redirect overrides
+ok 33 - Flipkart OAuth callback binds the session and ignores caller credential/redirect overrides
+  ---
+  duration_ms: 272.5693
+  ...
+# Subtest: an unbound continuation or single-order finance fetch cannot advance a global checkpoint
+ok 34 - an unbound continuation or single-order finance fetch cannot advance a global checkpoint
+  ---
+  duration_ms: 1873.008
+  ...
+# Subtest: connection screen reuses vaulted credentials after reload without fetching secrets
+ok 35 - connection screen reuses vaulted credentials after reload without fetching secrets
+  ---
+  duration_ms: 2063.7643
+  ...
+# Failed to vault credentials on server: Error: Could not save marketplace connection.
+#     at vaultCredentialsOnServer (C:\\Users\\freak\\Desktop\\Unified platform\\src\\components\\modules\\webhook-simulator.tsx:311:23)
+#     at async Object.handleTestShopifyConnection [as onClick] (C:\\Users\\freak\\Desktop\\Unified platform\\src\\components\\modules\\webhook-simulator.tsx:835:21)
+#     at async TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/remediation-connectors.test.mjs:318:3)
+#     at async Test.run (node:internal/test_runner/test:980:9)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+# Subtest: connection screen does not mark a new connection active when the vault rejects its save
+ok 36 - connection screen does not mark a new connection active when the vault rejects its save
+  ---
+  duration_ms: 559.8283
+  ...
+# Subtest: Store Integration Phase 3 Verification Suite
+    # Subtest: TASK-3.1: Current Orders SP-API Endpoint & India Region
+        # Subtest: Amazon sync route targets SP-API EU endpoint with India Marketplace ID A21TJRUUN4KGV
+        ok 1 - Amazon sync route targets SP-API EU endpoint with India Marketplace ID A21TJRUUN4KGV
+          ---
+          duration_ms: 2.6724
+          ...
+        # Subtest: Zero Client-Side Master Secrets: Retrieves vaulted credentials server-side
+        ok 2 - Zero Client-Side Master Secrets: Retrieves vaulted credentials server-side
+          ---
+          duration_ms: 1.4038
+          ...
+        1..2
+    ok 1 - TASK-3.1: Current Orders SP-API Endpoint & India Region
+      ---
+      duration_ms: 5.5456
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.2: Map Authentic Multi-Line Order Items & Zero Cost Guesswork
+        # Subtest: Order items fetch queries genuine SP-API orderItems endpoint or embedded payload
+        ok 1 - Order items fetch queries genuine SP-API orderItems endpoint or embedded payload
+          ---
+          duration_ms: 1.5057
+          ...
+        # Subtest: Financial Invariant: snapshotUnitCost is locked to 0 (no synthetic cost guesswork)
+        ok 2 - Financial Invariant: snapshotUnitCost is locked to 0 (no synthetic cost guesswork)
+          ---
+          duration_ms: 0.8709
+          ...
+        # Subtest: Order status mapping handles standard Amazon lifecycle states
+        ok 3 - Order status mapping handles standard Amazon lifecycle states
+          ---
+          duration_ms: 0.8852
+          ...
+        1..3
+    ok 2 - TASK-3.2: Map Authentic Multi-Line Order Items & Zero Cost Guesswork
+      ---
+      duration_ms: 3.6713
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.3: Cursor-Based Pagination & Overlap Window
+        # Subtest: Supports NextToken pagination parameter and extracts nextToken from response
+        ok 1 - Supports NextToken pagination parameter and extracts nextToken from response
+          ---
+          duration_ms: 1.0586
+          ...
+        # Subtest: Calculates 48-hour bounded overlap window on LastUpdatedAfter when lastSyncedAt exists
+        ok 2 - Calculates 48-hour bounded overlap window on LastUpdatedAfter when lastSyncedAt exists
+          ---
+          duration_ms: 1.495
+          ...
+        1..2
+    ok 3 - TASK-3.3: Cursor-Based Pagination & Overlap Window
+      ---
+      duration_ms: 3.0164
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.4: Build Separate Amazon Finances Ingestion
+        # Subtest: Route src/app/api/integrations/amazon/finances/route.ts exists and queries SP-API finances
+        ok 1 - Route src/app/api/integrations/amazon/finances/route.ts exists and queries SP-API finances
+          ---
+          duration_ms: 2.1941
+          ...
+        # Subtest: Finances route itemizes authentic deductions (Referral, Closing, Weight Handling, TCS, TDS)
+        ok 2 - Finances route itemizes authentic deductions (Referral, Closing, Weight Handling, TCS, TDS)
+          ---
+          duration_ms: 1.1471
+          ...
+        # Subtest: Finances route computes authentic net settlement without arbitrary percentages
+        ok 3 - Finances route computes authentic net settlement without arbitrary percentages
+          ---
+          duration_ms: 1.6207
+          ...
+        1..3
+    ok 4 - TASK-3.4: Build Separate Amazon Finances Ingestion
+      ---
+      duration_ms: 5.2156
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.5: Atomic Database Upsert for Ingested Orders and Settlements
+        # Subtest: Migration database/10_orders_idempotency.sql creates unique idempotency indexes
+        ok 1 - Migration database/10_orders_idempotency.sql creates unique idempotency indexes
+          ---
+          duration_ms: 2.7966
+          ...
+        # Subtest: src/lib/integrations/order-persistence.ts implements upsertOrders with ON CONFLICT DO UPDATE
+        ok 2 - src/lib/integrations/order-persistence.ts implements upsertOrders with ON CONFLICT DO UPDATE
+          ---
+          duration_ms: 1.1402
+          ...
+        # Subtest: Order items updates respect immutable snapshot_unit_cost invariant (Trigger 2)
+        ok 3 - Order items updates respect immutable snapshot_unit_cost invariant (Trigger 2)
+          ---
+          duration_ms: 1.0963
+          ...
+        # Subtest: src/lib/integrations/order-persistence.ts implements upsertSettlements
+        ok 4 - src/lib/integrations/order-persistence.ts implements upsertSettlements
+          ---
+          duration_ms: 0.9726
+          ...
+        1..4
+    ok 5 - TASK-3.5: Atomic Database Upsert for Ingested Orders and Settlements
+      ---
+      duration_ms: 6.3358
+      type: 'suite'
+      ...
+    # Subtest: Store Context Integration
+        # Subtest: src/domain/store.tsx provides syncExternalSettlements with audit logging
+        ok 1 - src/domain/store.tsx provides syncExternalSettlements with audit logging
+          ---
+          duration_ms: 1.6225
+          ...
+        1..1
+    ok 6 - Store Context Integration
+      ---
+      duration_ms: 1.7621
+      type: 'suite'
+      ...
+    1..6
+ok 37 - Store Integration Phase 3 Verification Suite
+  ---
+  duration_ms: 26.9135
+  type: 'suite'
+  ...
+1..37
+# tests 66
+# suites 13
+# pass 66
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10710.6266

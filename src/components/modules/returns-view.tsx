@@ -1,5 +1,6 @@
 "use client";
 
+import { createRecordId } from "@/domain/record-id";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { businessDate } from "@/domain/report-scope";
 import { downloadCsv } from "@/lib/csv";
@@ -64,6 +65,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     orders,
     products,
     claims,
+    settlements,
     addReturn,
     updateReturn,
     restockReturn,
@@ -73,6 +75,9 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
 
   const selectedMarketplace = propMarketplace ?? contextMarketplace;
 
+  const saveInFlight = React.useRef(false);
+  const draftIds = React.useRef({ returned: "", claim: "" });
+  const conditionClaimIds = React.useRef(new Map<string, string>());
   // Navigation & Filter States
   const [activeTab, setActiveTab] = useState<OperationalTab>("ALL");
   const [localMarketplace, setLocalMarketplace] = useState<Marketplace | "ALL">(
@@ -193,7 +198,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
   // Operational KPI Calculations (Real-time financial impact)
   const totalReturnLoss = useMemo(() => {
     return channelFilteredReturns.reduce((sum, r) => {
-      const fin = computeReturnFinancials(r, orders, products, claims);
+      const fin = computeReturnFinancials(r, orders, products, claims, settlements, returns);
       return sum + fin.netLoss;
     }, 0);
   }, [channelFilteredReturns, orders, products, claims]);
@@ -229,19 +234,19 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
   // Claim potential & urgent expiring claims (Real-time synchronized with claim status & reimbursement)
   const claimStats = useMemo(() => {
     const damagedReturns = channelFilteredReturns.filter((r) => {
-      const fin = computeReturnFinancials(r, orders, products, claims);
+      const fin = computeReturnFinancials(r, orders, products, claims, settlements, returns);
       return fin.isDamaged;
     });
     const totalDamagedCost = damagedReturns.reduce((sum, r) => {
-      const fin = computeReturnFinancials(r, orders, products, claims);
+      const fin = computeReturnFinancials(r, orders, products, claims, settlements, returns);
       return sum + fin.baseLoss;
     }, 0);
     const totalReimbursed = damagedReturns.reduce((sum, r) => {
-      const fin = computeReturnFinancials(r, orders, products, claims);
+      const fin = computeReturnFinancials(r, orders, products, claims, settlements, returns);
       return sum + fin.reimbursementAmount;
     }, 0);
     const claimedCount = damagedReturns.filter((r) => {
-      const fin = computeReturnFinancials(r, orders, products, claims);
+      const fin = computeReturnFinancials(r, orders, products, claims, settlements, returns);
       return !!fin.claim && fin.claim.status !== "NOT_FILED";
     }).length;
     const expiringSoon = channelFilteredReturns.filter((r) => {
@@ -332,7 +337,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     ];
 
     const rows = displayedReturns.map((r) => {
-      const fin = computeReturnFinancials(r, orders, products, claims);
+      const fin = computeReturnFinancials(r, orders, products, claims, settlements, returns);
       return [
         r.id,
         r.orderId,
@@ -359,34 +364,36 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
     downloadCsv([headers, ...rows], "MarginFlow_Returns_Export_" + new Date().toISOString().split("T")[0] + ".csv");
   };
   // Handler: Fast Restock Action
-  const handleFastRestock = (returnId: string) => {
-    restockReturn(returnId);
+  const handleFastRestock = async (returnId: string) => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
+    await restockReturn(returnId);
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Return could not be saved."); } finally { saveInFlight.current = false; }
   };
 
   // Handler: Quick Condition Change on Row
-  const handleQuickConditionChange = (
+  const handleQuickConditionChange = async (
     ret: ReturnRecord,
     newCondition: ProductCondition
   ) => {
-    const product = products.find((p) => p.sku === ret.sku);
-    const unitCost = product ? product.currentCostPrice : 0;
-    const isLoss = newCondition === "DAMAGED" || newCondition === "UNUSABLE" || newCondition === "MISSING";
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
+    const candidate = { ...ret, condition: newCondition };
+    const financials = computeReturnFinancials(candidate, orders, products, claims, settlements, returns.map(record => record.id === ret.id ? candidate : record));
+    const isLoss = financials.isDamaged;
     const isRto = ret.returnType === "RTO";
-    const fees = isRto ? 0 : (ret.returnShippingCost + (ret.customerReturnFee ?? 0));
-    let baseLoss = isRto ? 0 : fees;
-    if (isLoss) {
-      baseLoss = Math.max(0, unitCost * ret.quantity - ret.inventoryRecoveryValue) + fees;
-    }
+    const baseLoss = financials.baseLoss;
+    const linkedClaim = claims.find(claim => claim.id === ret.claimId || claim.returnId === ret.id);
+    const calculatedLoss = financials.netLoss;
 
-    const linkedClaim = claims.find(
-      (c) => (ret.claimId && c.id === ret.claimId) || c.returnId === ret.id
-    );
-    const reimbursement = linkedClaim ? (linkedClaim.amountRecovered || 0) : 0;
-    const calculatedLoss = Math.max(0, baseLoss - reimbursement);
-
+    let pendingClaim: Claim | undefined;
     let claimId = ret.claimId;
     if (isLoss && !claimId && !linkedClaim) {
-      claimId = `CLM-${Date.now().toString().slice(-4)}`;
+      claimId = conditionClaimIds.current.get(ret.id) || createRecordId("CLM");
+      conditionClaimIds.current.set(ret.id, claimId);
       const newClaim: Claim = {
         id: claimId,
         orderId: ret.orderId,
@@ -399,7 +406,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         status: "FILED",
         notes: `Dispute claim logged on QC status change (${newCondition}).`,
       };
-      addClaim(newClaim);
+      pendingClaim = newClaim;
     }
 
     const updated: ReturnRecord = {
@@ -409,22 +416,29 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       returnShippingCost: isRto ? 0 : ret.returnShippingCost,
       restockStatus:
         newCondition === "SELLABLE"
-          ? "RESTOCKED"
+          ? (ret.condition === "SELLABLE" ? ret.restockStatus || "PENDING_RESTOCK" : "PENDING_RESTOCK")
           : isLoss
           ? "WRITTEN_OFF"
           : "PENDING_RESTOCK",
       lossAmount: calculatedLoss,
-      claimId: claimId || ret.claimId,
+      claimId: ret.claimId,
     };
-    updateReturn(updated);
+    await updateReturn(updated);
+    if (pendingClaim) await addClaim(pendingClaim);
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Return could not be saved."); } finally { saveInFlight.current = false; }
   };
 
   // Submit Handler: Log Return
-  const handleCreateReturn = (e: React.FormEvent) => {
+  const handleCreateReturn = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     setValidationError(null);
 
-    const retId = `RET-${Date.now().toString().slice(-4)}`;
+    const retId = draftIds.current.returned || (draftIds.current.returned = createRecordId("RET"));
     let orderIdToLink = "";
     let channelOrderId = "";
     let finalMarketplace: Marketplace = "Amazon India";
@@ -458,32 +472,23 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       productNameToSave = item.productName;
       unitCostBasis = item.snapshotUnitCost;
     } else {
-      // Direct SKU Mode (Wholesale / Consignment)
-      const product = products.find((p) => p.sku === directSku);
-      if (!product) {
-        setValidationError("Please select a valid product SKU.");
-        return;
-      }
-      orderIdToLink = `WHL-INTAKE-${Date.now().toString().slice(-4)}`;
-      channelOrderId = `CHALLAN-${Date.now().toString().slice(-4)}`;
-      finalMarketplace = directChannel;
-      skuToSave = product.sku;
-      productNameToSave = product.name;
-      unitCostBasis = product.currentCostPrice;
+      setValidationError("Select the original dispatched order before recording a return.");
+      return;
     }
 
     const isDamaged = condition === "DAMAGED" || condition === "UNUSABLE";
-    const calculatedCustomerFee = returnType === "RTO" ? 0 : (createMode === "SCAN_ORDER" ? 50 : 0);
+    const calculatedCustomerFee = 0;
     const returnShippingCost = returnType === "RTO" ? 0 : returnShipping;
     let calculatedLoss = returnType === "RTO" ? 0 : (returnShippingCost + calculatedCustomerFee);
     if (isDamaged) {
       calculatedLoss += Math.max(0, unitCostBasis * quantity - recoveryValue);
     }
 
+    let pendingClaim: Claim | undefined;
     let claimIdToLink: string | undefined = undefined;
     // Auto-create claim if damaged or lost
     if (condition === "DAMAGED" || returnType === "LOST_RETURN") {
-      claimIdToLink = `CLM-${Date.now().toString().slice(-4)}`;
+      claimIdToLink = draftIds.current.claim || (draftIds.current.claim = createRecordId("CLM"));
       const newClaim: Claim = {
         id: claimIdToLink,
         orderId: orderIdToLink,
@@ -496,7 +501,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
         status: "FILED",
         notes: `Auto-dispute claim logged for ${retId} (${condition}).`,
       };
-      addClaim(newClaim);
+      pendingClaim = newClaim;
     }
 
     const newReturn: ReturnRecord = {
@@ -505,7 +510,6 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       channelOrderId: channelOrderId,
       marketplace: finalMarketplace,
       returnDate: new Date().toISOString().split("T")[0],
-      receivedDate: new Date().toISOString().split("T")[0],
       awbNumber: awbNumber.trim() || undefined,
       returnType,
       returnReason: reason,
@@ -513,53 +517,46 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       productName: productNameToSave,
       quantity,
       condition,
-      restockStatus: condition === "SELLABLE" ? "RESTOCKED" : "PENDING_RESTOCK",
+      restockStatus: condition === "SELLABLE" ? "PENDING_RESTOCK" : "WRITTEN_OFF",
       returnShippingCost,
       customerReturnFee: calculatedCustomerFee,
       otherReturnCosts: 0,
       inventoryRecoveryValue: recoveryValue,
       lossAmount: calculatedLoss,
-      claimId: claimIdToLink,
     };
 
-    addReturn(newReturn);
+    await addReturn(newReturn);
+    if (pendingClaim) await addClaim(pendingClaim);
+    draftIds.current = { returned: "", claim: "" };
 
     setIsCreateOpen(false);
+
+    } catch (error) { setValidationError(error instanceof Error ? error.message : "Return could not be saved."); } finally { saveInFlight.current = false; }
   };
 
   // Submit Handler: Edit Return
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (!editingReturn) return;
 
-    const product = products.find((p) => p.sku === editingReturn.sku);
-    const unitCost = product ? product.currentCostPrice : 0;
-
     const isRto = editingReturn.returnType === "RTO";
-    const isDamaged =
-      editingReturn.condition === "DAMAGED" ||
-      editingReturn.condition === "UNUSABLE";
-    let calculatedLoss = isRto ? 0 : (editingReturn.returnShippingCost + (editingReturn.customerReturnFee ?? 0));
-    if (isDamaged) {
-      calculatedLoss +=
-        unitCost * editingReturn.quantity - editingReturn.inventoryRecoveryValue;
-    }
+    // Use the same locked costs, return allocation and recorded fees as the reports.
+    const calculatedLoss = computeReturnFinancials(editingReturn, orders, products, claims, settlements,
+      returns.map(record => record.id === editingReturn.id ? editingReturn : record)).netLoss;
 
-    // Deduct any existing reimbursement from linked claim
-    const linkedClaim = claims.find(
-      (c) => c.returnId === editingReturn.id || (editingReturn.claimId && c.id === editingReturn.claimId)
-    );
-    if (linkedClaim && linkedClaim.amountRecovered > 0) {
-      calculatedLoss = Math.max(0, calculatedLoss - linkedClaim.amountRecovered);
-    }
-
-    updateReturn({
+    await updateReturn({
       ...editingReturn,
       returnShippingCost: isRto ? 0 : editingReturn.returnShippingCost,
       customerReturnFee: isRto ? 0 : (editingReturn.customerReturnFee ?? 0),
       lossAmount: calculatedLoss,
     });
     setEditingReturn(null);
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Return could not be saved."); } finally { saveInFlight.current = false; }
   };
 
   // Table Columns Definition
@@ -766,7 +763,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                 </span>
               ) : isDamaged ? (
                 (() => {
-                  const fin = computeReturnFinancials(r, orders, products, claims);
+                  const fin = computeReturnFinancials(r, orders, products, claims, settlements, returns);
                   const activeClaimId = fin.claim?.id ?? r.claimId;
                   return activeClaimId ? (
                     <span className="text-[#0071E3] font-medium flex items-center gap-1">
@@ -800,7 +797,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       header: "Logistics & Net Loss",
       cell: ({ row }) => {
         const r = row.original;
-        const fin = computeReturnFinancials(r, orders, products, claims);
+        const fin = computeReturnFinancials(r, orders, products, claims, settlements, returns);
         const hasReimbursement = fin.reimbursementAmount > 0;
         const isNetLoss = fin.netFinancialImpact > 0;
         const isNetProfit = fin.netFinancialImpact < 0;
@@ -850,7 +847,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       header: "Dispute / SLA",
       cell: ({ row }) => {
         const r = row.original;
-        const fin = computeReturnFinancials(r, orders, products, claims);
+        const fin = computeReturnFinancials(r, orders, products, claims, settlements, returns);
         const claim = fin.claim;
         const isExpiring =
           r.claimDeadline &&
@@ -904,7 +901,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
       header: "Quick Actions",
       cell: ({ row }) => {
         const r = row.original;
-        const fin = computeReturnFinancials(r, orders, products, claims);
+        const fin = computeReturnFinancials(r, orders, products, claims, settlements, returns);
         const canRestock = r.restockStatus === "PENDING_RESTOCK";
         const hasClaim = !!(fin.claim || r.claimId);
         const claimLabel = !hasClaim
@@ -954,7 +951,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
             </button>
 
             <button
-              onClick={() => deleteReturn(r.id)}
+              onClick={() => void deleteReturn(r.id).catch(error => window.alert(error instanceof Error ? error.message : "Return could not be deleted."))}
               title="Delete return entry"
               aria-label={`Delete return entry ${r.id}`}
               className="p-1.5 rounded-lg text-[#6E6E73] hover:text-[#D70015] hover:bg-rose-500/10 transition active:scale-95 cursor-pointer"
@@ -1528,6 +1525,7 @@ export function ReturnsView({ selectedMarketplace: propMarketplace }: ReturnsVie
                       setEditingReturn({
                         ...editingReturn,
                         restockStatus: e.target.value as RestockStatus,
+                        receivedDate: e.target.value === "RESTOCKED" ? editingReturn.receivedDate || businessDate() : editingReturn.receivedDate,
                       })
                     }
                     className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.08] rounded-xl font-semibold text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3]"

@@ -3,6 +3,7 @@
 import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { createRecordId } from "@/domain/record-id";
 import { Expense, ExpenseCategory } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate } from "@/lib/utils";
@@ -13,6 +14,8 @@ import { Plus, X, Pencil, Trash2, AlertTriangle } from "lucide-react";
 export function ExpensesView() {
   const { expenses, addExpense, updateExpense, deleteExpense, deleteExpenses } = usePlatform();
 
+  const saveInFlight = React.useRef(false);
+  const draftId = React.useRef("");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -70,10 +73,14 @@ export function ExpensesView() {
     "Other",
   ];
 
-  const handleCreateExpense = (e: React.FormEvent) => {
+  const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     const newExp: Expense = {
-      id: `EXP-${Date.now().toString().slice(-4)}`,
+      id: draftId.current || (draftId.current = createRecordId("EXP")),
       date: new Date().toISOString().split("T")[0],
       category,
       description: description || `${category} expense`,
@@ -82,10 +89,13 @@ export function ExpensesView() {
       paymentMethod,
       isRecurring,
     };
-    addExpense(newExp);
+    await addExpense(newExp);
+    draftId.current = "";
     setIsAddExpenseOpen(false);
     setDescription("");
     setVendor("");
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   const handleOpenEdit = (exp: Expense) => {
@@ -99,8 +109,12 @@ export function ExpensesView() {
     setEditIsRecurring(exp.isRecurring ?? false);
   };
 
-  const handleUpdateExpense = (e: React.FormEvent) => {
+  const handleUpdateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (!editingExpense) return;
 
     const updatedExp: Expense = {
@@ -113,22 +127,34 @@ export function ExpensesView() {
       paymentMethod: editPaymentMethod,
       isRecurring: editIsRecurring,
     };
-    updateExpense(updatedExp);
+    await updateExpense(updatedExp);
     setEditingExpense(null);
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
-  const handleConfirmSingleDelete = () => {
+  const handleConfirmSingleDelete = async () => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (!expenseToDelete) return;
-    deleteExpense(expenseToDelete.id);
+    await deleteExpense(expenseToDelete.id);
     setSelectedExpenseIds((prev) => prev.filter((id) => id !== expenseToDelete.id));
     setExpenseToDelete(null);
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
-  const handleConfirmBulkDelete = () => {
+  const handleConfirmBulkDelete = async () => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (selectedExpenseIds.length === 0) return;
-    deleteExpenses(selectedExpenseIds);
+    await deleteExpenses(selectedExpenseIds);
     setSelectedExpenseIds([]);
     setIsBulkDeleteConfirmOpen(false);
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   const allSelected = expenses.length > 0 && selectedExpenseIds.length === expenses.length;

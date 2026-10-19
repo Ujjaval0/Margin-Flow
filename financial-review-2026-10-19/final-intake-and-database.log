@@ -1,0 +1,255 @@
+TAP version 13
+# Subtest: production migrations and canonical financial workflows execute against disposable PostgreSQL
+ok 1 - production migrations and canonical financial workflows execute against disposable PostgreSQL
+  ---
+  duration_ms: 21697.0918
+  ...
+# Subtest: documented fresh local bootstrap executes without demo seeds or stale financial views
+ok 2 - documented fresh local bootstrap executes without demo seeds or stale financial views
+  ---
+  duration_ms: 7880.0046
+  ...
+# Subtest: invoice import preserves every source line and reconciles 100 + 200 + 54 tax to 354
+ok 3 - invoice import preserves every source line and reconciles 100 + 200 + 54 tax to 354
+  ---
+  duration_ms: 42.2231
+  ...
+# Subtest: invoice import rejects missing currency, date, SKU, unit price and unknown taxable price basis
+ok 4 - invoice import rejects missing currency, date, SKU, unit price and unknown taxable price basis
+  ---
+  duration_ms: 2.6972
+  ...
+# Subtest: invoice import rejects fractional paise instead of rounding source totals into validity
+ok 5 - invoice import rejects fractional paise instead of rounding source totals into validity
+  ---
+  duration_ms: 2.1252
+  ...
+# Subtest: structured IDP verifies all lines and keeps its 354 proposal staged for human review
+ok 6 - structured IDP verifies all lines and keeps its 354 proposal staged for human review
+  ---
+  duration_ms: 297.076
+  ...
+# Subtest: structured IDP does not verify an invoice whose currency or source date is missing
+ok 7 - structured IDP does not verify an invoice whose currency or source date is missing
+  ---
+  duration_ms: 1114.1565
+  ...
+# Subtest: structured IDP cannot mark a missing price or SKU as a verified zero-value line
+ok 8 - structured IDP cannot mark a missing price or SKU as a verified zero-value line
+  ---
+  duration_ms: 1505.566
+  ...
+# Subtest: CSV preserves both CGST and SGST and rejects inconsistent aggregate GST
+ok 9 - CSV preserves both CGST and SGST and rejects inconsistent aggregate GST
+  ---
+  duration_ms: 20.1814
+  ...
+# Subtest: CSV rejects fractional-paise GST and price input as a complete batch
+ok 10 - CSV rejects fractional-paise GST and price input as a complete batch
+  ---
+  duration_ms: 7.9084
+  ...
+# Subtest: generic source extended amount 200 for quantity two stays 200 instead of becoming 400
+ok 11 - generic source extended amount 200 for quantity two stays 200 instead of becoming 400
+  ---
+  duration_ms: 35.1282
+  ...
+# Subtest: generic source requires explicit currency, date, price or extended amount, SKU and positive quantity
+ok 12 - generic source requires explicit currency, date, price or extended amount, SKU and positive quantity
+  ---
+  duration_ms: 5.1375
+  ...
+# Subtest: Shopify allocated 20 discount reduces a 100 item to the evidenced 80 total
+ok 13 - Shopify allocated 20 discount reduces a 100 item to the evidenced 80 total
+  ---
+  duration_ms: 25.4068
+  ...
+# Subtest: WooCommerce customer fee line 20 preserves a 100 sale plus 20 revenue as 120
+ok 14 - WooCommerce customer fee line 20 preserves a 100 sale plus 20 revenue as 120
+  ---
+  duration_ms: 23.5612
+  ...
+# Subtest: official webshop schemas reject omitted currency and source creation dates
+ok 15 - official webshop schemas reject omitted currency and source creation dates
+  ---
+  duration_ms: 4.6155
+  ...
+# Subtest: Amazon negative refund and positive fee reversal survive as signed financial evidence without bank cash
+ok 16 - Amazon negative refund and positive fee reversal survive as signed financial evidence without bank cash
+  ---
+  duration_ms: 60.0611
+  ...
+# Subtest: Amazon unsupported account-level events retain the raw source plus a reconciliation issue
+ok 17 - Amazon unsupported account-level events retain the raw source plus a reconciliation issue
+  ---
+  duration_ms: 5.2583
+  ...
+# Subtest: Amazon unsupported currency and fractional-paise event amounts stay unresolved with their source retained
+ok 18 - Amazon unsupported currency and fractional-paise event amounts stay unresolved with their source retained
+  ---
+  duration_ms: 7.0572
+  ...
+# Subtest: F48: inserts do not shift indexes for subsequent updates or repeated batch identities
+ok 19 - F48: inserts do not shift indexes for subsequent updates or repeated batch identities
+  ---
+  duration_ms: 1.5862
+  ...
+# Subtest: F48: marketplace scopes external identities and immutable line costs survive updates
+ok 20 - F48: marketplace scopes external identities and immutable line costs survive updates
+  ---
+  duration_ms: 0.2525
+  ...
+# Subtest: F48: separate receipts on an order remain distinct; a later update targets only its receipt
+ok 21 - F48: separate receipts on an order remain distinct; a later update targets only its receipt
+  ---
+  duration_ms: 0.3701
+  ...
+# Subtest: F49: absent and malformed unit prices, quantities and dates fail without invented financials
+ok 22 - F49: absent and malformed unit prices, quantities and dates fail without invented financials
+  ---
+  duration_ms: 5.8458
+  ...
+# Subtest: F49: a legitimate zero price and zero tax survive; dates and IDs are repeatable
+ok 23 - F49: a legitimate zero price and zero tax survive; dates and IDs are repeatable
+  ---
+  duration_ms: 2.702
+  ...
+# Subtest: F49: multi-line orders group; repeated rows do not duplicate units; explicit same-SKU line IDs remain separate
+ok 24 - F49: multi-line orders group; repeated rows do not duplicate units; explicit same-SKU line IDs remain separate
+  ---
+  duration_ms: 0.5704
+  ...
+# Subtest: F49: conflicting duplicate lines and settlement payouts are rejected as sales
+ok 25 - F49: conflicting duplicate lines and settlement payouts are rejected as sales
+  ---
+  duration_ms: 0.5887
+  ...
+# Subtest: F49: historical imports use the cost valid on the order date
+ok 26 - F49: historical imports use the cost valid on the order date
+  ---
+  duration_ms: 0.7589
+  ...
+# Subtest: F49: multiple files consolidate lines but reject contradictory prices and quantities
+ok 27 - F49: multiple files consolidate lines but reject contradictory prices and quantities
+  ---
+  duration_ms: 1.3422
+  ...
+# Subtest: F52: aging includes partial balances, honors marketplace and recognizes no guessed fees
+ok 28 - F52: aging includes partial balances, honors marketplace and recognizes no guessed fees
+  ---
+  duration_ms: 4.9312
+  ...
+# Subtest: F52: aging uses return units and excludes future orders
+ok 29 - F52: aging uses return units and excludes future orders
+  ---
+  duration_ms: 3.703
+  ...
+# Subtest: F52: business date observes India midnight and report channel matching is exact
+ok 30 - F52: business date observes India midnight and report channel matching is exact
+  ---
+  duration_ms: 77.9565
+  ...
+# Subtest: F54: valid snapshots pass; foreign, partial, wrong-version and malformed domain data fail atomically
+ok 31 - F54: valid snapshots pass; foreign, partial, wrong-version and malformed domain data fail atomically
+  ---
+  duration_ms: 16.7257
+  ...
+# Subtest: F54: prototype keys, numeric strings and oversized snapshots are rejected
+ok 32 - F54: prototype keys, numeric strings and oversized snapshots are rejected
+  ---
+  duration_ms: 0.4546
+  ...
+# Subtest: F55: CSV round-trips commas, quotes, CR/LF and formula-like text safely
+ok 33 - F55: CSV round-trips commas, quotes, CR/LF and formula-like text safely
+  ---
+  duration_ms: 4.7026
+  ...
+# Subtest: F47: order archival recovers cascade records and exact inventory, including repeated-SKU lines
+ok 34 - F47: order archival recovers cascade records and exact inventory, including repeated-SKU lines
+  ---
+  duration_ms: 3.6786
+  ...
+# Subtest: F47: return archival removes only linked claims; restock reversal is exact and cannot silently clamp stock
+ok 35 - F47: return archival removes only linked claims; restock reversal is exact and cannot silently clamp stock
+  ---
+  duration_ms: 2.2216
+  ...
+# Subtest: F47: later edits and SKU collisions prevent recovery from overwriting newer state
+ok 36 - F47: later edits and SKU collisions prevent recovery from overwriting newer state
+  ---
+  duration_ms: 0.9128
+  ...
+# Subtest: F47: SQL scope, expiry, row lock and failed recovery keep receipt unconsumed
+ok 37 - F47: SQL scope, expiry, row lock and failed recovery keep receipt unconsumed
+  ---
+  duration_ms: 1434.6388
+  ...
+# Subtest: F47: archive write failure rolls back relational changes and never reports success
+ok 38 - F47: archive write failure rolls back relational changes and never reports success
+  ---
+  duration_ms: 2169.1606
+  ...
+# Subtest: F47/F49: unauthenticated routes reject before database or parser work
+ok 39 - F47/F49: unauthenticated routes reject before database or parser work
+  ---
+  duration_ms: 2203.9205
+  ...
+# Subtest: F49: actual upload ignores caller counts, commits orders and audit on the same connection
+ok 40 - F49: actual upload ignores caller counts, commits orders and audit on the same connection
+  ---
+  duration_ms: 512.5627
+  ...
+# Subtest: F57: landing acquisition routes to real login without a fabricated session or contact success
+ok 41 - F57: landing acquisition routes to real login without a fabricated session or contact success
+  ---
+  duration_ms: 7.118
+  ...
+# Subtest: F54: actual provider leaves every collection untouched on a rejected snapshot and exports owner binding
+ok 42 - F54: actual provider leaves every collection untouched on a rejected snapshot and exports owner binding
+  ---
+  duration_ms: 2865.3302
+  ...
+# Subtest: F48/F49: actual provider rejects failed saves, uses canonical IDs and deduplicates consecutive imports
+ok 43 - F48/F49: actual provider rejects failed saves, uses canonical IDs and deduplicates consecutive imports
+  ---
+  duration_ms: 1961.782
+  ...
+# Subtest: F22/F40: product creation waits for server acknowledgement before updating local state
+ok 44 - F22/F40: product creation waits for server acknowledgement before updating local state
+  ---
+  duration_ms: 1503.8333
+  ...
+# Subtest: F47: failed archival leaves actual provider inventory and records untouched
+ok 45 - F47: failed archival leaves actual provider inventory and records untouched
+  ---
+  duration_ms: 1502.5781
+  ...
+# Subtest: F51: restocking is idempotent and missing products remain pending
+ok 46 - F51: restocking is idempotent and missing products remain pending
+  ---
+  duration_ms: 1473.3862
+  ...
+# Subtest: F47: canonical recovered records retain tenant-scoped identities and numeric amounts
+ok 47 - F47: canonical recovered records retain tenant-scoped identities and numeric amounts
+  ---
+  duration_ms: 61.0757
+  ...
+# Subtest: F47: actual relational recovery refuses a conflicting stock balance before any write
+ok 48 - F47: actual relational recovery refuses a conflicting stock balance before any write
+  ---
+  duration_ms: 1359.5623
+  ...
+# Subtest: F52/F55: actual Reports view and both export tabs use only the scoped dataset
+ok 49 - F52/F55: actual Reports view and both export tabs use only the scoped dataset
+  ---
+  duration_ms: 1045.7547
+  ...
+1..49
+# tests 49
+# suites 0
+# pass 49
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 30383.3931

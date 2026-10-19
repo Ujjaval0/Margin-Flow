@@ -1,0 +1,626 @@
+TAP version 13
+# Subtest: period flows retain older order context and recognize receipt, restock and recovery dates independently
+ok 1 - period flows retain older order context and recognize receipt, restock and recovery dates independently
+  ---
+  duration_ms: 40.8066
+  ...
+# Subtest: adjacent periods and event months conserve every monetary P&L flow and gross-to-net bridge
+ok 2 - adjacent periods and event months conserve every monetary P&L flow and gross-to-net bridge
+  ---
+  duration_ms: 116.2417
+  ...
+# Subtest: bank cash includes unmatched and cancelled-order receipts but excludes marketplace finance events
+ok 3 - bank cash includes unmatched and cancelled-order receipts but excludes marketplace finance events
+  ---
+  duration_ms: 6.5969
+  ...
+# Subtest: period return rates use matching bounded shipment cohorts even when old returns exceed current shipments
+ok 4 - period return rates use matching bounded shipment cohorts even when old returns exceed current shipments
+  ---
+  duration_ms: 35.6326
+  ...
+# Subtest: SKU return costs and claim recoveries stay on the affected SKU as later returns arrive
+ok 5 - SKU return costs and claim recoveries stay on the affected SKU as later returns arrive
+  ---
+  duration_ms: 61.8244
+  ...
+# Subtest: explicit return claim links and multiple claims allocate once; closing never erases dated recovery
+ok 6 - explicit return claim links and multiple claims allocate once; closing never erases dated recovery
+  ---
+  duration_ms: 8.6054
+  ...
+# Subtest: separate one-paise fee events retain their original SKU allocation across periods
+ok 7 - separate one-paise fee events retain their original SKU allocation across periods
+  ---
+  duration_ms: 32.5768
+  ...
+# Subtest: linked bank deductions clear source financial-event accruals once in every period and SKU
+ok 8 - linked bank deductions clear source financial-event accruals once in every period and SKU
+  ---
+  duration_ms: 48.167
+  ...
+# Subtest: partial claim recovery events retain their dates and original return/SKU rounding allocations
+ok 9 - partial claim recovery events retain their dates and original return/SKU rounding allocations
+  ---
+  duration_ms: 68.7306
+  ...
+# Subtest: unknown partial-payment receivables remain in aging and radar; known amounts use discounts and partial receipts
+ok 10 - unknown partial-payment receivables remain in aging and radar; known amounts use discounts and partial receipts
+  ---
+  duration_ms: 21.2457
+  ...
+# Subtest: grounded assistant distinguishes contribution and OPEX and does not subtract return costs twice
+ok 11 - grounded assistant distinguishes contribution and OPEX and does not subtract return costs twice
+  ---
+  duration_ms: 27.1005
+  ...
+# Subtest: return radar uses bounded facts and recorded reverse freight once instead of stale raw loss fields
+ok 12 - return radar uses bounded facts and recorded reverse freight once instead of stale raw loss fields
+  ---
+  duration_ms: 6.8106
+  ...
+# Subtest: retained unmapped-source and pending-migration issues survive all-time and dated projections
+ok 13 - retained unmapped-source and pending-migration issues survive all-time and dated projections
+  ---
+  duration_ms: 10.5124
+  ...
+# Subtest: actual Reports view uses full financialContext and reportRange in both exports and shows the complete bridge
+ok 14 - actual Reports view uses full financialContext and reportRange in both exports and shows the complete bridge
+  ---
+  duration_ms: 840.3542
+  ...
+# Subtest: Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite
+    # Subtest: AI provider keys are isolated by verified owner and the legacy shared vault is discarded
+    ok 1 - AI provider keys are isolated by verified owner and the legacy shared vault is discarded
+      ---
+      duration_ms: 356.73
+      ...
+    # Subtest: Suite 1: Database DDL & Schema Multi-Tenant Isolation
+        # Subtest: 1.1 Migration file 13_multitenant_isolation.sql exists with user_id columns
+        ok 1 - 1.1 Migration file 13_multitenant_isolation.sql exists with user_id columns
+          ---
+          duration_ms: 4.2153
+          ...
+        # Subtest: 1.2 Composite unique constraints are scoped to user_id
+        ok 2 - 1.2 Composite unique constraints are scoped to user_id
+          ---
+          duration_ms: 2.2359
+          ...
+        # Subtest: 1.3 schema readiness checks are read-only and fail closed
+        ok 3 - 1.3 schema readiness checks are read-only and fail closed
+          ---
+          duration_ms: 3.2548
+          ...
+        # Subtest: 1.4 Supabase direct access defaults to deny for every sensitive table
+        ok 4 - 1.4 Supabase direct access defaults to deny for every sensitive table
+          ---
+          duration_ms: 5.799
+          ...
+        1..4
+    ok 2 - Suite 1: Database DDL & Schema Multi-Tenant Isolation
+      ---
+      duration_ms: 16.8177
+      type: 'suite'
+      ...
+    # Subtest: Suite 2: Multi-Tenant Persistence Layer
+        # Subtest: 2.1 upsertOrders requires userId parameter and binds it in SQL
+        ok 1 - 2.1 upsertOrders requires userId parameter and binds it in SQL
+          ---
+          duration_ms: 2.8125
+          ...
+        # Subtest: 2.2 upsertSettlements requires userId parameter and binds it in SQL
+        ok 2 - 2.2 upsertSettlements requires userId parameter and binds it in SQL
+          ---
+          duration_ms: 2.4716
+          ...
+        # Subtest: 2.3 Linked order lookups in settlements are scoped to tenant
+        ok 3 - 2.3 Linked order lookups in settlements are scoped to tenant
+          ---
+          duration_ms: 3.215
+          ...
+        1..3
+    ok 3 - Suite 2: Multi-Tenant Persistence Layer
+      ---
+      duration_ms: 9.789
+      type: 'suite'
+      ...
+    # Subtest: Suite 3: Server-Side Multi-Tenant API Routes
+        # Subtest: 3.1 GET & POST /api/orders enforces session and filters by user_id
+        ok 1 - 3.1 GET & POST /api/orders enforces session and filters by user_id
+          ---
+          duration_ms: 2.9123
+          ...
+        # Subtest: 3.2 GET & POST /api/settlements enforces session and filters by user_id
+        ok 2 - 3.2 GET & POST /api/settlements enforces session and filters by user_id
+          ---
+          duration_ms: 4.6679
+          ...
+        # Subtest: 3.3 GET & POST /api/products enforces session and filters by user_id
+        ok 3 - 3.3 GET & POST /api/products enforces session and filters by user_id
+          ---
+          duration_ms: 3.7418
+          ...
+        1..3
+    ok 4 - Suite 3: Server-Side Multi-Tenant API Routes
+      ---
+      duration_ms: 12.0227
+      type: 'suite'
+      ...
+    # Subtest: Suite 4: Client Store Hydration & Single Source of Truth
+        # Subtest: 4.1 store.tsx exposes refreshFromDatabase and isSyncingWithDb in context
+        ok 1 - 4.1 store.tsx exposes refreshFromDatabase and isSyncingWithDb in context
+          ---
+          duration_ms: 2.6977
+          ...
+        # Subtest: 4.2 refreshFromDatabase hydrates complete owner-scoped canonical books atomically
+        ok 2 - 4.2 refreshFromDatabase hydrates complete owner-scoped canonical books atomically
+          ---
+          duration_ms: 4.0985
+          ...
+        # Subtest: 4.3 caches are selected only using verified tenant identity
+        ok 3 - 4.3 caches are selected only using verified tenant identity
+          ---
+          duration_ms: 2.4788
+          ...
+        # Subtest: 4.4 Store action mutations asynchronously persist to backend APIs
+        ok 4 - 4.4 Store action mutations asynchronously persist to backend APIs
+          ---
+          duration_ms: 3.3718
+          ...
+        1..4
+    ok 5 - Suite 4: Client Store Hydration & Single Source of Truth
+      ---
+      duration_ms: 13.2675
+      type: 'suite'
+      ...
+    # Subtest: Suite 5: Actual writer parameter binding with isolated adapters (not PostgreSQL isolation proof)
+        # Subtest: 5.1 Actual order and catalog writers bind each tenant for coincident source identifiers
+        ok 1 - 5.1 Actual order and catalog writers bind each tenant for coincident source identifiers
+          ---
+          duration_ms: 3461.0935
+          ...
+        1..1
+    ok 6 - Suite 5: Actual writer parameter binding with isolated adapters (not PostgreSQL isolation proof)
+      ---
+      duration_ms: 3461.4354
+      type: 'suite'
+      ...
+    1..6
+ok 15 - Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite
+  ---
+  duration_ms: 3874.8034
+  type: 'suite'
+  ...
+# Subtest: Phase 3 Transactional Persistence, Queues & Financial Ledger Rigor Test Suite
+    # Subtest: Suite 1: Transactional ACID Persistence
+        # Subtest: 1.1 upsertOrders wraps database mutations in BEGIN...COMMIT / ROLLBACK
+        ok 1 - 1.1 upsertOrders wraps database mutations in BEGIN...COMMIT / ROLLBACK
+          ---
+          duration_ms: 6.9197
+          ...
+        # Subtest: 1.2 upsertSettlements wraps database mutations in BEGIN...COMMIT / ROLLBACK
+        ok 2 - 1.2 upsertSettlements wraps database mutations in BEGIN...COMMIT / ROLLBACK
+          ---
+          duration_ms: 4.1317
+          ...
+        # Subtest: 1.3 order-persistence.ts imports and uses connection pool from db.ts
+        ok 3 - 1.3 order-persistence.ts imports and uses connection pool from db.ts
+          ---
+          duration_ms: 4.1471
+          ...
+        1..3
+    ok 1 - Suite 1: Transactional ACID Persistence
+      ---
+      duration_ms: 19.114
+      type: 'suite'
+      ...
+    # Subtest: Suite 2: Resilient Webhook Ingestion & Durable DB Persistence
+        # Subtest: 2.1 WooCommerce webhook captures x-wc-webhook-delivery-id for per-delivery idempotency
+        ok 1 - 2.1 WooCommerce webhook captures x-wc-webhook-delivery-id for per-delivery idempotency
+          ---
+          duration_ms: 5.6107
+          ...
+        # Subtest: 2.2 WooCommerce webhook persists incoming orders directly to PostgreSQL
+        ok 2 - 2.2 WooCommerce webhook persists incoming orders directly to PostgreSQL
+          ---
+          duration_ms: 3.1952
+          ...
+        # Subtest: 2.3 Shopify webhook persists incoming orders directly to PostgreSQL
+        ok 3 - 2.3 Shopify webhook persists incoming orders directly to PostgreSQL
+          ---
+          duration_ms: 3.1241
+          ...
+        1..3
+    ok 2 - Suite 2: Resilient Webhook Ingestion & Durable DB Persistence
+      ---
+      duration_ms: 13.0896
+      type: 'suite'
+      ...
+    # Subtest: Suite 3: Financial Ledger Rigor & Heuristic Purge
+        # Subtest: 3.1 Purge 45% COGS heuristic from WooCommerce webhook schema
+        ok 1 - 3.1 Purge 45% COGS heuristic from WooCommerce webhook schema
+          ---
+          duration_ms: 4.5745
+          ...
+        # Subtest: 3.2 Purge 45% COGS heuristic from Shopify webhook schema
+        ok 2 - 3.2 Purge 45% COGS heuristic from Shopify webhook schema
+          ---
+          duration_ms: 3.7643
+          ...
+        # Subtest: 3.3 Purge 45% COGS heuristic from Generic webhook schema
+        ok 3 - 3.3 Purge 45% COGS heuristic from Generic webhook schema
+          ---
+          duration_ms: 2.5212
+          ...
+        # Subtest: 3.4 Purge ₹350 fallback from computeReturnFinancials in profitability-engine.ts
+        ok 4 - 3.4 Purge ₹350 fallback from computeReturnFinancials in profitability-engine.ts
+          ---
+          duration_ms: 2.9683
+          ...
+        # Subtest: 3.5 calculateBusinessProfitability accurately computes discounts and netSales
+        ok 5 - 3.5 calculateBusinessProfitability accurately computes discounts and netSales
+          ---
+          duration_ms: 1107.0341
+          ...
+        1..5
+    ok 3 - Suite 3: Financial Ledger Rigor & Heuristic Purge
+      ---
+      duration_ms: 1122.4895
+      type: 'suite'
+      ...
+    # Subtest: Suite 4: Token-Bucket Rate Limiter Defense
+        # Subtest: 4.1 rate-limiter.ts exists and enforces server-only execution
+        ok 1 - 4.1 rate-limiter.ts exists and enforces server-only execution
+          ---
+          duration_ms: 4.3441
+          ...
+        # Subtest: 4.2 Amazon sync route enforces amazonSpApiLimiter
+        ok 2 - 4.2 Amazon sync route enforces amazonSpApiLimiter
+          ---
+          duration_ms: 3.6862
+          ...
+        # Subtest: 4.3 WooCommerce & Generic sync routes enforce marketplaceSyncLimiter
+        ok 3 - 4.3 WooCommerce & Generic sync routes enforce marketplaceSyncLimiter
+          ---
+          duration_ms: 5.4418
+          ...
+        1..3
+    ok 4 - Suite 4: Token-Bucket Rate Limiter Defense
+      ---
+      duration_ms: 14.0675
+      type: 'suite'
+      ...
+    # Subtest: Suite 5: Actual rate limiter and financial engine behavior with synthetic fixtures
+        # Subtest: 5.1 Actual limiter rejects a burst and reports the real retry delay
+        ok 1 - 5.1 Actual limiter rejects a burst and reports the real retry delay
+          ---
+          duration_ms: 67.6049
+          ...
+        # Subtest: 5.2 Actual financial engine recognizes source discounts and never guesses COGS
+        ok 2 - 5.2 Actual financial engine recognizes source discounts and never guesses COGS
+          ---
+          duration_ms: 429.3686
+          ...
+        1..2
+    ok 5 - Suite 5: Actual rate limiter and financial engine behavior with synthetic fixtures
+      ---
+      duration_ms: 497.332
+      type: 'suite'
+      ...
+    1..5
+ok 16 - Phase 3 Transactional Persistence, Queues & Financial Ledger Rigor Test Suite
+  ---
+  duration_ms: 1668.5337
+  type: 'suite'
+  ...
+# [Security Warning] No ENCRYPTION_MASTER_KEY configured. Generated ephemeral 256-bit AES key for development.
+# [Security Warning] No ENCRYPTION_MASTER_KEY configured. Generated ephemeral 256-bit AES key for development.
+# Subtest: Store Integration Phase 2 Verification Suite
+    # Subtest: TASK-2.1: Database Schema Migration for Marketplace Connections
+        # Subtest: Migration script database/09_marketplace_connections.sql exists with required tables
+        ok 1 - Migration script database/09_marketplace_connections.sql exists with required tables
+          ---
+          duration_ms: 6.8569
+          ...
+        # Subtest: src/lib/db.ts exports a cached read-only readiness check and never migrates on requests
+        ok 2 - src/lib/db.ts exports a cached read-only readiness check and never migrates on requests
+          ---
+          duration_ms: 4.5136
+          ...
+        1..2
+    ok 1 - TASK-2.1: Database Schema Migration for Marketplace Connections
+      ---
+      duration_ms: 14.5286
+      type: 'suite'
+      ...
+    # Subtest: TASK-2.2: Server-Side AES-256-GCM Encryption Vault
+        # Subtest: src/lib/security/encryption.ts implements client-side bundle barrier
+        ok 1 - src/lib/security/encryption.ts implements client-side bundle barrier
+          ---
+          duration_ms: 5.4688
+          ...
+        # Subtest: AES-256-GCM encryptPayload and decryptPayload round-trip successfully
+        ok 2 - AES-256-GCM encryptPayload and decryptPayload round-trip successfully
+          ---
+          duration_ms: 327.7116
+          ...
+        # Subtest: Tampered ciphertext fails authentication check
+        ok 3 - Tampered ciphertext fails authentication check
+          ---
+          duration_ms: 49.2697
+          ...
+        1..3
+    ok 2 - TASK-2.2: Server-Side AES-256-GCM Encryption Vault
+      ---
+      duration_ms: 383.6628
+      type: 'suite'
+      ...
+    # Subtest: TASK-2.3: Purge Secrets from Browser localStorage
+        # Subtest: saveChannelCredentials in webhook-simulator.tsx strictly strips secrets
+        ok 1 - saveChannelCredentials in webhook-simulator.tsx strictly strips secrets
+          ---
+          duration_ms: 8.1794
+          ...
+        # Subtest: webhook-simulator.tsx cleanses legacy secrets from localStorage on mount
+        ok 2 - webhook-simulator.tsx cleanses legacy secrets from localStorage on mount
+          ---
+          duration_ms: 9.5583
+          ...
+        1..2
+    ok 3 - TASK-2.3: Purge Secrets from Browser localStorage
+      ---
+      duration_ms: 19.3053
+      type: 'suite'
+      ...
+    # Subtest: TASK-2.4 & 2.5: Server Connection Management & Multi-Tenant Query Isolation
+        # Subtest: src/app/api/integrations/connections/route.ts exports GET, POST, DELETE handlers
+        ok 1 - src/app/api/integrations/connections/route.ts exports GET, POST, DELETE handlers
+          ---
+          duration_ms: 4.7343
+          ...
+        # Subtest: marketplace-vault.ts strictly enforces multi-tenant query isolation (WHERE user_id = $1)
+        ok 2 - marketplace-vault.ts strictly enforces multi-tenant query isolation (WHERE user_id = $1)
+          ---
+          duration_ms: 2.9666
+          ...
+        # Subtest: Sync routes (Amazon, Flipkart, Shopify, WooCommerce) resolve credentials from server vault
+        ok 3 - Sync routes (Amazon, Flipkart, Shopify, WooCommerce) resolve credentials from server vault
+          ---
+          duration_ms: 18.7585
+          ...
+        1..3
+    ok 4 - TASK-2.4 & 2.5: Server Connection Management & Multi-Tenant Query Isolation
+      ---
+      duration_ms: 27.2749
+      type: 'suite'
+      ...
+    1..4
+ok 17 - Store Integration Phase 2 Verification Suite
+  ---
+  duration_ms: 447.1795
+  type: 'suite'
+  ...
+# Subtest: Store Integration Phase 3 Verification Suite
+    # Subtest: TASK-3.1: Current Orders SP-API Endpoint & India Region
+        # Subtest: Amazon sync route targets SP-API EU endpoint with India Marketplace ID A21TJRUUN4KGV
+        ok 1 - Amazon sync route targets SP-API EU endpoint with India Marketplace ID A21TJRUUN4KGV
+          ---
+          duration_ms: 6.8024
+          ...
+        # Subtest: Zero Client-Side Master Secrets: Retrieves vaulted credentials server-side
+        ok 2 - Zero Client-Side Master Secrets: Retrieves vaulted credentials server-side
+          ---
+          duration_ms: 3.3831
+          ...
+        1..2
+    ok 1 - TASK-3.1: Current Orders SP-API Endpoint & India Region
+      ---
+      duration_ms: 12.5922
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.2: Map Authentic Multi-Line Order Items & Zero Cost Guesswork
+        # Subtest: Order items fetch queries genuine SP-API orderItems endpoint or embedded payload
+        ok 1 - Order items fetch queries genuine SP-API orderItems endpoint or embedded payload
+          ---
+          duration_ms: 6.2056
+          ...
+        # Subtest: Financial Invariant: snapshotUnitCost is locked to 0 (no synthetic cost guesswork)
+        ok 2 - Financial Invariant: snapshotUnitCost is locked to 0 (no synthetic cost guesswork)
+          ---
+          duration_ms: 3.5784
+          ...
+        # Subtest: Order status mapping handles standard Amazon lifecycle states
+        ok 3 - Order status mapping handles standard Amazon lifecycle states
+          ---
+          duration_ms: 4.1722
+          ...
+        1..3
+    ok 2 - TASK-3.2: Map Authentic Multi-Line Order Items & Zero Cost Guesswork
+      ---
+      duration_ms: 14.7773
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.3: Cursor-Based Pagination & Overlap Window
+        # Subtest: Supports NextToken pagination parameter and extracts nextToken from response
+        ok 1 - Supports NextToken pagination parameter and extracts nextToken from response
+          ---
+          duration_ms: 3.4461
+          ...
+        # Subtest: Calculates 48-hour bounded overlap window on LastUpdatedAfter when lastSyncedAt exists
+        ok 2 - Calculates 48-hour bounded overlap window on LastUpdatedAfter when lastSyncedAt exists
+          ---
+          duration_ms: 4.0227
+          ...
+        1..2
+    ok 3 - TASK-3.3: Cursor-Based Pagination & Overlap Window
+      ---
+      duration_ms: 8.4746
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.4: Build Separate Amazon Finances Ingestion
+        # Subtest: Route src/app/api/integrations/amazon/finances/route.ts exists and queries SP-API finances
+        ok 1 - Route src/app/api/integrations/amazon/finances/route.ts exists and queries SP-API finances
+          ---
+          duration_ms: 6.2789
+          ...
+        # Subtest: Finances route itemizes authentic deductions (Referral, Closing, Weight Handling, TCS, TDS)
+        ok 2 - Finances route itemizes authentic deductions (Referral, Closing, Weight Handling, TCS, TDS)
+          ---
+          duration_ms: 2.2696
+          ...
+        # Subtest: Finances projections preserve signed finance evidence without asserting bank receipt
+        ok 3 - Finances projections preserve signed finance evidence without asserting bank receipt
+          ---
+          duration_ms: 4.1472
+          ...
+        1..3
+    ok 4 - TASK-3.4: Build Separate Amazon Finances Ingestion
+      ---
+      duration_ms: 13.2767
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.5: Atomic Database Upsert for Ingested Orders and Settlements
+        # Subtest: Migration database/10_orders_idempotency.sql creates unique idempotency indexes
+        ok 1 - Migration database/10_orders_idempotency.sql creates unique idempotency indexes
+          ---
+          duration_ms: 4.4229
+          ...
+        # Subtest: src/lib/integrations/order-persistence.ts implements upsertOrders with ON CONFLICT DO UPDATE
+        ok 2 - src/lib/integrations/order-persistence.ts implements upsertOrders with ON CONFLICT DO UPDATE
+          ---
+          duration_ms: 3.1479
+          ...
+        # Subtest: Order items updates respect immutable snapshot_unit_cost invariant (Trigger 2)
+        ok 3 - Order items updates respect immutable snapshot_unit_cost invariant (Trigger 2)
+          ---
+          duration_ms: 3.2362
+          ...
+        # Subtest: src/lib/integrations/order-persistence.ts implements upsertSettlements
+        ok 4 - src/lib/integrations/order-persistence.ts implements upsertSettlements
+          ---
+          duration_ms: 3.0474
+          ...
+        1..4
+    ok 5 - TASK-3.5: Atomic Database Upsert for Ingested Orders and Settlements
+      ---
+      duration_ms: 14.5366
+      type: 'suite'
+      ...
+    # Subtest: Store Context Integration
+        # Subtest: src/domain/store.tsx provides syncExternalSettlements with audit logging
+        ok 1 - src/domain/store.tsx provides syncExternalSettlements with audit logging
+          ---
+          duration_ms: 6.1459
+          ...
+        1..1
+    ok 6 - Store Context Integration
+      ---
+      duration_ms: 6.4823
+      type: 'suite'
+      ...
+    1..6
+ok 18 - Store Integration Phase 3 Verification Suite
+  ---
+  duration_ms: 72.9279
+  type: 'suite'
+  ...
+# Subtest: Store Integration contract and source-wiring checks (not production acceptance)
+    # Subtest: TASK-6.1: Enforce Unified MarketplaceSyncResult Contract
+        # Subtest: src/lib/integrations/sync-contract.ts defines MarketplaceSyncResult interface matching specification
+        ok 1 - src/lib/integrations/sync-contract.ts defines MarketplaceSyncResult interface matching specification
+          ---
+          duration_ms: 5.2221
+          ...
+        # Subtest: src/domain/types.ts exports MarketplaceSyncResult and SyncStatus for domain consumers
+        ok 2 - src/domain/types.ts exports MarketplaceSyncResult and SyncStatus for domain consumers
+          ---
+          duration_ms: 2.4004
+          ...
+        # Subtest: src/lib/integrations/error-response.ts enhances MarketplaceErrorEnvelope to satisfy MarketplaceSyncResult
+        ok 3 - src/lib/integrations/error-response.ts enhances MarketplaceErrorEnvelope to satisfy MarketplaceSyncResult
+          ---
+          duration_ms: 3.8783
+          ...
+        # Subtest: All sync routes adopt the unified MarketplaceSyncResult contract
+        ok 4 - All sync routes adopt the unified MarketplaceSyncResult contract
+          ---
+          duration_ms: 16.2563
+          ...
+        1..4
+    ok 1 - TASK-6.1: Enforce Unified MarketplaceSyncResult Contract
+      ---
+      duration_ms: 30.2613
+      type: 'suite'
+      ...
+    # Subtest: TASK-6.2: Ten source-wiring checks; live release acceptance remains separate
+        # Subtest: Point 1: Real authentication works with live credentials across connectors
+        ok 1 - Point 1: Real authentication works with live credentials across connectors
+          ---
+          duration_ms: 12.5736
+          ...
+        # Subtest: Point 2: Invalid credentials & missing permissions produce explicit errors with standard envelopes
+        ok 2 - Point 2: Invalid credentials & missing permissions produce explicit errors with standard envelopes
+          ---
+          duration_ms: 9.3448
+          ...
+        # Subtest: Point 3: No API failure ever generates sample orders (Zero Silent Fallbacks)
+        ok 3 - Point 3: No API failure ever generates sample orders (Zero Silent Fallbacks)
+          ---
+          duration_ms: 11.685
+          ...
+        # Subtest: Point 4: Multiple items in one order are mapped correctly with real price components
+        ok 4 - Point 4: Multiple items in one order are mapped correctly with real price components
+          ---
+          duration_ms: 8.2923
+          ...
+        # Subtest: Point 5: Pagination retrieves the complete intended window and tracks cursors
+        ok 5 - Point 5: Pagination retrieves the complete intended window and tracks cursors
+          ---
+          duration_ms: 8.0137
+          ...
+        # Subtest: Point 6: Source wiring uses tenant-scoped upserts and immutable cost snapshots
+        ok 6 - Point 6: Source wiring uses tenant-scoped upserts and immutable cost snapshots
+          ---
+          duration_ms: 5.7384
+          ...
+        # Subtest: Point 7: Source wiring references the finances endpoint and identifies report formats
+        ok 7 - Point 7: Source wiring references the finances endpoint and identifies report formats
+          ---
+          duration_ms: 6.0898
+          ...
+        # Subtest: Point 8: Source wiring calls PostgreSQL persistence; restart/browser durability is unverified
+        ok 8 - Point 8: Source wiring calls PostgreSQL persistence; restart/browser durability is unverified
+          ---
+          duration_ms: 12.3712
+          ...
+        # Subtest: Point 9: Sync status, counts, and last sync timestamp are visible in the UI
+        ok 9 - Point 9: Sync status, counts, and last sync timestamp are visible in the UI
+          ---
+          duration_ms: 3.3995
+          ...
+        # Subtest: Point 10: Source wiring authenticates sessions and scopes connection queries
+        ok 10 - Point 10: Source wiring authenticates sessions and scopes connection queries
+          ---
+          duration_ms: 5.771
+          ...
+        1..10
+    ok 2 - TASK-6.2: Ten source-wiring checks; live release acceptance remains separate
+      ---
+      duration_ms: 85.1046
+      type: 'suite'
+      ...
+    1..2
+ok 19 - Store Integration contract and source-wiring checks (not production acceptance)
+  ---
+  duration_ms: 117.0931
+  type: 'suite'
+  ...
+1..19
+# tests 85
+# suites 27
+# pass 85
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4956.3291

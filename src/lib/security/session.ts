@@ -43,14 +43,16 @@ function getInternalServiceUser(req: NextRequest | Request): SessionPayload | nu
   };
 }
 
-/** Resolves the Supabase-verified identity to its MarginFlow account ID. */
+/** Resolves a live Supabase session to its MarginFlow account ID. */
 export async function getSessionUser(req: NextRequest | Request): Promise<SessionPayload | null> {
   try {
     const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.auth.getClaims();
-    const claims = data?.claims;
-    const authUserId = claims?.sub;
-    if (!error && claims && typeof authUserId === "string" && authUserId) {
+    // Financial access must reject revoked sessions, even while their JWT is unexpired.
+    // https://supabase.com/docs/guides/auth/server-side/advanced-guide
+    const { data, error } = await supabase.auth.getUser();
+    const authUser = data?.user;
+    const authUserId = authUser?.id;
+    if (!error && authUser && typeof authUserId === "string" && authUserId) {
       const result = await query(
         `SELECT id, name, email, account_type, company_name, phone
          FROM user_accounts
@@ -60,7 +62,7 @@ export async function getSessionUser(req: NextRequest | Request): Promise<Sessio
       );
       if (result.rows.length === 1) {
         const account = result.rows[0];
-        const userMetadata = claims.user_metadata;
+        const userMetadata = authUser.user_metadata;
         const avatarUrl = userMetadata && typeof userMetadata === "object" && !Array.isArray(userMetadata)
           ? (userMetadata as Record<string, unknown>).avatarUrl
           : undefined;
@@ -68,7 +70,7 @@ export async function getSessionUser(req: NextRequest | Request): Promise<Sessio
         return {
           sid: authUserId,
           sub: account.id,
-          email: typeof claims.email === "string" ? claims.email : account.email,
+          email: typeof authUser.email === "string" ? authUser.email : account.email,
           name: account.name,
           accountType: account.account_type,
           companyName: account.company_name,

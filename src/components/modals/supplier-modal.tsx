@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Building2, Pencil, X, Check, AlertCircle } from "lucide-react";
+import { createRecordId } from "@/domain/record-id";
 import { Supplier } from "@/domain/types";
 
 export interface SupplierModalProps {
@@ -10,7 +11,7 @@ export interface SupplierModalProps {
   onClose: () => void;
   mode?: "create" | "edit";
   initialSupplier?: Supplier | null;
-  onSave: (supplier: Supplier) => void;
+  onSave: (supplier: Supplier) => Promise<void>;
 }
 
 export function SupplierModal({
@@ -20,6 +21,8 @@ export function SupplierModal({
   initialSupplier = null,
   onSave,
 }: SupplierModalProps) {
+  const saveInFlight = React.useRef(false);
+  const draftId = React.useRef("");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -168,8 +171,12 @@ export function SupplierModal({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
 
     const newErrors: Record<string, string> = {};
     const nameErr = validateField("name", name);
@@ -212,7 +219,7 @@ export function SupplierModal({
       id:
         mode === "edit" && initialSupplier
           ? initialSupplier.id
-          : `SUP-${Date.now().toString().slice(-4)}`,
+          : draftId.current || (draftId.current = createRecordId("SUP")),
       name: name.trim(),
       contactPerson: contactPerson.trim(),
       phone: formattedPhone,
@@ -227,8 +234,11 @@ export function SupplierModal({
       notes: notes.trim() || undefined,
     };
 
-    onSave(supplierData);
+    await onSave(supplierData);
+    draftId.current = "";
     onClose();
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   if (!isOpen || !mounted) return null;

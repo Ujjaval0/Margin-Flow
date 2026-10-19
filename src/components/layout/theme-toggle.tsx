@@ -1,11 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Sun, Moon } from "lucide-react";
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [mounted, setMounted] = useState(false);
+  const requestedTheme = useRef<"light" | "dark">("light");
+  const transition = useRef<ViewTransition | null>(null);
+  const cleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const revision = useRef(0);
 
   useEffect(() => {
     setMounted(true);
@@ -21,26 +26,75 @@ export function ThemeToggle() {
     } catch {
       // ignore
     }
+    requestedTheme.current = document.documentElement.classList.contains("dark") ? "dark" : "light";
+    setTheme(requestedTheme.current);
+
+    return () => {
+      revision.current += 1;
+      transition.current?.skipTransition();
+      if (cleanupTimer.current) clearTimeout(cleanupTimer.current);
+      delete document.documentElement.dataset.themeTransition;
+    };
   }, []);
 
   const toggleTheme = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    try {
-      localStorage.setItem("marginflow_theme", nextTheme);
-      if (nextTheme === "dark") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
+    const root = document.documentElement;
+    const nextTheme = requestedTheme.current === "dark" ? "light" : "dark";
+    requestedTheme.current = nextTheme;
+    const currentRevision = ++revision.current;
+    transition.current?.skipTransition();
+    if (cleanupTimer.current) clearTimeout(cleanupTimer.current);
+
+    const applyTheme = () => {
+      // A superseded snapshot must never overwrite a newer choice or the marketing page.
+      if (currentRevision !== revision.current || window.location.pathname === "/") return;
+      root.classList.toggle("dark", nextTheme === "dark");
+      flushSync(() => setTheme(nextTheme));
+      try {
+        localStorage.setItem("marginflow_theme", nextTheme);
+      } catch {
+        // Theme switching still works when browser storage is unavailable.
       }
       window.dispatchEvent(
         new CustomEvent("marginflow_theme_change", {
           detail: { theme: nextTheme },
         })
       );
-    } catch {
-      // ignore
+    };
+    const cleanup = () => {
+      if (currentRevision !== revision.current) return;
+      delete root.dataset.themeTransition;
+      transition.current = null;
+      cleanupTimer.current = null;
+    };
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      root.dataset.themeTransition = "instant";
+      applyTheme();
+      // Commit final colors before restoring the controls' normal hover transitions.
+      void root.offsetWidth;
+      cleanup();
+      return;
     }
+
+    if (typeof document.startViewTransition === "function") {
+      root.dataset.themeTransition = "snapshot";
+      try {
+        const activeTransition = document.startViewTransition(applyTheme);
+        transition.current = activeTransition;
+        void activeTransition.ready.catch(() => {});
+        void activeTransition.finished.then(cleanup, cleanup);
+        return;
+      } catch {
+        // Fall back to synchronized colors if snapshot capture is unavailable.
+      }
+    }
+
+    root.dataset.themeTransition = "colors";
+    // Establish the current palette before changing the theme in the same frame.
+    void root.offsetWidth;
+    applyTheme();
+    cleanupTimer.current = setTimeout(cleanup, 360);
   };
 
   if (!mounted) {

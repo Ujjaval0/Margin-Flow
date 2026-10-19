@@ -26,6 +26,7 @@ test('settlement API reports cumulative actual fees with explicit order scope ac
         { order_id: 'order-uuid', category: 'COMMISSION', name: 'Commission', amount: '12.00' },
         { order_id: 'order-uuid', category: 'LOGISTICS', name: 'Logistics', amount: '3.50' },
       ] };
+      if (sql.includes('FROM statutory_withholding_rates')) return { rows: [] };
       if (sql.includes('FROM order_fee_estimate_components')) return { rows: [] };
       if (sql.includes('FROM settlement_deductions')) return { rows };
       if (sql.includes('FROM settlements s')) return { rows: settlements };

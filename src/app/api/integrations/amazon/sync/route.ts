@@ -1,3 +1,4 @@
+import { money, sumMoney, toPaise } from "@/domain/order-financials";
 import { amazonPages } from "@/lib/integrations/provider-pagination";
 import { NextRequest, NextResponse } from "next/server";
 import { Order, OrderItem } from "@/domain/types";
@@ -285,6 +286,7 @@ export async function POST(req: NextRequest) {
           status = "PENDING";
         }
 
+        if(ao.OrderTotal?.CurrencyCode!=='INR')throw Error('Amazon order currency/total must be evidenced as INR.');
         // Fetch or resolve authentic line items (TASK-3.2)
         let rawItems: any[] = ao.OrderItems || ao.orderItems || [];
         if (!rawItems || rawItems.length === 0) {
@@ -296,7 +298,8 @@ export async function POST(req: NextRequest) {
 
         if (Array.isArray(rawItems) && rawItems.length > 0) {
           items = rawItems.map((item: any, idx: number) => {
-            const rawSku = item.SellerSKU || item.sellerSku || item.ASIN || `AMZ-SKU-${idx + 1}`;
+            const rawSku = item.SellerSKU || item.sellerSku;
+            if(!rawSku || !item.OrderItemId || !item.ItemPrice || item.ItemPrice.CurrencyCode!=='INR')throw Error('Amazon order line identity, SKU and INR price are required.');
             const itemQty = Math.max(
               1,
               item.QuantityOrdered ?? item.quantityOrdered ?? item.QuantityShipped ?? 1
@@ -317,10 +320,11 @@ export async function POST(req: NextRequest) {
               sku: String(rawSku).trim(),
               productName: item.Title || item.title || "Amazon India Fulfilled Item",
               quantity: itemQty,
-              sellingPrice: Math.round(unitSellingPrice * 100) / 100,
-              taxAmount: Math.round(itemTax * 100) / 100,
-              snapshotUnitCost: 0, // Invariant: Zero financial guesswork! Resolved strictly via catalog COGS
-              discount: Math.round(discount * 100) / 100,
+              sellingPrice: money(unitSellingPrice),
+              lineSubtotal: money(rawPrice),
+              taxAmount: sumMoney([itemTax,-Number(item.PromotionDiscountTax?.Amount||0)]),
+              snapshotUnitCost: 0,costEvidence:"UNKNOWN", // Resolved only from owned dated catalog evidence
+              discount: money(discount),
               returnedQuantity: 0,
             };
           });
@@ -328,6 +332,17 @@ export async function POST(req: NextRequest) {
           throw new Error("Amazon returned no authentic order items.");
         }
 
+        const base=sumMoney(items.map(i=>sumMoney([i.lineSubtotal??i.quantity*i.sellingPrice,-i.discount])));
+        const itemTax=sumMoney(items.map(i=>i.taxAmount));
+        const shipping=sumMoney(rawItems.map(i=>sumMoney([Number(i.ShippingPrice?.Amount||0),-Number(i.ShippingDiscount?.Amount||0)])));
+        const shippingTax=sumMoney(rawItems.map(i=>sumMoney([Number(i.ShippingTax?.Amount||0),-Number(i.ShippingDiscountTax?.Amount||0)])));
+        const charges=sumMoney(rawItems.map(i=>sumMoney([Number(i.GiftWrapPrice?.Amount||0),Number(i.CODFee?.Amount||0),-Number(i.CODFeeDiscount?.Amount||0)])));
+        const chargesTax=sumMoney(rawItems.map(i=>Number(i.GiftWrapTax?.Amount||0)));
+        const sourceTotal=Number(ao.OrderTotal.Amount);
+        const inclusive=toPaise(sumMoney([base,shipping,charges]))===toPaise(sourceTotal);
+        const exclusive=toPaise(sumMoney([base,itemTax,shipping,shippingTax,charges,chargesTax]))===toPaise(sourceTotal);
+        if(!inclusive&&!exclusive)throw Error('Amazon line/discount/shipping/charge totals do not reconcile to OrderTotal.');
+        const pricesIncludeTax=inclusive&&!exclusive?true:exclusive&&!inclusive?false:undefined;
         domainOrders.push({
           id: `ORD-AMZ-${channelOrderId}`,
           channelOrderId,
@@ -338,7 +353,9 @@ export async function POST(req: NextRequest) {
           customerCity: ao.ShippingAddress?.City || "India",
           customerState: ao.ShippingAddress?.StateOrRegion || "India",
           items,
-          shippingFeeCharged: parseFloat(ao.ShippingPrice?.Amount || "0"),
+          currency:'INR',sourceUpdatedAt:ao.LastUpdateDate,sourceTotal,pricesIncludeTax,
+          customerCharges:sumMoney([charges,pricesIncludeTax?-chargesTax:0]),customerChargesTax:chargesTax,
+          shippingFeeCharged:sumMoney([shipping,pricesIncludeTax===false?shippingTax:0]),shippingTaxAmount:shippingTax,
           marketplaceChargesEstimate: 0,
           notes: `Amazon SP-API Synced | Order: ${channelOrderId}`,
         });

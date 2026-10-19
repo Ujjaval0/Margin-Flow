@@ -1,7 +1,11 @@
+import { financialJson } from "@/lib/security/financial-response";
+import { rejectCrossOrigin } from "@/lib/security/api-guard";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserId } from "@/lib/security/session";
 import { query, ensureMarketplaceTables } from "@/lib/db";
 import { upsertSettlements } from "@/lib/integrations/order-persistence";
+import { settlementSchema } from "@/domain/snapshot-validation";
+import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
 import { Settlement, SettlementDeduction } from "@/domain/types";
 import { aggregateMarketplaceFeeDeductionsByOrder, decimalRupeesToPaise, reconcileMarketplaceFees, reconcileSettlementNet, type FeeRuleSnapshotComponent } from "@/domain/marketplace-fees";
 
@@ -9,7 +13,7 @@ export async function GET(req: NextRequest) {
   try {
     const userId = await getSessionUserId(req);
     if (!userId) {
-      return NextResponse.json(
+      return financialJson(
         { success: false, error: "Authentication required to access settlements." },
         { status: 401 }
       );
@@ -19,12 +23,12 @@ export async function GET(req: NextRequest) {
 
     const searchParams = req.nextUrl.searchParams;
     const marketplaceFilter = searchParams.get("marketplace") || null;
-    const limit = Math.min(Number(searchParams.get("limit")) || 500, 2000);
-    const offset = Math.max(Number(searchParams.get("offset")) || 0, 0);
+    const limit = Math.min(Math.max(1, Math.floor(Number(searchParams.get("limit")) || 500)), 2000);
+    const offset = Math.max(Math.floor(Number(searchParams.get("offset")) || 0), 0);
 
     let settlementsQuery = `
       SELECT 
-        s.id,
+        s.id,s.record_data,
         s.display_id,
         s.settlement_batch_id,
         s.marketplace,
@@ -32,6 +36,10 @@ export async function GET(req: NextRequest) {
         s.order_id,
         s.gross_amount,
         s.tcs_tds_tax,
+        s.tcs_tax,
+        s.tds_tax,
+        s.tcs_taxable_value,
+        s.tds_gross_amount,
         s.net_settlement,
         s.reconciliation_status,
         s.discrepancy_amount,
@@ -63,19 +71,19 @@ export async function GET(req: NextRequest) {
       settlementsQuery += ` AND s.marketplace = $${queryParams.length}`;
     }
 
-    settlementsQuery += ` ORDER BY s.settlement_date DESC, s.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2};`;
+    settlementsQuery += ` ORDER BY s.settlement_date DESC, s.created_at DESC, s.id DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2};`;
     queryParams.push(limit, offset);
 
     let settlementsRes: any;
     try {
       settlementsRes = await query(settlementsQuery, queryParams);
     } catch {
-      return NextResponse.json({ success: false, error: "Database temporarily unavailable." }, { status: 503 });
+      return financialJson({ success: false, error: "Database temporarily unavailable." }, { status: 503 });
     }
 
     const settlementRows = settlementsRes.rows || [];
     if (settlementRows.length === 0) {
-      return NextResponse.json({
+      return financialJson({
         success: true,
         settlements: [],
         count: 0,
@@ -96,7 +104,7 @@ export async function GET(req: NextRequest) {
            settlement_id,
            category,
            name,
-           amount
+           amount, gst_amount,record_data
          FROM settlement_deductions
          WHERE settlement_id = ANY($1::uuid[]);`,
         [settlementUuids]
@@ -105,9 +113,11 @@ export async function GET(req: NextRequest) {
       for (const d of dedRes.rows || []) {
         if (!deductionsBySettlementId[d.settlement_id]) deductionsBySettlementId[d.settlement_id] = [];
         deductionsBySettlementId[d.settlement_id].push({
+          ...d.record_data,
           category: d.category,
           name: d.name,
           amount: Number(d.amount || 0),
+          gstAmount: d.gst_amount == null ? undefined : Number(d.gst_amount),
         });
       }
       if (orderUuids.length) {
@@ -139,8 +149,11 @@ export async function GET(req: NextRequest) {
       throw new Error("Settlement deductions unavailable.", { cause: dedErr });
     }
 
+    const rateRows = await query("SELECT effective_from, tcs_bps, tds_bps FROM statutory_withholding_rates WHERE user_id = $1 ORDER BY effective_from", [userId]);
+    const withholdingRates = rateRows.rows.map((rate: any) => ({ effectiveFrom: new Date(rate.effective_from).toISOString().slice(0, 10), tcsBps: Number(rate.tcs_bps), tdsBps: Number(rate.tds_bps) }));
     const mappedSettlements: Settlement[] = settlementRows.map((row: any) => {
       return {
+        ...row.record_data,
         id: row.display_id || row.id,
         settlementBatchId: row.settlement_batch_id || "",
         marketplace: row.marketplace,
@@ -149,6 +162,11 @@ export async function GET(req: NextRequest) {
         grossAmount: Number(row.gross_amount || 0),
         deductions: deductionsBySettlementId[row.id] || [],
         tcsTdsTax: Number(row.tcs_tds_tax || 0),
+        tcsTax: row.tcs_tax == null ? undefined : Number(row.tcs_tax),
+        tdsTax: row.tds_tax == null ? undefined : Number(row.tds_tax),
+        tcsTaxableValue: row.tcs_taxable_value == null ? undefined : Number(row.tcs_taxable_value),
+        tdsGrossAmount: row.tds_gross_amount == null ? undefined : Number(row.tds_gross_amount),
+        withholdingRates: withholdingRates.length ? withholdingRates : undefined,
         netSettlement: Number(row.net_settlement || 0),
         reconciliationStatus: row.reconciliation_status,
         discrepancyAmount: row.discrepancy_amount !== null ? Number(row.discrepancy_amount) : undefined,
@@ -168,14 +186,14 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({
+    return financialJson({
       success: true,
       settlements: mappedSettlements,
       count: mappedSettlements.length,
     });
   } catch (err: any) {
     console.error("[Settlements API Error]:", err);
-    return NextResponse.json(
+    return financialJson(
       { success: false, error: "Failed to load settlements." },
       { status: 500 }
     );
@@ -183,36 +201,39 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const originError=rejectCrossOrigin(req);if(originError)return originError;
   try {
     const userId = await getSessionUserId(req);
     if (!userId) {
-      return NextResponse.json(
+      return financialJson(
         { success: false, error: "Authentication required to persist settlements." },
         { status: 401 }
       );
     }
 
-    const body = await req.json().catch(() => ({}));
+    const body = await readJsonBody(req);
     const settlements: Settlement[] = Array.isArray(body.settlements) ? body.settlements : [];
 
-    if (settlements.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "No settlements provided for persistence." },
+    if (settlements.length === 0 || settlements.length > 1000 || settlements.some(settlement => !settlementSchema.safeParse(settlement).success) ||
+        new Set(settlements.map(settlement => settlement.id)).size !== settlements.length) {
+      return financialJson(
+        { success: false, error: "A valid batch of 1–1000 settlements is required." },
         { status: 400 }
       );
     }
 
     const result = await upsertSettlements(userId, settlements);
 
-    return NextResponse.json({
+    return financialJson({
       success: true,
       inserted: result.inserted,
       updated: result.updated,
       settlementIds: result.settlementIds,
     });
   } catch (err: any) {
+    if (err instanceof RequestBodyError) return financialJson({ success: false, error: err.message }, { status: err.status });
     console.error("[Settlements POST Error]:", err);
-    return NextResponse.json(
+    return financialJson(
       { success: false, error: "Failed to upsert settlements." },
       { status: 500 }
     );

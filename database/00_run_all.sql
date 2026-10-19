@@ -19,5 +19,9 @@
 \ir 18_auth_sessions.sql
 \ir 19_durable_jobs.sql
 \ir 21_marketplace_fee_engine.sql
+\ir 22_calculation_evidence.sql
+\ir 23_financial_record_identity.sql
+\ir 24_canonical_financial_books.sql
+\ir 25_retire_legacy_financial_views.sql
 \echo 'Schema bootstrap complete. No demo seed was applied.'
 \echo 'Supabase only: review and run 07_rls_supabase.sql after all migrations.'

@@ -3,6 +3,9 @@
 import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { businessDate } from "@/domain/report-scope";
+import { createRecordId } from "@/domain/record-id";
+import { sumMoney } from "@/domain/money";
 import { Claim, ClaimStatus, Marketplace } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate, formatPercent } from "@/lib/utils";
@@ -25,6 +28,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
   const { selectedMarketplace: contextMarketplace, claims, returns, addClaim, updateClaim, editClaim, deleteClaim, deleteClaims } = usePlatform();
   const selectedMarketplace = propMarketplace ?? contextMarketplace;
 
+  const saveInFlight = React.useRef(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -36,6 +40,8 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
   const [activeBreakdownCard, setActiveBreakdownCard] = useState<ClaimCardType | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [recoveryAmount, setRecoveryAmount] = useState<number>(0);
+  const [recoveryDate, setRecoveryDate] = useState(businessDate());
+  const recoveryId = React.useRef("");
   const [resolutionStatus, setResolutionStatus] = useState<ClaimStatus>("RECOVERED");
 
   // Edit modal state
@@ -97,18 +103,26 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
 
   const handleOpenRecovery = (claim: Claim) => {
     setSelectedClaim(claim);
+    setRecoveryDate(businessDate());
+    recoveryId.current = createRecordId("RECOVERY");
     setRecoveryAmount(claim.amountClaimed - claim.amountRecovered);
     setResolutionStatus("RECOVERED");
     setIsRecordRecoveryOpen(true);
   };
 
-  const handleSubmitRecovery = (e: React.FormEvent) => {
+  const handleSubmitRecovery = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (!selectedClaim) return;
 
-    updateClaim(selectedClaim.id, Number(recoveryAmount), resolutionStatus);
+    await updateClaim(selectedClaim.id, sumMoney([selectedClaim.amountRecovered, Number(recoveryAmount)]), resolutionStatus, recoveryDate, recoveryId.current);
     setIsRecordRecoveryOpen(false);
     setSelectedClaim(null);
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   const handleOpenEdit = (claim: Claim) => {
@@ -125,10 +139,14 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
     setIsEditOpen(true);
   };
 
-  const handleSubmitEdit = (e: React.FormEvent) => {
+  const handleSubmitEdit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (!editingClaim) return;
-    editClaim(editingClaim.id, {
+    await editClaim(editingClaim.id, {
       claimType: editFields.claimType,
       claimDate: editFields.claimDate,
       amountClaimed: Number(editFields.amountClaimed),
@@ -139,6 +157,8 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
     });
     setIsEditOpen(false);
     setEditingClaim(null);
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   // Selection helpers
@@ -166,12 +186,17 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
     });
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     const ids = Array.from(selectedIds);
     if (window.confirm(`Delete ${ids.length} selected claim${ids.length > 1 ? "s" : ""}?`)) {
-      deleteClaims(ids);
+      await deleteClaims(ids);
       setSelectedIds(new Set());
     }
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   const marketplaceOptions: Marketplace[] = [
@@ -327,7 +352,7 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
             <button
               onClick={() => {
                 if (window.confirm(`Delete claim ${claim.id} for order ${claim.orderId}?`)) {
-                  deleteClaim(claim.id);
+                  void deleteClaim(claim.id).catch(error => window.alert(error instanceof Error ? error.message : "Claim could not be deleted."));
                 }
               }}
               className="p-1.5 rounded-full text-[#86868B] hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
@@ -527,12 +552,17 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                 </label>
                 <NumericInput
                   min="0"
-                  max={selectedClaim.amountClaimed}
+                  max={Math.max(0, selectedClaim.amountClaimed - selectedClaim.amountRecovered)}
                   value={recoveryAmount}
                   onChange={(e) => setRecoveryAmount(Number(e.target.value))}
                   className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="font-medium text-[#6E6E73] block mb-1">Recovery date</label>
+                <input type="date" required value={recoveryDate} onChange={event => setRecoveryDate(event.target.value)} className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20" />
               </div>
 
               <div>
@@ -647,7 +677,8 @@ export function ClaimsView({ selectedMarketplace: propMarketplace }: ClaimsViewP
                   <label className="font-medium text-[#6E6E73] block mb-1">Recovered Amount (₹)</label>
                   <NumericInput
                     min="0"
-                    value={editFields.amountRecovered}
+                    readOnly
+                  value={editFields.amountRecovered}
                     onChange={(e) => setEditFields((f) => ({ ...f, amountRecovered: Number(e.target.value) }))}
                     className="w-full px-2.5 py-1.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs font-semibold tabular-nums text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
                   />

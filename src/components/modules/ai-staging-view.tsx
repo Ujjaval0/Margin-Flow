@@ -37,6 +37,10 @@ export function AIStagingView() {
     deleteStagedDocument,
   } = usePlatform();
 
+  const mutationInFlight = useRef(false);
+  const uploadInFlight = useRef(false);
+  const fieldSaveQueue = useRef<Promise<void>>(Promise.resolve());
+  const [fieldDrafts, setFieldDrafts] = useState<Record<string, Record<string, any>>>({});
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
@@ -155,83 +159,53 @@ export function AIStagingView() {
   }, [aiDocuments]);
 
   // Live Field Change Handler
-  const handleFieldChange = (
-    field: keyof AIStagedDocument["extractedData"],
-    value: any
-  ) => {
-    if (!selectedDoc) return;
-    updateStagedDocumentField(selectedDoc.id, field, value);
+  const handleFieldChange = (field: keyof AIStagedDocument["extractedData"] | "currency" | "pricesIncludeTax", value: any) => {
+    if (!selectedDoc || selectedDoc.status === "APPROVED_POSTED") return;
+    if ((selectedDoc.lineItems?.length || 0) > 1 && ["sku", "productName", "quantity", "unitPrice", "discount", "taxAmount"].includes(field)) return;
+    const id = selectedDoc.id;
+    setFieldDrafts(current => ({ ...current, [id]: { ...current[id], [field]: value } }));
+    const save = fieldSaveQueue.current.catch(() => {}).then(() => updateStagedDocumentField(id, field, value));
+    fieldSaveQueue.current = save;
+    void save.catch(error => window.alert(error instanceof Error ? error.message : "Document field could not be saved. Your draft is retained."));
+  };
+
+  const runDocumentAction = async (action: () => Promise<void>) => {
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
+    try { await fieldSaveQueue.current; await action(); }
+    catch (error) { window.alert(error instanceof Error ? error.message : "Document could not be saved."); }
+    finally { mutationInFlight.current = false; }
+  };
+  const fieldValue = (field: keyof AIStagedDocument["extractedData"] | "currency" | "pricesIncludeTax") => {
+    if (!selectedDoc) return undefined;
+    if (Object.prototype.hasOwnProperty.call(fieldDrafts[selectedDoc.id] || {}, field)) return fieldDrafts[selectedDoc.id][field];
+    return field === "currency" || field === "pricesIncludeTax" ? selectedDoc[field] : selectedDoc.extractedData[field]?.value;
   };
 
   // Upload Batch Handler (supports 1 file or up to 50 files)
   const processUploadedFiles = async (filesToUpload: File[]) => {
-    if (filesToUpload.length === 0) return;
-
-    setIsUploading(true);
-    setUploadError("");
-    setUploadStep(`Uploading ${filesToUpload.length} document${filesToUpload.length > 1 ? "s" : ""}...`);
-
+    if (!filesToUpload.length || uploadInFlight.current) return;
+    uploadInFlight.current = true;
+    setIsUploading(true); setUploadError("");
+    setUploadStep("Uploading documents...");
     try {
-      const formData = new FormData();
-      filesToUpload.forEach((f) => formData.append("files", f));
+      const formData = new FormData(); filesToUpload.forEach(file => formData.append("files", file));
       formData.append("fileType", selectedFileType);
-
-      const response = await fetch("/api/upload-bill", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorJson = await response.json().catch(() => ({}));
-        throw new Error(errorJson.error || `Upload error: ${response.statusText}`);
-      }
-
-      setUploadStep("Processing extraction & arithmetic check...");
+      const response = await fetch("/api/upload-bill", { method: "POST", body: formData });
       const data = await response.json();
-
-      if (data.success && Array.isArray(data.stagedDocuments) && data.stagedDocuments.length > 0) {
-        addStagedDocuments(data.stagedDocuments);
-        setSelectedDocId(data.stagedDocuments[0].id);
-        setIsUploading(false);
-        setIsUploadModalOpen(false);
-        setSelectedFiles([]);
-        setUploadStep("");
-      } else if (data.success && data.stagedDocument) {
-        addStagedDocument(data.stagedDocument);
-        setSelectedDocId(data.stagedDocument.id);
-        setIsUploading(false);
-        setIsUploadModalOpen(false);
-        setSelectedFiles([]);
-        setUploadStep("");
-      } else {
-        throw new Error(data.error || "Failed to extract documents.");
-      }
-    } catch (err: any) {
-      console.warn("Server upload fallback triggered:", err);
-      setUploadStep("Processing documents...");
-      try {
-        const parsedDocs: AIStagedDocument[] = [];
-        for (const file of filesToUpload) {
-          const text = await file.text().catch(() => "");
-          const stagedDoc = processDocumentOCR(file.name, text, selectedFileType);
-          parsedDocs.push(stagedDoc);
-        }
-
-        if (parsedDocs.length > 0) {
-          addStagedDocuments(parsedDocs);
-          setSelectedDocId(parsedDocs[0].id);
-          setIsUploading(false);
-          setIsUploadModalOpen(false);
-          setSelectedFiles([]);
-          setUploadStep("");
-        } else {
-          throw new Error("No readable documents found.");
-        }
-      } catch (fallbackErr: any) {
-        setIsUploading(false);
-        setUploadError(fallbackErr.message || "Failed to parse files.");
-      }
-    }
+      if (!response.ok || !data.success) throw new Error(data.error || "Document upload failed.");
+      const documents: AIStagedDocument[] = Array.isArray(data.stagedDocuments) ? data.stagedDocuments : data.stagedDocument ? [data.stagedDocument] : [];
+      if (!documents.length) throw new Error("No documents were saved.");
+      await addStagedDocuments(documents);
+      setSelectedDocId(documents[0].id);
+      if (Array.isArray(data.errors) && data.errors.length) {
+        const failed = new Set(data.errors.map((item: { fileName: string }) => item.fileName));
+        setSelectedFiles(filesToUpload.filter(file => failed.has(file.name)));
+        setUploadError(data.errors.map((item: { fileName: string; error: string }) => `${item.fileName}: ${item.error}`).join("; "));
+      } else { setIsUploadModalOpen(false); setSelectedFiles([]); }
+      setUploadStep("");
+    } catch (error) { setUploadError(error instanceof Error ? error.message : "Document upload failed. Please retry."); }
+    finally { uploadInFlight.current = false; setIsUploading(false); }
   };
 
   // Add files to selection queue
@@ -326,7 +300,7 @@ export function AIStagingView() {
         <div className="flex items-center gap-2.5 flex-wrap">
           {verifiedPendingIds.length > 1 && (
             <button
-              onClick={() => void batchApproveStagedDocuments(verifiedPendingIds).catch(error => window.alert(error instanceof Error ? error.message : "Document could not be approved."))}
+              onClick={() => void runDocumentAction(() => batchApproveStagedDocuments(verifiedPendingIds))}
               className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#288548]/10 hover:bg-[#288548]/15 text-[#288548] text-xs font-medium rounded-full border border-[#288548]/20 shadow-apple-sm btn-press transition cursor-pointer"
               title="Post all balanced documents at once"
             >
@@ -552,7 +526,7 @@ export function AIStagingView() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteStagedDocument(doc.id);
+                        void runDocumentAction(() => deleteStagedDocument(doc.id));
                       }}
                       aria-label="Discard document"
                       className="absolute right-2 top-2 p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition hover:bg-[#D70015]/10 text-[#86868B] hover:text-[#D70015] cursor-pointer"
@@ -669,6 +643,23 @@ export function AIStagingView() {
               {/* View Tab 1: Clean Form Fields */}
               {activeTab === "FIELDS" ? (
                 <div className="space-y-5">
+                  {!selectedDoc.currency && (
+                    <div>
+                      <label className="font-medium text-[#1D1D1F] block mb-1">Invoice currency</label>
+                      <select value={fieldValue("currency") || ""} onChange={event => handleFieldChange("currency", event.target.value)} className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs">
+                        <option value="">Confirm from the invoice</option><option value="INR">INR</option>
+                      </select>
+                    </div>
+                  )}
+                  {Number(fieldValue("taxAmount") || 0) > 0 && selectedDoc.pricesIncludeTax === undefined && (
+                    <div>
+                      <label className="font-medium text-[#1D1D1F] block mb-1">Invoice prices</label>
+                      <select value={fieldValue("pricesIncludeTax") === undefined ? "" : String(fieldValue("pricesIncludeTax"))} onChange={event => { if (event.target.value) handleFieldChange("pricesIncludeTax", event.target.value === "true"); }} className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs">
+                        <option value="">Confirm from the invoice</option><option value="true">Include GST</option><option value="false">Exclude GST</option>
+                      </select>
+                    </div>
+                  )}
+                  {(selectedDoc.lineItems?.length || 0) > 1 && <p className="text-xs text-[#6E6E73]">All {selectedDoc.lineItems?.length} invoice lines are retained. Headline item fields are read-only.</p>}
                   {/* Group 1: Document Details */}
                   <div className="space-y-2.5">
                     <span className="text-[11px] font-semibold text-[#86868B] uppercase tracking-wider block">
@@ -681,7 +672,7 @@ export function AIStagingView() {
                         </label>
                         <input
                           type="text"
-                          value={selectedDoc.extractedData.invoiceNumber?.value || ""}
+                          value={fieldValue("invoiceNumber") || ""}
                           onChange={(e) =>
                             handleFieldChange("invoiceNumber", e.target.value)
                           }
@@ -696,7 +687,7 @@ export function AIStagingView() {
                         </label>
                         <input
                           type="text"
-                          value={selectedDoc.extractedData.orderId?.value || ""}
+                          value={fieldValue("orderId") || ""}
                           onChange={(e) =>
                             handleFieldChange("orderId", e.target.value)
                           }
@@ -711,7 +702,7 @@ export function AIStagingView() {
                         </label>
                         <input
                           type="date"
-                          value={selectedDoc.extractedData.orderDate?.value || ""}
+                          value={fieldValue("orderDate") || ""}
                           onChange={(e) =>
                             handleFieldChange("orderDate", e.target.value)
                           }
@@ -726,7 +717,7 @@ export function AIStagingView() {
                         <input
                           type="text"
                           value={
-                            selectedDoc.extractedData.vendorName?.value ||
+                            fieldValue("vendorName") ||
                             selectedDoc.extractedData.marketplace?.value ||
                             ""
                           }
@@ -752,7 +743,8 @@ export function AIStagingView() {
                         </label>
                         <input
                           type="text"
-                          value={selectedDoc.extractedData.sku?.value || ""}
+                          readOnly={(selectedDoc.lineItems?.length || 0) > 1 || selectedDoc.status === "APPROVED_POSTED"}
+                          value={fieldValue("sku") || ""}
                           onChange={(e) => handleFieldChange("sku", e.target.value)}
                           className="w-full p-2.5 bg-[#F5F5F7] border border-black/[0.06] rounded-xl text-xs font-mono focus:bg-white focus:outline-none focus:border-[#0071E3] transition text-[#1D1D1F]"
                           placeholder="e.g. ELEC-WEM-01"
@@ -765,7 +757,8 @@ export function AIStagingView() {
                         </label>
                         <input
                           type="text"
-                          value={selectedDoc.extractedData.productName?.value || ""}
+                          readOnly={(selectedDoc.lineItems?.length || 0) > 1 || selectedDoc.status === "APPROVED_POSTED"}
+                          value={fieldValue("productName") || ""}
                           onChange={(e) =>
                             handleFieldChange("productName", e.target.value)
                           }
@@ -780,7 +773,8 @@ export function AIStagingView() {
                         </label>
                         <NumericInput
                           min="1"
-                          value={selectedDoc.extractedData.quantity?.value || 1}
+                          readOnly={(selectedDoc.lineItems?.length || 0) > 1 || selectedDoc.status === "APPROVED_POSTED"}
+                          value={fieldValue("quantity") || 1}
                           onChange={(e) =>
                             handleFieldChange("quantity", Number(e.target.value))
                           }
@@ -794,7 +788,8 @@ export function AIStagingView() {
                         </label>
                         <NumericInput
                           step="0.01"
-                          value={selectedDoc.extractedData.unitPrice?.value || 0}
+                          readOnly={(selectedDoc.lineItems?.length || 0) > 1 || selectedDoc.status === "APPROVED_POSTED"}
+                          value={fieldValue("unitPrice") || 0}
                           onChange={(e) =>
                             handleFieldChange("unitPrice", Number(e.target.value))
                           }
@@ -816,7 +811,8 @@ export function AIStagingView() {
                         </label>
                         <NumericInput
                           step="0.01"
-                          value={selectedDoc.extractedData.discount?.value || 0}
+                          readOnly={(selectedDoc.lineItems?.length || 0) > 1 || selectedDoc.status === "APPROVED_POSTED"}
+                          value={fieldValue("discount") || 0}
                           onChange={(e) =>
                             handleFieldChange("discount", Number(e.target.value))
                           }
@@ -830,7 +826,8 @@ export function AIStagingView() {
                         </label>
                         <NumericInput
                           step="0.01"
-                          value={selectedDoc.extractedData.taxAmount?.value || 0}
+                          readOnly={(selectedDoc.lineItems?.length || 0) > 1 || selectedDoc.status === "APPROVED_POSTED"}
+                          value={fieldValue("taxAmount") || 0}
                           onChange={(e) =>
                             handleFieldChange("taxAmount", Number(e.target.value))
                           }
@@ -844,7 +841,7 @@ export function AIStagingView() {
                         </label>
                         <NumericInput
                           step="0.01"
-                          value={selectedDoc.extractedData.totalAmount?.value || 0}
+                          value={fieldValue("totalAmount") || 0}
                           onChange={(e) =>
                             handleFieldChange("totalAmount", Number(e.target.value))
                           }
@@ -874,7 +871,7 @@ export function AIStagingView() {
               <div className="pt-4 border-t border-black/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => deleteStagedDocument(selectedDoc.id)}
+                    onClick={() => void runDocumentAction(() => deleteStagedDocument(selectedDoc.id))}
                     className="px-3.5 py-1.5 text-xs text-[#86868B] hover:text-[#D70015] hover:bg-[#D70015]/10 rounded-full transition flex items-center gap-1.5 cursor-pointer btn-press"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -883,7 +880,7 @@ export function AIStagingView() {
 
                   {selectedDoc.status !== "APPROVED_POSTED" && (
                     <button
-                      onClick={() => rejectStagedDocument(selectedDoc.id)}
+                      onClick={() => void runDocumentAction(() => rejectStagedDocument(selectedDoc.id))}
                       className="px-3.5 py-1.5 text-xs text-[#6E6E73] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-full transition border border-black/[0.06] cursor-pointer btn-press"
                     >
                       Mark rejected
@@ -899,7 +896,7 @@ export function AIStagingView() {
                     </span>
                   ) : (
                     <button
-                      onClick={() => void approveStagedDocument(selectedDoc.id).catch(error => window.alert(error instanceof Error ? error.message : "Document could not be approved."))}
+                      onClick={() => void runDocumentAction(() => approveStagedDocument(selectedDoc.id))}
                       disabled={!selectedDoc.arithmeticValidation.passed}
                       className="px-5 py-2 bg-[#1D1D1F] hover:bg-black text-white rounded-full text-xs font-medium shadow-apple-sm transition flex items-center gap-1.5 active:scale-[0.98] btn-press cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed"
                     >

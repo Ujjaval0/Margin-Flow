@@ -1,3 +1,5 @@
+import { financialJson } from "@/lib/security/financial-response";
+import { rejectCrossOrigin } from "@/lib/security/api-guard";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserId } from "@/lib/security/session";
 import { query, ensureMarketplaceTables } from "@/lib/db";
@@ -10,7 +12,7 @@ export async function GET(req: NextRequest) {
   try {
     const userId = await getSessionUserId(req);
     if (!userId) {
-      return NextResponse.json(
+      return financialJson(
         { success: false, error: "Authentication required to access orders." },
         { status: 401 }
       );
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest) {
 
     let ordersQuery = `
       SELECT 
-        o.id,
+        o.id,o.record_data,
         o.display_id,
         o.channel_order_id,
         o.marketplace,
@@ -43,12 +45,13 @@ export async function GET(req: NextRequest) {
         o.commission_percent,
         fee.total_paise AS fee_estimate_total_paise,
         fee.status AS latest_fee_estimate_status,
+        fee.input_snapshot AS accounting_snapshot,
         o.notes,
         o.created_at,
         o.updated_at
       FROM orders o
       LEFT JOIN LATERAL (
-        SELECT estimate.status, estimate.total_paise
+        SELECT estimate.status, estimate.total_paise, estimate.input_snapshot
         FROM order_fee_estimates estimate
         WHERE estimate.user_id = o.user_id AND estimate.order_id = o.id
         ORDER BY estimate.calculated_at DESC, estimate.id DESC LIMIT 1
@@ -63,19 +66,19 @@ export async function GET(req: NextRequest) {
       ordersQuery += ` AND o.marketplace = $${queryParams.length}`;
     }
 
-    ordersQuery += ` ORDER BY o.order_date DESC, o.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2};`;
+    ordersQuery += ` ORDER BY o.order_date DESC, o.created_at DESC, o.id DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2};`;
     queryParams.push(limit, offset);
 
     let ordersRes: any;
     try {
       ordersRes = await query(ordersQuery, queryParams);
     } catch {
-      return NextResponse.json({ success: false, error: "Database temporarily unavailable." }, { status: 503 });
+      return financialJson({ success: false, error: "Database temporarily unavailable." }, { status: 503 });
     }
 
     const orderRows = ordersRes.rows || [];
     if (orderRows.length === 0) {
-      return NextResponse.json({
+      return financialJson({
         success: true,
         orders: [],
         count: 0,
@@ -89,7 +92,7 @@ export async function GET(req: NextRequest) {
     try {
       const itemsRes = await query(
         `SELECT 
-           oi.id,
+           oi.id,oi.record_data,
            oi.display_id,
            oi.order_id,
            oi.sku,
@@ -98,6 +101,7 @@ export async function GET(req: NextRequest) {
            oi.product_name,
            oi.quantity,
            oi.selling_price,
+           oi.line_subtotal,
            oi.discount,
            oi.tax_amount,
            oi.snapshot_unit_cost,
@@ -110,6 +114,7 @@ export async function GET(req: NextRequest) {
       for (const item of itemsRes.rows || []) {
         if (!itemsByOrderId[item.order_id]) itemsByOrderId[item.order_id] = [];
         itemsByOrderId[item.order_id].push({
+          ...item.record_data,costEvidence:item.record_data?.costEvidence||(Number(item.snapshot_unit_cost)>0?"RECORDED":"UNKNOWN"),
           id: item.display_id || item.id,
           sku: item.sku,
           mfn: item.mfn,
@@ -117,6 +122,7 @@ export async function GET(req: NextRequest) {
           productName: item.product_name,
           quantity: Number(item.quantity || 1),
           sellingPrice: Number(item.selling_price || 0),
+          lineSubtotal: item.line_subtotal == null ? undefined : Number(item.line_subtotal),
           discount: Number(item.discount || 0),
           taxAmount: Number(item.tax_amount || 0),
           snapshotUnitCost: Number(item.snapshot_unit_cost || 0),
@@ -129,12 +135,14 @@ export async function GET(req: NextRequest) {
 
     const mappedOrders: Order[] = orderRows.map((row: any) => {
       const items = itemsByOrderId[row.id] || [];
+      row.accounting_snapshot={...row.accounting_snapshot,...row.record_data};
       const calculatedTotal = items.reduce(
-        (sum, it) => sum + (it.sellingPrice * it.quantity - it.discount + it.taxAmount),
+        (sum, it) => sum + ((it.lineSubtotal ?? it.sellingPrice * it.quantity) - it.discount + (row.accounting_snapshot?.pricesIncludeTax ? 0 : it.taxAmount)),
         0
       );
 
       return {
+        ...row.record_data,
         id: row.display_id || row.id,
         channelOrderId: row.channel_order_id || row.display_id,
         marketplace: row.marketplace,
@@ -145,6 +153,14 @@ export async function GET(req: NextRequest) {
         customerState: row.customer_state,
         shippingFeeCharged: Number(row.shipping_fee_charged || 0),
         marketplaceChargesEstimate: Number(row.marketplace_charges_estimate || 0),
+        pricesIncludeTax: row.accounting_snapshot?.pricesIncludeTax,
+        logisticsRateSlabs: row.accounting_snapshot?.logisticsRateSlabs,
+        gstRegistrationType: row.accounting_snapshot?.gstRegistrationType,
+        marketplaceFeesIncludeGst: row.accounting_snapshot?.marketplaceFeesIncludeGst,
+        marketplaceFeeGstRateBps: row.accounting_snapshot?.marketplaceFeeGstRateBps,
+        estimatedFeeTaxAmount: row.accounting_snapshot?.estimatedFeeTaxAmount,
+        shippingTaxAmount: row.accounting_snapshot?.shippingTaxAmount,
+        shippingRefundAmount: row.accounting_snapshot?.shippingRefundAmount,
         feeEstimateStatus: row.latest_fee_estimate_status || row.fee_estimate_status || "LEGACY",
         feeEstimateTotalPaise: row.latest_fee_estimate_status === "CONFIGURED" ? Number(row.fee_estimate_total_paise) : null,
         fulfilmentMode: row.fulfilment_mode || undefined,
@@ -157,14 +173,14 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({
+    return financialJson({
       success: true,
       orders: mappedOrders,
       count: mappedOrders.length,
     });
   } catch (err: any) {
     console.error("[Orders API Error]:", err);
-    return NextResponse.json(
+    return financialJson(
       { success: false, error: "Failed to load orders." },
       { status: 500 }
     );
@@ -172,10 +188,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const originError=rejectCrossOrigin(req);if(originError)return originError;
   try {
     const userId = await getSessionUserId(req);
     if (!userId) {
-      return NextResponse.json(
+      return financialJson(
         { success: false, error: "Authentication required to persist orders." },
         { status: 401 }
       );
@@ -185,15 +202,15 @@ export async function POST(req: NextRequest) {
     const orders: Order[] = Array.isArray(body.orders) ? body.orders : [];
 
     if (orders.length === 0 || orders.length > 1000 || orders.some(order => !orderSchema.safeParse(order).success)) {
-      return NextResponse.json(
+      return financialJson(
         { success: false, error: "No orders provided for persistence." },
         { status: 400 }
       );
     }
 
-    const result = await upsertOrders(userId, orders);
+    const result = await upsertOrders(userId, orders, undefined, body.intent==='CREATE'?'CREATE':body.intent==='UPDATE'?'UPDATE':'SYNC');
 
-    return NextResponse.json({
+    return financialJson({
       success: true,
       inserted: result.inserted,
       updated: result.updated,
@@ -201,9 +218,9 @@ export async function POST(req: NextRequest) {
       feeEstimates: result.feeEstimates,
     });
   } catch (err: any) {
-    if (err instanceof RequestBodyError) return NextResponse.json({ success: false, error: err.message }, { status: err.status });
+    if (err instanceof RequestBodyError) return financialJson({ success: false, error: err.message }, { status: err.status });
     console.error("[Orders POST Error]:", err);
-    return NextResponse.json(
+    return financialJson(
       { success: false, error: "Failed to upsert orders." },
       { status: 500 }
     );

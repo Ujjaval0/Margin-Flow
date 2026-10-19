@@ -2,6 +2,8 @@ import type { PoolClient } from "pg";
 import type { ArchivePatch } from "@/domain/recycle-bin";
 import { upsertOrders } from "@/lib/integrations/order-persistence";
 import { recoverMissingRecords } from "@/lib/recovered-records";
+import { persistLedgerDelta } from './ledger-records';
+import { emptyLedger } from '@/domain/recycle-bin';
 
 /** Archive and its relational visibility changes share one transaction. */
 export async function persistArchivePatch(client: PoolClient, owner: string, patch: ArchivePatch, restore: boolean) {
@@ -67,5 +69,11 @@ export async function persistArchivePatch(client: PoolClient, owner: string, pat
       await client.query(`UPDATE ${table} t SET deleted_at = NULL WHERE ${ownership} AND t.display_id = $2 AND t.deleted_at IS NOT NULL`, [owner, record.id]);
     }
   }
-  if (restore) await recoverMissingRecords(client, owner, after);
+  // Restore only existing archived rows. Browser patches cannot create financial history.
+  const changedBefore=emptyLedger(),changedAfter=emptyLedger();
+  for(const domain of ['products','orders','returns','claims','expenses'] as const) {
+    (changedBefore[domain] as any[])=before[domain].filter(row=>after[domain].some(next=>next.id===row.id));
+    (changedAfter[domain] as any[])=after[domain].filter(row=>before[domain].some(old=>old.id===row.id));
+  }
+  await persistLedgerDelta(client,owner,changedBefore,changedAfter);
 }

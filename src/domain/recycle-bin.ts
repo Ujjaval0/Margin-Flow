@@ -1,10 +1,11 @@
 import type { LedgerData } from "./snapshot-validation";
 import { getOrderFinancialFacts } from "./order-financials";
+import { returnStock } from './ledger-command';
 
 export type RecycleType = "orders" | "returns" | "claims" | "expenses" | "products";
 export interface ArchivePatch { before: LedgerData; after: LedgerData }
 export interface ArchivedRecord { id: string; displayId: string; type: RecycleType; label: string; sublabel: string; deletedAt: string; daysRemaining: number }
-export const emptyLedger = (): LedgerData => ({ products: [], orders: [], returns: [], settlements: [], claims: [], suppliers: [], purchases: [], expenses: [], aiDocuments: [], auditLogs: [], complaints: [], acknowledgedLossLeaderSkus: [] });
+export const emptyLedger = (): LedgerData => ({ products: [], orders: [], returns: [], settlements: [], claims: [], suppliers: [], purchases: [], supplierPayments: [], expenses: [], aiDocuments: [], auditLogs: [], complaints: [], acknowledgedLossLeaderSkus: [] });
 const domains = ["products", "orders", "returns", "settlements", "claims", "expenses"] as const;
 const canonical = (value: unknown): string | undefined => JSON.stringify(value, (_key, item) => item && typeof item === "object" && !Array.isArray(item) ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
 
@@ -22,7 +23,8 @@ export function archiveRecords(data: LedgerData, type: RecycleType, ids: string[
     next.claims = next.claims.filter(record => !linked(record));
     for (const product of next.products) {
       const returnedStock = removed.reduce((sum, order) => {
-        const returned = getOrderFinancialFacts(order, data.returns, data.settlements, data.claims).lines.filter(line => line.sku === product.sku).reduce((units, line) => units + line.returnedUnits, 0);
+        if(order.physicalDispatchRecorded!==true)return sum;
+        const returned = data.returns.filter(r=>r.marketplace===order.marketplace&&[order.id,order.channelOrderId].includes(r.orderId)&&r.sku===product.sku).reduce((units,r)=>units+returnStock(r),0);
         return sum + order.items.filter(item => item.sku === product.sku).reduce((units, item) => units + item.quantity, 0) - returned;
       }, 0);
       if (returnedStock) product.stockQuantity = (product.stockQuantity || 0) + returnedStock;
@@ -33,7 +35,7 @@ export function archiveRecords(data: LedgerData, type: RecycleType, ids: string[
     const claimIds = new Set(removed.map(record => record.claimId).filter(Boolean));
     next.claims = next.claims.filter(claim => !claimIds.has(claim.id) && (!claim.returnId || !selected.has(claim.returnId)));
     for (const record of removed) {
-      if (record.restockStatus === "RESTOCKED") {
+      if (returnStock(record)>0) {
         const product = next.products.find(product => product.sku === record.sku);
         if (!product || (product.stockQuantity || 0) < record.quantity) throw new Error("Restocked units have been used; reconcile inventory before deleting this return.");
         product.stockQuantity = (product.stockQuantity || 0) - record.quantity;

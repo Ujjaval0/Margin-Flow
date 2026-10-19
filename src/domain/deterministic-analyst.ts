@@ -55,6 +55,8 @@ export function analyzeFinancialQuery(
   };
   const channelComparison = context?.channelComparison ?? [];
   const damagedReturnsToClaim = context?.damagedReturnsToClaim ?? [];
+  const provisional = context?.evidence?.isComplete === false
+    ? `Provisional figures: ${context.evidence.issues.join("; ") || "financial evidence is incomplete"}.\n\n` : "";
 
   // 0. Off-Topic & Explicit Guardrail (No movies, music, songs, entertainment, or explicit content)
   const isOffTopic =
@@ -105,7 +107,7 @@ export function analyzeFinancialQuery(
     const isDown = trends.netOperatingProfitChange < 0;
     const changeText = Math.abs(trends.netOperatingProfitChange).toFixed(1);
     const worstSku = lossMakingSkus[0];
-    const topChannel = [...channelComparison].sort((a, b) => b.netProfit - a.netProfit)[0];
+    const topChannel = [...channelComparison].sort((a, b) => b.contributionProfit - a.contributionProfit)[0];
 
     const chips: AIActionChip[] = [];
     if (worstSku) {
@@ -126,10 +128,10 @@ export function analyzeFinancialQuery(
     }
 
     const answer = isDown
-      ? `Net Operating Profit is down ${changeText}% to ${formatINR(waterfall.netOperatingProfit)} (${formatPercent(waterfall.netMarginPercent)} margin).\n\nKey drivers:\nI. Return & Courier Drag: ${formatINR(waterfall.returnAndRtoLoss)}\nII. Top Drag Product: ${worstSku ? `${worstSku.sku} (-${formatINR(Math.abs(worstSku.netProfit))})` : "None"}\nIII. Net Revenue: ${formatINR(waterfall.netRevenue)}`
+      ? `Net Operating Profit is down ${changeText}% to ${formatINR(waterfall.netOperatingProfit)} (${formatPercent(waterfall.netMarginPercent)} margin).\n\nKey drivers:\nI. Return & Courier Drag: ${formatINR(waterfall.returnAndRtoLoss)}\nII. Top Drag Product: ${worstSku ? `${worstSku.sku} (-${formatINR(Math.abs(worstSku.contributionProfit))})` : "None"}\nIII. Net Revenue: ${formatINR(waterfall.netRevenue)}`
       : `Net Operating Profit is up ${changeText}% to ${formatINR(waterfall.netOperatingProfit)} (${formatPercent(waterfall.netMarginPercent)} margin).\n\nKey drivers:\nI. Net Revenue: ${formatINR(waterfall.netRevenue)}\nII. Top Performer: ${heroSkus[0]?.sku || "Hero Products"} (${waterfall.blendedPoas.toFixed(2)}x POAS)`;
 
-    return { answer, chips: chips.slice(0, 2) };
+    return { answer: provisional + answer, chips: chips.slice(0, 2) };
   }
 
   // 2. POAS / Ad Bleed / ROAS Analysis
@@ -155,9 +157,9 @@ export function analyzeFinancialQuery(
 
     const answer = targetSku
       ? `Blended POAS is ${waterfall.blendedPoas.toFixed(2)}x on ${formatINR(waterfall.totalAdSpend)} ad spend.\n\nI. Drag Product: ${targetSku.sku}\nII. Ad Spend: ${formatINR(targetSku.adSpend)} (${formatPercent(targetSku.returnRate)} return rate)\nIII. Product POAS: ${targetSku.poas.toFixed(2)}x`
-      : `Ad spend efficiency is stable on ${formatINR(waterfall.totalAdSpend)} marketing investments.\n\nI. Blended POAS: ${waterfall.blendedPoas.toFixed(2)}x\nII. Blended ROAS: ${waterfall.blendedRoas.toFixed(2)}x\nIII. Status: Active campaigns are generating positive net contribution`;
+      : `Recorded ad spend is ${formatINR(waterfall.totalAdSpend)}.\n\nI. Blended POAS: ${waterfall.blendedPoas.toFixed(2)}x\nII. Blended ROAS: ${waterfall.blendedRoas.toFixed(2)}x\nIII. Contribution before shared operating overhead: ${formatINR(waterfall.contributionProfit)}`;
 
-    return { answer, chips: chips.slice(0, 2) };
+    return { answer: provisional + answer, chips: chips.slice(0, 2) };
   }
 
   // 3. Settlement Aging & Overdue Payouts
@@ -183,11 +185,13 @@ export function analyzeFinancialQuery(
       });
     }
 
-    const answer = overdueAmt > 0
-      ? `${formatINR(overdueAmt)} in payouts is delayed past 14 days across ${count} orders.\n\nI. Overdue Payouts: ${formatINR(overdueAmt)}\nII. Pending (8–14 Days): ${formatINR(settlementAging.between8And14DaysAmount)}\nIII. On Schedule (0–7 Days): ${formatINR(settlementAging.within7DaysAmount)}`
-      : `Disbursements are on schedule with zero overdue balance.\n\nI. Current Cycle (0–7 Days): ${formatINR(settlementAging.within7DaysAmount)}\nII. Pending Cycle (8–14 Days): ${formatINR(settlementAging.between8And14DaysAmount)}`;
+    const answer = overdueAmt === null
+      ? `${count} overdue orders have an unknown payout amount because fees are not configured.`
+      : overdueAmt > 0
+      ? `${formatINR(overdueAmt)} in payouts is delayed past 14 days across ${count} orders.\n\nI. Overdue Payouts: ${formatINR(overdueAmt)}\nII. Pending (8–14 Days): ${(settlementAging.between8And14DaysAmount === null ? "Unknown" : formatINR(settlementAging.between8And14DaysAmount))}\nIII. On Schedule (0–7 Days): ${(settlementAging.within7DaysAmount === null ? "Unknown" : formatINR(settlementAging.within7DaysAmount))}`
+      : `Disbursements are on schedule with zero overdue balance.\n\nI. Current Cycle (0–7 Days): ${(settlementAging.within7DaysAmount === null ? "Unknown" : formatINR(settlementAging.within7DaysAmount))}\nII. Pending Cycle (8–14 Days): ${(settlementAging.between8And14DaysAmount === null ? "Unknown" : formatINR(settlementAging.between8And14DaysAmount))}`;
 
-    return { answer, chips: chips.slice(0, 2) };
+    return { answer: provisional + answer, chips: chips.slice(0, 2) };
   }
 
   // 4. Returns, Damaged Stock & Claims
@@ -212,10 +216,10 @@ export function analyzeFinancialQuery(
     }
 
     const answer = unclaimed.length > 0
-      ? `Total return losses stand at ${formatINR(waterfall.returnAndRtoLoss)}.\n\nI. Unclaimed Damaged Returns: ${unclaimed.length} units (${formatINR(unclaimed.reduce((s, r) => s + r.lossAmount, 0))})\nII. Action: File SAFE-T or dispute claims before 30-day window expires`
-      : `Total return losses stand at ${formatINR(waterfall.returnAndRtoLoss)}.\n\n• All physical damaged returns have active dispute claims filed.`;
+      ? `Direct return costs are ${formatINR(waterfall.returnAndRtoLoss)}; inventory damage is already included in COGS.\n\nI. Damaged return records without linked claims: ${unclaimed.length} (${formatINR(unclaimed.reduce((s, r) => s + r.lossAmount, 0))})\nII. Verify the recorded marketplace claim deadline and eligibility before filing.`
+      : `Direct return costs are ${formatINR(waterfall.returnAndRtoLoss)}; inventory damage is already included in COGS.\n\nNo unclaimed damaged-return loss was identified in the supplied records.`;
 
-    return { answer, chips: chips.slice(0, 2) };
+    return { answer: provisional + answer, chips: chips.slice(0, 2) };
   }
 
   // 5. Default Executive Overview
@@ -244,9 +248,9 @@ export function analyzeFinancialQuery(
     });
   }
 
-  const answer = `Store Overview:\n\nI. Net Sales: ${formatINR(waterfall.netRevenue)}\nII. Net Operating Profit: ${formatINR(waterfall.netOperatingProfit)} (${formatPercent(waterfall.netMarginPercent)} margin)\nIII. Ad Spend: ${formatINR(waterfall.totalAdSpend)} (${waterfall.blendedPoas.toFixed(2)}x POAS)${topHero ? `\nIV. Top Product: ${topHero.sku} (${formatINR(topHero.netProfit)} profit)` : ""}`;
+  const answer = `Store Overview:\n\nI. Net Sales: ${formatINR(waterfall.netRevenue)}\nII. Net Operating Profit: ${formatINR(waterfall.netOperatingProfit)} (${formatPercent(waterfall.netMarginPercent)} margin)\nIII. Ad Spend: ${formatINR(waterfall.totalAdSpend)} (${waterfall.blendedPoas.toFixed(2)}x POAS)${topHero ? `\nIV. Top Product: ${topHero.sku} (${formatINR(topHero.contributionProfit)} contribution profit)` : ""}`;
 
-  return { answer, chips: chips.slice(0, 2) };
+  return { answer: provisional + answer, chips: chips.slice(0, 2) };
 }
 
 /**

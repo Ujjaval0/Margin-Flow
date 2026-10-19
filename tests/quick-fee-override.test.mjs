@@ -32,17 +32,17 @@ test('order persistence recalculates quick commission server-side and snapshots 
   });
   await persistence.upsertOrders('tenant-A', [{ id: 'order-1', channelOrderId: 'channel-1', marketplace: 'Amazon India',
     orderDate: '2026-10-18', status: 'DELIVERED', customerName: 'Customer', customerCity: 'City', customerState: 'State',
-    shippingFeeCharged: 0, marketplaceChargesEstimate: 999, quickFeeRateBps: 1000,
+    shippingFeeCharged: 0, marketplaceChargesEstimate: 999, quickFeeRateBps: 1000, pricesIncludeTax: true,
     items: [{ id: 'line-1', sku: 'SKU-A', productName: 'Item', quantity: 1, sellingPrice: 100, discount: 10,
       taxAmount: 10, snapshotUnitCost: 50, returnedQuantity: 0 }] }]);
 
   const header = statements.find(entry => entry.sql.includes('INSERT INTO orders'));
   assert.equal(header.params[12], 1000);
   assert.equal(header.params[14], true);
-  assert.equal(header.params[15], '12.50');
+  assert.equal(header.params[15], '13.94');
   assert.notEqual(header.params[15], '999');
   const estimate = statements.find(entry => entry.sql.includes('INSERT INTO order_fee_estimates'));
-  assert.equal(estimate.params[3], 1250);
+  assert.equal(estimate.params[3], 1394);
   assert.equal(estimate.params[4], 2);
   const snapshot = JSON.parse(estimate.params[5]);
   assert.equal(snapshot.quickFeeRateBps, 1000);
@@ -69,7 +69,7 @@ test('order persistence preserves unknown fees when neither rules nor quick rate
     [db]: { ensureMarketplaceTables: async () => {}, pool: { connect: async () => client } },
   });
   const result = await persistence.upsertOrders('tenant-A', [{ id: 'order-1', channelOrderId: 'channel-1', marketplace: 'Amazon India',
-    orderDate: '2026-10-18', status: 'DELIVERED', marketplaceChargesEstimate: 999, items: [{ id: 'line-1', sku: 'SKU-A',
+    orderDate: '2026-10-18', status: 'DELIVERED', customerName: '', customerCity: '', customerState: '', shippingFeeCharged: 0, marketplaceChargesEstimate: 999, items: [{ id: 'line-1', sku: 'SKU-A',
       productName: 'Item', quantity: 1, sellingPrice: 100, discount: 0, taxAmount: 0, snapshotUnitCost: 50, returnedQuantity: 0 }] }]);
   const header = statements.find(entry => entry.sql.includes('INSERT INTO orders'));
   assert.equal(header.params[14], false);

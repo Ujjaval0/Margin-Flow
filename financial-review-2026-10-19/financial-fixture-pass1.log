@@ -1,0 +1,311 @@
+TAP version 13
+# Subtest: A1: decimal halves round away from zero, including exponent notation, without negative zero
+ok 1 - A1: decimal halves round away from zero, including exponent notation, without negative zero
+  ---
+  duration_ms: 2.78
+  ...
+# Subtest: A2/A3: partial returns reconcile ledger revenue, snapshot COGS and receivables with operational facts
+ok 2 - A2/A3: partial returns reconcile ledger revenue, snapshot COGS and receivables with operational facts
+  ---
+  duration_ms: 27.8497
+  ...
+# Subtest: A3: oversized and duplicate returns cannot restore more than dispatched cost
+ok 3 - A3: oversized and duplicate returns cannot restore more than dispatched cost
+  ---
+  duration_ms: 2.9393
+  ...
+# Subtest: returns on different dates retain their own journal dates and conserve fractional refunds
+not ok 4 - returns on different dates retain their own journal dates and conserve fractional refunds
+  ---
+  duration_ms: 6.6819
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\calc-fixes.test.mjs:52:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '2026-10-10T14:30:00.000Z'
+    - '2026-09-30T14:00:00.000Z'
+            ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '2026-09-30T14:00:00.000Z'
+  actual: '2026-10-10T14:30:00.000Z'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/calc-fixes.test.mjs:57:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:979:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:677:18)
+    Test.postRun (node:internal/test_runner/test:1090:19)
+    Test.run (node:internal/test_runner/test:1018:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: A4/A5: return fee components reach the ledger, settlement reverse shipping wins exactly once
+ok 5 - A4/A5: return fee components reach the ledger, settlement reverse shipping wins exactly once
+  ---
+  duration_ms: 7.0708
+  ...
+# Subtest: A6/B14: supplier payments retain dates, references and excess advances without duplicate cash postings
+ok 6 - A6/B14: supplier payments retain dates, references and excess advances without duplicate cash postings
+  ---
+  duration_ms: 5.1593
+  ...
+# Subtest: A7: one-paisa imbalances fail both journal and trial balance validation
+ok 7 - A7: one-paisa imbalances fail both journal and trial balance validation
+  ---
+  duration_ms: 1.3072
+  ...
+# Subtest: A8: discounted SKU weights allocate paise exactly
+ok 8 - A8: discounted SKU weights allocate paise exactly
+  ---
+  duration_ms: 5.7215
+  ...
+# Subtest: B1: one entered return fee is recorded once and reimbursements never become salvage or loss offsets
+ok 9 - B1: one entered return fee is recorded once and reimbursements never become salvage or loss offsets
+  ---
+  duration_ms: 1.3697
+  ...
+# Subtest: B2: customer shipping revenue offsets recorded logistics and only explicit refunds reduce it
+ok 10 - B2: customer shipping revenue offsets recorded logistics and only explicit refunds reduce it
+  ---
+  duration_ms: 4.0604
+  ...
+# Subtest: B3: inclusive and exclusive representations of one invoice produce identical sales and payout
+ok 11 - B3: inclusive and exclusive representations of one invoice produce identical sales and payout
+  ---
+  duration_ms: 12.1441
+  ...
+# Subtest: B4: used/lost returns, RTO costs and salvage follow the same return and order policy
+not ok 12 - B4: used/lost returns, RTO costs and salvage follow the same return and order policy
+  ---
+  duration_ms: 7.114
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\calc-fixes.test.mjs:147:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    180 !== 200
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 200
+  actual: 180
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/calc-fixes.test.mjs:155:12)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:979:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:677:18)
+    Test.postRun (node:internal/test_runner/test:1090:19)
+    Test.run (node:internal/test_runner/test:1018:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: B5/B6: commission GST changes cash and eligible expense separately; unconfirmed registration grants no credit
+ok 13 - B5/B6: commission GST changes cash and eligible expense separately; unconfirmed registration grants no credit
+  ---
+  duration_ms: 7.9997
+  ...
+# Subtest: B7: webhook fees remain unknown, Shopify shipping is recorded and Woo discounts apply once
+not ok 14 - B7: webhook fees remain unknown, Shopify shipping is recorded and Woo discounts apply once
+  ---
+  duration_ms: 394.3876
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\calc-fixes.test.mjs:183:1'
+  failureType: 'testCodeFailure'
+  error: ''
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/calc-fixes.test.mjs:190:80)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:979:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:677:18)
+    Test.postRun (node:internal/test_runner/test:1090:19)
+    Test.run (node:internal/test_runner/test:1018:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: B8: weight warnings require recorded weights, configured slabs and actual LOGISTICS deductions
+ok 15 - B8: weight warnings require recorded weights, configured slabs and actual LOGISTICS deductions
+  ---
+  duration_ms: 157.0316
+  ...
+# Subtest: B9/B10/B11: unknown payouts stay in aging, ratios use percentage points and contribution has no net-profit alias
+ok 16 - B9/B10/B11: unknown payouts stay in aging, ratios use percentage points and contribution has no net-profit alias
+  ---
+  duration_ms: 3.8795
+  ...
+# Subtest: B13: statutory warnings use dated rates, separate TCS/TDS, and never block or rewrite amounts
+ok 17 - B13: statutory warnings use dated rates, separate TCS/TDS, and never block or rewrite amounts
+  ---
+  duration_ms: 87.3637
+  ...
+# Subtest: supplier payment snapshots round-trip and old snapshots default to an empty payment history
+ok 18 - supplier payment snapshots round-trip and old snapshots default to an empty payment history
+  ---
+  duration_ms: 158.3168
+  ...
+# Subtest: ledger and operational outstanding agree after return fees, withholding, GST and recorded claims
+ok 19 - ledger and operational outstanding agree after return fees, withholding, GST and recorded claims
+  ---
+  duration_ms: 9.4418
+  ...
+# Subtest: tax policy is tenant-scoped, dated, snapshotted and used by server-side commission calculations
+ok 20 - tax policy is tenant-scoped, dated, snapshotted and used by server-side commission calculations
+  ---
+  duration_ms: 129.4354
+  ...
+# Subtest: C: cent allocation conserves totals for signed and uneven orders
+ok 21 - C: cent allocation conserves totals for signed and uneven orders
+  ---
+  duration_ms: 1.9613
+  ...
+# Subtest: C: ledger contribution reconciles to report facts across tax bases, quantities and return conditions
+ok 22 - C: ledger contribution reconciles to report facts across tax bases, quantities and return conditions
+  ---
+  duration_ms: 171.8101
+  ...
+# [PlatformStore] Ledger synchronization unavailable.
+# [PlatformStore] Ledger synchronization unavailable.
+# [PlatformStore] Ledger synchronization unavailable.
+# [PlatformStore] Ledger synchronization unavailable.
+# Subtest: unpaid delivered revenue is a receivable, never fabricated cash or a fee
+ok 23 - unpaid delivered revenue is a receivable, never fabricated cash or a fee
+  ---
+  duration_ms: 5.3051
+  ...
+# Subtest: configured estimates produce a forecast and actual settlement deductions replace rather than add to estimates
+ok 24 - configured estimates produce a forecast and actual settlement deductions replace rather than add to estimates
+  ---
+  duration_ms: 2.2029
+  ...
+# Subtest: explicit no-rule status ignores any preserved legacy numeric fee and withholds payout
+ok 25 - explicit no-rule status ignores any preserved legacy numeric fee and withholds payout
+  ---
+  duration_ms: 0.8379
+  ...
+# Subtest: percentage and fee estimates never become observed cash
+ok 26 - percentage and fee estimates never become observed cash
+  ---
+  duration_ms: 0.9447
+  ...
+# Subtest: pending and cancelled orders do not recognise revenue or COGS
+ok 27 - pending and cancelled orders do not recognise revenue or COGS
+  ---
+  duration_ms: 8.1636
+  ...
+# Subtest: partial sellable return reverses only returned revenue and COGS despite a stale whole-order status
+ok 28 - partial sellable return reverses only returned revenue and COGS despite a stale whole-order status
+  ---
+  duration_ms: 3.178
+  ...
+# Subtest: damaged partial return retains damaged cost without refunding all units
+ok 29 - damaged partial return retains damaged cost without refunding all units
+  ---
+  duration_ms: 2.007
+  ...
+# Subtest: duplicate return records and oversized quantities cannot double-count same-SKU lines
+ok 30 - duplicate return records and oversized quantities cannot double-count same-SKU lines
+  ---
+  duration_ms: 3.0643
+  ...
+# Subtest: actual partial settlements preserve an outstanding balance and do not invent fees
+ok 31 - actual partial settlements preserve an outstanding balance and do not invent fees
+  ---
+  duration_ms: 2.0037
+  ...
+# Subtest: settlements from another marketplace cannot attach by a coincident order ID
+ok 32 - settlements from another marketplace cannot attach by a coincident order ID
+  ---
+  duration_ms: 1.5257
+  ...
+# Subtest: recorded cash and fee refunds retain their signs and duplicate receipts are not summed twice
+ok 33 - recorded cash and fee refunds retain their signs and duplicate receipts are not summed twice
+  ---
+  duration_ms: 1.0011
+  ...
+# Subtest: business, order and SKU totals agree on discounted multi-line partial returns
+ok 34 - business, order and SKU totals agree on discounted multi-line partial returns
+  ---
+  duration_ms: 5.9515
+  ...
+# Subtest: cent allocation is deterministic and reconciles signed totals
+ok 35 - cent allocation is deterministic and reconciles signed totals
+  ---
+  duration_ms: 0.3659
+  ...
+# Subtest: supplier partial payments accumulate against remaining balances and allocate oldest-first
+ok 36 - supplier partial payments accumulate against remaining balances and allocate oldest-first
+  ---
+  duration_ms: 16.5414
+  ...
+# Subtest: ledger recognises discounted goods revenue without an invented 65/35 fee split
+ok 37 - ledger recognises discounted goods revenue without an invented 65/35 fee split
+  ---
+  duration_ms: 2.062
+  ...
+# Subtest: actual purchase action adds stock exactly once for a repeated bill
+not ok 38 - actual purchase action adds stock exactly once for a repeated bill
+  ---
+  duration_ms: 618.5952
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\remediation-financials.test.mjs:172:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'stockQuantity')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/remediation-financials.test.mjs:192:36)
+    async Test.run (node:internal/test_runner/test:980:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: supplier payment action preserves successive allocations and excess in the exported tenant ledger
+not ok 39 - supplier payment action preserves successive allocations and excess in the exported tenant ledger
+  ---
+  duration_ms: 333.7301
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\remediation-financials.test.mjs:196:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'paidAmount')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/remediation-financials.test.mjs:217:36)
+    async Test.run (node:internal/test_runner/test:980:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: purchase modal preserves zero GST and rounds fractional tax to cents
+not ok 40 - purchase modal preserves zero GST and rounds fractional tax to cents
+  ---
+  duration_ms: 191.017
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\remediation-financials.test.mjs:224:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'props')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/remediation-financials.test.mjs:242:14)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:979:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:677:18)
+    Test.postRun (node:internal/test_runner/test:1090:19)
+    Test.run (node:internal/test_runner/test:1018:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: Suppliers view tolerates a catalog product without an assigned supplier
+ok 41 - Suppliers view tolerates a catalog product without an assigned supplier
+  ---
+  duration_ms: 116.2757
+  ...
+# Error: Test "actual purchase action adds stock exactly once for a repeated bill" at tests\\remediation-financials.test.mjs:172:1 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot read properties of undefined (reading 'financialRevision')" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+# Error: Test "actual purchase action adds stock exactly once for a repeated bill" at tests\\remediation-financials.test.mjs:172:1 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot read properties of undefined (reading 'financialRevision')" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+# Error: Test "supplier payment action preserves successive allocations and excess in the exported tenant ledger" at tests\\remediation-financials.test.mjs:196:1 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot read properties of undefined (reading 'financialRevision')" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+# Error: Test "supplier payment action preserves successive allocations and excess in the exported tenant ledger" at tests\\remediation-financials.test.mjs:196:1 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot read properties of undefined (reading 'financialRevision')" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+# Error: Test "supplier payment action preserves successive allocations and excess in the exported tenant ledger" at tests\\remediation-financials.test.mjs:196:1 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot read properties of undefined (reading 'financialRevision')" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+# Error: Test "supplier payment action preserves successive allocations and excess in the exported tenant ledger" at tests\\remediation-financials.test.mjs:196:1 generated asynchronous activity after the test ended. This activity created the error "TypeError: Cannot read properties of undefined (reading 'financialRevision')" and would have caused the test to fail, but instead triggered an unhandledRejection event.
+1..41
+# tests 41
+# suites 0
+# pass 35
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2656.5262

@@ -6,148 +6,132 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 const load = createRequire(import.meta.url)('./helpers/load-app.cjs');
-const key = 'synthetic-session-key-at-least-thirty-two-bytes';
-const env = { NODE_ENV: 'production', SESSION_SECRET: key };
-const dbName = '@/lib/db', sessionName = '@/lib/security/session';
+const dbName = '@/lib/db', sessionName = '@/lib/security/session', supabaseName = '@/lib/supabase/server';
 const user = { id: 'merchant-A', email: 'a@example.com' };
-const request = token => new Request('https://app.example/api/orders', { headers: { authorization: 'Bearer ' + token } });
-const cookieRequest = token => new Request('https://app.example/api/auth/logout', { method: 'POST', headers: { cookie: 'marginflow_session_token=' + token, origin: 'https://app.example' } });
+const request = (headers = {}) => new Request('https://app.example/api/orders', { headers });
+const logoutRequest = origin => new Request('https://app.example/api/auth/logout', { method: 'POST', headers: { origin: origin || 'https://app.example' } });
 
-// Models only the database boundary, never an alternative authentication implementation.
-function registry() {
-  const rows = new Map(), queries = [];
-  let offline = false, accountExists = true;
+// Models Auth and account-storage boundaries, never a second token verifier.
+function authBackend() {
+  let live = true, authOffline = false, dbOffline = false, accountExists = true, logoutFails = false;
+  const calls = [], queries = [];
+  const authUser = { id: 'supabase-auth-A', email: user.email, user_metadata: { avatarUrl: '/avatar.png', sub: 'untrusted-account', accountType: 'ADMIN' } };
+  const auth = {
+    getClaims: async () => { calls.push('getClaims'); return { data: { claims: { sub: authUser.id, email: authUser.email, exp: Math.floor(Date.now() / 1000) + 3600 } }, error: null }; },
+    getUser: async () => { calls.push('getUser'); if (authOffline) throw Error('private auth detail'); return live ? { data: { user: authUser }, error: null } : { data: { user: null }, error: { message: 'session revoked' } }; },
+    signOut: async () => { calls.push('signOut'); if (logoutFails) return { error: { message: 'private logout failure' } }; live = false; return { error: null }; },
+  };
   const query = async (sql, params) => {
-    queries.push([sql, params]);
-    if (offline) throw Error('private database connection failure');
-    if (sql.startsWith('INSERT INTO auth_sessions')) {
-      if (!accountExists) return { rows: [] };
-      rows.set(params[0], { owner: params[1], expires: params[2], revoked: false });
-      return { rows: [{ token_hash: params[0] }] };
-    }
-    if (sql.startsWith('SELECT s.user_id')) {
-      const row = rows.get(params[0]);
-      return { rows: accountExists && row && row.owner === params[1] && !row.revoked && row.expires > Date.now() / 1000 ? [{ user_id: row.owner }] : [] };
-    }
-    if (sql.startsWith('UPDATE auth_sessions')) {
-      const row = rows.get(params[0]);
-      if (row?.owner === params[1]) row.revoked = true;
-      return { rows: [] };
-    }
-    throw Error('Unexpected test query');
+    queries.push([sql, params]); if (dbOffline) throw Error('private database detail');
+    assert.match(sql, /WHERE auth_user_id = \$1/); assert.deepEqual(Array.from(params), [authUser.id]);
+    return { rows: accountExists ? [{ id: user.id, name: 'Merchant A', email: user.email, account_type: 'BRAND_OWNER', company_name: 'Brand', phone: '123' }] : [] };
   };
-  return { db: { query }, rows, queries, outage(value) { offline = value; }, account(value) { accountExists = value; } };
+  const mocks = { [dbName]: { query }, [supabaseName]: { createSupabaseServerClient: async () => { calls.push('client'); return { auth }; } } };
+  return { mocks, auth, authUser, calls, queries, revoke() { live = false; }, authOffline(value) { authOffline = value; }, dbOffline(value) { dbOffline = value; }, account(value) { accountExists = value; }, logoutFails(value) { logoutFails = value; } };
 }
-const sessions = backend => load('src/lib/security/session.ts', { [dbName]: backend.db }, { process: { env } });
+const sessions = backend => load('src/lib/security/session.ts', backend.mocks);
 
-test('F15: signed but unregistered tokens cannot access protected APIs', async () => {
-  const backend = registry(), session = sessions(backend);
-  const token = session.signSessionToken(user);
-  assert.equal(session.verifySessionToken(token).sub, user.id);
-  assert.equal(await session.getSessionUser(request(token)), null);
-  const route = load('src/app/api/orders/route.ts', { [dbName]: backend.db, '@/lib/integrations/order-persistence': { upsertOrders: () => assert.fail('Unauthenticated write') } }, { process: { env } });
-  assert.equal((await route.POST(new Request('https://app.example/api/orders', { method: 'POST', headers: { authorization: 'Bearer ' + token }, body: '{}' }))).status, 401);
+test('F15: live Supabase identity maps only through auth_user_id to the merchant account', async () => {
+  const backend = authBackend(), session = sessions(backend);
+  const identity = await session.getSessionUser(request({ 'x-user-id': 'attacker', authorization: 'Bearer forged' }));
+  assert.equal(identity.sub, user.id);
+  assert.equal(identity.email, user.email);
+  assert.equal(identity.accountType, 'BRAND_OWNER');
+  assert.equal(identity.avatarUrl, '/avatar.png');
+  assert.equal(backend.calls.filter(value => value === 'getUser').length, 1);
+  assert.equal(backend.calls.includes('getClaims'), false);
 });
-test('F15: issuance persists only a token digest and rejects missing accounts or failed registration', async () => {
-  const backend = registry(), session = sessions(backend);
-  const token = await session.issueSessionToken(user);
-  assert.equal(await session.getSessionUserId(request(token)), user.id);
-  const insert = backend.queries[0];
-  assert.match(insert[0], /FROM user_accounts.*RETURNING token_hash/);
-  assert.equal(insert[1][0], crypto.createHash('sha256').update(token).digest('hex'));
-  assert.ok(!JSON.stringify([...backend.rows]).includes(token));
-  backend.account(false);
-  await assert.rejects(session.issueSessionToken(user));
-  backend.outage(true);
-  await assert.rejects(session.issueSessionToken(user));
+
+test('F15: an unexpired verified JWT cannot bypass live Supabase revocation across replicas', async () => {
+  const backend = authBackend(), first = sessions(backend), second = sessions(backend);
+  assert.equal(await first.getSessionUserId(request()), user.id);
+  backend.revoke();
+  assert.equal((await backend.auth.getClaims()).data.claims.sub, backend.authUser.id);
+  const reads = backend.queries.length;
+  for (const verifier of [first, second, sessions(backend)]) assert.equal(await verifier.getSessionUserId(request()), null);
+  assert.equal(backend.queries.length, reads, 'A revoked identity must not reach account lookup');
 });
-test('F15: cookie logout revokes a copied Bearer token across independent server module instances', async () => {
-  const backend = registry(), first = sessions(backend), otherReplica = sessions(backend);
-  const token = await first.issueSessionToken(user);
-  assert.equal(await otherReplica.getSessionUserId(request(token)), user.id);
-  const logout = load('src/app/api/auth/logout/route.ts', { [dbName]: backend.db }, { process: { env } });
-  const response = await logout.POST(cookieRequest(token));
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get('set-cookie'), /Max-Age=0/);
-  assert.match(response.headers.get('set-cookie'), /HttpOnly/);
-  assert.match(response.headers.get('set-cookie'), /Secure/);
-  assert.match(response.headers.get('set-cookie'), /SameSite=lax/);
-  assert.equal(response.headers.get('cache-control'), 'no-store');
-  assert.equal(await first.getSessionUser(request(token)), null);
-  assert.equal(await otherReplica.getSessionUser(request(token)), null);
-  assert.equal(await sessions(backend).getSessionUser(request(token)), null);
-  assert.equal((await logout.POST(cookieRequest(token))).status, 200);
+
+test('F15: deleted accounts and Auth or database outages fail closed', async () => {
+  const backend = authBackend(), session = sessions(backend);
+  backend.account(false); assert.equal(await session.getSessionUser(request()), null);
+  backend.account(true); backend.authOffline(true);
+  const reads = backend.queries.length;
+  assert.equal(await session.getSessionUser(request()), null);
+  assert.equal(backend.queries.length, reads);
+  backend.authOffline(false); backend.dbOffline(true);
+  assert.equal(await session.getSessionUser(request()), null);
 });
-test('F15: distinct logins in one second have different identities and revoke independently', async () => {
-  const backend = registry(), session = sessions(backend);
-  const a = await session.issueSessionToken(user), b = await session.issueSessionToken(user);
-  const c = await session.issueSessionToken({ id: 'merchant-B', email: 'b@example.com' });
-  assert.notEqual(a, b);
-  assert.notEqual(session.verifySessionToken(a).sid, session.verifySessionToken(b).sid);
-  await session.revokeSessionToken(a);
-  assert.equal(await session.getSessionUserId(request(a)), null);
-  assert.equal(await session.getSessionUserId(request(b)), 'merchant-A');
-  assert.equal(await session.getSessionUserId(request(c)), 'merchant-B');
-});
-test('F15: revocation outages do not report logout success or clear the retryable cookie', async () => {
-  const backend = registry(), session = sessions(backend);
-  const token = await session.issueSessionToken(user);
-  backend.outage(true);
-  const logout = load('src/app/api/auth/logout/route.ts', { [dbName]: backend.db }, { process: { env } });
-  const response = await logout.POST(cookieRequest(token));
-  assert.equal(response.status, 503);
-  assert.equal(response.headers.get('set-cookie'), null);
-  assert.doesNotMatch(await response.text(), /private database/);
-  assert.equal(await session.getSessionUser(request(token)), null);
-  backend.outage(false);
-  assert.equal(await session.getSessionUserId(request(token)), user.id);
-  assert.equal((await logout.POST(cookieRequest(token))).status, 200);
-  assert.equal(await session.getSessionUserId(request(token)), null);
-});
-test('F15: cross-origin logout is rejected before revocation', async () => {
-  const backend = registry(), session = sessions(backend), token = await session.issueSessionToken(user);
-  const route = load('src/app/api/auth/logout/route.ts', { [dbName]: backend.db }, { process: { env } });
-  const response = await route.POST(new Request('https://app.example/api/auth/logout', { method: 'POST', headers: { origin: 'https://attacker.example', cookie: 'marginflow_session_token=' + token } }));
-  assert.equal(response.status, 403);
-  assert.equal(await session.getSessionUserId(request(token)), user.id);
-});
-test('F15: malformed cookies, unsigned identities, expired/boundary and legacy tokens reject without registry reads', async () => {
-  const backend = registry(), session = sessions(backend), token = session.signSessionToken(user);
-  const sign = (header, payload) => {
-    const content = [header, payload].map(value => Buffer.from(JSON.stringify(value)).toString('base64url')).join('.');
-    const secret = crypto.createHash('sha256').update(key).digest();
-    return content + '.' + crypto.createHmac('sha256', secret).update(content).digest('base64url');
-  };
-  const payload = session.verifySessionToken(token), now = Math.floor(Date.now() / 1000);
-  const { sid, ...legacy } = payload;
-  for (const bad of [sign({ alg: 'none', typ: 'JWT' }, payload), sign({ alg: 'HS256', typ: 'JWT' }, legacy), sign({ alg: 'HS256', typ: 'JWT' }, { ...payload, exp: now }), sign({ alg: 'HS256', typ: 'JWT' }, { ...payload, exp: now - 1 }), sign({ alg: 'HS256', typ: 'JWT' }, { ...payload, iat: now + 10 }), 'x'.repeat(8193)]) assert.equal(await session.getSessionUser(request(bad)), null);
-  assert.equal(await session.getSessionUser(new Request('https://app.example', { headers: { cookie: 'marginflow_session_token=%', 'x-user-id': user.id } })), null);
-  assert.equal(await session.getSessionUser(new Request('https://app.example', { headers: { cookie: 'marginflow_session={"id":"merchant-A"}', 'x-user-id': user.id } })), null);
+
+test('F15: forged headers and obsolete application cookies cannot create a Supabase session', async () => {
+  const backend = authBackend(); backend.revoke(); const session = sessions(backend);
+  for (const headers of [ { 'x-user-id': user.id }, { authorization: 'Bearer unsigned' },
+    { cookie: 'marginflow_session_token=%', 'x-user-id': user.id },
+    { cookie: 'marginflow_session={"id":"merchant-A"}' } ]) assert.equal(await session.getSessionUser(request(headers)), null);
   assert.equal(backend.queries.length, 0);
 });
-test('F15: removed accounts and registry outages deny already-issued sessions', async () => {
-  const backend = registry(), session = sessions(backend), token = await session.issueSessionToken(user);
-  backend.account(false);
-  assert.equal(await session.getSessionUserId(request(token)), null);
-  assert.match(backend.queries.at(-1)[0], /EXISTS.*user_accounts/);
-  backend.account(true); backend.outage(true);
-  assert.equal(await session.getSessionUserId(request(token)), null);
+
+test('F15: missing Auth configuration, missing user IDs, and provider errors with user data fail closed', async () => {
+  for (const getUser of [async () => ({ data: { user: { id: '' } }, error: null }),
+    async () => ({ data: { user: { id: 'supabase-auth-A' } }, error: { message: 'invalid' } })]) {
+    const backend = authBackend(); backend.auth.getUser = getUser;
+    assert.equal(await sessions(backend).getSessionUser(request()), null); assert.equal(backend.queries.length, 0);
+  }
+  const session = load('src/lib/security/session.ts', { [dbName]: { query: () => assert.fail('No identity lookup') },
+    [supabaseName]: { createSupabaseServerClient: async () => { throw Error('unconfigured'); } } });
+  assert.equal(await session.getSessionUser(request()), null);
 });
-test('F15: actual login cannot set a cookie when durable issuance fails', async () => {
-  const route = load('src/app/api/auth/login/route.ts', { [dbName]: { query: async sql => {
-    if (sql.trimStart().startsWith('SELECT') && sql.includes('FROM user_accounts')) return { rows: [{ id: user.id, email: user.email, password_hash: 'pbkdf2-sha512:220000:fixture', account_type: 'BRAND_OWNER' }] };
-    throw Error('Session registry offline');
-  } }, '@/lib/auth-crypto': { verifyPassword: async () => true } }, { process: { env }, console: { ...console, error() {} } });
-  const response = await route.POST(new Request('https://app.example/api/auth/login', { method: 'POST', body: JSON.stringify({ email: user.email, password: 'fixture-password' }) }));
-  assert.equal(response.status, 503);
-  assert.equal(response.headers.get('set-cookie'), null);
-});
-test('F15: production signing rejects missing or short keys without creating ephemeral credentials', () => {
-  for (const secret of [undefined, 'too-short']) {
-    const session = load('src/lib/security/session.ts', { [dbName]: {} }, { process: { env: { NODE_ENV: 'production', SESSION_SECRET: secret } }, console: { ...console, warn: () => assert.fail('Production must not create an ephemeral key') } });
-    assert.throws(() => session.signSessionToken(user), /SESSION_SECRET/);
+
+test('F15: internal service impersonation requires a configured long secret and exact constant-time key match', async () => {
+  const secret = 'synthetic-internal-secret-at-least-thirty-two-bytes';
+  const backend = authBackend(); backend.revoke();
+  for (const configured of [undefined, 'short', secret]) {
+    const session = load('src/lib/security/session.ts', backend.mocks, { process: { env: { INTERNAL_SERVICE_KEY: configured } } });
+    assert.equal(await session.getSessionUserId(request({ 'x-user-id': user.id, 'x-internal-service-key': 'wrong' })), null);
+    assert.equal(await session.getSessionUserId(request({ 'x-user-id': user.id, 'x-internal-service-key': secret })), configured === secret ? user.id : null);
+    assert.equal(await session.getSessionUserId(request({ 'x-internal-service-key': secret })), null);
   }
 });
+
+test('F15: actual logout delegates to Supabase and later live checks reject the session', async () => {
+  const backend = authBackend(), first = sessions(backend), second = sessions(backend);
+  assert.equal(await second.getSessionUserId(request()), user.id);
+  const logout = load('src/app/api/auth/logout/route.ts', backend.mocks);
+  const response = await logout.POST(logoutRequest());
+  assert.equal(response.status, 200); assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal(backend.calls.filter(call => call === 'signOut').length, 1);
+  assert.equal(await first.getSessionUser(request()), null); assert.equal(await second.getSessionUser(request()), null);
+});
+
+test('F15: failed Supabase logout reports failure and keeps the session retryable', async () => {
+  const backend = authBackend(); backend.logoutFails(true);
+  const logout = load('src/app/api/auth/logout/route.ts', backend.mocks);
+  const response = await logout.POST(logoutRequest());
+  assert.equal(response.status, 503); assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.doesNotMatch(await response.text(), /private logout/);
+  assert.equal(await sessions(backend).getSessionUserId(request()), user.id);
+  backend.logoutFails(false); assert.equal((await logout.POST(logoutRequest())).status, 200);
+  assert.equal(await sessions(backend).getSessionUserId(request()), null);
+});
+
+test('F15: cross-origin logout rejects before accessing Supabase', async () => {
+  const backend = authBackend(), route = load('src/app/api/auth/logout/route.ts', backend.mocks);
+  assert.equal((await route.POST(logoutRequest('https://attacker.example'))).status, 403);
+  assert.deepEqual(backend.calls, []);
+});
+
+test('F15: actual login authenticates with Supabase and returns its mapped merchant identity', async () => {
+  let credentials, mapped = false;
+  const route = load('src/app/api/auth/login/route.ts', {
+    [supabaseName]: { createSupabaseServerClient: async () => ({ auth: { signInWithPassword: async value => { credentials = value; return { data: { user: { id: 'auth-A', user_metadata: { onboardingCompleted: true } } }, error: null }; } } }) },
+    '@/lib/auth/supabase-account': { ensureMarginFlowAccount: async identity => { assert.equal(identity.id, 'auth-A'); mapped = true; return { account: { id: user.id, name: 'Merchant A', email: user.email, account_type: 'BRAND_OWNER' }, isNewUser: false }; } },
+  });
+  const response = await route.POST(new Request('https://app.example/api/auth/login', { method: 'POST', body: JSON.stringify({ email: '  A@EXAMPLE.COM  ', password: 'fixture-password' }) }));
+  assert.equal(response.status, 200); assert.equal(mapped, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(credentials)), { email: user.email, password: 'fixture-password' });
+  assert.equal((await response.json()).user.id, user.id);
+});
+
 test('F15/F62: every API and workspace template awaits the actual asynchronous verifier', () => {
   const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
   let calls = 0;

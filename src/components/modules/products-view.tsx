@@ -3,6 +3,7 @@
 import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { createRecordId } from "@/domain/record-id";
 import { Product } from "@/domain/types";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate } from "@/lib/utils";
@@ -27,6 +28,8 @@ const ProductBulkUploadModal = dynamic(
 export function ProductsView() {
   const { products, suppliers, addProduct, bulkAddProducts, deleteProduct, updateProductCost } = usePlatform();
 
+  const saveInFlight = React.useRef(false);
+  const draftId = React.useRef("");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -74,6 +77,7 @@ export function ProductsView() {
 
   const handleOpenAddProduct = () => {
     setProductSaveError(null);
+    draftId.current = "";
     setNewSupplierId(suppliers[0]?.id || "SUP-001");
     setNewSku("");
     setNewMfn("");
@@ -89,13 +93,17 @@ export function ProductsView() {
 
   const handleAddProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (!newSku.trim() || !newName.trim()) return;
 
     const formattedSku = newSku.trim().toUpperCase();
     const parsedCost = Math.max(0, parseFloat(newCostPrice) || 0);
 
     const newProd: Product = {
-      id: `PROD-${Date.now().toString().slice(-4)}`,
+      id: draftId.current || (draftId.current = createRecordId("PROD")),
       sku: formattedSku,
       mfn: newMfn.trim().toUpperCase() || undefined,
       mfn1: newMfn1.trim().toUpperCase() || undefined,
@@ -127,6 +135,8 @@ export function ProductsView() {
     } catch (error) {
       setProductSaveError(error instanceof Error ? error.message : "Product could not be saved. Please retry.");
     }
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   const handleOpenEditCost = (prod: Product) => {
@@ -135,15 +145,21 @@ export function ProductsView() {
     setIsEditCostOpen(true);
   };
 
-  const handleSubmitCost = (e: React.FormEvent) => {
+  const handleSubmitCost = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (!selectedProduct) return;
 
-    updateProductCost(selectedProduct.sku, Number(newCost), costChangeReason);
+    await updateProductCost(selectedProduct.sku, Number(newCost), costChangeReason);
     setIsEditCostOpen(false);
 
     const updated = products.find((p) => p.sku === selectedProduct.sku);
     if (updated) setSelectedProduct(updated);
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   const columns: ColumnDef<Product>[] = [
@@ -265,7 +281,7 @@ export function ProductsView() {
               type="button"
               onClick={() => {
                 if (window.confirm(`Delete product ${prod.sku} (${prod.name}) from catalog?`)) {
-                  deleteProduct(prod.sku);
+                  void deleteProduct(prod.sku).catch(error => window.alert(error instanceof Error ? error.message : "Product could not be deleted."));
                 }
               }}
               aria-label={`Delete product ${prod.sku}`}

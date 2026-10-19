@@ -185,29 +185,8 @@ export async function POST(req: NextRequest) {
         return { records: data, next: page < totalPages ? fetchUrl.replace(/page=\d+$/, `page=${page + 1}`) : null };
       });
 
-      const domainOrders = rawOrders.map((rawOrder: any) => {
-        const parsed = WooCommerceOrderWebhookSchema.safeParse(rawOrder);
-        if (parsed.success) {
-          return mapWooCommerceOrderToDomain(parsed.data);
-        } else {
-          return mapWooCommerceOrderToDomain({
-            id: String(rawOrder.id),
-            number: String(rawOrder.number || rawOrder.id),
-            status: String(rawOrder.status || "processing"),
-            date_created: String(rawOrder.date_created || new Date().toISOString()),
-            total: Number(rawOrder.total) || 0,
-            shipping_total: Number(rawOrder.shipping_total) || 0,
-            total_tax: Number(rawOrder.total_tax) || 0,
-            discount_total: Number(rawOrder.discount_total) || 0,
-            payment_method_title: String(rawOrder.payment_method_title || "Online Payment"),
-            billing: rawOrder.billing || {},
-            shipping: rawOrder.shipping || {},
-            line_items: Array.isArray(rawOrder.line_items) ? rawOrder.line_items : [],
-          });
-        }
-      });
+      const domainOrders = rawOrders.map((raw:any) => mapWooCommerceOrderToDomain(WooCommerceOrderWebhookSchema.parse(raw)));
 
-      // Atomic Database Upsert into PostgreSQL (TASK-3.5 / TASK-6.2 Point 8)
       const dbResult = await upsertOrders(userId, domainOrders);
 
       const nowIso = new Date().toISOString();

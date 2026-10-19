@@ -1,0 +1,36 @@
+TAP version 13
+# Subtest: production migrations and canonical financial workflows execute against disposable PostgreSQL
+not ok 1 - production migrations and canonical financial workflows execute against disposable PostgreSQL
+  ---
+  duration_ms: 6725.4388
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\financial-canonical-postgres.test.mjs:12:1'
+  failureType: 'testCodeFailure'
+  error: 'could not determine data type of parameter $7'
+  code: '42P18'
+  name: 'error'
+  stack: |-
+    pe.Oe (file:///C:/Users/freak/Desktop/Unified%20platform/node_modules/@electric-sql/pglite/dist/chunk-3OMHRXTA.js:1:18162)
+    pe.tt (file:///C:/Users/freak/Desktop/Unified%20platform/node_modules/@electric-sql/pglite/dist/chunk-3OMHRXTA.js:1:15548)
+    pe.parse (file:///C:/Users/freak/Desktop/Unified%20platform/node_modules/@electric-sql/pglite/dist/chunk-3OMHRXTA.js:1:14222)
+    p.D_ (file:///C:/Users/freak/Desktop/Unified%20platform/node_modules/@electric-sql/pglite/dist/index.js:6:1759)
+    file:///C:/Users/freak/Desktop/Unified%20platform/node_modules/@electric-sql/pglite/dist/index.js:6:1151
+    wasm://wasm/0280c65e:wasm-function[10964]:0x58cc19
+    wasm://wasm/0280c65e:wasm-function[3606]:0x2792af
+    wasm://wasm/0280c65e:wasm-function[3648]:0x2807ba
+    wasm://wasm/0280c65e:wasm-function[3658]:0x2809ef
+    wasm://wasm/0280c65e:wasm-function[9946]:0x5393b2
+  ...
+# Subtest: documented fresh local bootstrap executes without demo seeds or stale financial views
+ok 2 - documented fresh local bootstrap executes without demo seeds or stale financial views
+  ---
+  duration_ms: 5143.6862
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12388.0926

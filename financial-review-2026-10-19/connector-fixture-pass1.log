@@ -1,0 +1,152 @@
+TAP version 13
+# Subtest: Amazon finance split events have distinct repeatable identities across pages and replays
+ok 1 - Amazon finance split events have distinct repeatable identities across pages and replays
+  ---
+  duration_ms: 789.0759
+  ...
+# Subtest: Amazon exhausts order and item tokens before a single tenant-owned write
+ok 2 - Amazon exhausts order and item tokens before a single tenant-owned write
+  ---
+  duration_ms: 476.6207
+  ...
+# Subtest: Amazon http item response never manufactures or persists an order
+ok 3 - Amazon http item response never manufactures or persists an order
+  ---
+  duration_ms: 241.7837
+  ...
+# Subtest: Amazon empty item response never manufactures or persists an order
+ok 4 - Amazon empty item response never manufactures or persists an order
+  ---
+  duration_ms: 236.4337
+  ...
+# Subtest: Amazon malformed item response never manufactures or persists an order
+ok 5 - Amazon malformed item response never manufactures or persists an order
+  ---
+  duration_ms: 263.7857
+  ...
+# Subtest: Shopify follows same-origin Link pages on the supported version
+ok 6 - Shopify follows same-origin Link pages on the supported version
+  ---
+  duration_ms: 752.0365
+  ...
+# Subtest: Shopify never forwards tokens to a foreign next-page origin
+ok 7 - Shopify never forwards tokens to a foreign next-page origin
+  ---
+  duration_ms: 261.4698
+  ...
+# Subtest: WooCommerce exhausts numbered pages with secrets only in Authorization
+ok 8 - WooCommerce exhausts numbered pages with secrets only in Authorization
+  ---
+  duration_ms: 246.4379
+  ...
+# Subtest: a later WooCommerce page failure does not persist or advance the checkpoint
+ok 9 - a later WooCommerce page failure does not persist or advance the checkpoint
+  ---
+  duration_ms: 250.4461
+  ...
+# Subtest: custom connector follows documented next URL and rejects incomplete cursor-only results
+ok 10 - custom connector follows documented next URL and rejects incomplete cursor-only results
+  ---
+  duration_ms: 412.5809
+  ...
+# Subtest: custom verification rejects 404
+ok 11 - custom verification rejects 404
+  ---
+  duration_ms: 128.8454
+  ...
+# Subtest: custom verification rejects 500
+ok 12 - custom verification rejects 500
+  ---
+  duration_ms: 184.4886
+  ...
+# Subtest: custom verification rejects unusable JSON
+ok 13 - custom verification rejects unusable JSON
+  ---
+  duration_ms: 179.3073
+  ...
+# Subtest: Amazon token exchange alone does not verify Orders or Finances access
+ok 14 - Amazon token exchange alone does not verify Orders or Finances access
+  ---
+  duration_ms: 258.3106
+  ...
+# Subtest: Flipkart uses shipment contract, follows pages and preserves sibling order items
+not ok 15 - Flipkart uses shipment contract, follows pages and preserves sibling order items
+  ---
+  duration_ms: 186.8721
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\remediation-connectors.test.mjs:131:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    502 !== 200
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 200
+  actual: 502
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/remediation-connectors.test.mjs:145:10)
+    async Test.run (node:internal/test_runner/test:980:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: pagination rejects repeated cursors and a bounded incomplete run explicitly
+ok 16 - pagination rejects repeated cursors and a bounded incomplete run explicitly
+  ---
+  duration_ms: 78.0376
+  ...
+# Subtest: OAuth state requires durable storage and atomically binds owner, client, redirect and expiry
+ok 17 - OAuth state requires durable storage and atomically binds owner, client, redirect and expiry
+  ---
+  duration_ms: 26.5055
+  ...
+# Subtest: Finances pagination reads its own checkpoint and cannot advance the Orders stream
+ok 18 - Finances pagination reads its own checkpoint and cannot advance the Orders stream
+  ---
+  duration_ms: 80.2486
+  ...
+# Subtest: checkpoint updates persist independent streams under the owner and one active connection guard
+ok 19 - checkpoint updates persist independent streams under the owner and one active connection guard
+  ---
+  duration_ms: 25.489
+  ...
+# Subtest: Flipkart refresh persists rotated tokens before using the new access token
+ok 20 - Flipkart refresh persists rotated tokens before using the new access token
+  ---
+  duration_ms: 179.3627
+  ...
+# Subtest: Flipkart OAuth callback binds the session and ignores caller credential/redirect overrides
+ok 21 - Flipkart OAuth callback binds the session and ignores caller credential/redirect overrides
+  ---
+  duration_ms: 50.1107
+  ...
+# Subtest: an unbound continuation or single-order finance fetch cannot advance a global checkpoint
+ok 22 - an unbound continuation or single-order finance fetch cannot advance a global checkpoint
+  ---
+  duration_ms: 201.5063
+  ...
+# Subtest: connection screen reuses vaulted credentials after reload without fetching secrets
+ok 23 - connection screen reuses vaulted credentials after reload without fetching secrets
+  ---
+  duration_ms: 933.3745
+  ...
+# Failed to vault credentials on server: Error: Could not save marketplace connection.
+#     at vaultCredentialsOnServer (C:\\Users\\freak\\Desktop\\Unified platform\\src\\components\\modules\\webhook-simulator.tsx:311:23)
+#     at async Object.handleTestShopifyConnection [as onClick] (C:\\Users\\freak\\Desktop\\Unified platform\\src\\components\\modules\\webhook-simulator.tsx:835:21)
+#     at async TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/remediation-connectors.test.mjs:319:3)
+#     at async Test.run (node:internal/test_runner/test:980:9)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+# Subtest: connection screen does not mark a new connection active when the vault rejects its save
+ok 24 - connection screen does not mark a new connection active when the vault rejects its save
+  ---
+  duration_ms: 217.9066
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 23
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7447.6778

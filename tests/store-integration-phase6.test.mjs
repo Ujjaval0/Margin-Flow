@@ -273,14 +273,16 @@ describe('Store Integration contract and source-wiring checks (not production ac
 
     test('Point 7: Source wiring references the finances endpoint and identifies report formats', () => {
       const amazonFinances = readProjectFile('src/app/api/integrations/amazon/finances/route.ts');
+      const projection = readProjectFile('src/lib/integrations/amazon-financial-events.ts');
       const autoMapper = readProjectFile('src/domain/csv-auto-mapper.ts');
 
       // Authentic Amazon Finances ingestion
       assert.ok(
         amazonFinances.includes('/finances/v0/financialEvents') &&
-        amazonFinances.includes('ShipmentEventList') &&
-        amazonFinances.includes('ShipmentItemList'),
-        'Amazon finances route must ingest genuine SP-API financial events'
+        amazonFinances.includes('retainAmazonEvents(client,userId,financialEvents)') &&
+        projection.includes('ShipmentEventList') && projection.includes('ShipmentItemList') &&
+        projection.includes("evidenceType:'FINANCIAL_EVENT'"),
+        'Amazon finances must retain genuine signed events without fabricating bank receipts'
       );
 
       // Meesho & Myntra official settlement presets
@@ -341,11 +343,12 @@ describe('Store Integration contract and source-wiring checks (not production ac
       const vault = readProjectFile('src/lib/security/marketplace-vault.ts');
       const connectionsRoute = readProjectFile('src/app/api/integrations/connections/route.ts');
 
-      // getSessionUserId extracts merchant session
+      // Supabase verifies identity, then the account/session liveness checks resolve its owner.
       assert.ok(
         session.includes('getSessionUserId') &&
-        session.includes('marginflow_session'),
-        'Session security must extract user_id from verified merchant cookies/headers'
+        session.includes('createSupabaseServerClient') && session.includes('await supabase.auth.getUser()') &&
+        session.includes('WHERE auth_user_id = $1'),
+        'Session security must map a verified Supabase subject to the tenant account'
       );
 
       // Queries strictly filter WHERE user_id = $1

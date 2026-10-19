@@ -17,6 +17,7 @@ export function AuditView() {
     importLedgerSnapshot,
   } = usePlatform();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const importInFlight = useRef(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const handleExport = () => {
@@ -28,32 +29,37 @@ export function AuditView() {
     a.download = `marginflow_ledger_snapshot_${new Date().toISOString().split("T")[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setStatusMessage("Ledger snapshot exported successfully.");
+    setStatusMessage("Snapshot exported. A preserved local recovery snapshot takes priority when migration is unresolved.");
     setTimeout(() => setStatusMessage(null), 4000);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || importInFlight.current) return;
+    importInFlight.current = true;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
+      try {
       const content = event.target?.result as string;
-      const success = importLedgerSnapshot(content);
+      const success = await importLedgerSnapshot(content);
       if (success) {
         setStatusMessage("Ledger snapshot restored successfully!");
       } else {
         setStatusMessage("Error: Invalid ledger snapshot format.");
       }
       setTimeout(() => setStatusMessage(null), 4000);
+      } catch (error) { setStatusMessage(error instanceof Error ? error.message : "Ledger restore failed."); }
+      finally { importInFlight.current = false; }
     };
+    reader.onerror = () => { importInFlight.current = false; setStatusMessage("Ledger snapshot could not be read."); };
     reader.readAsText(file);
     e.target.value = "";
   };
 
   const handleReset = () => {
-    if (window.confirm("Are you sure you want to reset the ledger to default seed data? All custom modifications will be cleared.")) {
+    if (window.confirm("Refresh the browser cache and view preferences from the saved server ledger? Pending migration backups will be preserved.")) {
       resetLedgerToDefaults();
-      setStatusMessage("Ledger has been reset to system defaults.");
+      setStatusMessage("Browser cache and view preferences cleared. Saved server records are reloading.");
       setTimeout(() => setStatusMessage(null), 4000);
     }
   };
@@ -195,10 +201,10 @@ export function AuditView() {
             type="button"
             onClick={handleReset}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50/70 border border-red-200 hover:bg-red-100/70 text-red-700 transition-colors"
-            title="Reset ledger to initial factory defaults"
+            title="Refresh browser cache and view preferences from saved server records"
           >
             <RotateCcw className="w-3.5 h-3.5 text-red-500" />
-            Reset Defaults
+            Refresh Cache
           </button>
         </div>
       </div>

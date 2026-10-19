@@ -26,9 +26,11 @@ describe('Phase 1 Security & Identity Hardening Test Suite', () => {
     test('1.1 session.ts exists and enforces server-only execution', () => {
       const content = readProjectFile('src/lib/security/session.ts');
       assert.ok(content.includes('typeof window !== "undefined"'), 'Must guard against client bundling');
-      assert.ok(content.includes('createHmac("sha256"'), 'Must use HMAC-SHA256');
-      assert.ok(content.includes('timingSafeEqual'), 'Must use constant-time comparison against timing attacks');
-      assert.ok(content.includes('SESSION_COOKIE_NAME'), 'Must define standard session cookie name');
+      assert.ok(content.includes('supabase.auth.getUser()'), 'Financial access must verify the live Supabase session');
+      assert.ok(content.includes('WHERE auth_user_id = $1'), 'Verified Auth identity must map to the account owner');
+      assert.throws(() => loadApp('src/lib/security/session.ts', {
+        '@/lib/db': {}, '@/lib/supabase/server': {},
+      }, { window: {} }), /client bundle/);
     });
 
     test('1.2 session.ts rejects unsigned x-user-id header spoofing', () => {
@@ -41,16 +43,20 @@ describe('Phase 1 Security & Identity Hardening Test Suite', () => {
     test('1.3 session.ts rejects unsigned client cookies and default ACC-001 fallback', () => {
       const content = readProjectFile('src/lib/security/session.ts');
       assert.ok(!content.includes('return "ACC-001";'), 'Insecure default return "ACC-001" must be purged');
-      assert.ok(content.includes('verifySessionToken(token)'), 'Cookies must be cryptographically verified');
+      assert.ok(content.includes('supabase.auth.getUser()'), 'Client cookies must go through Supabase verification');
+      assert.ok(!content.includes('verifySessionToken'), 'Obsolete application JWT verification must not replace Supabase');
     });
 
-    test('1.4 Actual session signer verifies signatures and rejects payload tampering', () => {
-      const session = loadApp('src/lib/security/session.ts', { '@/lib/db': { query: () => assert.fail('Pure signature checks must not access the database') } }, { process: { env: { NODE_ENV: 'test', SESSION_SECRET: 'synthetic-test-key-with-at-least-32-bytes' } } });
-      const token = session.signSessionToken({ id: 'merchant', email: 'merchant@example.com' });
-      assert.equal(session.verifySessionToken(token).sub, 'merchant');
-      const parts = token.split('.');
-      parts[1] = Buffer.from(JSON.stringify({ ...session.verifySessionToken(token), sub: 'attacker' })).toString('base64url');
-      assert.equal(session.verifySessionToken(parts.join('.')), null);
+    test('1.4 Actual verifier rejects an Auth error even when a provider response contains a user', async () => {
+      const session = loadApp('src/lib/security/session.ts', {
+        '@/lib/db': { query: () => assert.fail('Invalid Auth must not access the database') },
+        '@/lib/supabase/server': { createSupabaseServerClient: async () => ({ auth: {
+          getUser: async () => ({ data: { user: { id: 'untrusted' } }, error: { message: 'invalid token' } }),
+        } }) },
+      });
+      assert.equal(await session.getSessionUser(new Request('https://app.example', {
+        headers: { 'x-user-id': 'attacker', cookie: 'marginflow_session_token=tampered' },
+      })), null);
     });
   });
 
@@ -126,27 +132,48 @@ describe('Phase 1 Security & Identity Hardening Test Suite', () => {
   // SUITE 4: AUTHENTICATION HARDENING & SECRET VAULT ISOLATION
   // =========================================================================
   describe('Suite 4: Auth Hardening & Secret Vault Isolation', () => {
-    test('4.1 login route enforces password verification and sets HTTP-only cookie', () => {
-      const loginRoute = readProjectFile('src/app/api/auth/login/route.ts');
-      assert.ok(loginRoute.includes('verifyPassword'), 'Must verify password hash');
-      assert.ok(loginRoute.includes('issueSessionToken'), 'Must issue a durably registered session token');
-      assert.ok(loginRoute.includes('response.cookies.set'), 'Must set HTTP-only cookie');
-      assert.ok(!loginRoute.includes('id: "usr_fallback"'), 'Insecure usr_fallback on bad password must be purged');
+    test('4.1 login rejects absent passwords before calling Supabase', async () => {
+      const route = loadApp('src/app/api/auth/login/route.ts', {
+        '@/lib/supabase/server': { createSupabaseServerClient: () => assert.fail('Missing password must not reach Auth') },
+        '@/lib/auth/supabase-account': {},
+      });
+      const response = await route.POST(new Request('https://app.example/api/auth/login', {
+        method: 'POST', body: JSON.stringify({ email: 'merchant@example.com', password: '' }),
+      }));
+      assert.equal(response.status, 400);
     });
 
-    test('4.2 signup route sets HTTP-only cookie and enforces minimum password requirements', () => {
-      const signupRoute = readProjectFile('src/app/api/auth/signup/route.ts');
-      assert.ok(signupRoute.includes('issueSessionToken'), 'Must issue a durably registered session token');
-      assert.ok(signupRoute.includes('response.cookies.set'), 'Must set HTTP-only cookie');
-      assert.ok(signupRoute.includes('password.length < 12'), 'Must enforce minimum password length');
+    test('4.2 signup validates passwords and waits for Supabase email confirmation', async () => {
+      let signups = 0;
+      const route = loadApp('src/app/api/auth/signup/route.ts', {
+        '@/lib/supabase/server': { createSupabaseServerClient: async () => ({ auth: {
+          signUp: async () => { signups++; return { data: { session: null, user: { id: 'pending' } }, error: null }; },
+        } }) },
+        '@/lib/auth/supabase-account': { ensureMarginFlowAccount: () => assert.fail('Unconfirmed signup must not create merchant books') },
+      });
+      const request = password => new Request('https://app.example/api/auth/signup', {
+        method: 'POST', body: JSON.stringify({ name: 'Merchant', email: 'new@example.com', password }),
+      });
+      assert.equal((await route.POST(request('short'))).status, 400);
+      assert.equal(signups, 0);
+      const response = await route.POST(request('long-enough-password'));
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).confirmationRequired, true);
+      assert.equal(signups, 1);
     });
 
-    test('4.3 google auth route verifies Google ID tokens and forbids unauthenticated takeover', () => {
-      const googleRoute = readProjectFile('src/app/api/auth/google/route.ts');
-      assert.ok(googleRoute.includes('oauth2.googleapis.com/tokeninfo'), 'Must verify token with Google OAuth API');
-      assert.ok(googleRoute.includes('email_verified'), 'Must verify email is confirmed by Google');
-      assert.ok(googleRoute.includes('issueSessionToken'), 'Must issue a durably registered session token');
-      assert.ok(googleRoute.includes('response.cookies.set'), 'Must set HTTP-only cookie');
+    test('4.3 successful Supabase OAuth callbacks reject external redirect targets', async () => {
+      const route = loadApp('src/app/auth/callback/route.ts', {
+        '@/lib/supabase/server': { createSupabaseServerClient: async () => ({ auth: {
+          exchangeCodeForSession: async () => ({ data: { user: { id: 'verified', user_metadata: { onboardingCompleted: true } } }, error: null }),
+        } }) },
+        '@/lib/auth/supabase-account': { ensureMarginFlowAccount: async () => ({ isNewUser: false }) },
+      });
+      for (const next of ['https://attacker.example', '//attacker.example', '/\\attacker.example']) {
+        const url = new URL('https://app.example/auth/callback?code=valid'); url.searchParams.set('next', next);
+        const response = await route.GET(new Request(url));
+        assert.equal(response.headers.get('location'), 'https://app.example/dashboard');
+      }
     });
 
     test('4.4 encryption vault forbids hardcoded static key fallbacks in production', () => {

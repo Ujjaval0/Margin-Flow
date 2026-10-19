@@ -119,7 +119,7 @@ describe('UI/UX Analyst Verification Test Suite', () => {
         {
           file: 'src/components/modules/ledger-view.tsx',
           expectedTitle: 'Double-Entry General Ledger',
-          expectedSubtitle: 'Immutable Financial Transaction Journal & Trial Balance'
+          expectedSubtitle: 'Operational Transaction Journal & Trial Balance'
         },
         {
           file: 'src/components/modules/recycle-bin-view.tsx',
@@ -135,6 +135,9 @@ describe('UI/UX Analyst Verification Test Suite', () => {
 
       // The existing dashboard intentionally displays a live date and personal greeting.
       // This checks source wiring; it is not an authenticated browser or accessibility proof.
+      const ledger = readProjectFile('src/components/modules/ledger-view.tsx');
+      assert.match(ledger, /provisional entries need evidence/);
+      assert.doesNotMatch(ledger, /Immutable Financial Transaction Journal/);
       const dashboard = readProjectFile('src/components/modules/dashboard-view.tsx');
       assert.match(dashboard, /<h1\b[^>]*>\s*\{greeting\},\s*\{userName\}\s*<\/h1>/);
       assert.match(dashboard, /\{formattedDate\}/);

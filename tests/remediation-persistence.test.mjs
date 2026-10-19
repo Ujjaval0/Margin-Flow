@@ -37,6 +37,7 @@ test('actual provider clears tenant A on switch to an empty tenant B', async () 
     window: {}, localStorage: { getItem: () => null },
     fetch: async url => {
       if (url === '/api/auth/me') return Response.json({ user: { id: owner } }, { status: authenticated ? 200 : 401 });
+      if (url === '/api/ledger-records') return Response.json({ success: true, data: { ...load('src/domain/recycle-bin.ts').emptyLedger(), orders: owner === 'A' ? [order] : [] } });
       if (url.startsWith('/api/orders')) return Response.json({ orders: owner === 'A' ? [order] : [] });
       if (url.startsWith('/api/products')) return Response.json({ products: [] });
       return Response.json({ settlements: [] });
@@ -70,10 +71,10 @@ test('core read APIs return errors during outages instead of successful empty le
   }
 });
 
-test('missing accounts and identity database outages never verify a cached identity', async () => {
+test('internal-service account lookup rejects missing accounts and database outages', async () => {
   let offline = false;
   const route = load('src/app/api/auth/me/route.ts', {
-    [session]: { getSessionUser: () => ({ sub: 'deleted-account' }) },
+    [session]: { getSessionUser: () => ({ sub: 'deleted-account', sid: 'internal-service' }) },
     [db]: { query: async () => { if (offline) throw Error('offline'); return { rows: [] }; } },
   });
   assert.equal((await route.GET(new Request('https://app.example'))).status, 401);
@@ -149,18 +150,18 @@ test('same-SKU order lines remain separate and removed source lines are reconcil
   const items = new Map();
   const client = { query: async (sql, params = []) => {
     if (sql.includes('INSERT INTO orders')) return { rows: [{ id: 'uuid', display_id: 'order-1', is_insert: true }] };
-    if (sql.includes('SELECT id, snapshot_unit_cost FROM order_items')) {
+    if (sql.includes('SELECT id, sku, snapshot_unit_cost FROM order_items')) {
       assert.match(sql, /display_id = \$2/);
       return { rows: items.has(params[1]) ? [{ id: params[1], snapshot_unit_cost: items.get(params[1]).cost }] : [] };
     }
     if (sql.includes('INSERT INTO order_items')) items.set(params[0], { quantity: params[4], price: params[5], cost: params[8] });
-    if (sql.includes('UPDATE order_items')) items.set(params[7], { ...items.get(params[7]), quantity: params[1], price: params[2] });
+    if (sql.includes('UPDATE order_items')) items.set(params[8], { ...items.get(params[8]), quantity: params[1], price: params[2] });
     if (sql.includes('DELETE FROM order_items')) for (const id of items.keys()) if (!params[1].includes(id)) items.delete(id);
     return { rows: [] };
   }, release: () => {} };
   const persistence = load('src/lib/integrations/order-persistence.ts', { [db]: { ensureMarketplaceTables: async () => {}, pool: { connect: async () => client } } });
-  const line = (id, quantity, price, cost = 10) => ({ id, sku: 'SAME', quantity, sellingPrice: price, snapshotUnitCost: cost });
-  const order = { id: 'order-1', marketplace: 'WooCommerce', items: [line('line-1', 1, 100), line('line-2', 2, 80)] };
+  const line = (id, quantity, price, cost = 10) => ({ id, sku: 'SAME', productName: 'Item', quantity, sellingPrice: price, discount: 0, taxAmount: 0, snapshotUnitCost: cost, returnedQuantity: 0 });
+  const order = { id: 'order-1', channelOrderId: 'channel-1', marketplace: 'WooCommerce', orderDate: '2026-10-01', status: 'CONFIRMED', customerName: '', customerCity: '', customerState: '', shippingFeeCharged: 0, marketplaceChargesEstimate: 0, items: [line('line-1', 1, 100), line('line-2', 2, 80)] };
   await persistence.upsertOrders('tenant-A', [order]);
   assert.equal(items.size, 2);
   assert.equal(items.get('line-1').quantity, 1);

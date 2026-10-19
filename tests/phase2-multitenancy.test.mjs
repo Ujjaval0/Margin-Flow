@@ -66,7 +66,9 @@ describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', (
     test('1.3 schema readiness checks are read-only and fail closed', () => {
       const source = readProjectFile('src/lib/db.ts');
       assert.ok(source.includes('information_schema.columns'));
-      assert.ok(source.includes('Database migrations through marketplace fee engine step 21 are required.'));
+      assert.match(source, /Database migrations through \d+_[a-z_]+\.sql are required\./);
+      assert.ok(source.includes('financial_commands') && source.includes('provider_financial_events'));
+      assert.ok(source.includes('result.rows[0]?.ready !== true'), 'Missing readiness evidence must reject');
       assert.ok(!/CREATE TABLE|ALTER TABLE|CREATE INDEX/.test(source), 'Request handlers must not migrate schema');
       assert.ok(source.includes('connectionTimeoutMillis') && source.includes('statement_timeout'));
     });
@@ -100,7 +102,7 @@ describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', (
       assert.ok(persistenceContent.includes('export async function upsertSettlements(') && persistenceContent.includes('userId: string,'), 'upsertSettlements signature must enforce userId');
       assert.ok(persistenceContent.includes('if (!userId || typeof userId !== "string")'), 'Must guard against empty/null userId in settlements');
       assert.ok(persistenceContent.includes('user_id'), 'Must insert user_id into settlements table');
-      assert.ok(persistenceContent.includes('ON CONFLICT (user_id, settlement_batch_id, order_id)'), 'Must resolve conflicts scoped to user_id in settlements');
+      assert.ok(persistenceContent.includes('ON CONFLICT (user_id, display_id)'), 'Distinct records in one payout batch must retain tenant-scoped identity');
     });
 
     test('2.3 Linked order lookups in settlements are scoped to tenant', () => {
@@ -118,7 +120,7 @@ describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', (
       assert.ok(ordersRoute.includes('getSessionUserId(req)'), 'Must extract authenticated userId from session');
       assert.ok(ordersRoute.includes('status: 401') && ordersRoute.includes('Authentication required to access orders'), 'Must return 401 if unauthenticated on GET');
       assert.ok(ordersRoute.includes('WHERE o.user_id = $1'), 'GET query must strictly filter by user_id');
-      assert.ok(ordersRoute.includes('upsertOrders(userId, orders)'), 'POST must pass authenticated userId to upsertOrders');
+      assert.match(ordersRoute, /await upsertOrders\(userId, orders, undefined,/, 'POST must pass the verified owner and explicit create/update/sync intent');
     });
 
     test('3.2 GET & POST /api/settlements enforces session and filters by user_id', () => {
@@ -134,7 +136,9 @@ describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', (
       assert.ok(productsRoute.includes('getSessionUserId(req)'), 'Must extract authenticated userId from session');
       assert.ok(productsRoute.includes('status: 401') && productsRoute.includes('Authentication required to access catalog products'), 'Must return 401 if unauthenticated on GET');
       assert.ok(productsRoute.includes('WHERE p.user_id = $1'), 'GET query must strictly filter by user_id');
-      assert.ok(productsRoute.includes('ON CONFLICT (user_id, sku)'), 'POST upsert must be scoped to (user_id, sku)');
+      assert.ok(productsRoute.includes('await persistCatalog(client,userId,products)'), 'POST must delegate with the authenticated owner on the transaction connection');
+      const writer = readProjectFile('src/lib/catalog-persistence.ts');
+      assert.ok(writer.includes('WHERE user_id=$1 AND (sku=$2 OR display_id=$3) FOR UPDATE'), 'Catalog identity checks must lock both tenant-scoped SKU and display identity');
     });
   });
 
@@ -149,15 +153,15 @@ describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', (
       assert.ok(storeContent.includes('const [isSyncingWithDb, setIsSyncingWithDb] = useState(false);'), 'PlatformProvider must declare isSyncingWithDb state');
     });
 
-    test('4.2 refreshFromDatabase hydrates orders, settlements, and products from server APIs', () => {
+    test('4.2 refreshFromDatabase hydrates complete owner-scoped canonical books atomically', () => {
       const storeContent = readProjectFile('src/domain/store.tsx');
       assert.ok(storeContent.includes('fetch("/api/auth/me"'), 'Must check user session before server sync');
-      assert.ok(storeContent.includes('fetch("/api/orders?limit=2000"'), 'Must fetch orders from server API');
-      assert.ok(storeContent.includes('fetch("/api/settlements?limit=2000"'), 'Must fetch settlements from server API');
-      assert.ok(storeContent.includes('fetch("/api/products?limit=2000"'), 'Must fetch products from server API');
-      assert.ok(storeContent.includes('setOrders(ordersJson.orders);'), 'Must update orders state from server response');
-      assert.ok(storeContent.includes('setSettlements(settlementsJson.settlements);'), 'Must update settlements state from server response');
-      assert.ok(storeContent.includes('setProducts(productsJson.products);'), 'Must update products state from server response');
+      assert.match(storeContent, /await fetch\(['"]\/api\/ledger-records['"]/);
+      assert.ok(storeContent.includes('generation !== refreshGeneration.current || verifiedOwner.current !== ownerId'), 'A stale or foreign hydration must not replace active books');
+      assert.ok(storeContent.includes('applyLedgerChange(ledgerJson.data)'), 'Apply the complete acknowledged server ledger');
+      const route = readProjectFile('src/app/api/ledger-records/route.ts');
+      assert.ok(route.includes('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY'), 'Canonical hydration must observe one consistent database snapshot');
+      assert.ok(route.includes('readCanonicalLedger(client,owner)'), 'Read all financial partitions for the verified owner');
     });
 
     test('4.3 caches are selected only using verified tenant identity', () => {
@@ -170,9 +174,10 @@ describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', (
 
     test('4.4 Store action mutations asynchronously persist to backend APIs', () => {
       const storeContent = readProjectFile('src/domain/store.tsx');
-      assert.match(storeContent, /fetch\("\/api\/orders",\s*\{\s*method: "POST"/s, 'order actions must push to /api/orders');
-      assert.match(storeContent, /fetch\("\/api\/settlements",\s*\{\s*method: "POST"/s, 'settlement actions must push to /api/settlements');
-      assert.match(storeContent, /fetch\("\/api\/products",\s*\{\s*method: "POST"/s, 'product actions must push to /api/products');
+      for (const endpoint of ['orders', 'settlements', 'products', 'ledger-records'])
+        assert.match(storeContent, new RegExp(`await fetch\\(['"]\\/api\\/${endpoint}['"],\\s*\\{\\s*method:\\s*['"]POST['"]`), endpoint + ' mutations must await backend acknowledgement');
+      assert.ok(storeContent.includes('if(!response.ok || saved.success!==true) throw Error'), 'Rejected commands must not be applied');
+      assert.ok(storeContent.includes('applyLedgerChange(saved.data)'), 'Mutations must apply canonical response data');
     });
   });
 
@@ -181,25 +186,29 @@ describe('Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite', (
   // =========================================================================
   describe('Suite 5: Actual writer parameter binding with isolated adapters (not PostgreSQL isolation proof)', () => {
     test('5.1 Actual order and catalog writers bind each tenant for coincident source identifiers', async () => {
-      const writes = [];
+      const writes = [], identityLocks = [];
       for (const owner of ['A', 'B']) {
         const client = { query: async (sql, params) => {
           if (sql.includes('INSERT INTO orders')) { writes.push([sql, params]); return { rows: [{ id: 'uuid-' + owner, display_id: 'same-order', is_insert: true }] }; }
-          if (sql.includes('INSERT INTO products')) { writes.push([sql, params]); return { rows: [{ is_insert: true }] }; }
+          if (sql.includes('INSERT INTO products')) { writes.push([sql, params]); return { rows: [{ id: 'product-' + owner }] }; }
+          if (sql.includes('FROM products WHERE user_id=$1') && sql.includes('FOR UPDATE')) identityLocks.push(params);
           if (sql.includes('SELECT sku, category FROM products')) return { rows: [] };
           return { rows: [] };
         }, release() {} };
         const adapter = { ensureMarketplaceTables: async () => {}, pool: { connect: async () => client } };
         const persistence = loadApp('src/lib/integrations/order-persistence.ts', { '@/lib/db': adapter });
-        await persistence.upsertOrders(owner, [{ id: 'same-order', channelOrderId: 'same-channel', marketplace: 'WooCommerce', items: [
-          { id: 'same-item', sku: 'SAME-SKU', productName: 'Item', quantity: 1, sellingPrice: 10, discount: 0, taxAmount: 0, snapshotUnitCost: 5 },
+        await persistence.upsertOrders(owner, [{ id: 'same-order', channelOrderId: 'same-channel', marketplace: 'WooCommerce', currency: 'INR',
+          orderDate: '2026-10-01', status: 'CONFIRMED', customerName: '', customerCity: '', customerState: '', shippingFeeCharged: 0, marketplaceChargesEstimate: 0, items: [
+          { id: 'same-item', sku: 'SAME-SKU', productName: 'Item', quantity: 1, sellingPrice: 10, discount: 0, taxAmount: 0, snapshotUnitCost: 5, returnedQuantity: 0 },
        ] }]);
         const route = loadApp('src/app/api/products/route.ts', { '@/lib/db': adapter, '@/lib/security/session': { getSessionUserId: () => owner } });
-        const response = await route.POST(new Request('https://app.example', { method: 'POST', body: JSON.stringify({ product: { sku: 'SAME-SKU', currentCostPrice: owner === 'A' ? 20 : 30 } }) }));
+        const response = await route.POST(new Request('https://app.example', { method: 'POST', body: JSON.stringify({ product: { id: 'same-product', sku: 'SAME-SKU', name: 'Item', category: '', brand: '', currentCostPrice: owner === 'A' ? 20 : 30,
+          stockQuantity: 0, costHistory: [], channelAliases: {}, active: true } }) }));
         assert.equal(response.status, 200);
       }
       assert.deepEqual(writes.map(([, params]) => params[0]), ['A', 'A', 'B', 'B']);
-      for (const [sql] of writes) assert.match(sql, /ON CONFLICT \(user_id,/);
+      for (const [sql] of writes.filter(([sql]) => sql.includes('INSERT INTO orders'))) assert.match(sql, /ON CONFLICT \(user_id,/);
+      assert.deepEqual(identityLocks.map(params => [params[0], params[1], params[2]]), [['A','SAME-SKU','same-product'],['B','SAME-SKU','same-product']]);
       assert.equal(writes[0][1][2], writes[2][1][2]);
       assert.equal(writes[1][1][2], writes[3][1][2]);
     });

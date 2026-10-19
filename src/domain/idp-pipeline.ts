@@ -1,3 +1,5 @@
+import { createRecordId } from "./record-id";
+import { money, sumMoney, toPaise } from "@/domain/order-financials";
 import { z } from "zod";
 import { generateObject } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -6,25 +8,25 @@ import { validateDocumentArithmetic } from "./guardrails";
 import { processDocumentOCR } from "./ocr-engine";
 
 export const LineItemSchema = z.object({
-  sku: z.string().default(""),
+  sku: z.string().min(1),
   description: z.string().default(""),
   hsnCode: z.string().optional(),
-  quantity: z.number().nonnegative().default(1),
-  unitPrice: z.number().nonnegative().default(0),
+  quantity: z.number().int().positive(),
+  unitPrice: z.number().nonnegative(),
   discount: z.number().nonnegative().default(0),
-  taxRate: z.number().nonnegative().default(18),
-  cgst: z.number().nonnegative().default(0),
-  sgst: z.number().nonnegative().default(0),
-  igst: z.number().nonnegative().default(0),
+  taxRate: z.number().nonnegative().default(0),
+  cgst: z.number().nonnegative(),
+  sgst: z.number().nonnegative(),
+  igst: z.number().nonnegative(),
   totalAmount: z.number().nonnegative().default(0),
 });
 
 export type IDPLineItem = z.infer<typeof LineItemSchema>;
 
 export const InvoiceExtractionSchema = z.object({
-  invoiceNumber: z.string().min(1).default("INV-PENDING"),
-  invoiceDate: z.string().default(() => new Date().toISOString().split("T")[0]),
-  vendorName: z.string().min(1).default("Unknown Vendor"),
+  invoiceNumber: z.string().default(""),
+  invoiceDate: z.string().default(""),
+  vendorName: z.string().default(""),
   vendorGstin: z.string().optional(),
   buyerName: z.string().optional(),
   marketplace: z
@@ -37,7 +39,8 @@ export const InvoiceExtractionSchema = z.object({
       "WooCommerce",
     ])
     .optional(),
-  currency: z.string().default("INR"),
+  currency: z.string().default(""),
+  pricesIncludeTax:z.boolean().optional(),
   lineItems: z.array(LineItemSchema).default([]),
   subtotal: z.number().nonnegative().default(0),
   taxTotal: z.number().nonnegative().default(0),
@@ -96,16 +99,19 @@ export async function executeIDPPipeline(
 
           const calculatedTotal = validated.lineItems.length > 0
             ? validated.lineItems.reduce(
-                (sum, item) => sum + (item.quantity * item.unitPrice - item.discount + item.cgst + item.sgst + item.igst),
+                (sum, item) => sumMoney([sum,item.quantity*item.unitPrice,-item.discount,validated.pricesIncludeTax?0:item.cgst+item.sgst+item.igst]),
                 0
               )
             : validated.subtotal + validated.taxTotal - validated.discountTotal;
 
-          const diff = Math.abs(Math.round((calculatedTotal - validated.grandTotal) * 100) / 100);
-          const passed = diff <= 1.0;
+          const diff = Math.abs(money((calculatedTotal - validated.grandTotal)));
+          const hasRequired=validated.lineItems.length>0 && !!validated.invoiceNumber && !!validated.invoiceDate && validated.currency==='INR';
+          const passed = hasRequired && toPaise(calculatedTotal)===toPaise(validated.grandTotal);
 
           const stagedDocument: AIStagedDocument = {
-            id: `DOC-IDP-${Date.now().toString().slice(-6)}`,
+            id: createRecordId("DOC-IDP"),
+            currency:validated.currency,pricesIncludeTax:validated.pricesIncludeTax,
+            lineItems:validated.lineItems.map((line,index)=>({id:`LINE-${index+1}`,sku:line.sku,productName:line.description,quantity:line.quantity,unitPrice:line.unitPrice,discount:line.discount,taxAmount:sumMoney([line.cgst,line.sgst,line.igst])})),
             fileName,
             fileType: options?.customType || "SUPPLIER_BILL",
             uploadDate: new Date().toISOString(),
@@ -117,7 +123,8 @@ export async function executeIDPPipeline(
                 : undefined,
               orderId: { value: validated.invoiceNumber, confidence: 0.99, provenance: "AI_EXTRACTED" },
               invoiceNumber: { value: validated.invoiceNumber, confidence: 0.99, provenance: "AI_EXTRACTED" },
-              orderDate: { value: validated.invoiceDate, confidence: 0.98, provenance: "AI_EXTRACTED" },
+              orderDate: validated.invoiceDate?{ value: validated.invoiceDate, confidence: 0.98, provenance: "AI_EXTRACTED" }:undefined,
+              vendorName:validated.vendorName?{value:validated.vendorName,confidence:0.9,provenance:"AI_EXTRACTED"}:undefined,
               sku: primaryItem.sku
                 ? { value: primaryItem.sku, confidence: 0.95, provenance: "AI_EXTRACTED" }
                 : {
@@ -160,7 +167,7 @@ export async function executeIDPPipeline(
             },
             arithmeticValidation: {
               passed,
-              calculatedTotal: Math.round(calculatedTotal * 100) / 100,
+              calculatedTotal: money(calculatedTotal),
               declaredTotal: validated.grandTotal,
               difference: diff,
               message: passed ? "Arithmetic invariant verified" : `Variance ₹${diff}`,
@@ -192,15 +199,16 @@ export async function executeIDPPipeline(
   const fallbackDoc = processDocumentOCR(fileName, rawText, options?.customType);
 
   const fallbackExtraction: IDPInvoiceExtraction = {
-    invoiceNumber: fallbackDoc.extractedData.invoiceNumber?.value || "INV-UNKNOWN",
-    invoiceDate: fallbackDoc.extractedData.orderDate?.value || new Date().toISOString().split("T")[0],
-    vendorName: "Detected Vendor",
+    invoiceNumber: fallbackDoc.extractedData.invoiceNumber?.value || "",
+    invoiceDate: fallbackDoc.extractedData.orderDate?.value || "",
+    vendorName: fallbackDoc.extractedData.vendorName?.value || "",
     marketplace:
       fallbackDoc.extractedData.marketplace?.value === "B2B Wholesale" ||
       fallbackDoc.extractedData.marketplace?.value === "Other"
         ? "Personal Website"
         : fallbackDoc.extractedData.marketplace?.value,
-    currency: "INR",
+    currency: fallbackDoc.currency || "",
+    pricesIncludeTax:fallbackDoc.pricesIncludeTax,
     lineItems: [
       {
         sku: fallbackDoc.extractedData.sku?.value || "",
@@ -208,7 +216,7 @@ export async function executeIDPPipeline(
         quantity: fallbackDoc.extractedData.quantity?.value || 1,
         unitPrice: fallbackDoc.extractedData.unitPrice?.value || 0,
         discount: fallbackDoc.extractedData.discount?.value || 0,
-        taxRate: 18,
+        taxRate: 0,
         cgst: 0,
         sgst: 0,
         igst: fallbackDoc.extractedData.taxAmount?.value || 0,

@@ -1,3 +1,4 @@
+import { money } from "@/domain/order-financials";
 import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
 import { checkProcessingBudget } from "@/lib/security/api-guard";
@@ -49,10 +50,10 @@ export async function POST(req: NextRequest) {
     } = data;
 
     // Strict Invariant: Deterministic Math Only!
-    const cogsLoss = Math.round(snapshotUnitCost * quantity * 100) / 100;
-    const reverseShippingLoss = Math.round((returnShippingCost + (customerReturnFee || 0)) * 100) / 100;
-    const salvageCredit = Math.round((salvageValue || 0) * 100) / 100;
-    const totalClaimAmount = Math.max(0, Math.round((cogsLoss + reverseShippingLoss - salvageCredit) * 100) / 100);
+    const cogsLoss = money(snapshotUnitCost * quantity);
+    const reverseShippingLoss = money((returnShippingCost + (customerReturnFee || 0)));
+    const salvageCredit = money((salvageValue || 0));
+    const totalClaimAmount = Math.max(0, money((cogsLoss + reverseShippingLoss - salvageCredit)));
 
     // Marketplace Policy Nuance
     const isAmazon = marketplace.toLowerCase().includes("amazon");

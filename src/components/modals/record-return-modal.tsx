@@ -1,17 +1,20 @@
 "use client";
 
+import { businessDate } from "@/domain/report-scope";
+
 import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { RotateCcw, X } from "lucide-react";
+import { createRecordId } from "@/domain/record-id";
 import { Order, ReturnRecord, Claim, ReturnType, ProductCondition } from "@/domain/types";
 
 export interface RecordReturnModalProps {
   isOpen: boolean;
   onClose: () => void;
   orders: Order[];
-  onAddReturn: (ret: ReturnRecord) => void;
-  onAddClaim?: (claim: Claim) => void;
+  onAddReturn: (ret: ReturnRecord) => Promise<void>;
+  onAddClaim?: (claim: Claim) => Promise<void>;
 }
 
 export function RecordReturnModal({
@@ -21,6 +24,8 @@ export function RecordReturnModal({
   onAddReturn,
   onAddClaim,
 }: RecordReturnModalProps) {
+  const saveInFlight = React.useRef(false);
+  const draftIds = React.useRef({ returned: "", claim: "" });
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -49,8 +54,12 @@ export function RecordReturnModal({
 
   if (!isOpen || !mounted) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     setReturnError(null);
 
     const order = orders.find((o) => o.id === returnOrderId);
@@ -63,7 +72,7 @@ export function RecordReturnModal({
       return;
     }
 
-    const retId = `RET-${Date.now().toString().slice(-5)}`;
+    const retId = draftIds.current.returned || (draftIds.current.returned = createRecordId("RET"));
     const fee = returnType === "RTO" ? 0 : Number(customerReturnFee);
     const shipCost = returnType === "RTO" ? 0 : Number(returnShipping);
     const recovery = Number(returnRecovery) || 0;
@@ -77,12 +86,13 @@ export function RecordReturnModal({
       orderId: order.id,
       channelOrderId: order.channelOrderId,
       marketplace: order.marketplace,
-      returnDate: new Date().toISOString().split("T")[0],
+      returnDate: businessDate(),
       returnType,
       returnReason,
       sku: item.sku,
       quantity: Number(returnQty),
       condition: returnCondition,
+      restockStatus: returnCondition === "SELLABLE" ? "PENDING_RESTOCK" : "WRITTEN_OFF",
       returnShippingCost: shipCost,
       customerReturnFee: fee,
       otherReturnCosts: 0,
@@ -90,26 +100,29 @@ export function RecordReturnModal({
       lossAmount: calculatedLoss,
     };
 
-    onAddReturn(newRet);
+    await onAddReturn(newRet);
 
     if (returnCondition === "DAMAGED" || returnType === "LOST_RETURN") {
-      const claimId = `CLM-${Date.now().toString().slice(-5)}`;
+      const claimId = draftIds.current.claim || (draftIds.current.claim = createRecordId("CLM"));
       const newClaim: Claim = {
         id: claimId,
         orderId: order.id,
         returnId: retId,
         marketplace: order.marketplace,
         claimType: returnType === "LOST_RETURN" ? "LOST_IN_TRANSIT" : "DAMAGED_INVOICE",
-        claimDate: new Date().toISOString().split("T")[0],
+        claimDate: businessDate(),
         amountClaimed: calculatedLoss > 0 ? calculatedLoss : Math.max(0, unitCostBasis * Number(returnQty) + fee),
         amountRecovered: 0,
         status: "FILED",
         notes: `Auto-generated dispute claim from Quick Return (${returnCondition}).`,
       };
-      onAddClaim?.(newClaim);
+      await onAddClaim?.(newClaim);
     }
 
+    draftIds.current = { returned: "", claim: "" };
     onClose();
+
+    } catch (error) { setReturnError(error instanceof Error ? error.message : "Return could not be saved."); } finally { saveInFlight.current = false; }
   };
 
   return createPortal(

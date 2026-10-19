@@ -842,30 +842,46 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
     setEditingOrder(order);
   };
 
+  const saveInFlight = React.useRef(false);
   // Single Delete Handler
-  const handleConfirmDeleteSingle = () => {
+  const handleConfirmDeleteSingle = async () => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (orderToDelete) {
-      deleteOrder(orderToDelete.id);
+      await deleteOrder(orderToDelete.id);
       setSelectedOrderIds((prev) => prev.filter((id) => id !== orderToDelete.id));
       setOrderToDelete(null);
     }
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   // Bulk Delete Handler
-  const handleConfirmBulkDelete = () => {
+  const handleConfirmBulkDelete = async () => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (selectedOrderIds.length > 0) {
-      deleteOrders(selectedOrderIds);
+      await deleteOrders(selectedOrderIds);
       setSelectedOrderIds([]);
       setIsBulkDeleteConfirmOpen(false);
     }
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   // Bulk Status Change Handler
-  const handleBulkStatusChange = (newStatus: OrderStatus) => {
+  const handleBulkStatusChange = async (newStatus: OrderStatus) => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (selectedOrderIds.length > 0) {
-      bulkUpdateOrderStatus(selectedOrderIds, newStatus);
+      await bulkUpdateOrderStatus(selectedOrderIds, newStatus);
       setSelectedOrderIds([]);
     }
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
 
@@ -1754,9 +1770,13 @@ export function OrdersView({ selectedMarketplace: propMarketplace }: OrdersViewP
                     (st) => (
                       <button
                         key={st}
-                        onClick={() => {
-                          updateOrderStatus(selectedOrder.id, st);
-                          setSelectedOrder((prev) => (prev ? { ...prev, status: st } : null));
+                        onClick={async () => {
+                          if (saveInFlight.current) return;
+                          saveInFlight.current = true;
+                          try { await updateOrderStatus(selectedOrder.id, st);
+                            setSelectedOrder((prev) => (prev ? { ...prev, status: st } : null));
+                          } catch (error) { window.alert(error instanceof Error ? error.message : "Order status could not be saved."); }
+                          finally { saveInFlight.current = false; }
                         }}
                         className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition active:scale-95 cursor-pointer ${
                           selectedOrder.status === st

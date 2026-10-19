@@ -1,9 +1,12 @@
 "use client";
 
+import { businessDate } from "@/domain/report-scope";
+
 import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Supplier } from "@/domain/types";
+import { createRecordId } from "@/domain/record-id";
 import { usePlatform } from "@/domain/store";
 import { formatINR } from "@/lib/utils";
 import {
@@ -81,7 +84,7 @@ export function SuppliersView() {
 
   // Payout Form State
   const [payoutAmount, setPayoutAmount] = useState("");
-  const [payoutDate, setPayoutDate] = useState(new Date().toISOString().split("T")[0]);
+  const [payoutDate, setPayoutDate] = useState(businessDate());
   const [payoutMethod, setPayoutMethod] = useState("Bank Transfer (NEFT/RTGS)");
   const [payoutRef, setPayoutRef] = useState(`UTR-${Math.floor(10000000 + Math.random() * 90000000)}`);
   const [payoutNotes, setPayoutNotes] = useState("");
@@ -277,6 +280,8 @@ export function SuppliersView() {
     return filteredSuppliers.slice(start, start + pageSize);
   }, [filteredSuppliers, currentPage, pageSize]);
 
+  const saveInFlight = React.useRef(false);
+  const payoutId = React.useRef("");
   // Open Edit Modal
   const handleOpenEdit = (s: Supplier) => {
     setEditingSupplier(s);
@@ -286,36 +291,51 @@ export function SuppliersView() {
   const handleOpenPayout = (s: Supplier) => {
     const fin = supplierFinancials.get(s.id);
     setPayoutSupplier(s);
+    payoutId.current = createRecordId("PAY");
     setPayoutAmount(fin && fin.outstanding > 0 ? String(fin.outstanding) : "10000");
-    setPayoutDate(new Date().toISOString().split("T")[0]);
-    setPayoutRef(`UTR-${Math.floor(10000000 + Math.random() * 90000000)}`);
+    setPayoutDate(businessDate());
+    setPayoutRef("");
     setPayoutNotes("");
   };
 
   // Handle Record Payout Submit
-  const handlePayoutSubmit = (e: React.FormEvent) => {
+  const handlePayoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (!payoutSupplier) return;
 
     const parsedAmt = parseFloat(payoutAmount) || 0;
+    if (parsedAmt <= 0) throw new Error("Enter the actual payment amount.");
     if (parsedAmt > 0) {
-      recordSupplierPayment(
+      await recordSupplierPayment(
         payoutSupplier.id,
         parsedAmt,
         payoutMethod,
         payoutRef,
-        payoutNotes
+        payoutNotes,
+        payoutDate,
+        payoutId.current
       );
     }
     setPayoutSupplier(null);
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   // Confirm Delete
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (supplierToDelete) {
-      deleteSupplier(supplierToDelete.id);
+      await deleteSupplier(supplierToDelete.id);
       setSupplierToDelete(null);
     }
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   return (

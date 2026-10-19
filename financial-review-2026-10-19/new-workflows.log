@@ -1,0 +1,145 @@
+TAP version 13
+# Subtest: production migrations and canonical financial workflows execute against disposable PostgreSQL
+ok 1 - production migrations and canonical financial workflows execute against disposable PostgreSQL
+  ---
+  duration_ms: 12346.1726
+  ...
+# Subtest: period flows retain older order context and recognize receipt, restock and recovery dates independently
+ok 2 - period flows retain older order context and recognize receipt, restock and recovery dates independently
+  ---
+  duration_ms: 75.0675
+  ...
+# Subtest: adjacent periods and event months conserve every monetary P&L flow and gross-to-net bridge
+ok 3 - adjacent periods and event months conserve every monetary P&L flow and gross-to-net bridge
+  ---
+  duration_ms: 168.9361
+  ...
+# Subtest: bank cash includes unmatched and cancelled-order receipts but excludes marketplace finance events
+ok 4 - bank cash includes unmatched and cancelled-order receipts but excludes marketplace finance events
+  ---
+  duration_ms: 9.417
+  ...
+# Subtest: period return rates use matching bounded shipment cohorts even when old returns exceed current shipments
+ok 5 - period return rates use matching bounded shipment cohorts even when old returns exceed current shipments
+  ---
+  duration_ms: 34.1424
+  ...
+# Subtest: SKU return costs and claim recoveries stay on the affected SKU as later returns arrive
+ok 6 - SKU return costs and claim recoveries stay on the affected SKU as later returns arrive
+  ---
+  duration_ms: 65.2171
+  ...
+# Subtest: explicit return claim links and multiple claims allocate once; closing never erases dated recovery
+ok 7 - explicit return claim links and multiple claims allocate once; closing never erases dated recovery
+  ---
+  duration_ms: 17.279
+  ...
+# Subtest: separate one-paise fee events retain their original SKU allocation across periods
+ok 8 - separate one-paise fee events retain their original SKU allocation across periods
+  ---
+  duration_ms: 39.8991
+  ...
+# Subtest: partial claim recovery events retain their dates and original return/SKU rounding allocations
+ok 9 - partial claim recovery events retain their dates and original return/SKU rounding allocations
+  ---
+  duration_ms: 137.3236
+  ...
+# Subtest: unknown partial-payment receivables remain in aging and radar; known amounts use discounts and partial receipts
+ok 10 - unknown partial-payment receivables remain in aging and radar; known amounts use discounts and partial receipts
+  ---
+  duration_ms: 31.4971
+  ...
+# Subtest: grounded assistant distinguishes contribution and OPEX and does not subtract return costs twice
+ok 11 - grounded assistant distinguishes contribution and OPEX and does not subtract return costs twice
+  ---
+  duration_ms: 29.1474
+  ...
+# Subtest: return radar uses bounded facts and recorded reverse freight once instead of stale raw loss fields
+ok 12 - return radar uses bounded facts and recorded reverse freight once instead of stale raw loss fields
+  ---
+  duration_ms: 11.5214
+  ...
+# Subtest: retained unmapped-source and pending-migration issues survive all-time and dated projections
+ok 13 - retained unmapped-source and pending-migration issues survive all-time and dated projections
+  ---
+  duration_ms: 11.4798
+  ...
+# Subtest: actual Reports view uses full financialContext and reportRange in both exports and shows the complete bridge
+ok 14 - actual Reports view uses full financialContext and reportRange in both exports and shows the complete bridge
+  ---
+  duration_ms: 1059.6302
+  ...
+# Subtest: tax point is independent of revenue recognition, including invoiced shipped goods
+ok 15 - tax point is independent of revenue recognition, including invoiced shipped goods
+  ---
+  duration_ms: 74.5896
+  ...
+# Subtest: unresolved price basis suppresses speculative sales while preserving known tax and cost evidence
+ok 16 - unresolved price basis suppresses speculative sales while preserving known tax and cost evidence
+  ---
+  duration_ms: 8.8935
+  ...
+# Subtest: actual fees and eligible input GST post at settlement date, including cancelled order fees
+ok 17 - actual fees and eligible input GST post at settlement date, including cancelled order fees
+  ---
+  duration_ms: 9.2962
+  ...
+# Subtest: regular registration alone grants no fee ITC and explicit zero partial credit stays zero
+ok 18 - regular registration alone grants no fee ITC and explicit zero partial credit stays zero
+  ---
+  duration_ms: 1.7967
+  ...
+# Subtest: purchase GST requires evidence; ineligible tax is inventory cost and partial tax remains unresolved
+ok 19 - purchase GST requires evidence; ineligible tax is inventory cost and partial tax remains unresolved
+  ---
+  duration_ms: 6.5789
+  ...
+# Subtest: GST credit-note adjustment uses note period and never infers eligibility from a return
+ok 20 - GST credit-note adjustment uses note period and never infers eligibility from a return
+  ---
+  duration_ms: 25.2513
+  ...
+# Subtest: late or invalid-calendar credit-note evidence cannot reduce output GST
+ok 21 - late or invalid-calendar credit-note evidence cannot reduce output GST
+  ---
+  duration_ms: 9.7958
+  ...
+# Subtest: stock is restored only on evidenced receipt date and undated paid totals never invent bank movement
+ok 22 - stock is restored only on evidenced receipt date and undated paid totals never invent bank movement
+  ---
+  duration_ms: 10.5051
+  ...
+# Subtest: financial events do not fabricate bank receipts and GST TCS stays separate from income-tax TDS
+ok 23 - financial events do not fabricate bank receipts and GST TCS stays separate from income-tax TDS
+  ---
+  duration_ms: 3.7074
+  ...
+# Subtest: signed refunds normalize journal sides and finite-value validation rejects NaN
+ok 24 - signed refunds normalize journal sides and finite-value validation rejects NaN
+  ---
+  duration_ms: 11.2062
+  ...
+# Subtest: dated shipping refunds reverse commercial shipping without assuming a GST credit note
+ok 25 - dated shipping refunds reverse commercial shipping without assuming a GST credit note
+  ---
+  duration_ms: 15.1204
+  ...
+# Subtest: closed or rejected claims preserve recorded recoveries; missing dates remain visibly provisional
+ok 26 - closed or rejected claims preserve recorded recoveries; missing dates remain visibly provisional
+  ---
+  duration_ms: 22.2182
+  ...
+# Subtest: withholding advisory uses independent evidenced events and does not guess TDS applicability
+ok 27 - withholding advisory uses independent evidenced events and does not guess TDS applicability
+  ---
+  duration_ms: 2.3114
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13629.9444

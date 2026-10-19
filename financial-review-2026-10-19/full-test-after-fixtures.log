@@ -1,0 +1,2137 @@
+
+> unified-platform@0.1.0 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: A1: decimal halves round away from zero, including exponent notation, without negative zero
+ok 1 - A1: decimal halves round away from zero, including exponent notation, without negative zero
+  ---
+  duration_ms: 5.1863
+  ...
+# Subtest: A2/A3: partial returns reconcile ledger revenue, snapshot COGS and receivables with operational facts
+ok 2 - A2/A3: partial returns reconcile ledger revenue, snapshot COGS and receivables with operational facts
+  ---
+  duration_ms: 175.167
+  ...
+# Subtest: A3: oversized and duplicate returns cannot restore more than dispatched cost
+ok 3 - A3: oversized and duplicate returns cannot restore more than dispatched cost
+  ---
+  duration_ms: 29.0977
+  ...
+# Subtest: returns on different dates retain their own journal dates and conserve fractional refunds
+ok 4 - returns on different dates retain their own journal dates and conserve fractional refunds
+  ---
+  duration_ms: 55.8448
+  ...
+# Subtest: A4/A5: return fee components reach the ledger, settlement reverse shipping wins exactly once
+ok 5 - A4/A5: return fee components reach the ledger, settlement reverse shipping wins exactly once
+  ---
+  duration_ms: 50.0569
+  ...
+# Subtest: A6/B14: supplier payments retain dates, references and excess advances without duplicate cash postings
+ok 6 - A6/B14: supplier payments retain dates, references and excess advances without duplicate cash postings
+  ---
+  duration_ms: 35.1292
+  ...
+# Subtest: A7: one-paisa imbalances fail both journal and trial balance validation
+ok 7 - A7: one-paisa imbalances fail both journal and trial balance validation
+  ---
+  duration_ms: 2.0383
+  ...
+# Subtest: A8: discounted SKU weights allocate paise exactly
+ok 8 - A8: discounted SKU weights allocate paise exactly
+  ---
+  duration_ms: 11.9554
+  ...
+# Subtest: B1: one entered return fee is recorded once and reimbursements never become salvage or loss offsets
+ok 9 - B1: one entered return fee is recorded once and reimbursements never become salvage or loss offsets
+  ---
+  duration_ms: 1.5463
+  ...
+# Subtest: B2: customer shipping revenue offsets recorded logistics and only explicit refunds reduce it
+ok 10 - B2: customer shipping revenue offsets recorded logistics and only explicit refunds reduce it
+  ---
+  duration_ms: 39.781
+  ...
+# Subtest: B3: inclusive and exclusive representations of one invoice produce identical sales and payout
+ok 11 - B3: inclusive and exclusive representations of one invoice produce identical sales and payout
+  ---
+  duration_ms: 67.5519
+  ...
+# Subtest: B4: used/lost returns, RTO costs and salvage follow the same return and order policy
+ok 12 - B4: used/lost returns, RTO costs and salvage follow the same return and order policy
+  ---
+  duration_ms: 134.0901
+  ...
+# Subtest: B5/B6: commission GST changes cash and eligible expense separately; unconfirmed registration grants no credit
+ok 13 - B5/B6: commission GST changes cash and eligible expense separately; unconfirmed registration grants no credit
+  ---
+  duration_ms: 40.8267
+  ...
+# Subtest: B7: webhook fees remain unknown, Shopify shipping is recorded and Woo discounts apply once
+ok 14 - B7: webhook fees remain unknown, Shopify shipping is recorded and Woo discounts apply once
+  ---
+  duration_ms: 3232.967
+  ...
+# Subtest: B8: weight warnings require recorded weights, configured slabs and actual LOGISTICS deductions
+ok 15 - B8: weight warnings require recorded weights, configured slabs and actual LOGISTICS deductions
+  ---
+  duration_ms: 1543.0425
+  ...
+# Subtest: B9/B10/B11: unknown payouts stay in aging, ratios use percentage points and contribution has no net-profit alias
+ok 16 - B9/B10/B11: unknown payouts stay in aging, ratios use percentage points and contribution has no net-profit alias
+  ---
+  duration_ms: 20.5522
+  ...
+# Subtest: B13: statutory warnings use dated rates, separate TCS/TDS, and never block or rewrite amounts
+ok 17 - B13: statutory warnings use dated rates, separate TCS/TDS, and never block or rewrite amounts
+  ---
+  duration_ms: 619.0831
+  ...
+# Subtest: supplier payment snapshots round-trip and old snapshots default to an empty payment history
+ok 18 - supplier payment snapshots round-trip and old snapshots default to an empty payment history
+  ---
+  duration_ms: 1309.5509
+  ...
+# Subtest: ledger and operational outstanding agree after return fees, withholding, GST and recorded claims
+ok 19 - ledger and operational outstanding agree after return fees, withholding, GST and recorded claims
+  ---
+  duration_ms: 15.0418
+  ...
+# Subtest: tax policy is tenant-scoped, dated, snapshotted and used by server-side commission calculations
+ok 20 - tax policy is tenant-scoped, dated, snapshotted and used by server-side commission calculations
+  ---
+  duration_ms: 570.7076
+  ...
+# Subtest: C: cent allocation conserves totals for signed and uneven orders
+ok 21 - C: cent allocation conserves totals for signed and uneven orders
+  ---
+  duration_ms: 3.9955
+  ...
+# Subtest: C: ledger contribution reconciles to report facts across tax bases, quantities and return conditions
+ok 22 - C: ledger contribution reconciles to report facts across tax bases, quantities and return conditions
+  ---
+  duration_ms: 498.1203
+  ...
+# Subtest: production migrations and canonical financial workflows execute against disposable PostgreSQL
+ok 23 - production migrations and canonical financial workflows execute against disposable PostgreSQL
+  ---
+  duration_ms: 25177.8613
+  ...
+# [PlatformStore] Ledger synchronization unavailable.
+# [PlatformStore] Ledger synchronization unavailable.
+# Subtest: display collision cannot reassign another external order or delete its lines
+not ok 24 - display collision cannot reassign another external order or delete its lines
+  ---
+  duration_ms: 4078.9805
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\financial-repair-identity.test.mjs:11:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      assert.ok(sql.includes('ROLLBACK'))
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/financial-repair-identity.test.mjs:22:10)
+    async Test.run (node:internal/test_runner/test:980:9)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: settlement batch has one transaction and rolls back earlier rows on a later failure
+ok 25 - settlement batch has one transaction and rolls back earlier rows on a later failure
+  ---
+  duration_ms: 1220.6549
+  ...
+# Subtest: split records for one batch/order retain distinct IDs and replay the same receipt
+ok 26 - split records for one batch/order retain distinct IDs and replay the same receipt
+  ---
+  duration_ms: 689.4556
+  ...
+# Subtest: settlement API rejects fractional paise and invalid batches before persistence
+ok 27 - settlement API rejects fractional paise and invalid batches before persistence
+  ---
+  duration_ms: 2252.3636
+  ...
+# Subtest: a supplier audit entry survives snapshot validation without losing the books
+ok 28 - a supplier audit entry survives snapshot validation without losing the books
+  ---
+  duration_ms: 1986.423
+  ...
+# Subtest: internal IDs remain distinct at the same clock time
+ok 29 - internal IDs remain distinct at the same clock time
+  ---
+  duration_ms: 64.2138
+  ...
+# Subtest: financial hydration includes records after the 2000 row boundary and rejects incomplete reads
+ok 30 - financial hydration includes records after the 2000 row boundary and rejects incomplete reads
+  ---
+  duration_ms: 121.4429
+  ...
+# Subtest: manual settlement does not enter state when persistence fails, and uses acknowledged ID on success
+not ok 31 - manual settlement does not enter state when persistence fails, and uses acknowledged ID on success
+  ---
+  duration_ms: 2441.7797
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\financial-repair-identity.test.mjs:117:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'id')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/financial-repair-identity.test.mjs:139:39)
+    async Test.run (node:internal/test_runner/test:980:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: actual settlement form retains failed input identity, prevents concurrent save, and invents no bank evidence
+ok 32 - actual settlement form retains failed input identity, prevents concurrent save, and invents no bank evidence
+  ---
+  duration_ms: 3319.5688
+  ...
+# Subtest: period flows retain older order context and recognize receipt, restock and recovery dates independently
+ok 33 - period flows retain older order context and recognize receipt, restock and recovery dates independently
+  ---
+  duration_ms: 64.3267
+  ...
+# Subtest: adjacent periods and event months conserve every monetary P&L flow and gross-to-net bridge
+ok 34 - adjacent periods and event months conserve every monetary P&L flow and gross-to-net bridge
+  ---
+  duration_ms: 138.7996
+  ...
+# Subtest: bank cash includes unmatched and cancelled-order receipts but excludes marketplace finance events
+ok 35 - bank cash includes unmatched and cancelled-order receipts but excludes marketplace finance events
+  ---
+  duration_ms: 5.708
+  ...
+# Subtest: period return rates use matching bounded shipment cohorts even when old returns exceed current shipments
+ok 36 - period return rates use matching bounded shipment cohorts even when old returns exceed current shipments
+  ---
+  duration_ms: 39.7957
+  ...
+# Subtest: SKU return costs and claim recoveries stay on the affected SKU as later returns arrive
+ok 37 - SKU return costs and claim recoveries stay on the affected SKU as later returns arrive
+  ---
+  duration_ms: 75.3105
+  ...
+# Subtest: explicit return claim links and multiple claims allocate once; closing never erases dated recovery
+ok 38 - explicit return claim links and multiple claims allocate once; closing never erases dated recovery
+  ---
+  duration_ms: 12.3808
+  ...
+# Subtest: separate one-paise fee events retain their original SKU allocation across periods
+ok 39 - separate one-paise fee events retain their original SKU allocation across periods
+  ---
+  duration_ms: 32.8716
+  ...
+# Subtest: partial claim recovery events retain their dates and original return/SKU rounding allocations
+ok 40 - partial claim recovery events retain their dates and original return/SKU rounding allocations
+  ---
+  duration_ms: 99.3065
+  ...
+# Subtest: unknown partial-payment receivables remain in aging and radar; known amounts use discounts and partial receipts
+ok 41 - unknown partial-payment receivables remain in aging and radar; known amounts use discounts and partial receipts
+  ---
+  duration_ms: 33.8807
+  ...
+# Subtest: grounded assistant distinguishes contribution and OPEX and does not subtract return costs twice
+ok 42 - grounded assistant distinguishes contribution and OPEX and does not subtract return costs twice
+  ---
+  duration_ms: 28.9416
+  ...
+# Subtest: return radar uses bounded facts and recorded reverse freight once instead of stale raw loss fields
+ok 43 - return radar uses bounded facts and recorded reverse freight once instead of stale raw loss fields
+  ---
+  duration_ms: 10.5776
+  ...
+# Subtest: retained unmapped-source and pending-migration issues survive all-time and dated projections
+ok 44 - retained unmapped-source and pending-migration issues survive all-time and dated projections
+  ---
+  duration_ms: 8.8919
+  ...
+# Subtest: actual Reports view uses full financialContext and reportRange in both exports and shows the complete bridge
+ok 45 - actual Reports view uses full financialContext and reportRange in both exports and shows the complete bridge
+  ---
+  duration_ms: 2422.8539
+  ...
+# Subtest: decimal INR conversion preserves paise and rejects excess precision
+ok 46 - decimal INR conversion preserves paise and rejects excess precision
+  ---
+  duration_ms: 5.5163
+  ...
+# Subtest: shared order-line builder preserves all lines, discounts, taxes, categories, and fulfilment for preview and persistence
+ok 47 - shared order-line builder preserves all lines, discounts, taxes, categories, and fulfilment for preview and persistence
+  ---
+  duration_ms: 3.407
+  ...
+# Subtest: missing rules remain unknown and never resolve to zero
+ok 48 - missing rules remain unknown and never resolve to zero
+  ---
+  duration_ms: 0.9209
+  ...
+# Subtest: quick commission applies 7% half-up to discounted value excluding item tax without permanent rules
+ok 49 - quick commission applies 7% half-up to discounted value excluding item tax without permanent rules
+  ---
+  duration_ms: 43.5019
+  ...
+# Subtest: quick commission replaces all canonical commission components and retains other configured fees
+ok 50 - quick commission replaces all canonical commission components and retains other configured fees
+  ---
+  duration_ms: 4.326
+  ...
+# Subtest: quick rate boundaries use basis points and reject invalid or over-100-percent values
+ok 51 - quick rate boundaries use basis points and reject invalid or over-100-percent values
+  ---
+  duration_ms: 1.2909
+  ...
+# Subtest: order snapshots accept nullable quick rates only as integer basis points from 0 to 10000
+ok 52 - order snapshots accept nullable quick rates only as integer basis points from 0 to 10000
+  ---
+  duration_ms: 153.9019
+  ...
+# Subtest: percentage bases distinguish before-discount, after-discount, and tax-excluded amounts
+ok 53 - percentage bases distinguish before-discount, after-discount, and tax-excluded amounts
+  ---
+  duration_ms: 1.4109
+  ...
+# Subtest: fixed-order applies once and per-unit applies quantity times
+ok 54 - fixed-order applies once and per-unit applies quantity times
+  ---
+  duration_ms: 2.0663
+  ...
+# Subtest: matching uses specificity, half-open price bands, and effective dates
+ok 55 - matching uses specificity, half-open price bands, and effective dates
+  ---
+  duration_ms: 2.1509
+  ...
+# Subtest: equally specific matching rules fail as ambiguous independent of row order
+ok 56 - equally specific matching rules fail as ambiguous independent of row order
+  ---
+  duration_ms: 33.8273
+  ...
+# Subtest: component and tax rounding use half-up integer paise; repeated calculations are identical
+ok 57 - component and tax rounding use half-up integer paise; repeated calculations are identical
+  ---
+  duration_ms: 0.7991
+  ...
+# Subtest: zero-quantity and return-reduced lines preserve nonnegative deterministic totals
+ok 58 - zero-quantity and return-reduced lines preserve nonnegative deterministic totals
+  ---
+  duration_ms: 0.7163
+  ...
+# Subtest: settlement reconciliation keeps absent actual fees unavailable and reports unmatched totals without relabeling them
+ok 59 - settlement reconciliation keeps absent actual fees unavailable and reports unmatched totals without relabeling them
+  ---
+  duration_ms: 1.5472
+  ...
+# Subtest: component reconciliation uses matching names and net-settlement variance preserves credit signs
+ok 60 - component reconciliation uses matching names and net-settlement variance preserves credit signs
+  ---
+  duration_ms: 0.8118
+  ...
+# Subtest: actual fee deductions from multiple settlement batches aggregate once at explicit order scope
+ok 61 - actual fee deductions from multiple settlement batches aggregate once at explicit order scope
+  ---
+  duration_ms: 0.8838
+  ...
+# Subtest: Phase 1 Security & Identity Hardening Test Suite
+    # Subtest: Suite 1: Cryptographic Session Architecture
+        # Subtest: 1.1 session.ts exists and enforces server-only execution
+        ok 1 - 1.1 session.ts exists and enforces server-only execution
+          ---
+          duration_ms: 699.3743
+          ...
+        # Subtest: 1.2 session.ts rejects unsigned x-user-id header spoofing
+        ok 2 - 1.2 session.ts rejects unsigned x-user-id header spoofing
+          ---
+          duration_ms: 2.4549
+          ...
+        # Subtest: 1.3 session.ts rejects unsigned client cookies and default ACC-001 fallback
+        ok 3 - 1.3 session.ts rejects unsigned client cookies and default ACC-001 fallback
+          ---
+          duration_ms: 39.188
+          ...
+        # Subtest: 1.4 Actual verifier rejects an Auth error even when a provider response contains a user
+        ok 4 - 1.4 Actual verifier rejects an Auth error even when a provider response contains a user
+          ---
+          duration_ms: 123.9559
+          ...
+        1..4
+    ok 1 - Suite 1: Cryptographic Session Architecture
+      ---
+      duration_ms: 868.5699
+      type: 'suite'
+      ...
+    # Subtest: Suite 2: Outbound SSRF Guard Defense
+        # Subtest: 2.1 ssrf-guard.ts exists and enforces server-only execution
+        ok 1 - 2.1 ssrf-guard.ts exists and enforces server-only execution
+          ---
+          duration_ms: 45.691
+          ...
+        # Subtest: 2.2 ssrf-guard.ts blocks AWS/GCP/Azure link-local metadata (169.254.169.254)
+        ok 2 - 2.2 ssrf-guard.ts blocks AWS/GCP/Azure link-local metadata (169.254.169.254)
+          ---
+          duration_ms: 74.6702
+          ...
+        # Subtest: 2.3 ssrf-guard.ts blocks RFC 1918 private subnets and loopback
+        ok 3 - 2.3 ssrf-guard.ts blocks RFC 1918 private subnets and loopback
+          ---
+          duration_ms: 73.8133
+          ...
+        # Subtest: 2.4 WooCommerce and Generic sync routes enforce SSRF guard and session auth
+        ok 4 - 2.4 WooCommerce and Generic sync routes enforce SSRF guard and session auth
+          ---
+          duration_ms: 53.7982
+          ...
+        1..4
+    ok 2 - Suite 2: Outbound SSRF Guard Defense
+      ---
+      duration_ms: 249.9036
+      type: 'suite'
+      ...
+    # Subtest: Suite 3: Document Vault & Storage Privacy
+        # Subtest: 3.1 public/uploads directory is purged from static web root
+        ok 1 - 3.1 public/uploads directory is purged from static web root
+          ---
+          duration_ms: 1.8355
+          ...
+        # Subtest: 3.2 private secure vault directory exists outside web root
+        ok 2 - 3.2 private secure vault directory exists outside web root
+          ---
+          duration_ms: 2.4119
+          ...
+        # Subtest: 3.3 upload-bill route saves to secure vault and enforces authentication
+        ok 3 - 3.3 upload-bill route saves to secure vault and enforces authentication
+          ---
+          duration_ms: 30.4182
+          ...
+        # Subtest: 3.4 authenticated document stream route exists and defends against directory traversal
+        ok 4 - 3.4 authenticated document stream route exists and defends against directory traversal
+          ---
+          duration_ms: 36.2955
+          ...
+        1..4
+    ok 3 - Suite 3: Document Vault & Storage Privacy
+      ---
+      duration_ms: 72.3681
+      type: 'suite'
+      ...
+    # Subtest: Suite 4: Auth Hardening & Secret Vault Isolation
+        # Subtest: 4.1 login rejects absent passwords before calling Supabase
+        ok 1 - 4.1 login rejects absent passwords before calling Supabase
+          ---
+          duration_ms: 1884.1985
+          ...
+        # Subtest: 4.2 signup validates passwords and waits for Supabase email confirmation
+        ok 2 - 4.2 signup validates passwords and waits for Supabase email confirmation
+          ---
+          duration_ms: 578.8034
+          ...
+        # Subtest: 4.3 successful Supabase OAuth callbacks reject external redirect targets
+        ok 3 - 4.3 successful Supabase OAuth callbacks reject external redirect targets
+          ---
+          duration_ms: 109.5372
+          ...
+        # Subtest: 4.4 encryption vault forbids hardcoded static key fallbacks in production
+        ok 4 - 4.4 encryption vault forbids hardcoded static key fallbacks in production
+          ---
+          duration_ms: 134.8651
+          ...
+        # Subtest: 4.5 secret vault forbids hardcoded dev webhook secrets in production
+        ok 5 - 4.5 secret vault forbids hardcoded dev webhook secrets in production
+          ---
+          duration_ms: 74.3176
+          ...
+        # Subtest: 4.6 sync routes (Amazon, Flipkart, Shopify) all enforce authenticated merchant sessions
+        ok 6 - 4.6 sync routes (Amazon, Flipkart, Shopify) all enforce authenticated merchant sessions
+          ---
+          duration_ms: 206.665
+          ...
+        1..6
+    ok 4 - Suite 4: Auth Hardening & Secret Vault Isolation
+      ---
+      duration_ms: 2989.9928
+      type: 'suite'
+      ...
+    1..4
+ok 62 - Phase 1 Security & Identity Hardening Test Suite
+  ---
+  duration_ms: 4183.2561
+  type: 'suite'
+  ...
+# Subtest: Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite
+    # Subtest: AI provider keys are isolated by verified owner and the legacy shared vault is discarded
+    ok 1 - AI provider keys are isolated by verified owner and the legacy shared vault is discarded
+      ---
+      duration_ms: 957.6864
+      ...
+    # Subtest: Suite 1: Database DDL & Schema Multi-Tenant Isolation
+        # Subtest: 1.1 Migration file 13_multitenant_isolation.sql exists with user_id columns
+        ok 1 - 1.1 Migration file 13_multitenant_isolation.sql exists with user_id columns
+          ---
+          duration_ms: 4.9159
+          ...
+        # Subtest: 1.2 Composite unique constraints are scoped to user_id
+        ok 2 - 1.2 Composite unique constraints are scoped to user_id
+          ---
+          duration_ms: 3.8014
+          ...
+        # Subtest: 1.3 schema readiness checks are read-only and fail closed
+        ok 3 - 1.3 schema readiness checks are read-only and fail closed
+          ---
+          duration_ms: 4.4552
+          ...
+        # Subtest: 1.4 Supabase direct access defaults to deny for every sensitive table
+        ok 4 - 1.4 Supabase direct access defaults to deny for every sensitive table
+          ---
+          duration_ms: 35.2671
+          ...
+        1..4
+    ok 2 - Suite 1: Database DDL & Schema Multi-Tenant Isolation
+      ---
+      duration_ms: 50.0233
+      type: 'suite'
+      ...
+    # Subtest: Suite 2: Multi-Tenant Persistence Layer
+        # Subtest: 2.1 upsertOrders requires userId parameter and binds it in SQL
+        ok 1 - 2.1 upsertOrders requires userId parameter and binds it in SQL
+          ---
+          duration_ms: 4.7063
+          ...
+        # Subtest: 2.2 upsertSettlements requires userId parameter and binds it in SQL
+        ok 2 - 2.2 upsertSettlements requires userId parameter and binds it in SQL
+          ---
+          duration_ms: 34.622
+          ...
+        # Subtest: 2.3 Linked order lookups in settlements are scoped to tenant
+        ok 3 - 2.3 Linked order lookups in settlements are scoped to tenant
+          ---
+          duration_ms: 3.8578
+          ...
+        1..3
+    ok 3 - Suite 2: Multi-Tenant Persistence Layer
+      ---
+      duration_ms: 44.5197
+      type: 'suite'
+      ...
+    # Subtest: Suite 3: Server-Side Multi-Tenant API Routes
+        # Subtest: 3.1 GET & POST /api/orders enforces session and filters by user_id
+        ok 1 - 3.1 GET & POST /api/orders enforces session and filters by user_id
+          ---
+          duration_ms: 4.9794
+          ...
+        # Subtest: 3.2 GET & POST /api/settlements enforces session and filters by user_id
+        ok 2 - 3.2 GET & POST /api/settlements enforces session and filters by user_id
+          ---
+          duration_ms: 37.6165
+          ...
+        # Subtest: 3.3 GET & POST /api/products enforces session and filters by user_id
+        ok 3 - 3.3 GET & POST /api/products enforces session and filters by user_id
+          ---
+          duration_ms: 3.444
+          ...
+        1..3
+    ok 4 - Suite 3: Server-Side Multi-Tenant API Routes
+      ---
+      duration_ms: 46.7547
+      type: 'suite'
+      ...
+    # Subtest: Suite 4: Client Store Hydration & Single Source of Truth
+        # Subtest: 4.1 store.tsx exposes refreshFromDatabase and isSyncingWithDb in context
+        ok 1 - 4.1 store.tsx exposes refreshFromDatabase and isSyncingWithDb in context
+          ---
+          duration_ms: 43.4398
+          ...
+        # Subtest: 4.2 refreshFromDatabase hydrates complete owner-scoped canonical books atomically
+        ok 2 - 4.2 refreshFromDatabase hydrates complete owner-scoped canonical books atomically
+          ---
+          duration_ms: 5.1186
+          ...
+        # Subtest: 4.3 caches are selected only using verified tenant identity
+        ok 3 - 4.3 caches are selected only using verified tenant identity
+          ---
+          duration_ms: 2.5798
+          ...
+        # Subtest: 4.4 Store action mutations asynchronously persist to backend APIs
+        ok 4 - 4.4 Store action mutations asynchronously persist to backend APIs
+          ---
+          duration_ms: 9.4695
+          ...
+        1..4
+    ok 5 - Suite 4: Client Store Hydration & Single Source of Truth
+      ---
+      duration_ms: 61.2595
+      type: 'suite'
+      ...
+    # Subtest: Suite 5: Actual writer parameter binding with isolated adapters (not PostgreSQL isolation proof)
+        # Subtest: 5.1 Actual order and catalog writers bind each tenant for coincident source identifiers
+        ok 1 - 5.1 Actual order and catalog writers bind each tenant for coincident source identifiers
+          ---
+          duration_ms: 11651.1537
+          ...
+        1..1
+    ok 6 - Suite 5: Actual writer parameter binding with isolated adapters (not PostgreSQL isolation proof)
+      ---
+      duration_ms: 11655.3819
+      type: 'suite'
+      ...
+    1..6
+ok 63 - Phase 2 Database Multi-Tenancy & Single Source of Truth Test Suite
+  ---
+  duration_ms: 12820.2652
+  type: 'suite'
+  ...
+# Subtest: Phase 3 Transactional Persistence, Queues & Financial Ledger Rigor Test Suite
+    # Subtest: Suite 1: Transactional ACID Persistence
+        # Subtest: 1.1 upsertOrders wraps database mutations in BEGIN...COMMIT / ROLLBACK
+        ok 1 - 1.1 upsertOrders wraps database mutations in BEGIN...COMMIT / ROLLBACK
+          ---
+          duration_ms: 4.9677
+          ...
+        # Subtest: 1.2 upsertSettlements wraps database mutations in BEGIN...COMMIT / ROLLBACK
+        ok 2 - 1.2 upsertSettlements wraps database mutations in BEGIN...COMMIT / ROLLBACK
+          ---
+          duration_ms: 5.0283
+          ...
+        # Subtest: 1.3 order-persistence.ts imports and uses connection pool from db.ts
+        ok 3 - 1.3 order-persistence.ts imports and uses connection pool from db.ts
+          ---
+          duration_ms: 2.0686
+          ...
+        1..3
+    ok 1 - Suite 1: Transactional ACID Persistence
+      ---
+      duration_ms: 15.247
+      type: 'suite'
+      ...
+    # Subtest: Suite 2: Resilient Webhook Ingestion & Durable DB Persistence
+        # Subtest: 2.1 WooCommerce webhook captures x-wc-webhook-delivery-id for per-delivery idempotency
+        ok 1 - 2.1 WooCommerce webhook captures x-wc-webhook-delivery-id for per-delivery idempotency
+          ---
+          duration_ms: 34.4481
+          ...
+        # Subtest: 2.2 WooCommerce webhook persists incoming orders directly to PostgreSQL
+        ok 2 - 2.2 WooCommerce webhook persists incoming orders directly to PostgreSQL
+          ---
+          duration_ms: 39.3756
+          ...
+        # Subtest: 2.3 Shopify webhook persists incoming orders directly to PostgreSQL
+        ok 3 - 2.3 Shopify webhook persists incoming orders directly to PostgreSQL
+          ---
+          duration_ms: 5.415
+          ...
+        1..3
+    ok 2 - Suite 2: Resilient Webhook Ingestion & Durable DB Persistence
+      ---
+      duration_ms: 79.9937
+      type: 'suite'
+      ...
+    # Subtest: Suite 3: Financial Ledger Rigor & Heuristic Purge
+        # Subtest: 3.1 Purge 45% COGS heuristic from WooCommerce webhook schema
+        ok 1 - 3.1 Purge 45% COGS heuristic from WooCommerce webhook schema
+          ---
+          duration_ms: 4.3514
+          ...
+        # Subtest: 3.2 Purge 45% COGS heuristic from Shopify webhook schema
+        ok 2 - 3.2 Purge 45% COGS heuristic from Shopify webhook schema
+          ---
+          duration_ms: 2.7532
+          ...
+        # Subtest: 3.3 Purge 45% COGS heuristic from Generic webhook schema
+        ok 3 - 3.3 Purge 45% COGS heuristic from Generic webhook schema
+          ---
+          duration_ms: 23.814
+          ...
+        # Subtest: 3.4 Purge ₹350 fallback from computeReturnFinancials in profitability-engine.ts
+        ok 4 - 3.4 Purge ₹350 fallback from computeReturnFinancials in profitability-engine.ts
+          ---
+          duration_ms: 7.9857
+          ...
+        # Subtest: 3.5 calculateBusinessProfitability accurately computes discounts and netSales
+        ok 5 - 3.5 calculateBusinessProfitability accurately computes discounts and netSales
+          ---
+          duration_ms: 2474.3625
+          ...
+        1..5
+    ok 3 - Suite 3: Financial Ledger Rigor & Heuristic Purge
+      ---
+      duration_ms: 2514.6829
+      type: 'suite'
+      ...
+    # Subtest: Suite 4: Token-Bucket Rate Limiter Defense
+        # Subtest: 4.1 rate-limiter.ts exists and enforces server-only execution
+        ok 1 - 4.1 rate-limiter.ts exists and enforces server-only execution
+          ---
+          duration_ms: 68.3679
+          ...
+        # Subtest: 4.2 Amazon sync route enforces amazonSpApiLimiter
+        ok 2 - 4.2 Amazon sync route enforces amazonSpApiLimiter
+          ---
+          duration_ms: 106.3407
+          ...
+        # Subtest: 4.3 WooCommerce & Generic sync routes enforce marketplaceSyncLimiter
+        ok 3 - 4.3 WooCommerce & Generic sync routes enforce marketplaceSyncLimiter
+          ---
+          duration_ms: 36.3228
+          ...
+        1..3
+    ok 4 - Suite 4: Token-Bucket Rate Limiter Defense
+      ---
+      duration_ms: 211.6703
+      type: 'suite'
+      ...
+    # Subtest: Suite 5: Actual rate limiter and financial engine behavior with synthetic fixtures
+        # Subtest: 5.1 Actual limiter rejects a burst and reports the real retry delay
+        ok 1 - 5.1 Actual limiter rejects a burst and reports the real retry delay
+          ---
+          duration_ms: 110.5074
+          ...
+        # Subtest: 5.2 Actual financial engine recognizes source discounts and never guesses COGS
+        ok 2 - 5.2 Actual financial engine recognizes source discounts and never guesses COGS
+          ---
+          duration_ms: 1573.5597
+          ...
+        1..2
+    ok 5 - Suite 5: Actual rate limiter and financial engine behavior with synthetic fixtures
+      ---
+      duration_ms: 1684.5308
+      type: 'suite'
+      ...
+    1..5
+ok 64 - Phase 3 Transactional Persistence, Queues & Financial Ledger Rigor Test Suite
+  ---
+  duration_ms: 4508.8646
+  type: 'suite'
+  ...
+# Subtest: order persistence recalculates quick commission server-side and snapshots its rate and components
+ok 65 - order persistence recalculates quick commission server-side and snapshots its rate and components
+  ---
+  duration_ms: 4452.6263
+  ...
+# Subtest: order persistence preserves unknown fees when neither rules nor quick rate are present
+ok 66 - order persistence preserves unknown fees when neither rules nor quick rate are present
+  ---
+  duration_ms: 1037.7694
+  ...
+# Subtest: Amazon finance split events have distinct repeatable identities across pages and replays
+ok 67 - Amazon finance split events have distinct repeatable identities across pages and replays
+  ---
+  duration_ms: 2763.903
+  ...
+# Subtest: Amazon exhausts order and item tokens before a single tenant-owned write
+ok 68 - Amazon exhausts order and item tokens before a single tenant-owned write
+  ---
+  duration_ms: 2109.2967
+  ...
+# Subtest: Amazon http item response never manufactures or persists an order
+ok 69 - Amazon http item response never manufactures or persists an order
+  ---
+  duration_ms: 1029.4879
+  ...
+# Subtest: Amazon empty item response never manufactures or persists an order
+ok 70 - Amazon empty item response never manufactures or persists an order
+  ---
+  duration_ms: 994.4695
+  ...
+# Subtest: Amazon malformed item response never manufactures or persists an order
+ok 71 - Amazon malformed item response never manufactures or persists an order
+  ---
+  duration_ms: 1060.0994
+  ...
+# Subtest: Shopify follows same-origin Link pages on the supported version
+ok 72 - Shopify follows same-origin Link pages on the supported version
+  ---
+  duration_ms: 2935.3026
+  ...
+# Subtest: Shopify never forwards tokens to a foreign next-page origin
+ok 73 - Shopify never forwards tokens to a foreign next-page origin
+  ---
+  duration_ms: 1246.1615
+  ...
+# Subtest: WooCommerce exhausts numbered pages with secrets only in Authorization
+ok 74 - WooCommerce exhausts numbered pages with secrets only in Authorization
+  ---
+  duration_ms: 995.2465
+  ...
+# Subtest: a later WooCommerce page failure does not persist or advance the checkpoint
+ok 75 - a later WooCommerce page failure does not persist or advance the checkpoint
+  ---
+  duration_ms: 890.5944
+  ...
+# Subtest: custom connector follows documented next URL and rejects incomplete cursor-only results
+ok 76 - custom connector follows documented next URL and rejects incomplete cursor-only results
+  ---
+  duration_ms: 1289.3016
+  ...
+# Subtest: custom verification rejects 404
+ok 77 - custom verification rejects 404
+  ---
+  duration_ms: 561.8912
+  ...
+# Subtest: custom verification rejects 500
+ok 78 - custom verification rejects 500
+  ---
+  duration_ms: 519.493
+  ...
+# Subtest: custom verification rejects unusable JSON
+ok 79 - custom verification rejects unusable JSON
+  ---
+  duration_ms: 310.988
+  ...
+# Subtest: Amazon token exchange alone does not verify Orders or Finances access
+ok 80 - Amazon token exchange alone does not verify Orders or Finances access
+  ---
+  duration_ms: 948.5487
+  ...
+# Subtest: Flipkart uses shipment contract, follows pages and preserves sibling order items
+ok 81 - Flipkart uses shipment contract, follows pages and preserves sibling order items
+  ---
+  duration_ms: 598.2593
+  ...
+# Subtest: pagination rejects repeated cursors and a bounded incomplete run explicitly
+ok 82 - pagination rejects repeated cursors and a bounded incomplete run explicitly
+  ---
+  duration_ms: 206.3616
+  ...
+# Subtest: OAuth state requires durable storage and atomically binds owner, client, redirect and expiry
+ok 83 - OAuth state requires durable storage and atomically binds owner, client, redirect and expiry
+  ---
+  duration_ms: 67.341
+  ...
+# Subtest: Finances pagination reads its own checkpoint and cannot advance the Orders stream
+ok 84 - Finances pagination reads its own checkpoint and cannot advance the Orders stream
+  ---
+  duration_ms: 244.7747
+  ...
+# Subtest: checkpoint updates persist independent streams under the owner and one active connection guard
+ok 85 - checkpoint updates persist independent streams under the owner and one active connection guard
+  ---
+  duration_ms: 40.2857
+  ...
+# Subtest: Flipkart refresh persists rotated tokens before using the new access token
+ok 86 - Flipkart refresh persists rotated tokens before using the new access token
+  ---
+  duration_ms: 711.3561
+  ...
+# Subtest: Flipkart OAuth callback binds the session and ignores caller credential/redirect overrides
+ok 87 - Flipkart OAuth callback binds the session and ignores caller credential/redirect overrides
+  ---
+  duration_ms: 72.9956
+  ...
+# Subtest: an unbound continuation or single-order finance fetch cannot advance a global checkpoint
+ok 88 - an unbound continuation or single-order finance fetch cannot advance a global checkpoint
+  ---
+  duration_ms: 347.4256
+  ...
+# Subtest: connection screen reuses vaulted credentials after reload without fetching secrets
+ok 89 - connection screen reuses vaulted credentials after reload without fetching secrets
+  ---
+  duration_ms: 1365.2357
+  ...
+# Failed to vault credentials on server: Error: Could not save marketplace connection.
+#     at vaultCredentialsOnServer (C:\\Users\\freak\\Desktop\\Unified platform\\src\\components\\modules\\webhook-simulator.tsx:311:23)
+#     at async Object.handleTestShopifyConnection [as onClick] (C:\\Users\\freak\\Desktop\\Unified platform\\src\\components\\modules\\webhook-simulator.tsx:835:21)
+#     at async TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/remediation-connectors.test.mjs:320:3)
+#     at async Test.run (node:internal/test_runner/test:980:9)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+# Subtest: connection screen does not mark a new connection active when the vault rejects its save
+ok 90 - connection screen does not mark a new connection active when the vault rejects its save
+  ---
+  duration_ms: 418.8319
+  ...
+# Subtest: unpaid delivered revenue is a receivable, never fabricated cash or a fee
+ok 91 - unpaid delivered revenue is a receivable, never fabricated cash or a fee
+  ---
+  duration_ms: 60.4842
+  ...
+# Subtest: configured estimates produce a forecast and actual settlement deductions replace rather than add to estimates
+ok 92 - configured estimates produce a forecast and actual settlement deductions replace rather than add to estimates
+  ---
+  duration_ms: 35.1475
+  ...
+# Subtest: explicit no-rule status ignores any preserved legacy numeric fee and withholds payout
+ok 93 - explicit no-rule status ignores any preserved legacy numeric fee and withholds payout
+  ---
+  duration_ms: 2.5266
+  ...
+# Subtest: percentage and fee estimates never become observed cash
+ok 94 - percentage and fee estimates never become observed cash
+  ---
+  duration_ms: 2.7186
+  ...
+# Subtest: pending and cancelled orders do not recognise revenue or COGS
+ok 95 - pending and cancelled orders do not recognise revenue or COGS
+  ---
+  duration_ms: 78.3309
+  ...
+# Subtest: partial sellable return reverses only returned revenue and COGS despite a stale whole-order status
+ok 96 - partial sellable return reverses only returned revenue and COGS despite a stale whole-order status
+  ---
+  duration_ms: 6.5114
+  ...
+# Subtest: damaged partial return retains damaged cost without refunding all units
+ok 97 - damaged partial return retains damaged cost without refunding all units
+  ---
+  duration_ms: 5.3387
+  ...
+# Subtest: duplicate return records and oversized quantities cannot double-count same-SKU lines
+ok 98 - duplicate return records and oversized quantities cannot double-count same-SKU lines
+  ---
+  duration_ms: 37.9586
+  ...
+# Subtest: actual partial settlements preserve an outstanding balance and do not invent fees
+ok 99 - actual partial settlements preserve an outstanding balance and do not invent fees
+  ---
+  duration_ms: 8.7571
+  ...
+# Subtest: settlements from another marketplace cannot attach by a coincident order ID
+ok 100 - settlements from another marketplace cannot attach by a coincident order ID
+  ---
+  duration_ms: 11.0763
+  ...
+# Subtest: recorded cash and fee refunds retain their signs and duplicate receipts are not summed twice
+ok 101 - recorded cash and fee refunds retain their signs and duplicate receipts are not summed twice
+  ---
+  duration_ms: 3.6982
+  ...
+# Subtest: business, order and SKU totals agree on discounted multi-line partial returns
+ok 102 - business, order and SKU totals agree on discounted multi-line partial returns
+  ---
+  duration_ms: 18.2461
+  ...
+# Subtest: cent allocation is deterministic and reconciles signed totals
+ok 103 - cent allocation is deterministic and reconciles signed totals
+  ---
+  duration_ms: 1.2568
+  ...
+# Subtest: supplier partial payments accumulate against remaining balances and allocate oldest-first
+ok 104 - supplier partial payments accumulate against remaining balances and allocate oldest-first
+  ---
+  duration_ms: 41.4209
+  ...
+# Subtest: ledger recognises discounted goods revenue without an invented 65/35 fee split
+ok 105 - ledger recognises discounted goods revenue without an invented 65/35 fee split
+  ---
+  duration_ms: 8.5641
+  ...
+# Subtest: actual purchase action adds stock exactly once for a repeated bill
+ok 106 - actual purchase action adds stock exactly once for a repeated bill
+  ---
+  duration_ms: 7169.2382
+  ...
+# Subtest: supplier payment action preserves successive allocations and excess in the exported tenant ledger
+ok 107 - supplier payment action preserves successive allocations and excess in the exported tenant ledger
+  ---
+  duration_ms: 3631.7862
+  ...
+# Subtest: purchase modal preserves zero GST and rounds fractional tax to cents
+ok 108 - purchase modal preserves zero GST and rounds fractional tax to cents
+  ---
+  duration_ms: 806.7813
+  ...
+# Subtest: Suppliers view tolerates a catalog product without an assigned supplier
+ok 109 - Suppliers view tolerates a catalog product without an assigned supplier
+  ---
+  duration_ms: 341.0495
+  ...
+# Subtest: tenant caches reject unowned and wrongly labelled snapshots without deleting legacy data
+ok 110 - tenant caches reject unowned and wrongly labelled snapshots without deleting legacy data
+  ---
+  duration_ms: 3150.1729
+  ...
+# Subtest: actual provider clears tenant A on switch to an empty tenant B
+ok 111 - actual provider clears tenant A on switch to an empty tenant B
+  ---
+  duration_ms: 6761.3851
+  ...
+# Subtest: core read APIs return errors during outages instead of successful empty ledgers
+ok 112 - core read APIs return errors during outages instead of successful empty ledgers
+  ---
+  duration_ms: 3658.9772
+  ...
+# Subtest: internal-service account lookup rejects missing accounts and database outages
+ok 113 - internal-service account lookup rejects missing accounts and database outages
+  ---
+  duration_ms: 89.5232
+  ...
+# Subtest: catalog batches roll back if a later product write fails
+ok 114 - catalog batches roll back if a later product write fails
+  ---
+  duration_ms: 1037.1826
+  ...
+# Subtest: vault save and disconnect never report memory success during a database outage
+ok 115 - vault save and disconnect never report memory success during a database outage
+  ---
+  duration_ms: 163.9038
+  ...
+# Subtest: fresh setup applies required migrations without seeding demo data
+ok 116 - fresh setup applies required migrations without seeding demo data
+  ---
+  duration_ms: 10.9521
+  ...
+# Subtest: OCR scopes catalog matching and commits document fields with owner metadata
+ok 117 - OCR scopes catalog matching and commits document fields with owner metadata
+  ---
+  duration_ms: 89.5626
+  ...
+# Subtest: same-SKU order lines remain separate and removed source lines are reconciled
+ok 118 - same-SKU order lines remain separate and removed source lines are reconciled
+  ---
+  duration_ms: 319.0274
+  ...
+# Subtest: F15: live Supabase identity maps only through auth_user_id to the merchant account
+ok 119 - F15: live Supabase identity maps only through auth_user_id to the merchant account
+  ---
+  duration_ms: 1118.8041
+  ...
+# Subtest: F15: an unexpired verified JWT cannot bypass live Supabase revocation across replicas
+ok 120 - F15: an unexpired verified JWT cannot bypass live Supabase revocation across replicas
+  ---
+  duration_ms: 860.0719
+  ...
+# Subtest: F15: deleted accounts and Auth or database outages fail closed
+ok 121 - F15: deleted accounts and Auth or database outages fail closed
+  ---
+  duration_ms: 125.6129
+  ...
+# Subtest: F15: forged headers and obsolete application cookies cannot create a Supabase session
+ok 122 - F15: forged headers and obsolete application cookies cannot create a Supabase session
+  ---
+  duration_ms: 124.5842
+  ...
+# Subtest: F15: missing Auth configuration, missing user IDs, and provider errors with user data fail closed
+ok 123 - F15: missing Auth configuration, missing user IDs, and provider errors with user data fail closed
+  ---
+  duration_ms: 293.984
+  ...
+# Subtest: F15: internal service impersonation requires a configured long secret and exact constant-time key match
+ok 124 - F15: internal service impersonation requires a configured long secret and exact constant-time key match
+  ---
+  duration_ms: 298.0458
+  ...
+# Subtest: F15: actual logout delegates to Supabase and later live checks reject the session
+ok 125 - F15: actual logout delegates to Supabase and later live checks reject the session
+  ---
+  duration_ms: 1921.1672
+  ...
+# Subtest: F15: failed Supabase logout reports failure and keeps the session retryable
+ok 126 - F15: failed Supabase logout reports failure and keeps the session retryable
+  ---
+  duration_ms: 383.816
+  ...
+# Subtest: F15: cross-origin logout rejects before accessing Supabase
+ok 127 - F15: cross-origin logout rejects before accessing Supabase
+  ---
+  duration_ms: 260.5413
+  ...
+# Subtest: F15: actual login authenticates with Supabase and returns its mapped merchant identity
+ok 128 - F15: actual login authenticates with Supabase and returns its mapped merchant identity
+  ---
+  duration_ms: 293.455
+  ...
+# Subtest: F15/F62: every API and workspace template awaits the actual asynchronous verifier
+ok 129 - F15/F62: every API and workspace template awaits the actual asynchronous verifier
+  ---
+  duration_ms: 1824.5646
+  ...
+# Subtest: F63: protected workspace navigation redirects expired sessions without modifying the shell
+ok 130 - F63: protected workspace navigation redirects expired sessions without modifying the shell
+  ---
+  duration_ms: 104.5786
+  ...
+# Subtest: F21: job records require durable PostgreSQL and never fall back to simulated success
+ok 131 - F21: job records require durable PostgreSQL and never fall back to simulated success
+  ---
+  duration_ms: 1209.9972
+  ...
+# Subtest: F21: durable enqueue scopes ownership and stores bounded retry/idempotency settings
+ok 132 - F21: durable enqueue scopes ownership and stores bounded retry/idempotency settings
+  ---
+  duration_ms: 64.1273
+  ...
+# Subtest: F21: worker claims atomically, supplies stable idempotency, and persists processor result
+ok 133 - F21: worker claims atomically, supplies stable idempotency, and persists processor result
+  ---
+  duration_ms: 150.5601
+  ...
+# Subtest: F21: processor failures retry with backoff and only fail after the configured attempt limit
+ok 134 - F21: processor failures retry with backoff and only fail after the configured attempt limit
+  ---
+  duration_ms: 81.073
+  ...
+# Subtest: OAuth-only accounts cannot obtain password sessions
+ok 135 - OAuth-only accounts cannot obtain password sessions
+  ---
+  duration_ms: 3596.6846
+  ...
+# Subtest: password hashes verify safely and legacy hashes remain upgradeable
+ok 136 - password hashes verify safely and legacy hashes remain upgradeable
+  ---
+  duration_ms: 3483.654
+  ...
+# Subtest: OAuth callback rejects missing authorization codes before accessing Auth or account storage
+ok 137 - OAuth callback rejects missing authorization codes before accessing Auth or account storage
+  ---
+  duration_ms: 94.5451
+  ...
+# Subtest: OAuth callback refuses failed Supabase PKCE exchanges before mapping a merchant
+ok 138 - OAuth callback refuses failed Supabase PKCE exchanges before mapping a merchant
+  ---
+  duration_ms: 118.3955
+  ...
+# Subtest: invoice extraction refuses unknown providers rather than reusing server keys
+ok 139 - invoice extraction refuses unknown providers rather than reusing server keys
+  ---
+  duration_ms: 864.212
+  ...
+# Subtest: public health executes only a constant query and hides internal errors
+ok 140 - public health executes only a constant query and hides internal errors
+  ---
+  duration_ms: 46.789
+  ...
+# Subtest: merchant document directories are distinct and contain no raw user paths
+ok 141 - merchant document directories are distinct and contain no raw user paths
+  ---
+  duration_ms: 43.0641
+  ...
+# Subtest: document stream cannot read another owner directory
+ok 142 - document stream cannot read another owner directory
+  ---
+  duration_ms: 217.8845
+  ...
+# Subtest: anonymous AI and jobs requests are rejected before side effects
+ok 143 - anonymous AI and jobs requests are rejected before side effects
+  ---
+  duration_ms: 1551.1947
+  ...
+# Subtest: job listing and cancellation enforce owner identity
+ok 144 - job listing and cancellation enforce owner identity
+  ---
+  duration_ms: 116.2136
+  ...
+# Subtest: Shopify domains reject suffix, path, credentials, scheme and IP tricks
+ok 145 - Shopify domains reject suffix, path, credentials, scheme and IP tricks
+  ---
+  duration_ms: 60.5552
+  ...
+# Subtest: outbound guard blocks private IPv4 and mapped IPv6 without network access
+ok 146 - outbound guard blocks private IPv4 and mapped IPv6 without network access
+  ---
+  duration_ms: 134.4879
+  ...
+# Subtest: request limits reject chunked oversize and malformed JSON
+ok 147 - request limits reject chunked oversize and malformed JSON
+  ---
+  duration_ms: 50.5322
+  ...
+# Subtest: outbound transport pins validated DNS and refuses redirects
+ok 148 - outbound transport pins validated DNS and refuses redirects
+  ---
+  duration_ms: 196.5794
+  ...
+# Subtest: processing budgets and cross-origin rejection run before provider calls
+ok 149 - processing budgets and cross-origin rejection run before provider calls
+  ---
+  duration_ms: 123.4962
+  ...
+# Subtest: webhook owner cannot be selected using user_id or a wrong routing key
+ok 150 - webhook owner cannot be selected using user_id or a wrong routing key
+  ---
+  duration_ms: 161.4987
+  ...
+# Subtest: failed order writes reject instead of counting imports
+ok 151 - failed order writes reject instead of counting imports
+  ---
+  duration_ms: 1629.7981
+  ...
+# Subtest: webhook failure rolls back the receipt and releases its transaction
+ok 152 - webhook failure rolls back the receipt and releases its transaction
+  ---
+  duration_ms: 28.9935
+  ...
+# Subtest: F48: inserts do not shift indexes for subsequent updates or repeated batch identities
+ok 153 - F48: inserts do not shift indexes for subsequent updates or repeated batch identities
+  ---
+  duration_ms: 6.6415
+  ...
+# Subtest: F48: marketplace scopes external identities and immutable line costs survive updates
+ok 154 - F48: marketplace scopes external identities and immutable line costs survive updates
+  ---
+  duration_ms: 1.007
+  ...
+# Subtest: F48: separate receipts on an order remain distinct; a later update targets only its receipt
+ok 155 - F48: separate receipts on an order remain distinct; a later update targets only its receipt
+  ---
+  duration_ms: 1.4596
+  ...
+# Subtest: F49: absent and malformed unit prices, quantities and dates fail without invented financials
+ok 156 - F49: absent and malformed unit prices, quantities and dates fail without invented financials
+  ---
+  duration_ms: 19.929
+  ...
+# Subtest: F49: a legitimate zero price and zero tax survive; dates and IDs are repeatable
+ok 157 - F49: a legitimate zero price and zero tax survive; dates and IDs are repeatable
+  ---
+  duration_ms: 6.4148
+  ...
+# Subtest: F49: multi-line orders group; repeated rows do not duplicate units; explicit same-SKU line IDs remain separate
+ok 158 - F49: multi-line orders group; repeated rows do not duplicate units; explicit same-SKU line IDs remain separate
+  ---
+  duration_ms: 2.0233
+  ...
+# Subtest: F49: conflicting duplicate lines and settlement payouts are rejected as sales
+ok 159 - F49: conflicting duplicate lines and settlement payouts are rejected as sales
+  ---
+  duration_ms: 34.5483
+  ...
+# Subtest: F49: historical imports use the cost valid on the order date
+ok 160 - F49: historical imports use the cost valid on the order date
+  ---
+  duration_ms: 3.7826
+  ...
+# Subtest: F49: multiple files consolidate lines but reject contradictory prices and quantities
+ok 161 - F49: multiple files consolidate lines but reject contradictory prices and quantities
+  ---
+  duration_ms: 4.4778
+  ...
+# Subtest: F52: aging includes partial balances, honors marketplace and recognizes no guessed fees
+ok 162 - F52: aging includes partial balances, honors marketplace and recognizes no guessed fees
+  ---
+  duration_ms: 14.6716
+  ...
+# Subtest: F52: aging uses return units and excludes future orders
+ok 163 - F52: aging uses return units and excludes future orders
+  ---
+  duration_ms: 9.0246
+  ...
+# Subtest: F52: business date observes India midnight and report channel matching is exact
+ok 164 - F52: business date observes India midnight and report channel matching is exact
+  ---
+  duration_ms: 89.9236
+  ...
+# Subtest: F54: valid snapshots pass; foreign, partial, wrong-version and malformed domain data fail atomically
+ok 165 - F54: valid snapshots pass; foreign, partial, wrong-version and malformed domain data fail atomically
+  ---
+  duration_ms: 60.2753
+  ...
+# Subtest: F54: prototype keys, numeric strings and oversized snapshots are rejected
+ok 166 - F54: prototype keys, numeric strings and oversized snapshots are rejected
+  ---
+  duration_ms: 1.7948
+  ...
+# Subtest: F55: CSV round-trips commas, quotes, CR/LF and formula-like text safely
+ok 167 - F55: CSV round-trips commas, quotes, CR/LF and formula-like text safely
+  ---
+  duration_ms: 46.4921
+  ...
+# Subtest: F47: order archival recovers cascade records and exact inventory, including repeated-SKU lines
+ok 168 - F47: order archival recovers cascade records and exact inventory, including repeated-SKU lines
+  ---
+  duration_ms: 31.3719
+  ...
+# Subtest: F47: return archival removes only linked claims; restock reversal is exact and cannot silently clamp stock
+ok 169 - F47: return archival removes only linked claims; restock reversal is exact and cannot silently clamp stock
+  ---
+  duration_ms: 12.165
+  ...
+# Subtest: F47: later edits and SKU collisions prevent recovery from overwriting newer state
+ok 170 - F47: later edits and SKU collisions prevent recovery from overwriting newer state
+  ---
+  duration_ms: 38.7064
+  ...
+# Subtest: F47: SQL scope, expiry, row lock and failed recovery keep receipt unconsumed
+ok 171 - F47: SQL scope, expiry, row lock and failed recovery keep receipt unconsumed
+  ---
+  duration_ms: 2746.7711
+  ...
+# Subtest: F47: archive write failure rolls back relational changes and never reports success
+ok 172 - F47: archive write failure rolls back relational changes and never reports success
+  ---
+  duration_ms: 1303.4941
+  ...
+# Subtest: F47/F49: unauthenticated routes reject before database or parser work
+ok 173 - F47/F49: unauthenticated routes reject before database or parser work
+  ---
+  duration_ms: 2098.3615
+  ...
+# Subtest: F49: actual upload ignores caller counts, commits orders and audit on the same connection
+ok 174 - F49: actual upload ignores caller counts, commits orders and audit on the same connection
+  ---
+  duration_ms: 308.5584
+  ...
+# Subtest: F57: landing acquisition routes to real login without a fabricated session or contact success
+ok 175 - F57: landing acquisition routes to real login without a fabricated session or contact success
+  ---
+  duration_ms: 2.2095
+  ...
+# Subtest: F54: actual provider leaves every collection untouched on a rejected snapshot and exports owner binding
+ok 176 - F54: actual provider leaves every collection untouched on a rejected snapshot and exports owner binding
+  ---
+  duration_ms: 1427.6994
+  ...
+# Subtest: F48/F49: actual provider rejects failed saves, uses canonical IDs and deduplicates consecutive imports
+ok 177 - F48/F49: actual provider rejects failed saves, uses canonical IDs and deduplicates consecutive imports
+  ---
+  duration_ms: 1568.7972
+  ...
+# Subtest: F22/F40: product creation waits for server acknowledgement before updating local state
+ok 178 - F22/F40: product creation waits for server acknowledgement before updating local state
+  ---
+  duration_ms: 1217.5719
+  ...
+# Subtest: F47: failed archival leaves actual provider inventory and records untouched
+ok 179 - F47: failed archival leaves actual provider inventory and records untouched
+  ---
+  duration_ms: 1128.2029
+  ...
+# Subtest: F51: restocking is idempotent and missing products remain pending
+ok 180 - F51: restocking is idempotent and missing products remain pending
+  ---
+  duration_ms: 1259.4091
+  ...
+# Subtest: F47: canonical recovered records retain tenant-scoped identities and numeric amounts
+ok 181 - F47: canonical recovered records retain tenant-scoped identities and numeric amounts
+  ---
+  duration_ms: 19.2016
+  ...
+# Subtest: F47: actual relational recovery refuses a conflicting stock balance before any write
+ok 182 - F47: actual relational recovery refuses a conflicting stock balance before any write
+  ---
+  duration_ms: 488.0191
+  ...
+# Subtest: F52/F55: actual Reports view and both export tabs use only the scoped dataset
+ok 183 - F52/F55: actual Reports view and both export tabs use only the scoped dataset
+  ---
+  duration_ms: 493.433
+  ...
+# Subtest: settlement API reports cumulative actual fees with explicit order scope across batches
+ok 184 - settlement API reports cumulative actual fees with explicit order scope across batches
+  ---
+  duration_ms: 4634.1277
+  ...
+# Subtest: Store Integration Phase 1 Verification Suite
+    # Subtest: TASK-1.1: Purge Amazon Mock Fallback
+        # Subtest: Amazon sync route has zero sampleProducts or synthetic orders
+        ok 1 - Amazon sync route has zero sampleProducts or synthetic orders
+          ---
+          duration_ms: 106.6762
+          ...
+        # Subtest: Amazon sync route handles zero orders without synthetic fallback
+        ok 2 - Amazon sync route handles zero orders without synthetic fallback
+          ---
+          duration_ms: 60.4279
+          ...
+        # Subtest: Amazon sync route returns explicit AMAZON_SYNC_FAILED on LWA or SP-API failures
+        ok 3 - Amazon sync route returns explicit AMAZON_SYNC_FAILED on LWA or SP-API failures
+          ---
+          duration_ms: 40.766
+          ...
+        1..3
+    ok 1 - TASK-1.1: Purge Amazon Mock Fallback
+      ---
+      duration_ms: 210.6359
+      type: 'suite'
+      ...
+    # Subtest: TASK-1.2: Purge Meesho Mock Fallback & Fake Verification
+        # Subtest: Meesho sync route has zero sampleProducts or mock generators
+        ok 1 - Meesho sync route has zero sampleProducts or mock generators
+          ---
+          duration_ms: 8.9374
+          ...
+        # Subtest: Meesho sync route returns HTTP 501 MEESHO_API_ACCESS_UNAVAILABLE and instructs CSV/XLSX import
+        ok 2 - Meesho sync route returns HTTP 501 MEESHO_API_ACCESS_UNAVAILABLE and instructs CSV/XLSX import
+          ---
+          duration_ms: 15.824
+          ...
+        1..2
+    ok 2 - TASK-1.2: Purge Meesho Mock Fallback & Fake Verification
+      ---
+      duration_ms: 25.3056
+      type: 'suite'
+      ...
+    # Subtest: TASK-1.3: Purge Myntra Mock Fallback & Fake Verification
+        # Subtest: Myntra sync route has zero sampleProducts or mock generators
+        ok 1 - Myntra sync route has zero sampleProducts or mock generators
+          ---
+          duration_ms: 6.2797
+          ...
+        # Subtest: Myntra sync route returns HTTP 501 MYNTRA_PPMP_ACCESS_UNAVAILABLE and instructs settlement sheet upload
+        ok 2 - Myntra sync route returns HTTP 501 MYNTRA_PPMP_ACCESS_UNAVAILABLE and instructs settlement sheet upload
+          ---
+          duration_ms: 3.167
+          ...
+        1..2
+    ok 3 - TASK-1.3: Purge Myntra Mock Fallback & Fake Verification
+      ---
+      duration_ms: 40.8009
+      type: 'suite'
+      ...
+    # Subtest: TASK-1.4: Purge Flipkart Mock Fallbacks & Fix Error Boundaries
+        # Subtest: Flipkart sync route has zero hardcoded 45% cost assumptions
+        ok 1 - Flipkart sync route has zero hardcoded 45% cost assumptions
+          ---
+          duration_ms: 35.7414
+          ...
+        # Subtest: Flipkart sync route enforces explicit 401/502 error codes
+        ok 2 - Flipkart sync route enforces explicit 401/502 error codes
+          ---
+          duration_ms: 82.5494
+          ...
+        1..2
+    ok 4 - TASK-1.4: Purge Flipkart Mock Fallbacks & Fix Error Boundaries
+      ---
+      duration_ms: 119.4189
+      type: 'suite'
+      ...
+    # Subtest: TASK-1.5: Standardized Error Envelope Across All Endpoints
+        # Subtest: Standardized error helper exists and implements envelope schema
+        ok 1 - Standardized error helper exists and implements envelope schema
+          ---
+          duration_ms: 50.3296
+          ...
+        # Subtest: All marketplace sync routes import and utilize standardized marketplaceError
+        ok 2 - All marketplace sync routes import and utilize standardized marketplaceError
+          ---
+          duration_ms: 21.5333
+          ...
+        1..2
+    ok 5 - TASK-1.5: Standardized Error Envelope Across All Endpoints
+      ---
+      duration_ms: 74.2489
+      type: 'suite'
+      ...
+    1..5
+ok 185 - Store Integration Phase 1 Verification Suite
+  ---
+  duration_ms: 475.499
+  type: 'suite'
+  ...
+# [Security Warning] No ENCRYPTION_MASTER_KEY configured. Generated ephemeral 256-bit AES key for development.
+# [Security Warning] No ENCRYPTION_MASTER_KEY configured. Generated ephemeral 256-bit AES key for development.
+# Subtest: Store Integration Phase 2 Verification Suite
+    # Subtest: TASK-2.1: Database Schema Migration for Marketplace Connections
+        # Subtest: Migration script database/09_marketplace_connections.sql exists with required tables
+        ok 1 - Migration script database/09_marketplace_connections.sql exists with required tables
+          ---
+          duration_ms: 102.5074
+          ...
+        # Subtest: src/lib/db.ts exports a cached read-only readiness check and never migrates on requests
+        ok 2 - src/lib/db.ts exports a cached read-only readiness check and never migrates on requests
+          ---
+          duration_ms: 3.4592
+          ...
+        1..2
+    ok 1 - TASK-2.1: Database Schema Migration for Marketplace Connections
+      ---
+      duration_ms: 108.9153
+      type: 'suite'
+      ...
+    # Subtest: TASK-2.2: Server-Side AES-256-GCM Encryption Vault
+        # Subtest: src/lib/security/encryption.ts implements client-side bundle barrier
+        ok 1 - src/lib/security/encryption.ts implements client-side bundle barrier
+          ---
+          duration_ms: 4.6473
+          ...
+        # Subtest: AES-256-GCM encryptPayload and decryptPayload round-trip successfully
+        ok 2 - AES-256-GCM encryptPayload and decryptPayload round-trip successfully
+          ---
+          duration_ms: 643.1735
+          ...
+        # Subtest: Tampered ciphertext fails authentication check
+        ok 3 - Tampered ciphertext fails authentication check
+          ---
+          duration_ms: 131.4313
+          ...
+        1..3
+    ok 2 - TASK-2.2: Server-Side AES-256-GCM Encryption Vault
+      ---
+      duration_ms: 780.3692
+      type: 'suite'
+      ...
+    # Subtest: TASK-2.3: Purge Secrets from Browser localStorage
+        # Subtest: saveChannelCredentials in webhook-simulator.tsx strictly strips secrets
+        ok 1 - saveChannelCredentials in webhook-simulator.tsx strictly strips secrets
+          ---
+          duration_ms: 41.7713
+          ...
+        # Subtest: webhook-simulator.tsx cleanses legacy secrets from localStorage on mount
+        ok 2 - webhook-simulator.tsx cleanses legacy secrets from localStorage on mount
+          ---
+          duration_ms: 56.5633
+          ...
+        1..2
+    ok 3 - TASK-2.3: Purge Secrets from Browser localStorage
+      ---
+      duration_ms: 118.6893
+      type: 'suite'
+      ...
+    # Subtest: TASK-2.4 & 2.5: Server Connection Management & Multi-Tenant Query Isolation
+        # Subtest: src/app/api/integrations/connections/route.ts exports GET, POST, DELETE handlers
+        ok 1 - src/app/api/integrations/connections/route.ts exports GET, POST, DELETE handlers
+          ---
+          duration_ms: 44.6844
+          ...
+        # Subtest: marketplace-vault.ts strictly enforces multi-tenant query isolation (WHERE user_id = $1)
+        ok 2 - marketplace-vault.ts strictly enforces multi-tenant query isolation (WHERE user_id = $1)
+          ---
+          duration_ms: 4.4306
+          ...
+        # Subtest: Sync routes (Amazon, Flipkart, Shopify, WooCommerce) resolve credentials from server vault
+        ok 3 - Sync routes (Amazon, Flipkart, Shopify, WooCommerce) resolve credentials from server vault
+          ---
+          duration_ms: 132.6812
+          ...
+        1..3
+    ok 4 - TASK-2.4 & 2.5: Server Connection Management & Multi-Tenant Query Isolation
+      ---
+      duration_ms: 182.9097
+      type: 'suite'
+      ...
+    1..4
+ok 186 - Store Integration Phase 2 Verification Suite
+  ---
+  duration_ms: 1196.8518
+  type: 'suite'
+  ...
+# Subtest: Store Integration Phase 3 Verification Suite
+    # Subtest: TASK-3.1: Current Orders SP-API Endpoint & India Region
+        # Subtest: Amazon sync route targets SP-API EU endpoint with India Marketplace ID A21TJRUUN4KGV
+        ok 1 - Amazon sync route targets SP-API EU endpoint with India Marketplace ID A21TJRUUN4KGV
+          ---
+          duration_ms: 79.1026
+          ...
+        # Subtest: Zero Client-Side Master Secrets: Retrieves vaulted credentials server-side
+        ok 2 - Zero Client-Side Master Secrets: Retrieves vaulted credentials server-side
+          ---
+          duration_ms: 44.3911
+          ...
+        1..2
+    ok 1 - TASK-3.1: Current Orders SP-API Endpoint & India Region
+      ---
+      duration_ms: 126.4748
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.2: Map Authentic Multi-Line Order Items & Zero Cost Guesswork
+        # Subtest: Order items fetch queries genuine SP-API orderItems endpoint or embedded payload
+        ok 1 - Order items fetch queries genuine SP-API orderItems endpoint or embedded payload
+          ---
+          duration_ms: 79.8394
+          ...
+        # Subtest: Financial Invariant: snapshotUnitCost is locked to 0 (no synthetic cost guesswork)
+        ok 2 - Financial Invariant: snapshotUnitCost is locked to 0 (no synthetic cost guesswork)
+          ---
+          duration_ms: 32.6831
+          ...
+        # Subtest: Order status mapping handles standard Amazon lifecycle states
+        ok 3 - Order status mapping handles standard Amazon lifecycle states
+          ---
+          duration_ms: 60.6525
+          ...
+        1..3
+    ok 2 - TASK-3.2: Map Authentic Multi-Line Order Items & Zero Cost Guesswork
+      ---
+      duration_ms: 174.3477
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.3: Cursor-Based Pagination & Overlap Window
+        # Subtest: Supports NextToken pagination parameter and extracts nextToken from response
+        ok 1 - Supports NextToken pagination parameter and extracts nextToken from response
+          ---
+          duration_ms: 4.7563
+          ...
+        # Subtest: Calculates 48-hour bounded overlap window on LastUpdatedAfter when lastSyncedAt exists
+        ok 2 - Calculates 48-hour bounded overlap window on LastUpdatedAfter when lastSyncedAt exists
+          ---
+          duration_ms: 5.7467
+          ...
+        1..2
+    ok 3 - TASK-3.3: Cursor-Based Pagination & Overlap Window
+      ---
+      duration_ms: 11.7736
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.4: Build Separate Amazon Finances Ingestion
+        # Subtest: Route src/app/api/integrations/amazon/finances/route.ts exists and queries SP-API finances
+        ok 1 - Route src/app/api/integrations/amazon/finances/route.ts exists and queries SP-API finances
+          ---
+          duration_ms: 4.159
+          ...
+        # Subtest: Finances route itemizes authentic deductions (Referral, Closing, Weight Handling, TCS, TDS)
+        ok 2 - Finances route itemizes authentic deductions (Referral, Closing, Weight Handling, TCS, TDS)
+          ---
+          duration_ms: 3.1694
+          ...
+        # Subtest: Finances projections preserve signed finance evidence without asserting bank receipt
+        ok 3 - Finances projections preserve signed finance evidence without asserting bank receipt
+          ---
+          duration_ms: 4.6408
+          ...
+        1..3
+    ok 4 - TASK-3.4: Build Separate Amazon Finances Ingestion
+      ---
+      duration_ms: 39.7502
+      type: 'suite'
+      ...
+    # Subtest: TASK-3.5: Atomic Database Upsert for Ingested Orders and Settlements
+        # Subtest: Migration database/10_orders_idempotency.sql creates unique idempotency indexes
+        ok 1 - Migration database/10_orders_idempotency.sql creates unique idempotency indexes
+          ---
+          duration_ms: 90.8551
+          ...
+        # Subtest: src/lib/integrations/order-persistence.ts implements upsertOrders with ON CONFLICT DO UPDATE
+        ok 2 - src/lib/integrations/order-persistence.ts implements upsertOrders with ON CONFLICT DO UPDATE
+          ---
+          duration_ms: 28.4716
+          ...
+        # Subtest: Order items updates respect immutable snapshot_unit_cost invariant (Trigger 2)
+        ok 3 - Order items updates respect immutable snapshot_unit_cost invariant (Trigger 2)
+          ---
+          duration_ms: 2.174
+          ...
+        # Subtest: src/lib/integrations/order-persistence.ts implements upsertSettlements
+        ok 4 - src/lib/integrations/order-persistence.ts implements upsertSettlements
+          ---
+          duration_ms: 1.8803
+          ...
+        1..4
+    ok 5 - TASK-3.5: Atomic Database Upsert for Ingested Orders and Settlements
+      ---
+      duration_ms: 123.979
+      type: 'suite'
+      ...
+    # Subtest: Store Context Integration
+        # Subtest: src/domain/store.tsx provides syncExternalSettlements with audit logging
+        ok 1 - src/domain/store.tsx provides syncExternalSettlements with audit logging
+          ---
+          duration_ms: 4.2948
+          ...
+        1..1
+    ok 6 - Store Context Integration
+      ---
+      duration_ms: 4.6039
+      type: 'suite'
+      ...
+    1..6
+ok 187 - Store Integration Phase 3 Verification Suite
+  ---
+  duration_ms: 498.0704
+  type: 'suite'
+  ...
+# Subtest: Store Integration Phase 4 Verification Suite
+    # Subtest: TASK-4.1: Retain Self-Access for Internal Developer Staging
+        # Subtest: marketplace-vault.ts assigns auth_type = SELF_ACCESS when appId and appSecret are provided
+        ok 1 - marketplace-vault.ts assigns auth_type = SELF_ACCESS when appId and appSecret are provided
+          ---
+          duration_ms: 4.6911
+          ...
+        # Subtest: Flipkart sync route supports Developer Self-Access staging authentication
+        ok 2 - Flipkart sync route supports Developer Self-Access staging authentication
+          ---
+          duration_ms: 28.7324
+          ...
+        1..2
+    ok 1 - TASK-4.1: Retain Self-Access for Internal Developer Staging
+      ---
+      duration_ms: 36.1644
+      type: 'suite'
+      ...
+    # Subtest: TASK-4.2: Implement Flipkart OAuth 2.0 Connect Route
+        # Subtest: src/app/api/integrations/flipkart/connect/route.ts exists and handles GET and POST
+        ok 1 - src/app/api/integrations/flipkart/connect/route.ts exists and handles GET and POST
+          ---
+          duration_ms: 84.3096
+          ...
+        # Subtest: Generates cryptographically secure state nonce and binds to merchant user_id with 10-minute expiry
+        ok 2 - Generates cryptographically secure state nonce and binds to merchant user_id with 10-minute expiry
+          ---
+          duration_ms: 105.427
+          ...
+        1..2
+    ok 2 - TASK-4.2: Implement Flipkart OAuth 2.0 Connect Route
+      ---
+      duration_ms: 190.5744
+      type: 'suite'
+      ...
+    # Subtest: TASK-4.3: Implement Flipkart OAuth 2.0 Callback Route
+        # Subtest: src/app/api/integrations/flipkart/callback/route.ts exists and enforces CSRF verification
+        ok 1 - src/app/api/integrations/flipkart/callback/route.ts exists and enforces CSRF verification
+          ---
+          duration_ms: 34.4017
+          ...
+        # Subtest: Exchanges authorization code for access & refresh tokens via server-to-server POST
+        ok 2 - Exchanges authorization code for access & refresh tokens via server-to-server POST
+          ---
+          duration_ms: 52.9397
+          ...
+        1..2
+    ok 3 - TASK-4.3: Implement Flipkart OAuth 2.0 Callback Route
+      ---
+      duration_ms: 89.4763
+      type: 'suite'
+      ...
+    # Subtest: TASK-4.4: Upgrade Flipkart Sync Mapping & Invariant Protection
+        # Subtest: Flipkart sync route reads vaulted tokens from DB and supports two-track auth
+        ok 1 - Flipkart sync route reads vaulted tokens from DB and supports two-track auth
+          ---
+          duration_ms: 27.1671
+          ...
+        # Subtest: Maps genuine orderItems, fsn, sku, and real priceComponents
+        ok 2 - Maps genuine orderItems, fsn, sku, and real priceComponents
+          ---
+          duration_ms: 4.4449
+          ...
+        # Subtest: Strict Financial Invariant: Locks snapshotUnitCost to 0 (no flat 45% or 14% guesswork)
+        ok 3 - Strict Financial Invariant: Locks snapshotUnitCost to 0 (no flat 45% or 14% guesswork)
+          ---
+          duration_ms: 41.2002
+          ...
+        # Subtest: Atomically upserts orders into PostgreSQL and writes to financial_audit_logs
+        ok 4 - Atomically upserts orders into PostgreSQL and writes to financial_audit_logs
+          ---
+          duration_ms: 6.5384
+          ...
+        1..4
+    ok 4 - TASK-4.4: Upgrade Flipkart Sync Mapping & Invariant Protection
+      ---
+      duration_ms: 80.4818
+      type: 'suite'
+      ...
+    # Subtest: CSRF State Security & Schema Migration
+        # Subtest: Migration database/11_oauth_states.sql defines oauth_states table
+        ok 1 - Migration database/11_oauth_states.sql defines oauth_states table
+          ---
+          duration_ms: 25.6986
+          ...
+        # Subtest: oauth-state.ts enforces single-use consumption and rejects expired states
+        ok 2 - oauth-state.ts enforces single-use consumption and rejects expired states
+          ---
+          duration_ms: 474.0127
+          ...
+        # Subtest: oauth-state.ts rejects expired state nonces
+        ok 3 - oauth-state.ts rejects expired state nonces
+          ---
+          duration_ms: 110.1073
+          ...
+        1..3
+    ok 5 - CSRF State Security & Schema Migration
+      ---
+      duration_ms: 610.3173
+      type: 'suite'
+      ...
+    1..5
+ok 188 - Store Integration Phase 4 Verification Suite
+  ---
+  duration_ms: 1022.3841
+  type: 'suite'
+  ...
+# Subtest: Store Integration Phase 5 Verification Suite
+    # Subtest: TASK-5.1: Wire Meesho Directly to Official Report Import
+        # Subtest: src/domain/csv-auto-mapper.ts includes MEESHO_SETTLEMENT and MEESHO_GST presets
+        ok 1 - src/domain/csv-auto-mapper.ts includes MEESHO_SETTLEMENT and MEESHO_GST presets
+          ---
+          duration_ms: 33.0006
+          ...
+        # Subtest: WebhookSimulator sets Meesho defaultTab to "csv" with official supplier report description
+        ok 2 - WebhookSimulator sets Meesho defaultTab to "csv" with official supplier report description
+          ---
+          duration_ms: 23.1035
+          ...
+        1..2
+    ok 1 - TASK-5.1: Wire Meesho Directly to Official Report Import
+      ---
+      duration_ms: 59.0525
+      type: 'suite'
+      ...
+    # Subtest: TASK-5.2: Wire Myntra to Vendor Report Ingestion
+        # Subtest: src/domain/csv-auto-mapper.ts includes MYNTRA_SETTLEMENT and MYNTRA_ORDERS presets
+        ok 1 - src/domain/csv-auto-mapper.ts includes MYNTRA_SETTLEMENT and MYNTRA_ORDERS presets
+          ---
+          duration_ms: 1665.537
+          ...
+        # Subtest: WebhookSimulator sets Myntra defaultTab to "csv" with vendor settlement sheet description
+        ok 2 - WebhookSimulator sets Myntra defaultTab to "csv" with vendor settlement sheet description
+          ---
+          duration_ms: 5.6792
+          ...
+        # Subtest: Myntra sync route exists and handles PPMP API activation when keys are provided
+        ok 3 - Myntra sync route exists and handles PPMP API activation when keys are provided
+          ---
+          duration_ms: 2.0677
+          ...
+        1..3
+    ok 2 - TASK-5.2: Wire Myntra to Vendor Report Ingestion
+      ---
+      duration_ms: 1674.0527
+      type: 'suite'
+      ...
+    # Subtest: TASK-5.3: Retain Full File Audit Metadata & Zero Financial Guesswork
+        # Subtest: database/12_file_import_audit.sql defines file_import_logs table with required columns
+        ok 1 - database/12_file_import_audit.sql defines file_import_logs table with required columns
+          ---
+          duration_ms: 7.4012
+          ...
+        # Subtest: explicit bootstrap includes the file import migration
+        ok 2 - explicit bootstrap includes the file import migration
+          ---
+          duration_ms: 26.39
+          ...
+        # Subtest: src/lib/integrations/file-audit.ts exports calculateFileHash and audit persistence functions
+        ok 3 - src/lib/integrations/file-audit.ts exports calculateFileHash and audit persistence functions
+          ---
+          duration_ms: 102.1
+          ...
+        # Subtest: src/app/api/integrations/reports/upload/route.ts handles upload audit and persists to database
+        ok 4 - src/app/api/integrations/reports/upload/route.ts handles upload audit and persists to database
+          ---
+          duration_ms: 3.596
+          ...
+        # Subtest: CsvImportModal dispatches file audit to /api/integrations/reports/upload on import confirmation
+        ok 5 - CsvImportModal dispatches file audit to /api/integrations/reports/upload on import confirmation
+          ---
+          duration_ms: 16.7404
+          ...
+        # Subtest: Zero financial guesswork invariant: csv-auto-mapper sets snapshotUnitCost to 0 if unknown (no flat 40%)
+        ok 6 - Zero financial guesswork invariant: csv-auto-mapper sets snapshotUnitCost to 0 if unknown (no flat 40%)
+          ---
+          duration_ms: 26.9484
+          ...
+        # Subtest: Zero fee guesswork invariant: csv-auto-mapper does not synthesize 15% or 22% fee percentages
+        ok 7 - Zero fee guesswork invariant: csv-auto-mapper does not synthesize 15% or 22% fee percentages
+          ---
+          duration_ms: 15.249
+          ...
+        1..7
+    ok 3 - TASK-5.3: Retain Full File Audit Metadata & Zero Financial Guesswork
+      ---
+      duration_ms: 200.272
+      type: 'suite'
+      ...
+    1..3
+ok 189 - Store Integration Phase 5 Verification Suite
+  ---
+  duration_ms: 1935.8698
+  type: 'suite'
+  ...
+# Subtest: Store Integration contract and source-wiring checks (not production acceptance)
+    # Subtest: TASK-6.1: Enforce Unified MarketplaceSyncResult Contract
+        # Subtest: src/lib/integrations/sync-contract.ts defines MarketplaceSyncResult interface matching specification
+        ok 1 - src/lib/integrations/sync-contract.ts defines MarketplaceSyncResult interface matching specification
+          ---
+          duration_ms: 54.6117
+          ...
+        # Subtest: src/domain/types.ts exports MarketplaceSyncResult and SyncStatus for domain consumers
+        ok 2 - src/domain/types.ts exports MarketplaceSyncResult and SyncStatus for domain consumers
+          ---
+          duration_ms: 6.2239
+          ...
+        # Subtest: src/lib/integrations/error-response.ts enhances MarketplaceErrorEnvelope to satisfy MarketplaceSyncResult
+        ok 3 - src/lib/integrations/error-response.ts enhances MarketplaceErrorEnvelope to satisfy MarketplaceSyncResult
+          ---
+          duration_ms: 18.0946
+          ...
+        # Subtest: All sync routes adopt the unified MarketplaceSyncResult contract
+        ok 4 - All sync routes adopt the unified MarketplaceSyncResult contract
+          ---
+          duration_ms: 71.4639
+          ...
+        1..4
+    ok 1 - TASK-6.1: Enforce Unified MarketplaceSyncResult Contract
+      ---
+      duration_ms: 153.672
+      type: 'suite'
+      ...
+    # Subtest: TASK-6.2: Ten source-wiring checks; live release acceptance remains separate
+        # Subtest: Point 1: Real authentication works with live credentials across connectors
+        ok 1 - Point 1: Real authentication works with live credentials across connectors
+          ---
+          duration_ms: 172.2878
+          ...
+        # Subtest: Point 2: Invalid credentials & missing permissions produce explicit errors with standard envelopes
+        ok 2 - Point 2: Invalid credentials & missing permissions produce explicit errors with standard envelopes
+          ---
+          duration_ms: 62.9304
+          ...
+        # Subtest: Point 3: No API failure ever generates sample orders (Zero Silent Fallbacks)
+        ok 3 - Point 3: No API failure ever generates sample orders (Zero Silent Fallbacks)
+          ---
+          duration_ms: 42.9157
+          ...
+        # Subtest: Point 4: Multiple items in one order are mapped correctly with real price components
+        ok 4 - Point 4: Multiple items in one order are mapped correctly with real price components
+          ---
+          duration_ms: 9.4663
+          ...
+        # Subtest: Point 5: Pagination retrieves the complete intended window and tracks cursors
+        ok 5 - Point 5: Pagination retrieves the complete intended window and tracks cursors
+          ---
+          duration_ms: 60.154
+          ...
+        # Subtest: Point 6: Source wiring uses tenant-scoped upserts and immutable cost snapshots
+        ok 6 - Point 6: Source wiring uses tenant-scoped upserts and immutable cost snapshots
+          ---
+          duration_ms: 20.8841
+          ...
+        # Subtest: Point 7: Source wiring references the finances endpoint and identifies report formats
+        ok 7 - Point 7: Source wiring references the finances endpoint and identifies report formats
+          ---
+          duration_ms: 36.9533
+          ...
+        # Subtest: Point 8: Source wiring calls PostgreSQL persistence; restart/browser durability is unverified
+        ok 8 - Point 8: Source wiring calls PostgreSQL persistence; restart/browser durability is unverified
+          ---
+          duration_ms: 35.7967
+          ...
+        # Subtest: Point 9: Sync status, counts, and last sync timestamp are visible in the UI
+        ok 9 - Point 9: Sync status, counts, and last sync timestamp are visible in the UI
+          ---
+          duration_ms: 4.9453
+          ...
+        # Subtest: Point 10: Source wiring authenticates sessions and scopes connection queries
+        ok 10 - Point 10: Source wiring authenticates sessions and scopes connection queries
+          ---
+          duration_ms: 4.4356
+          ...
+        1..10
+    ok 2 - TASK-6.2: Ten source-wiring checks; live release acceptance remains separate
+      ---
+      duration_ms: 452.5578
+      type: 'suite'
+      ...
+    1..2
+ok 190 - Store Integration contract and source-wiring checks (not production acceptance)
+  ---
+  duration_ms: 611.9294
+  type: 'suite'
+  ...
+# Subtest: tax point is independent of revenue recognition, including invoiced shipped goods
+ok 191 - tax point is independent of revenue recognition, including invoiced shipped goods
+  ---
+  duration_ms: 105.4374
+  ...
+# Subtest: unresolved price basis suppresses speculative sales while preserving known tax and cost evidence
+ok 192 - unresolved price basis suppresses speculative sales while preserving known tax and cost evidence
+  ---
+  duration_ms: 8.4839
+  ...
+# Subtest: actual fees and eligible input GST post at settlement date, including cancelled order fees
+ok 193 - actual fees and eligible input GST post at settlement date, including cancelled order fees
+  ---
+  duration_ms: 15.4241
+  ...
+# Subtest: regular registration alone grants no fee ITC and explicit zero partial credit stays zero
+ok 194 - regular registration alone grants no fee ITC and explicit zero partial credit stays zero
+  ---
+  duration_ms: 1.1659
+  ...
+# Subtest: purchase GST requires evidence; ineligible tax is inventory cost and partial tax remains unresolved
+ok 195 - purchase GST requires evidence; ineligible tax is inventory cost and partial tax remains unresolved
+  ---
+  duration_ms: 6.2399
+  ...
+# Subtest: GST credit-note adjustment uses note period and never infers eligibility from a return
+ok 196 - GST credit-note adjustment uses note period and never infers eligibility from a return
+  ---
+  duration_ms: 44.878
+  ...
+# Subtest: late or invalid-calendar credit-note evidence cannot reduce output GST
+ok 197 - late or invalid-calendar credit-note evidence cannot reduce output GST
+  ---
+  duration_ms: 12.7862
+  ...
+# Subtest: stock is restored only on evidenced receipt date and undated paid totals never invent bank movement
+ok 198 - stock is restored only on evidenced receipt date and undated paid totals never invent bank movement
+  ---
+  duration_ms: 19.8563
+  ...
+# Subtest: financial events do not fabricate bank receipts and GST TCS stays separate from income-tax TDS
+ok 199 - financial events do not fabricate bank receipts and GST TCS stays separate from income-tax TDS
+  ---
+  duration_ms: 4.3483
+  ...
+# Subtest: signed refunds normalize journal sides and finite-value validation rejects NaN
+ok 200 - signed refunds normalize journal sides and finite-value validation rejects NaN
+  ---
+  duration_ms: 18.5164
+  ...
+# Subtest: dated shipping refunds reverse commercial shipping without assuming a GST credit note
+ok 201 - dated shipping refunds reverse commercial shipping without assuming a GST credit note
+  ---
+  duration_ms: 6.6185
+  ...
+# Subtest: closed or rejected claims preserve recorded recoveries; missing dates remain visibly provisional
+ok 202 - closed or rejected claims preserve recorded recoveries; missing dates remain visibly provisional
+  ---
+  duration_ms: 15.013
+  ...
+# Subtest: withholding advisory uses independent evidenced events and does not guess TDS applicability
+ok 203 - withholding advisory uses independent evidenced events and does not guess TDS applicability
+  ---
+  duration_ms: 2.2883
+  ...
+# Subtest: UI/UX Analyst Verification Test Suite
+    # Subtest: Suite 1: Naming Convention & Heading Centralization
+        # Subtest: 1.1 Navigation single-source-of-truth configuration exists and is complete
+        ok 1 - 1.1 Navigation single-source-of-truth configuration exists and is complete
+          ---
+          duration_ms: 30.1931
+          ...
+        # Subtest: 1.2 Navbar dynamically and consistently resolves titles via navigation-config
+        ok 2 - 1.2 Navbar dynamically and consistently resolves titles via navigation-config
+          ---
+          duration_ms: 2.2222
+          ...
+        # Subtest: 1.3 Module headings preserve configured text and the personalized dashboard header
+        ok 3 - 1.3 Module headings preserve configured text and the personalized dashboard header
+          ---
+          duration_ms: 158.3482
+          ...
+        # Subtest: 1.4 Recycle Bin heading has standardized font size hierarchy (not shrunken text-sm)
+        ok 4 - 1.4 Recycle Bin heading has standardized font size hierarchy (not shrunken text-sm)
+          ---
+          duration_ms: 17.9906
+          ...
+        1..4
+    ok 1 - Suite 1: Naming Convention & Heading Centralization
+      ---
+      duration_ms: 211.4851
+      type: 'suite'
+      ...
+    # Subtest: Suite 2: Cursor Invariants & Cursor Glitches
+        # Subtest: 2.1 Zero occurrences of cursor-crosshair in codebase (prevents blank/corrupted reticle on high-DPI)
+        ok 1 - 2.1 Zero occurrences of cursor-crosshair in codebase (prevents blank/corrupted reticle on high-DPI)
+          ---
+          duration_ms: 706.4966
+          ...
+        # Subtest: 2.2 Disabled button states are not overridden by trailing cursor-pointer
+        ok 2 - 2.2 Disabled button states are not overridden by trailing cursor-pointer
+          ---
+          duration_ms: 53.4986
+          ...
+        # Subtest: 2.3 Landing page content sections do not have blanket select-none blocking cursor and text selection
+        ok 3 - 2.3 Landing page content sections do not have blanket select-none blocking cursor and text selection
+          ---
+          duration_ms: 29.2732
+          ...
+        1..3
+    ok 2 - Suite 2: Cursor Invariants & Cursor Glitches
+      ---
+      duration_ms: 790.912
+      type: 'suite'
+      ...
+    # Subtest: Suite 3: Card Layout & Responsive Overlap Resolution
+        # Subtest: 3.1 Flow Machine step cards have responsive flex/width constraints and scroll containers
+        ok 1 - 3.1 Flow Machine step cards have responsive flex/width constraints and scroll containers
+          ---
+          duration_ms: 4.4406
+          ...
+        # Subtest: 3.2 Hero telemetry cards use responsive grid preventing overlap on narrow screens
+        ok 2 - 3.2 Hero telemetry cards use responsive grid preventing overlap on narrow screens
+          ---
+          duration_ms: 7.2014
+          ...
+        # Subtest: 3.3 Rendered route timeline retains desktop, tablet and mobile grid breakpoints
+        ok 3 - 3.3 Rendered route timeline retains desktop, tablet and mobile grid breakpoints
+          ---
+          duration_ms: 683.9611
+          ...
+        1..3
+    ok 3 - Suite 3: Card Layout & Responsive Overlap Resolution
+      ---
+      duration_ms: 696.782
+      type: 'suite'
+      ...
+    # Subtest: Suite 4: Modal UI/UX Standards & Invariants
+        # Subtest: 4.1 Modal backdrops adhere strictly to bg-black/30 backdrop-blur-xs with zero heavy blurs
+        ok 1 - 4.1 Modal backdrops adhere strictly to bg-black/30 backdrop-blur-xs with zero heavy blurs
+          ---
+          duration_ms: 40.4074
+          ...
+        1..1
+    ok 4 - Suite 4: Modal UI/UX Standards & Invariants
+      ---
+      duration_ms: 40.731
+      type: 'suite'
+      ...
+    # Subtest: Suite 5: TypeScript Static Type Safety
+        # Subtest: 5.1 Codebase passes TypeScript compilation (npx tsc --noEmit) with zero errors
+        not ok 1 - 5.1 Codebase passes TypeScript compilation (npx tsc --noEmit) with zero errors
+          ---
+          duration_ms: 42011.204
+          location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\ui-ux-analyst.test.mjs:329:5'
+          failureType: 'testCodeFailure'
+          error: 'Command failed: npx tsc --noEmit'
+          code: 'ERR_TEST_FAILURE'
+          stack: |-
+            genericNodeError (node:internal/errors:983:15)
+            wrappedFn (node:internal/errors:537:14)
+            checkExecSyncError (node:child_process:882:11)
+            execSync (node:child_process:954:15)
+            TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/ui-ux-analyst.test.mjs:330:22)
+            Test.runInAsyncScope (node:async_hooks:211:14)
+            Test.run (node:internal/test_runner/test:979:25)
+            Test.start (node:internal/test_runner/test:877:17)
+            node:internal/test_runner/test:1356:71
+            node:internal/per_context/primordials:483:82
+          ...
+        1..1
+    not ok 5 - Suite 5: TypeScript Static Type Safety
+      ---
+      duration_ms: 42011.8489
+      type: 'suite'
+      location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\ui-ux-analyst.test.mjs:328:3'
+      failureType: 'subtestsFailed'
+      error: '1 subtest failed'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: Suite 6: Multi-Device & Responsive Viewport Optimizations
+        # Subtest: 6.1 Sidebar supports mobile drawer overlay with backdrop and touch-friendly dismissal
+        ok 1 - 6.1 Sidebar supports mobile drawer overlay with backdrop and touch-friendly dismissal
+          ---
+          duration_ms: 2.7383
+          ...
+        # Subtest: 6.2 Navbar includes responsive mobile channel dropdown and desktop segmented pill bar
+        ok 2 - 6.2 Navbar includes responsive mobile channel dropdown and desktop segmented pill bar
+          ---
+          duration_ms: 1.5782
+          ...
+        # Subtest: 6.3 Landing navbar action button uses responsive labels avoiding mobile header overflow
+        ok 3 - 6.3 Landing navbar action button uses responsive labels avoiding mobile header overflow
+          ---
+          duration_ms: 2.8475
+          ...
+        # Subtest: 6.4 Core modal dialogs enforce max-h-[90vh] and overflow-y-auto preventing mobile screen cutoff
+        ok 4 - 6.4 Core modal dialogs enforce max-h-[90vh] and overflow-y-auto preventing mobile screen cutoff
+          ---
+          duration_ms: 19.3932
+          ...
+        # Subtest: 6.5 CFO Copilot drawer optimizes padding (pl-0 sm:pl-10) for full mobile screen width
+        ok 5 - 6.5 CFO Copilot drawer optimizes padding (pl-0 sm:pl-10) for full mobile screen width
+          ---
+          duration_ms: 2.9359
+          ...
+        1..5
+    ok 6 - Suite 6: Multi-Device & Responsive Viewport Optimizations
+      ---
+      duration_ms: 30.205
+      type: 'suite'
+      ...
+    1..6
+not ok 204 - UI/UX Analyst Verification Test Suite
+  ---
+  duration_ms: 43792.7873
+  type: 'suite'
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\ui-ux-analyst.test.mjs:23:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..204
+# tests 336
+# suites 55
+# pass 333
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 66602.4889

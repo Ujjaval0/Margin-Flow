@@ -1,4 +1,9 @@
+import { money, sumMoney, getOrderFinancialFacts, allocateMoney } from "./order-financials";
 import { Order, ReturnRecord, Settlement, Product, Claim } from "@/domain/types";
+import { businessDate } from "./report-scope";
+import { calculateSettlementAging } from "./profitability-engine";
+import { returnClaimAllocations } from "./claim-attribution";
+import { marketplaceFeeFacts } from "./accounting-policy";
 import { NavModule } from "@/components/layout/sidebar";
 
 export type AnomalyCategory =
@@ -27,18 +32,11 @@ export interface AnomalyReportItem {
 export interface AnomalyRadarBriefing {
   generatedAt: string;
   totalExposureAmount: number;
+  unknownExposureOrders?: number;
   totalAnomaliesCount: number;
   hasCriticalAlerts: boolean;
   items: AnomalyReportItem[];
 }
-
-// Known product baseline weights in grams
-const DEFAULT_PRODUCT_WEIGHTS: Record<string, number> = {
-  "ELEC-WEM-01": 220,    // 220g (sub-500g bracket)
-  "ELEC-USBC-65W": 170,   // 170g (sub-500g bracket)
-  "ELEC-ANC-EB": 140,     // 140g (sub-500g bracket)
-  "ELEC-BRAID-CBL": 90,   // 90g (sub-500g bracket)
-};
 
 export function computeAnomalyRadar(params: {
   orders: Order[];
@@ -46,14 +44,17 @@ export function computeAnomalyRadar(params: {
   settlements: Settlement[];
   products: Product[];
   claims: Claim[];
+  asOf?: string;
+  logisticsRateSlabs?: { marketplace: string; maxWeightGrams: number; amount: number; effectiveFrom: string; effectiveTo?: string }[];
 }): AnomalyRadarBriefing {
   const { orders, returns, settlements, products } = params;
   const items: AnomalyReportItem[] = [];
+  const anchorDate = params.asOf || businessDate();
 
   // Product weight lookup
   const productWeightMap = new Map<string, number>();
   products.forEach((p) => {
-    productWeightMap.set(p.sku, DEFAULT_PRODUCT_WEIGHTS[p.sku] || 250);
+    if (p.weightGrams !== undefined && p.weightGrams > 0) productWeightMap.set(p.sku, p.weightGrams);
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -66,19 +67,21 @@ export function computeAnomalyRadar(params: {
   const weightDiscrepancyOrderIds: string[] = [];
 
   orders.forEach((order) => {
-    const totalQty = order.items.reduce((acc, it) => acc + (it.quantity || 1), 0);
-    if (totalQty === 1 && order.items.length === 1) {
-      const it = order.items[0];
-      const baseWeight = productWeightMap.get(it.sku) || 250;
-      // Sub-500g item: baseline expected carrier fee is ~₹50
-      if (baseWeight <= 500 && order.shippingFeeCharged > 80) {
-        const excess = order.shippingFeeCharged - 50;
-        weightOverchargeTotal += excess;
-        weightOverchargeOrderCount++;
-        if (weightDiscrepancyOrderIds.length < 3) {
-          weightDiscrepancyOrderIds.push(order.channelOrderId || order.id);
-        }
-      }
+    if (order.orderDate.slice(0, 10) > anchorDate || !order.items.length || order.items.some(item => !productWeightMap.has(item.sku))) return;
+    const totalWeight = order.items.reduce((sum, item) => sum + productWeightMap.get(item.sku)! * item.quantity, 0);
+    const slab = (params.logisticsRateSlabs || order.logisticsRateSlabs || []).filter(rate => rate.marketplace === order.marketplace && rate.maxWeightGrams >= totalWeight &&
+      rate.effectiveFrom <= order.orderDate && (!rate.effectiveTo || rate.effectiveTo >= order.orderDate))
+      .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || a.maxWeightGrams - b.maxWeightGrams)[0];
+    if (!slab) return;
+    const receipts = Array.from(new Map(settlements.filter(record => record.settlementDate.slice(0, 10) <= anchorDate && record.marketplace === order.marketplace &&
+      [order.id, order.channelOrderId].includes(record.orderId)).map(record => [record.id, record])).values());
+    const freight = receipts.flatMap(record => record.deductions).filter(deduction => deduction.category === "LOGISTICS");
+    if (!freight.length) return;
+    const excess = sumMoney([sumMoney(freight.map(deduction => deduction.amount)), -slab.amount]);
+    if (excess > 0) {
+      weightOverchargeTotal = sumMoney([weightOverchargeTotal, excess]);
+      weightOverchargeOrderCount++;
+      if (weightDiscrepancyOrderIds.length < 3) weightDiscrepancyOrderIds.push(order.channelOrderId || order.id);
     }
   });
 
@@ -89,10 +92,10 @@ export function computeAnomalyRadar(params: {
       severity: weightOverchargeTotal > 5000 ? "CRITICAL" : "WARNING",
       title: "Courier Volumetric Weight Overcharge",
       metricHighlight: `₹${Math.round(weightOverchargeTotal).toLocaleString("en-IN")} excess freight`,
-      impactAmount: Math.round(weightOverchargeTotal),
+      impactAmount: money(weightOverchargeTotal),
       orderCount: weightOverchargeOrderCount,
       affectedEntities: weightDiscrepancyOrderIds,
-      description: `${weightOverchargeOrderCount} shipments billed above 500g rate slab despite catalog weight under 250g.`,
+      description: `${weightOverchargeOrderCount} shipments billed above their configured catalog weight slab.`,
       actionLabel: "Dispute Weight Overcharges",
       actionModule: "claims",
       actionHint: "Pre-fill volumetric claim dispute packet",
@@ -102,113 +105,90 @@ export function computeAnomalyRadar(params: {
   // ─────────────────────────────────────────────────────────────
   // 3. RTO SPIKES & AD BLEED ON HIGH-RETURN SKUS
   // ─────────────────────────────────────────────────────────────
-  // Group returns by SKU and calculate total return logistics cost
-  const skuReturnStats = new Map<
-    string,
-    { returnUnits: number; returnLoss: number; rtoCount: number }
-  >();
-
-  returns.forEach((ret) => {
-    const current = skuReturnStats.get(ret.sku) || { returnUnits: 0, returnLoss: 0, rtoCount: 0 };
-    current.returnUnits += ret.quantity || 1;
-    current.returnLoss += (ret.returnShippingCost || 0) + (ret.customerReturnFee || 0) + (ret.lossAmount || 0);
-    if (ret.returnType === "RTO") {
-      current.rtoCount += ret.quantity || 1;
-    }
-    skuReturnStats.set(ret.sku, current);
-  });
-
-  // Calculate sold units per SKU
-  const skuSales = new Map<string, number>();
-  orders.forEach((ord) => {
-    ord.items.forEach((it) => {
-      skuSales.set(it.sku, (skuSales.get(it.sku) || 0) + (it.quantity || 1));
+  // Return exposure uses the same bounded units, cost snapshots and recoveries as P&L.
+  const skuReturnStats = new Map<string, { returnUnits: number; returnLoss: number; soldUnits: number; orderIds: Set<string> }>();
+  const facts = orders.map(order => ({ order, facts: getOrderFinancialFacts(order, returns, settlements, params.claims, anchorDate) }));
+  for (const { order, facts: financials } of facts) {
+    financials.lines.forEach(line => {
+      const current = skuReturnStats.get(line.sku) || { returnUnits: 0, returnLoss: 0, soldUnits: 0, orderIds: new Set<string>() };
+      current.soldUnits += line.quantity;
+      skuReturnStats.set(line.sku, current);
     });
-  });
-
+    const allocations = returnClaimAllocations(order, financials.returnDetails.map(detail => ({ ...detail.record, quantity: detail.returnedUnits })), params.claims, anchorDate);
+    financials.returnDetails.forEach(detail => {
+      const recovered = sumMoney((allocations.get(detail.record.id) || []).map(allocation => allocation.recovered));
+      const drag = sumMoney([detail.baseLoss, -recovered]);
+      const shares = allocateMoney(drag, detail.unitsByLine);
+      financials.lines.forEach((line, index) => {
+        if (!detail.unitsByLine[index]) return;
+        const current = skuReturnStats.get(line.sku)!;
+        current.returnUnits += detail.unitsByLine[index];
+        current.returnLoss = sumMoney([current.returnLoss, shares[index]]);
+        current.orderIds.add(order.id);
+      });
+    });
+    // Recorded reverse-shipping deductions replace the duplicate return-form
+    // amount in facts; they still belong in the diagnostic return exposure.
+    const linkedReceipts = Array.from(new Map(settlements.filter(settlement => settlement.marketplace === order.marketplace &&
+      [order.id, order.channelOrderId].includes(settlement.orderId) && settlement.settlementDate.slice(0, 10) <= anchorDate)
+      .map(settlement => [settlement.id, settlement])).values());
+    linkedReceipts.forEach(receipt => {
+      const weights = financials.lines.map((_, index) => financials.returnDetails
+        .filter(detail => detail.record.returnDate.slice(0, 10) <= receipt.settlementDate.slice(0, 10))
+        .reduce((sum, detail) => sum + detail.unitsByLine[index], 0));
+      if (!weights.some(Boolean)) return;
+      receipt.deductions.filter(deduction => deduction.category === 'RETURN_SHIPPING').forEach(deduction => {
+        allocateMoney(marketplaceFeeFacts(order, deduction).expense, weights).forEach((share, index) => {
+          const current = skuReturnStats.get(financials.lines[index].sku)!;
+          current.returnLoss = sumMoney([current.returnLoss, share]);
+        });
+      });
+    });
+  }
   let totalRtoBleedLoss = 0;
-  const highReturnSkus: string[] = [];
-
+  const highReturnSkus: string[] = [], affectedReturnOrders = new Set<string>();
   skuReturnStats.forEach((stats, sku) => {
-    const soldUnits = skuSales.get(sku) || 0;
-    const returnRate = soldUnits > 0 ? (stats.returnUnits / soldUnits) * 100 : 0;
-
-    // If return rate > 20% and loss > ₹2000
+    const returnRate = stats.soldUnits > 0 ? Math.min(1, stats.returnUnits / stats.soldUnits) * 100 : 0;
     if (returnRate >= 20 && stats.returnLoss > 2000) {
-      totalRtoBleedLoss += stats.returnLoss;
-      highReturnSkus.push(`${sku} (${Math.round(returnRate)}%)`);
+      totalRtoBleedLoss = sumMoney([totalRtoBleedLoss, stats.returnLoss]);
+      highReturnSkus.push(sku + " (" + Math.round(returnRate) + "%)");
+      stats.orderIds.forEach(id => affectedReturnOrders.add(id));
     }
   });
-
-  if (totalRtoBleedLoss > 0) {
-    items.push({
-      id: "ANOMALY-RTO-03",
-      category: "RTO_BLEED",
-      severity: "CRITICAL",
-      title: "Reverse Logistics Bleed on High-RTO SKUs",
-      metricHighlight: `₹${Math.round(totalRtoBleedLoss).toLocaleString("en-IN")} return drag`,
-      impactAmount: Math.round(totalRtoBleedLoss),
-      orderCount: returns.length,
-      affectedEntities: highReturnSkus.slice(0, 3),
-      description: `High return & RTO rates (>20%) eroding gross margins on: ${highReturnSkus.slice(0, 2).join(", ")}.`,
-      actionLabel: "Analyze High-Return SKUs",
-      actionModule: "returns",
-      actionHint: "Identify root causes and optimize delivery SLAs",
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // 4. SETTLEMENT AGING LAG (>14 DAYS UNSETTLED DELIVERIES)
-  // ─────────────────────────────────────────────────────────────
-  const settledOrderIds = new Set<string>();
-  settlements.forEach((s) => {
-    if (s.orderId) settledOrderIds.add(s.orderId.trim());
+  if (totalRtoBleedLoss > 0) items.push({
+    id: "ANOMALY-RTO-03", category: "RTO_BLEED", severity: "CRITICAL",
+    title: "Reverse Logistics Bleed on High-Return SKUs",
+    metricHighlight: "₹" + Math.round(totalRtoBleedLoss).toLocaleString("en-IN") + " return drag",
+    impactAmount: totalRtoBleedLoss, orderCount: affectedReturnOrders.size, affectedEntities: highReturnSkus.slice(0, 3),
+    description: "Bounded returns exceed 20% of shipped units with recorded costs after salvage and linked recoveries.",
+    actionLabel: "Analyze High-Return SKUs", actionModule: "returns",
+    actionHint: "Review recorded return causes and costs",
   });
 
-  let unsettledGrossAmount = 0;
-  let unsettledOrderCount = 0;
-  const nowTime = Math.max(Date.now(), new Date("2026-09-22T00:00:00Z").getTime());
-
-  orders.forEach((ord) => {
-    if (ord.status === "DELIVERED" && !settledOrderIds.has(ord.id) && !settledOrderIds.has(ord.channelOrderId)) {
-      const orderTime = new Date(ord.orderDate).getTime();
-      const ageInDays = (nowTime - orderTime) / (1000 * 60 * 60 * 24);
-
-      // Past standard 14-day marketplace payout cycle
-      if (ageInDays > 14) {
-        const orderVal = ord.items.reduce(
-          (acc, it) => acc + (it.sellingPrice || 0) * (it.quantity || 1),
-          0
-        );
-        unsettledGrossAmount += orderVal;
-        unsettledOrderCount++;
-      }
-    }
+  // The same closing receivable calculation powers aging and the radar.
+  const aging = calculateSettlementAging(orders, settlements, anchorDate, returns, params.claims);
+  const overdue = aging.overdue;
+  const knownOverdue = sumMoney(overdue.orders.filter(order => order.estimatedPayout !== null).map(order => order.estimatedPayout!));
+  if (overdue.orderCount > 0 && (knownOverdue > 5000 || overdue.unknownAmountOrders > 0)) items.push({
+    id: "ANOMALY-SETTLE-04", category: "SETTLEMENT_LAG", severity: "WARNING",
+    title: "Marketplace Receivables Older Than 14 Days",
+    metricHighlight: overdue.unknownAmountOrders ? overdue.unknownAmountOrders + " orders with unknown payout" : "₹" + Math.round(knownOverdue).toLocaleString("en-IN") + " pending payout",
+    impactAmount: knownOverdue, orderCount: overdue.orderCount,
+    affectedEntities: overdue.orders.slice(0, 3).map(order => order.channelOrderId || order.orderId),
+    description: overdue.unknownAmountOrders
+      ? "Incomplete financial evidence prevents valuing every aged receivable; the known exposure is only a lower bound."
+      : "Recorded receivables remain after partial receipts and withholdings; verify each marketplace's agreed payout terms.",
+    actionLabel: "Review Settlement Aging", actionModule: "settlements",
+    actionHint: "Check recorded disbursements and contractual schedules",
   });
 
-  if (unsettledOrderCount > 0 && unsettledGrossAmount > 5000) {
-    items.push({
-      id: "ANOMALY-SETTLE-04",
-      category: "SETTLEMENT_LAG",
-      severity: "WARNING",
-      title: "Overdue Marketplace Settlement Aging",
-      metricHighlight: `₹${Math.round(unsettledGrossAmount).toLocaleString("en-IN")} pending payout`,
-      impactAmount: Math.round(unsettledGrossAmount),
-      orderCount: unsettledOrderCount,
-      affectedEntities: [`${unsettledOrderCount} delivered orders`],
-      description: `${unsettledOrderCount} delivered orders are older than 14 days with no matching bank settlement credit.`,
-      actionLabel: "Review Settlement Aging",
-      actionModule: "settlements",
-      actionHint: "Check marketplace disbursement schedules",
-    });
-  }
-
-  const totalExposureAmount = items.reduce((acc, it) => acc + it.impactAmount, 0);
+  const totalExposureAmount = sumMoney(items.map(item => item.impactAmount));
   const hasCriticalAlerts = items.some((it) => it.severity === "CRITICAL");
 
   return {
     generatedAt: new Date().toISOString(),
     totalExposureAmount,
+    unknownExposureOrders: overdue.unknownAmountOrders,
     totalAnomaliesCount: items.length,
     hasCriticalAlerts,
     items,

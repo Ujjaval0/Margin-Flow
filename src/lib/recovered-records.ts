@@ -40,9 +40,9 @@ export async function recoverMissingRecords(client: PoolClient, owner: string, d
     const parent = await orderId(record);
     const existing = await client.query("SELECT id FROM settlements WHERE user_id = $1 AND display_id = $2", [owner, record.id]);
     if (existing.rows.length) continue;
-    const inserted = await client.query(`INSERT INTO settlements (user_id,display_id,settlement_batch_id,marketplace,settlement_date,order_id,gross_amount,tcs_tds_tax,net_settlement,reconciliation_status,discrepancy_amount,bank_tx_ref,source_document)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`, [owner,record.id,record.settlementBatchId,record.marketplace,record.settlementDate,parent,record.grossAmount,record.tcsTdsTax,record.netSettlement,record.reconciliationStatus,record.discrepancyAmount ?? null,record.bankTxRef || null,record.sourceDocument || null]);
-    for (const deduction of record.deductions) await client.query("INSERT INTO settlement_deductions (settlement_id,category,name,amount) VALUES ($1,$2,$3,$4)", [inserted.rows[0].id,deduction.category,deduction.name,deduction.amount]);
+    const inserted = await client.query(`INSERT INTO settlements (user_id,display_id,settlement_batch_id,marketplace,settlement_date,order_id,gross_amount,tcs_tds_tax,net_settlement,reconciliation_status,discrepancy_amount,bank_tx_ref,source_document,tcs_tax,tds_tax,tcs_taxable_value,tds_gross_amount)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`, [owner,record.id,record.settlementBatchId,record.marketplace,record.settlementDate,parent,record.grossAmount,record.tcsTdsTax,record.netSettlement,record.reconciliationStatus,record.discrepancyAmount ?? null,record.bankTxRef || null,record.sourceDocument || null,record.tcsTax ?? null,record.tdsTax ?? null,record.tcsTaxableValue ?? null,record.tdsGrossAmount ?? null]);
+    for (const deduction of record.deductions) await client.query("INSERT INTO settlement_deductions (settlement_id,category,name,amount,gst_amount) VALUES ($1,$2,$3,$4,$5)", [inserted.rows[0].id,deduction.category,deduction.name,deduction.amount,deduction.gstAmount ?? null]);
   }
 }
 

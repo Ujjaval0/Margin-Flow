@@ -1,0 +1,32 @@
+{
+  "feeDispute": {
+    "before": {
+      "status": "DELIVERED",
+      "sales": 100,
+      "contribution": 60
+    },
+    "after": {
+      "status": "CLAIM_APPROVED",
+      "sales": 0,
+      "cogs": 40,
+      "returnedUnits": 0,
+      "contribution": -35
+    }
+  },
+  "usedReturn": {
+    "beforeStock": 9,
+    "afterStock": 10,
+    "restockStatus": "RESTOCKED",
+    "damagedUnits": 1,
+    "cogs": 40
+  },
+  "pendingToDamaged": {
+    "beforeStock": 9,
+    "afterStock": 8
+  },
+  "rtoFee": {
+    "entered": 5,
+    "stored": 0,
+    "returnCosts": 0
+  }
+}

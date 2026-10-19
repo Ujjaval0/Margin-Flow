@@ -138,8 +138,8 @@ describe('Store Integration Phase 3 Verification Suite', () => {
         'Must query SP-API Finances endpoint /finances/v0/financialEvents'
       );
       assert.ok(
-        financesContent.includes('ShipmentEventList'),
-        'Must parse ShipmentEventList'
+        financesContent.includes('retainAmazonEvents(client,userId,financialEvents)') && readProjectFile('src/lib/integrations/amazon-financial-events.ts').includes('ShipmentEventList'),
+        'Route must retain source events through the owner-scoped projection module'
       );
     });
 
@@ -153,12 +153,12 @@ describe('Store Integration Phase 3 Verification Suite', () => {
       assert.ok(financesContent.includes('"TAX_TDS"'), 'Must categorize TDS Section 194-O withheld as TAX_TDS');
     });
 
-    test('Finances route computes authentic net settlement without arbitrary percentages', () => {
+    test('Finances projections preserve signed finance evidence without asserting bank receipt', () => {
       const financesContent = readProjectFile('src/app/api/integrations/amazon/finances/route.ts');
-      assert.ok(
-        financesContent.includes('grossAmount - nonTaxDeductions - tcsTdsTax'),
-        'Net settlement must equal gross minus itemized deductions and withheld taxes'
-      );
+      const projection = readProjectFile('src/lib/integrations/amazon-financial-events.ts');
+      assert.ok(projection.includes('netSettlement:sumMoney([grossAmount,-sumMoney(deductions.map(d=>d.amount))])'), 'Source charges less signed itemized deductions must reconcile exactly');
+      assert.ok(projection.includes("evidenceType:'FINANCIAL_EVENT'") && projection.includes("feeCoverage:'PARTIAL'"), 'A financial event does not prove bank receipt or complete fee evidence');
+      assert.ok(projection.includes('provider_financial_events') && projection.includes('source_payload'), 'Unsupported events must retain original source evidence');
       assert.ok(
         !financesContent.includes('grossAmount * 0.85'),
         'Must not use estimated 85% settlement percentage'
@@ -213,8 +213,8 @@ describe('Store Integration Phase 3 Verification Suite', () => {
     test('src/lib/integrations/order-persistence.ts implements upsertSettlements', () => {
       const persContent = readProjectFile('src/lib/integrations/order-persistence.ts');
       assert.ok(
-        persContent.includes('ON CONFLICT (user_id, settlement_batch_id, order_id)'),
-        'Must execute ON CONFLICT (user_id, settlement_batch_id, order_id) DO UPDATE'
+        persContent.includes('ON CONFLICT (user_id, display_id)'),
+        'Must upsert the same tenant record without overwriting other records in its batch'
       );
       assert.ok(
         persContent.includes('settlement_deductions'),
@@ -238,9 +238,11 @@ describe('Store Integration Phase 3 Verification Suite', () => {
         'Must implement syncExternalSettlements callback'
       );
       assert.ok(
-        storeContent.includes('entityType: "SETTLEMENT"'),
-        'Must append SETTLEMENT audit log on external settlement synchronization'
+        storeContent.includes("await fetch('/api/settlements'") && storeContent.includes('await refreshFromDatabase()'),
+        'Store must await settlement persistence then refresh the authoritative ledger'
       );
+      const writer = readProjectFile('src/lib/integrations/order-persistence.ts');
+      assert.ok(writer.includes("'SETTLEMENT'") && writer.includes('financial_audit_logs'), 'Settlement audit evidence must be committed by the server writer');
     });
   });
 });

@@ -154,13 +154,13 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
     },
 
     trueProfit: {
-      title: "True Profit",
-      meaning: "Net profit remaining after platform deductions and wholesale supplier COGS.",
-      formula: "True Profit = Platform Profit − Supplier COGS",
+      title: "Contribution Profit",
+      meaning: "Revenue after product costs, marketplace fees and return costs, before operating expenses.",
+      formula: "Contribution Profit = Platform Profit − Supplier COGS",
       equationComponents: [
         {
           label: "All Platform Profit (Settlement − Return Fees + Claims)",
-          value: formatINR(profitability.netPlatformPayout),
+          value: formatINR(profitability.contributionProfit + profitability.cogs),
           color: "text-[#1D1D1F]",
         },
         {
@@ -170,12 +170,12 @@ export function getCardLogicDefinitions(profitability: ProfitabilityMetrics): Re
         },
         {
           label: "Realized Margin on Sales",
-          value: formatPercent(profitability.grossSales > 0 ? profitability.trueProfit / profitability.grossSales : 0),
+          value: formatPercent(profitability.grossSales > 0 ? profitability.contributionProfit / profitability.grossSales : 0),
           color: "text-[#288548]",
         },
       ],
-      resultLabel: "True In-Pocket Profit",
-      resultValue: formatINR(profitability.trueProfit),
+      resultLabel: "Contribution Profit",
+      resultValue: formatINR(profitability.contributionProfit),
     },
 
     netProfit: {

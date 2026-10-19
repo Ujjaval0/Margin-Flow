@@ -15,6 +15,7 @@ import {
   Package,
 } from "lucide-react";
 import { ReturnRecord, Claim } from "@/domain/types";
+import { createRecordId } from "@/domain/record-id";
 import { usePlatform } from "@/domain/store";
 import { formatINR, formatDate } from "@/lib/utils";
 
@@ -29,6 +30,11 @@ export function DisputePacketModal({
   isOpen,
   onClose,
 }: DisputePacketModalProps) {
+  const saveInFlight = React.useRef(false);
+  const draftId = React.useRef("");
+  const savedClaim = React.useRef(false);
+  const draftClaim = React.useRef<Claim | null>(null);
+  const packetIdentity = React.useRef("");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -46,14 +52,17 @@ export function DisputePacketModal({
   // When modal opens with a return record, generate the dispute packet
   useEffect(() => {
     if (isOpen && returnRecord) {
-      setSubmittedClaimId(null);
+      if (packetIdentity.current !== returnRecord.id) {
+        packetIdentity.current = returnRecord.id; draftId.current = ""; draftClaim.current = null; savedClaim.current = false;
+        setSubmittedClaimId(null);
+      }
       setCopied(false);
       setIsLoading(true);
 
       // Find matching order item to get locked historical unit cost
       const order = platform.orders.find((o) => o.id === returnRecord.orderId || o.channelOrderId === returnRecord.channelOrderId);
       const orderItem = order?.items.find((i) => i.sku === returnRecord.sku);
-      const snapshotUnitCost = orderItem?.snapshotUnitCost || 450; // fallback default if wholesale item
+      const snapshotUnitCost = orderItem?.snapshotUnitCost ?? 0;
 
       fetch("/api/ai-dispute", {
         method: "POST",
@@ -101,13 +110,16 @@ export function DisputePacketModal({
     }
   };
 
-  const handleCommitToClaimsLedger = () => {
+  const handleCommitToClaimsLedger = async () => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
     if (!claimData || isSubmitting || !returnRecord) return;
     setIsSubmitting(true);
 
     try {
-      const newClaimId = `CLM-AUTO-${Date.now().toString().slice(-6)}`;
-      const newClaim: Claim = {
+      const newClaimId = draftId.current || (draftId.current = createRecordId("CLM"));
+      const newClaim: Claim = draftClaim.current || {
         id: newClaimId,
         orderId: returnRecord.orderId,
         returnId: returnRecord.id,
@@ -120,21 +132,24 @@ export function DisputePacketModal({
         notes: claimData.disputeNarrative,
       };
 
+      draftClaim.current = newClaim;
       // 1. Add claim to ledger
-      platform.addClaim(newClaim);
+      if (!savedClaim.current) { await platform.addClaim(newClaim); savedClaim.current = true; }
 
       // 2. Link claimId back to the return record
-      platform.updateReturn({
-        ...returnRecord,
+      await platform.updateReturn({
+        ...(platform.returns.find(record => record.id === returnRecord.id) || returnRecord),
         claimId: newClaimId,
       });
 
       setSubmittedClaimId(newClaimId);
     } catch (e) {
-      console.error("Failed to commit claim", e);
+      window.alert(e instanceof Error ? e.message : "Claim could not be saved. Please retry.");
     } finally {
       setIsSubmitting(false);
     }
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   useEffect(() => {

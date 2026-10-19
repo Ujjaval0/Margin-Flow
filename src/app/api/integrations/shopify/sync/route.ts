@@ -153,30 +153,8 @@ export async function POST(req: NextRequest) {
         return { records: data.orders, next: nextLink(response) };
       });
 
-      const domainOrders = rawOrders.map((raw: any) => {
-        const parsed = ShopifyOrderWebhookSchema.safeParse(raw);
-        if (parsed.success) {
-          return mapShopifyOrderToDomain(parsed.data);
-        } else {
-          return mapShopifyOrderToDomain({
-            id: String(raw.id),
-            name: String(raw.name || `#${raw.order_number || raw.id}`),
-            created_at: String(raw.created_at || new Date().toISOString()),
-            financial_status: String(raw.financial_status || "paid"),
-            fulfillment_status: raw.fulfillment_status,
-            currency: String(raw.currency || "INR"),
-            total_price: Number(raw.total_price) || 0,
-            subtotal_price: Number(raw.subtotal_price) || 0,
-            total_tax: Number(raw.total_tax) || 0,
-            total_discounts: Number(raw.total_discounts) || 0,
-            customer: raw.customer,
-            shipping_address: raw.shipping_address,
-            line_items: Array.isArray(raw.line_items) ? raw.line_items : [],
-          });
-        }
-      });
+      const domainOrders = rawOrders.map((raw:any) => mapShopifyOrderToDomain(ShopifyOrderWebhookSchema.parse(raw)));
 
-      // Atomic Database Upsert into PostgreSQL (TASK-3.5 / TASK-6.2 Point 8)
       const dbResult = await upsertOrders(userId, domainOrders);
       const nowIso = new Date().toISOString();
 

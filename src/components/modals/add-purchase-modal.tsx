@@ -1,5 +1,11 @@
 "use client";
 
+import { businessDate } from "@/domain/report-scope";
+
+import { createRecordId } from "@/domain/record-id";
+import { money } from "@/domain/order-financials";
+
+
 import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -12,7 +18,7 @@ export interface AddPurchaseModalProps {
   onClose: () => void;
   suppliers: Supplier[];
   products: Product[];
-  onAddPurchase: (bill: PurchaseBill) => void;
+  onAddPurchase: (bill: PurchaseBill) => Promise<void>;
 }
 
 export function AddPurchaseModal({
@@ -22,6 +28,9 @@ export function AddPurchaseModal({
   products,
   onAddPurchase,
 }: AddPurchaseModalProps) {
+  const saveInFlight = React.useRef(false);
+  const draftId = React.useRef("");
+  const wasOpen = React.useRef(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -43,17 +52,21 @@ export function AddPurchaseModal({
   const [purchaseSku, setPurchaseSku] = useState(products[0]?.sku || "");
   const [purchaseQty, setPurchaseQty] = useState<number | "">("");
   const [purchaseUnitCost, setPurchaseUnitCost] = useState<number | "">(products[0]?.currentCostPrice ?? "");
-  const [purchaseTaxRate, setPurchaseTaxRate] = useState(18);
+  const [purchaseTaxRate, setPurchaseTaxRate] = useState<number|''>('');
+  const [invoiceDate,setInvoiceDate]=useState(businessDate());
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !wasOpen.current) {
+      draftId.current = createRecordId("PUR");
+      setInvoiceDate(businessDate());
       setPurchaseSupplierId(suppliers[0]?.id || "");
       setPurchaseInvoiceNo("");
       setPurchaseSku(products[0]?.sku || "");
       setPurchaseQty("");
       setPurchaseUnitCost(products[0]?.currentCostPrice ?? "");
-      setPurchaseTaxRate(18);
+      setPurchaseTaxRate('');
     }
+    wasOpen.current = isOpen;
   }, [isOpen, suppliers, products]);
 
   if (!isOpen || !mounted) return null;
@@ -61,29 +74,35 @@ export function AddPurchaseModal({
   const numQty = typeof purchaseQty === "number" ? purchaseQty : Number(purchaseQty) || 0;
   const numUnitCost = typeof purchaseUnitCost === "number" ? purchaseUnitCost : Number(purchaseUnitCost) || 0;
   const subtotal = numQty * numUnitCost;
-  const taxes = Math.round(subtotal * (purchaseTaxRate / 100) * 100) / 100;
-  const totalAmount = Math.round((subtotal + taxes) * 100) / 100;
+  const taxes = money(subtotal * (Number(purchaseTaxRate) / 100));
+  const totalAmount = money((subtotal + taxes));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
+    if (!purchaseInvoiceNo.trim()) throw new Error("The original supplier invoice reference is required.");
     const sup = suppliers.find((s) => s.id === purchaseSupplierId);
 
     const newBill: PurchaseBill = {
-      id: `PUR-${Date.now().toString().slice(-5)}`,
+      id: draftId.current || (draftId.current = createRecordId("PUR")),
       supplierId: purchaseSupplierId,
       supplierName: sup?.name || "Wholesale Supplier",
-      invoiceNumber: purchaseInvoiceNo || `INV-${Date.now().toString().slice(-4)}`,
-      invoiceDate: new Date().toISOString().split("T")[0],
+      invoiceNumber: purchaseInvoiceNo.trim(),
+      invoiceDate,
       sku: purchaseSku,
       quantity: numQty,
       unitCost: numUnitCost,
       taxes,
       totalAmount,
-      paymentStatus: "PAID",
+      paymentStatus: "PENDING",paidAmount:0,gstCreditStatus:'UNKNOWN',
     };
 
-    onAddPurchase(newBill);
-    onClose();
+    try{await onAddPurchase(newBill);onClose();}catch(error){alert(error instanceof Error?error.message:'Purchase could not be saved.');}
+
+    } catch (error) { window.alert(error instanceof Error ? error.message : "Record could not be saved. Please retry."); } finally { saveInFlight.current = false; }
   };
 
   return createPortal(
@@ -139,6 +158,7 @@ export function AddPurchaseModal({
               <label className="font-medium text-[#6E6E73] block mb-1">Invoice / Bill Ref</label>
               <input
                 type="text"
+                required
                 placeholder="e.g. INV-9921"
                 value={purchaseInvoiceNo}
                 onChange={(e) => setPurchaseInvoiceNo(e.target.value)}
@@ -147,6 +167,10 @@ export function AddPurchaseModal({
             </div>
           </div>
 
+          <div>
+            <label className="font-medium text-[#6E6E73] block mb-1">Invoice date</label>
+            <input type="date" required value={invoiceDate} onChange={event => setInvoiceDate(event.target.value)} className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20" />
+          </div>
           <div>
             <label className="font-medium text-[#6E6E73] block mb-1">Purchased Product SKU</label>
             <select
@@ -194,17 +218,11 @@ export function AddPurchaseModal({
             </div>
             <div>
               <label className="font-medium text-[#6E6E73] block mb-1">GST Tax Rate (%)</label>
-              <select
+              <NumericInput required min={0} max={100} step="any"
                 value={purchaseTaxRate}
-                onChange={(e) => setPurchaseTaxRate(Number(e.target.value))}
+                onChange={(e) => setPurchaseTaxRate(e.target.value===''?'':Number(e.target.value))}
                 className="w-full p-2.5 bg-[#FAFAFC] border border-black/[0.06] rounded-xl text-xs text-[#1D1D1F] tabular-nums focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 cursor-pointer"
-              >
-                <option value={0}>0%</option>
-                <option value={5}>5%</option>
-                <option value={12}>12%</option>
-                <option value={18}>18%</option>
-                <option value={28}>28%</option>
-              </select>
+              />
             </div>
           </div>
 

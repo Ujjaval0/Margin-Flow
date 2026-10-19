@@ -102,10 +102,12 @@ export interface Product {
   active: boolean;
   channelAliases: Partial<Record<Marketplace, string>>; // Maps marketplace SKU to master SKU
   stockQuantity?: number; // Physical warehouse inventory units
+  weightGrams?: number;
 }
 
 // Partition 2: Orders
 export interface OrderItem {
+  costEvidence?: "RECORDED" | "UNKNOWN";
   id: string;
   sku: string;
   mfn?: string;
@@ -113,6 +115,7 @@ export interface OrderItem {
   productName: string;
   quantity: number;
   sellingPrice: number; // Unit selling price
+  lineSubtotal?: number; // Exact source line total before discounts; preserves division remainders.
   discount: number;     // Total discount for this item
   taxAmount: number;
   snapshotUnitCost: number; // Historical cost snapshot locked at order creation time
@@ -120,6 +123,18 @@ export interface OrderItem {
 }
 
 export interface Order {
+  sourceEvidenceStatus?:"UNRESOLVED_PARENT"|"RECORDED";
+  currency?: "INR";
+  taxEvidenceStatus?: "RECORDED" | "UNKNOWN";
+  sourceUpdatedAt?: string;
+  revenueRecognisedDate?: string;
+  taxInvoiceDate?: string;
+  taxPointDate?: string;
+  taxEvidenceReference?: string;
+  sourceTotal?: number;
+  customerCharges?: number;
+  customerChargesTax?: number;
+  physicalDispatchRecorded?: boolean;
   id: string; // e.g. ORD-2026-1001
   channelOrderId: string; // e.g. Amazon order id: 402-1234567-8910111
   marketplace: Marketplace;
@@ -130,10 +145,19 @@ export interface Order {
   customerState: string;
   items: OrderItem[];
   shippingFeeCharged: number;
+  shippingTaxAmount?: number;
+  shippingRefundAmount?: number;
+  shippingRefundDate?: string;
+  logisticsRateSlabs?: { marketplace: string; maxWeightGrams: number; amount: number; effectiveFrom: string; effectiveTo?: string }[];
+  pricesIncludeTax?: boolean; // Explicit channel/import snapshot; unset preserves legacy data.
   marketplaceChargesEstimate: number;
   feeEstimateStatus?: "CONFIGURED" | "NOT_CONFIGURED" | "LEGACY";
   feeEstimateTotalPaise?: number | null;
   quickFeeRateBps?: number | null;
+  estimatedFeeTaxAmount?: number;
+  gstRegistrationType?: "REGULAR" | "COMPOSITION" | "UNREGISTERED";
+  marketplaceFeesIncludeGst?: boolean;
+  marketplaceFeeGstRateBps?: number;
   fulfilmentMode?: string;
   settlementAmount?: number;
   settlementPercent?: number;
@@ -151,6 +175,9 @@ export type RestockStatus = "PENDING_RESTOCK" | "RESTOCKED" | "WRITTEN_OFF";
 
 // Partition 3: Returns & RTOs
 export interface ReturnRecord {
+  orderItemId?: string;
+  gstAdjustment?: { status: "UNKNOWN" | "ELIGIBLE" | "INELIGIBLE"; amount: number; creditNoteNumber?: string;
+    creditNoteDate?: string; originalSupplyDate?: string; declaredDate?: string; annualReturnFiledDate?: string; evidenceReference?: string };
   id: string;
   orderId: string;
   channelOrderId: string;
@@ -167,7 +194,7 @@ export interface ReturnRecord {
   restockStatus?: RestockStatus; // Restock disposition tracking
   claimDeadline?: string;        // Marketplace SLA claim expiration date
   returnShippingCost: number;
-  customerReturnFee: number;      // Marketplace return processing fee (always recorded for CUSTOMER_RETURN, never for RTO)
+  customerReturnFee: number;      // Recorded marketplace return processing fee; no inferred shipping split.
   otherReturnCosts: number;
   inventoryRecoveryValue: number; // e.g., scrap value or salvage value if damaged
   lossAmount: number;             // Net write-off loss
@@ -177,12 +204,22 @@ export interface ReturnRecord {
 
 // Partition 4: Settlements
 export interface SettlementDeduction {
+  eligibleGstAmount?: number;
+  gstCreditStatus?: "UNKNOWN" | "ELIGIBLE" | "INELIGIBLE";
+  gstEvidenceReference?: string;
+  gstAmount?: number; // Explicit GST already contained in amount; never inferred from a label.
   category: DeductionCategory;
   name: string;
   amount: number;
 }
 
 export interface Settlement {
+  financialEventIds?:string[];
+  evidenceType?: "BANK_RECEIPT" | "FINANCIAL_EVENT";
+  feeCoverage?: "COMPLETE" | "PARTIAL";
+  tdsCreditOrPaymentDate?: string;
+  tcsCollectionDate?: string;
+  withholdingApplicability?: "VERIFIED_APPLICABLE" | "VERIFIED_EXEMPT" | "UNKNOWN";
   id: string;
   settlementBatchId: string;
   marketplace: Marketplace;
@@ -190,7 +227,12 @@ export interface Settlement {
   orderId: string;
   grossAmount: number;
   deductions: SettlementDeduction[];
-  tcsTdsTax: number;
+  tcsTdsTax: number; // Legacy aggregate, used only when separate fields are absent.
+  tcsTax?: number;
+  tdsTax?: number;
+  tcsTaxableValue?: number; // Evidenced net taxable value for this collection period, excluding GST.
+  tdsGrossAmount?: number; // Evidenced gross base before commission, excluding separately shown GST.
+  withholdingRates?: { effectiveFrom: string; tcsBps: number; tdsBps: number }[];
   netSettlement: number;
   reconciliationStatus: ReconciliationStatus;
   discrepancyAmount?: number;
@@ -203,6 +245,8 @@ export interface Settlement {
 
 // Partition 5: Claims & Recoveries
 export interface Claim {
+  recoveries?:{id:string;date:string;amount:number;cashSettlementId?:string}[];
+  cashSettlementId?: string;
   id: string;
   orderId: string;
   returnId?: string;
@@ -235,6 +279,11 @@ export interface Supplier {
 }
 
 export interface PurchaseBill {
+  lineSubtotal?:number;
+  gstCreditStatus?: "UNKNOWN" | "ELIGIBLE" | "INELIGIBLE";
+  eligibleGstAmount?: number;
+  gstEvidenceReference?: string;
+  paymentDate?: string;
   id: string;
   supplierId: string;
   supplierName: string;
@@ -265,6 +314,19 @@ export interface Expense {
   notes?: string;
 }
 
+export interface SupplierPayment {
+  allocationStatus?:"RECORDED"|"UNRESOLVED";
+  id: string;
+  supplierId: string;
+  date: string;
+  amount: number;
+  paymentMethod: string;
+  reference: string;
+  notes?: string;
+  allocations: { purchaseId: string; amount: number }[];
+  advanceAmount: number;
+}
+
 // Partition 7: AI Document Staging & HITL Extraction
 export interface ExtractedField<T> {
   value: T;
@@ -277,6 +339,12 @@ export interface ExtractedField<T> {
 }
 
 export interface AIStagedDocument {
+  currency?: string;
+  pricesIncludeTax?: boolean;
+  supplierId?: string;
+  paymentStatus?: "PAID" | "PENDING";
+  paymentDate?: string;
+  lineItems?: { id: string; sku: string; productName: string; quantity: number; unitPrice: number; discount: number; taxAmount: number; lineSubtotal?: number }[];
   id: string;
   fileName: string;
   fileUrl?: string;
@@ -316,7 +384,7 @@ export interface AIStagedDocument {
 export interface FinancialAuditLog {
   id: string;
   timestamp: string;
-  entityType: "ORDER" | "SETTLEMENT" | "PRODUCT_COST" | "CLAIM" | "RETURN" | "EXPENSE" | "DOCUMENT" | "PURCHASE";
+  entityType: "ORDER" | "SETTLEMENT" | "PRODUCT_COST" | "CLAIM" | "RETURN" | "EXPENSE" | "DOCUMENT" | "PURCHASE" | "SUPPLIER" | "SUPPLIER_PAYOUT";
   entityId: string;
   fieldName: string;
   oldValue: string;

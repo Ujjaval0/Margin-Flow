@@ -1,0 +1,25 @@
+{
+  "readOnly": true,
+  "authenticity": "UNVERIFIED: sample amounts do not establish real transactions or statutory eligibility",
+  "result": "NO_REPRODUCED_FAILURE_IN_SUPPLIED_SUPPORTED_FACTS",
+  "counts": {
+    "products": 0,
+    "orders": 0,
+    "returns": 0,
+    "settlements": 0,
+    "claims": 0,
+    "suppliers": 0,
+    "purchases": 0,
+    "supplierPayments": 0,
+    "expenses": 0,
+    "aiDocuments": 0,
+    "auditLogs": 0,
+    "complaints": 0,
+    "acknowledgedLossLeaderSkus": 0
+  },
+  "controlTotals": {
+    "bankReceiptsPaise": 0,
+    "physicalStockUnits": 0
+  },
+  "findings": {}
+}

@@ -1,5 +1,9 @@
 "use client";
 
+import { invoiceToOrder, type InvoiceSource } from "@/domain/invoice-order";
+import { money } from "@/domain/order-financials";
+
+
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -42,23 +46,7 @@ interface ParsedInvoiceItem {
 
 interface ExtractedInvoiceResult {
   text: string;
-  parsedData?: {
-    orderId?: string;
-    invoiceNumber?: string;
-    orderDate?: string;
-    marketplace?: string;
-    customerName?: string;
-    customerCity?: string;
-    customerState?: string;
-    productName?: string;
-    sku?: string;
-    quantity?: number;
-    unitPrice?: number;
-    taxRate?: number;
-    taxAmount?: number;
-    totalAmount?: number;
-    shippingFee?: number;
-  };
+  parsedData?: InvoiceSource;
 }
 
 // Helper: Extract text & multimodal structured data from uploaded file (.pdf, .csv, .txt, images)
@@ -122,295 +110,9 @@ async function extractInvoiceFromFile(file: File, ownerId: string | null): Promi
 }
 
 
-// Helper: Parse raw text or structured AI extraction into a valid Order
-function createOrderFromExtractedData(
-  extracted: ExtractedInvoiceResult,
-  fileName: string,
-  products: Product[],
-  suppliers: Supplier[],
-  indexOffset = 0
-): Order {
-  const { parsedData, text } = extracted;
-  const lower = (text || "").toLowerCase();
-  const cleanBaseName = fileName.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9-_]/g, "").slice(0, 10).toUpperCase();
-
-  // 1. If Gemini multimodal structured parsedData is available, prioritize it
-  if (parsedData && (parsedData.productName || parsedData.orderId || parsedData.totalAmount || parsedData.unitPrice)) {
-    // Marketplace channel detection
-    let matchedMarketplace: Marketplace = "Amazon India";
-    const mkt = (parsedData.marketplace || "").toLowerCase();
-    const txt = lower + " " + fileName.toLowerCase();
-    if (mkt.includes("flipkart") || txt.includes("flipkart") || txt.includes("instakart")) matchedMarketplace = "Flipkart";
-    else if (mkt.includes("meesho") || txt.includes("meesho") || txt.includes("fashnear")) matchedMarketplace = "Meesho";
-    else if (mkt.includes("myntra") || txt.includes("myntra")) matchedMarketplace = "Myntra";
-    else if (mkt.includes("woo") || txt.includes("woocommerce")) matchedMarketplace = "WooCommerce";
-    else if (mkt.includes("website") || mkt.includes("shopify") || mkt.includes("d2c") || txt.includes("shopify") || mkt.includes("b2b") || mkt.includes("wholesale") || txt.includes("wholesale")) matchedMarketplace = "Personal Website";
-    else if (mkt.includes("amazon") || txt.includes("amazon") || txt.includes("amzn")) matchedMarketplace = "Amazon India";
-    else matchedMarketplace = "Personal Website";
-
-    // Order ID / Reference
-    const extractedOrderId =
-      parsedData.orderId?.trim() ||
-      parsedData.invoiceNumber?.trim() ||
-      `INV-${cleanBaseName || Date.now().toString().slice(-6)}`;
-
-    // Order Date
-    let extractedDate = parsedData.orderDate?.trim() || new Date().toISOString().split("T")[0];
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(extractedDate)) {
-      extractedDate = new Date().toISOString().split("T")[0];
-    }
-
-    // Product matching against catalog
-    const realProductName = parsedData.productName?.trim() || "Invoiced Product";
-    const extractedSku = parsedData.sku?.trim() || "";
-
-    let matchedProd: Product | undefined = undefined;
-    for (const p of products) {
-      if (
-        (extractedSku && p.sku && p.sku.toLowerCase() === extractedSku.toLowerCase()) ||
-        (p.mfn && extractedSku && p.mfn.toLowerCase() === extractedSku.toLowerCase()) ||
-        (p.mfn1 && extractedSku && p.mfn1.toLowerCase() === extractedSku.toLowerCase()) ||
-        (p.name && realProductName.toLowerCase() === p.name.toLowerCase()) ||
-        (p.name && realProductName.toLowerCase().includes(p.name.toLowerCase().slice(0, 15))) ||
-        (p.name && p.name.toLowerCase().includes(realProductName.toLowerCase().slice(0, 15)))
-      ) {
-        matchedProd = p;
-        break;
-      }
-    }
-
-    // Quantity & Price (Gross selling price paid by customer)
-    const qty = Math.max(1, Number(parsedData.quantity) || 1);
-    const totalAmount = Number(parsedData.totalAmount) || 0;
-    const rawUnitPrice = Number(parsedData.unitPrice) || 0;
-
-    // If total invoice amount is provided, use totalAmount / qty as gross selling price
-    const grossSellingPrice =
-      totalAmount > 0
-        ? Math.round((totalAmount / qty) * 100) / 100
-        : (rawUnitPrice > 0 ? rawUnitPrice : 0);
-
-    const extractedTax = Number(parsedData.taxAmount);
-    const taxRate = parsedData.taxRate !== undefined ? Number(parsedData.taxRate) : undefined;
-    const taxAmount =
-      !isNaN(extractedTax) && extractedTax > 0
-        ? extractedTax
-        : taxRate !== undefined && taxRate >= 0
-          ? Math.round((grossSellingPrice * qty - (grossSellingPrice * qty) / (1 + taxRate / 100)) * 100) / 100
-          : Math.round(grossSellingPrice * qty * 0.18 * 100) / 100;
-
-    // Customer & Location
-    const customerName = parsedData.customerName?.trim() || "Direct Buyer";
-    const customerCity = parsedData.customerCity?.trim() || "Mumbai";
-    const customerState = parsedData.customerState?.trim() || "Maharashtra";
-
-    const sup = matchedProd?.supplierId
-      ? suppliers.find((s) => s.id === matchedProd?.supplierId || s.name === matchedProd?.supplierId)
-      : suppliers[0];
-
-    const uniqueSuffix = `${Date.now().toString().slice(-4)}${indexOffset}`;
-
-    return {
-      id: extractedOrderId,
-      channelOrderId: extractedOrderId,
-      marketplace: matchedMarketplace,
-      orderDate: extractedDate,
-      status: "DELIVERED",
-      customerName,
-      customerCity,
-      customerState,
-      shippingFeeCharged: Number(parsedData.shippingFee) || 0,
-      marketplaceChargesEstimate: 0,
-      feeEstimateStatus: "NOT_CONFIGURED",
-      feeEstimateTotalPaise: null,
-      supplierName: sup?.name,
-      supplierId: sup?.id,
-      notes: `Auto-parsed from invoice file: ${fileName}`,
-      items: [
-        {
-          id: `ITEM-${uniqueSuffix}`,
-          sku: matchedProd ? matchedProd.sku : (extractedSku || `SKU-${cleanBaseName}`),
-          mfn: matchedProd?.mfn,
-          mfn1: matchedProd?.mfn1,
-          productName: matchedProd ? matchedProd.name : realProductName,
-          quantity: qty,
-          sellingPrice: grossSellingPrice,
-          discount: 0,
-          taxAmount,
-          snapshotUnitCost: matchedProd ? matchedProd.currentCostPrice : Math.round(grossSellingPrice * 0.6),
-          returnedQuantity: 0,
-        },
-      ],
-    };
-  }
-
-  // Fallback to text parsing (when Gemini structured output was unavailable)
-  return parseTextToOrder(text, fileName, products, suppliers, indexOffset);
-}
-
-// Helper: Parse raw text into structured Order (Deterministic fallback)
-function parseTextToOrder(
-  text: string,
-  fileName: string,
-  products: Product[],
-  suppliers: Supplier[],
-  indexOffset = 0
-): Order {
-  const lower = text.toLowerCase();
-
-  // 1. Marketplace channel detection
-  let matchedMarketplace: Marketplace = "Amazon India";
-  if (lower.includes("flipkart") || lower.includes("instakart")) matchedMarketplace = "Flipkart";
-  else if (lower.includes("meesho") || lower.includes("fashnear")) matchedMarketplace = "Meesho";
-  else if (lower.includes("myntra")) matchedMarketplace = "Myntra";
-  else if (lower.includes("woocommerce")) matchedMarketplace = "WooCommerce";
-  else if (lower.includes("amazon") || lower.includes("amzn")) matchedMarketplace = "Amazon India";
-  else if (lower.includes("website") || lower.includes("shopify") || lower.includes("d2c")) matchedMarketplace = "Personal Website";
-  else if (fileName.toLowerCase().includes("flipkart")) matchedMarketplace = "Flipkart";
-  else if (fileName.toLowerCase().includes("meesho")) matchedMarketplace = "Meesho";
-  else if (fileName.toLowerCase().includes("myntra")) matchedMarketplace = "Myntra";
-
-  // 2. Order ID / Reference number detection across multi-channel standards
-  const idMatch =
-    text.match(/(?:order\s*id|order\s*#|invoice\s*#|invoice\s*no|ref\s*#)[:.\s]*([A-Z0-9\-_]{6,30})/i) ||
-    text.match(/\b([0-9]{3}-[0-9]{7}-[0-9]{7})\b/i) ||
-    text.match(/\b(OD[0-9]{15,22})\b/i) ||
-    text.match(/\b(MSH-[A-Z0-9\-]+)\b/i) ||
-    text.match(/\b([0-9]{11,14}(?:_[0-9]+)?)\b/i) ||
-    text.match(/#([0-9]{4,8})/);
-
-  const cleanBaseName = fileName.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9-_]/g, "").slice(0, 10).toUpperCase();
-  const extractedOrderId = idMatch
-    ? idMatch[1].trim()
-    : `INV-${cleanBaseName || Date.now().toString().slice(-6)}`;
-
-  // 3. Date detection (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD)
-  const dateMatch =
-    text.match(/\b(202\d[-/][01]\d[-/][0-3]\d)\b/) ||
-    text.match(/\b([0-3]?\d[-/][01]?\d[-/]202\d)\b/) ||
-    text.match(/(?:date|order\s*date|invoice\s*date)[:.\s]*([0-9]{1,2}[-/][0-9]{1,2}[-/][0-9]{4})/i) ||
-    text.match(/(?:date|order\s*date|invoice\s*date)[:.\s]*([0-9]{4}[-/][0-9]{1,2}[-/][0-9]{1,2})/i);
-
-  let extractedDate = new Date().toISOString().split("T")[0];
-  if (dateMatch) {
-    const raw = dateMatch[1];
-    if (raw.length === 10 && raw.startsWith("202")) {
-      extractedDate = raw.replace(/\//g, "-");
-    } else if (raw.includes("/") || raw.includes("-")) {
-      const sep = raw.includes("/") ? "/" : "-";
-      const parts = raw.split(sep);
-      if (parts[2]?.length === 4) {
-        extractedDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-      } else if (parts[0]?.length === 4) {
-        extractedDate = `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
-      }
-    }
-  }
-
-  // 4. Product matching from text
-  let matchedProd: Product | null = null;
-  for (const p of products) {
-    if (
-      (p.mfn && text.toUpperCase().includes(p.mfn.toUpperCase())) ||
-      (p.mfn1 && text.toUpperCase().includes(p.mfn1.toUpperCase())) ||
-      text.toUpperCase().includes(p.sku.toUpperCase()) ||
-      (p.name && text.toLowerCase().includes(p.name.toLowerCase().slice(0, 15)))
-    ) {
-      matchedProd = p;
-      break;
-    }
-  }
-
-  // If no catalog product matches, extract real product title from text or filename
-  let detectedProductName = "";
-  const descMatch =
-    text.match(/(?:description\s*(?:of\s*goods|of\s*items)?|item\s*description|product\s*description|product\s*name|particulars)[:.\s]*([A-Za-z0-9\s\-_.,()&+/]{4,60})/i) ||
-    text.match(/(?:item|product)[:.\s]*([A-Za-z0-9\s\-_.,()&+/]{4,60})/i);
-
-  if (descMatch && descMatch[1].trim()) {
-    detectedProductName = descMatch[1].trim().split("\n")[0].trim();
-  } else {
-    detectedProductName = fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").trim() || "Invoiced Product";
-  }
-
-  // 5. Quantity & Price extraction (with robust comma support e.g. ₹1,499.00)
-  const qtyMatch = text.match(/(?:qty|quantity|units)[:.\s]*([0-9]+)/i);
-  const parsedQtyVal = qtyMatch ? Math.max(1, parseInt(qtyMatch[1], 10)) : 1;
-
-  const priceMatch =
-    text.match(/(?:grand\s*total|invoice\s*(?:total|value|amount)|total\s*amount|net\s*payable|net\s*amount|total|amount|selling\s*price|item\s*price)[:.\s]*₹?\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/i) ||
-    text.match(/₹\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/);
-
-  const parsedPriceVal = priceMatch
-    ? Math.max(0, parseFloat(priceMatch[1].replace(/,/g, "")))
-    : (matchedProd ? Math.round(matchedProd.currentCostPrice * 2.5) : 499);
-  const gSales = parsedPriceVal * parsedQtyVal;
-
-  // 6. Indian Customer State & City Detection
-  const stateKeywords = [
-    "Maharashtra", "Karnataka", "Delhi", "Tamil Nadu", "Gujarat", "Uttar Pradesh",
-    "Telangana", "Haryana", "West Bengal", "Rajasthan", "Kerala", "Madhya Pradesh",
-    "Punjab", "Bihar", "Odisha", "Andhra Pradesh", "Assam", "Goa", "Jharkhand"
-  ];
-  let detectedState = "Maharashtra";
-  let detectedCity = "Mumbai";
-  for (const state of stateKeywords) {
-    if (lower.includes(state.toLowerCase())) {
-      detectedState = state;
-      detectedCity = state === "Delhi" ? "New Delhi" : state === "Karnataka" ? "Bengaluru" : state === "Tamil Nadu" ? "Chennai" : state === "Gujarat" ? "Ahmedabad" : state === "Telangana" ? "Hyderabad" : "Metro City";
-      break;
-    }
-  }
-
-  const nameMatch = text.match(/(?:bill\s*to|ship\s*to|buyer\s*name|customer\s*name)[:.\s]*([A-Za-z\s]{3,25})/i);
-  const customerName = nameMatch ? nameMatch[1].trim() : "Direct Buyer";
-
-  const taxMatch = text.match(/(?:tax|gst|igst|cgst\s*\+\s*sgst)\s*(?:amount|value)?[:.\s]*₹?\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)/i);
-  const taxRateMatch = text.match(/(?:tax|gst|igst|cgst\s*\+\s*sgst)\s*(?:rate|slab|%)?[:.\s]*([0-9]{1,2})\s*%/i);
-  const parsedTaxRate = taxRateMatch ? parseFloat(taxRateMatch[1]) : 18;
-  const calculatedTaxFromRate = Math.round((gSales - gSales / (1 + parsedTaxRate / 100)) * 100) / 100;
-  const finalTaxVal = taxMatch ? parseFloat(taxMatch[1].replace(/,/g, "")) : calculatedTaxFromRate;
-
-  const sup = matchedProd?.supplierId
-    ? suppliers.find((s) => s.id === matchedProd?.supplierId || s.name === matchedProd?.supplierId)
-    : suppliers[0];
-
-  const uniqueSuffix = `${Date.now().toString().slice(-4)}${indexOffset}`;
-
-  const newOrder: Order = {
-    id: extractedOrderId,
-    channelOrderId: extractedOrderId,
-    marketplace: matchedMarketplace,
-    orderDate: extractedDate,
-    status: "DELIVERED",
-    customerName,
-    customerCity: detectedCity,
-    customerState: detectedState,
-    shippingFeeCharged: 0,
-    marketplaceChargesEstimate: 0,
-    feeEstimateStatus: "NOT_CONFIGURED",
-    feeEstimateTotalPaise: null,
-    supplierName: sup?.name,
-    supplierId: sup?.id,
-    notes: `Auto-parsed from invoice file: ${fileName}`,
-    items: [
-      {
-        id: `ITEM-${uniqueSuffix}`,
-        sku: matchedProd ? matchedProd.sku : `SKU-${cleanBaseName}`,
-        mfn: matchedProd?.mfn || undefined,
-        mfn1: matchedProd?.mfn1 || undefined,
-        productName: matchedProd ? matchedProd.name : detectedProductName,
-        quantity: parsedQtyVal,
-        sellingPrice: parsedPriceVal,
-        discount: 0,
-        taxAmount: finalTaxVal,
-        snapshotUnitCost: matchedProd ? matchedProd.currentCostPrice : Math.round(parsedPriceVal * 0.6),
-        returnedQuantity: 0,
-      },
-    ],
-  };
-
-  return newOrder;
+// Posting uses the same strict source arithmetic regardless of extraction provider.
+function createOrderFromExtractedData(extracted:ExtractedInvoiceResult,fileName:string,products:Product[],_suppliers:Supplier[],_indexOffset=0):Order {
+  return invoiceToOrder(extracted,fileName,products);
 }
 
 export function InvoiceAutoParseModal({
@@ -555,13 +257,7 @@ export function InvoiceAutoParseModal({
           }
         } catch (err) {
           console.error(`Error parsing invoice file ${file.name}:`, err);
-          const fallbackOrder = createOrderFromExtractedData({ text: "" }, file.name, products, suppliers, i);
-          newItems.push({
-            id: `INV-ITEM-${Date.now()}-${i}`,
-            order: fallbackOrder,
-            fileName: file.name,
-            fileType,
-          });
+          alert(file.name+': '+(err instanceof Error?err.message:'Invoice could not be parsed. No record was posted.'));
         } finally {
           completed++;
           setProgress({ current: completed, total: uniqueFiles.length });

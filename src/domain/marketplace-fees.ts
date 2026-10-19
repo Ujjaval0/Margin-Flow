@@ -38,14 +38,16 @@ export interface FeeOrderLineInput {
   fulfilmentMode?: string | null;
   quantity: number;
   unitPricePaise: number;
+  lineSubtotalPaise?: number;
   discountPaise: number;
   taxPaise: number;
+  pricesIncludeTax?: boolean;
 }
 
-export function buildFeeOrderLineInputs(items: Array<{ sku: string; quantity: number; sellingPrice: number; discount?: number; taxAmount?: number }>,
-  categoriesBySku: ReadonlyMap<string, string>, fulfilmentMode?: string | null): FeeOrderLineInput[] {
+export function buildFeeOrderLineInputs(items: Array<{ sku: string; quantity: number; sellingPrice: number; lineSubtotal?: number; discount?: number; taxAmount?: number }>,
+  categoriesBySku: ReadonlyMap<string, string>, fulfilmentMode?: string | null, pricesIncludeTax?: boolean): FeeOrderLineInput[] {
   return items.map(item => ({ sku: item.sku, productCategory: categoriesBySku.get(item.sku), fulfilmentMode: fulfilmentMode || null,
-    quantity: item.quantity, unitPricePaise: decimalRupeesToPaise(String(item.sellingPrice)),
+    quantity: item.quantity, pricesIncludeTax, lineSubtotalPaise: item.lineSubtotal === undefined ? undefined : decimalRupeesToPaise(String(item.lineSubtotal)), unitPricePaise: decimalRupeesToPaise(String(item.sellingPrice)),
     discountPaise: decimalRupeesToPaise(String(item.discount ?? 0)), taxPaise: decimalRupeesToPaise(String(item.taxAmount ?? 0)) }));
 }
 
@@ -137,10 +139,10 @@ export function paiseToDecimalString(paise: number): string {
 
 function validateLine(line: FeeOrderLineInput): void {
   if (!Number.isSafeInteger(line.quantity) || line.quantity < 0) throw new Error("Quantity must be a non-negative integer.");
-  for (const amount of [line.unitPricePaise, line.discountPaise, line.taxPaise]) {
+  for (const amount of [line.unitPricePaise, line.discountPaise, line.taxPaise, line.lineSubtotalPaise ?? line.unitPricePaise * line.quantity]) {
     if (!Number.isSafeInteger(amount) || amount < 0) throw new Error("Fee inputs must be non-negative integer paise.");
   }
-  if (line.discountPaise > line.unitPricePaise * line.quantity) throw new Error("Discount cannot exceed the line value.");
+  if (line.discountPaise > (line.lineSubtotalPaise ?? line.unitPricePaise * line.quantity)) throw new Error("Discount cannot exceed the line value.");
   if (!Number.isSafeInteger(line.unitPricePaise * line.quantity) || !Number.isSafeInteger(line.taxPaise * Math.max(1, line.quantity)))
     throw new Error("Fee input totals exceed the supported money range.");
 }
@@ -174,7 +176,7 @@ function roundedRate(basePaise: number, rateBps: number): number {
   return Number((numerator + BigInt(5000)) / BigInt(10000));
 }
 
-export function calculateMarketplaceFeeEstimate(rules: MarketplaceFeeRule[], lines: FeeOrderLineInput[], marketplace: Marketplace, date: string, quickFeeRateBps?: number | null): FeeEstimateResult {
+export function calculateMarketplaceFeeEstimate(rules: MarketplaceFeeRule[], lines: FeeOrderLineInput[], marketplace: Marketplace, date: string, quickFeeRateBps?: number | null, quickFeeTaxRateBps = 1800): FeeEstimateResult {
   if (!lines.length) throw new Error("At least one order line is required.");
   if (quickFeeRateBps !== null && quickFeeRateBps !== undefined && (!Number.isSafeInteger(quickFeeRateBps) || quickFeeRateBps < 0 || quickFeeRateBps > 10000))
     throw new Error("Quick commission rate must be integer basis points between 0 and 10000.");
@@ -185,9 +187,12 @@ export function calculateMarketplaceFeeEstimate(rules: MarketplaceFeeRule[], lin
     const rule = resolveMarketplaceFeeRule(rules, line, marketplace, date);
     if (!rule && (quickFeeRateBps === null || quickFeeRateBps === undefined))
       return { status: "NOT_CONFIGURED", totalPaise: null, components: [], reason: `No fee rule or quick commission rate matches SKU ${line.sku}.` };
-    const grossPaise = line.unitPricePaise * line.quantity;
+    if (line.taxPaise > 0 && line.pricesIncludeTax === undefined &&
+      (quickFeeRateBps != null || rule?.components.some(component => component.calculationBase === "ITEM_EXCLUDING_TAX")))
+      return { status: "NOT_CONFIGURED", totalPaise: null, components: [], reason: "Verify whether source prices include tax before estimating a tax-exclusive fee base." };
+    const grossPaise = line.lineSubtotalPaise ?? line.unitPricePaise * line.quantity;
     const discountedPaise = grossPaise - line.discountPaise;
-    const taxExcludedPaise = Math.max(0, discountedPaise - line.taxPaise);
+    const taxExcludedPaise = line.pricesIncludeTax === false ? discountedPaise : Math.max(0, discountedPaise - line.taxPaise);
     const orderedComponents = [...(rule?.components || [])].sort((a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id));
     for (const component of orderedComponents) {
       if (quickFeeRateBps !== null && quickFeeRateBps !== undefined && component.componentType.trim().toUpperCase() === "COMMISSION") continue;
@@ -217,7 +222,7 @@ export function calculateMarketplaceFeeEstimate(rules: MarketplaceFeeRule[], lin
       const amountPaise = roundedRate(taxExcludedPaise, quickFeeRateBps);
       components.push({ ruleId: null, ruleVersion: null, componentId: null, componentName: "Quick commission override",
         componentType: "COMMISSION", method: "PERCENT", basePaise: taxExcludedPaise, rateBps: quickFeeRateBps,
-        amountPaise, taxTreatment: "NO_TAX", taxRateBps: 0, taxPaise: 0, quantity: line.quantity, lineSku: line.sku });
+        amountPaise, taxTreatment: "TAXABLE", taxRateBps: quickFeeTaxRateBps, taxPaise: roundedRate(amountPaise, quickFeeTaxRateBps), quantity: line.quantity, lineSku: line.sku });
     }
   }
   const totalPaise = components.reduce((sum, component) => sum + component.amountPaise + component.taxPaise, 0);

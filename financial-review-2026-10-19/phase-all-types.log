@@ -1,0 +1,2 @@
+src/app/api/integrations/generic/sync/route.ts(172,28): error TS2304: Cannot find name 'rawOrders'.
+src/app/api/integrations/generic/sync/route.ts(172,85): error TS2304: Cannot find name 'marketplace'.

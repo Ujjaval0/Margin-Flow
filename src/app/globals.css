@@ -228,8 +228,70 @@ button, a {
    APPLE DARK MODE DESIGN SYSTEM (Scoped to .dark inside Dashboard)
    ========================================================================= */
 
+/* Blend the complete viewport, including body portals, without scaling or blurring it.
+   Suppress component color transitions so the new snapshot contains the final palette. */
+html[data-theme-transition="snapshot"] *,
+html[data-theme-transition="snapshot"] *::before,
+html[data-theme-transition="snapshot"] *::after,
+html[data-theme-transition="instant"] *,
+html[data-theme-transition="instant"] *::before,
+html[data-theme-transition="instant"] *::after {
+  transition: none !important;
+}
+
+html[data-theme-transition="snapshot"]::view-transition {
+  pointer-events: none;
+}
+
+html[data-theme-transition="snapshot"]::view-transition-group(root) {
+  animation: none;
+}
+
+html[data-theme-transition="snapshot"]::view-transition-old(root) {
+  animation: mfThemeFadeOut 320ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  mix-blend-mode: normal;
+  z-index: 1;
+}
+
+html[data-theme-transition="snapshot"]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+@keyframes mfThemeFadeOut {
+  to { opacity: 0; }
+}
+
+/* Older browsers blend only paint properties; geometry and blur never interpolate. */
+html[data-theme-transition="colors"],
+html[data-theme-transition="colors"] *,
+html[data-theme-transition="colors"] *::before,
+html[data-theme-transition="colors"] *::after {
+  transition-property: color, background-color, border-color, box-shadow, fill, stroke !important;
+  transition-duration: 320ms !important;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition-delay: 0s !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-transition]::view-transition-old(root),
+  html[data-theme-transition]::view-transition-new(root) {
+    animation: none !important;
+  }
+
+  html[data-theme-transition] *,
+  html[data-theme-transition] *::before,
+  html[data-theme-transition] *::after {
+    transition: none !important;
+  }
+}
+
 html.dark {
   color-scheme: dark;
+  --background: #0A0A0C;
+  --foreground: #F5F5F7;
+  --card: #1C1C1E;
+  --border: rgba(255, 255, 255, 0.08);
 }
 
 html.dark body {
@@ -241,9 +303,21 @@ html.dark body {
 .dark .bg-\[\#F5F5F7\],
 .dark .bg-\[\#FAFAFC\],
 .dark .bg-\[\#FBFBFD\],
+.dark .bg-\[\#F9F9FB\],
 .dark .bg-apple-canvas,
 .dark .bg-apple-subtle {
   background-color: #141416;
+}
+
+.dark .bg-\[\#F5F5F7\]\/40,
+.dark .bg-\[\#F5F5F7\]\/50,
+.dark .bg-slate-50\/50,
+.dark .bg-slate-50\/70 {
+  background-color: rgba(20, 20, 22, 0.7);
+}
+
+.dark .bg-\[\#F5F5F7\]\/90 {
+  background-color: rgba(20, 20, 22, 0.9);
 }
 
 /* Elevated Cards & Modals */
@@ -321,6 +395,9 @@ html.dark body {
 .dark .text-\[\#6E6E73\],
 .dark .text-\[\#86868B\],
 .dark .text-\[\#515154\],
+.dark .text-\[\#424245\],
+.dark .text-\[\#555\],
+.dark .text-\[\#64748B\],
 .dark .text-apple-secondary,
 .dark .text-gray-500,
 .dark .text-neutral-500 {
@@ -347,6 +424,16 @@ html.dark body {
 
 .dark .hover\:bg-\[\#F5F5F7\]:hover {
   background-color: #242426;
+}
+
+.dark .bg-\[\#E8E8ED\],
+.dark .hover\:bg-\[\#E8E8ED\]:hover,
+.dark .hover\:bg-\[\#FAFAFC\]:hover,
+.dark .hover\:bg-\[\#FBFBFD\]:hover,
+.dark .hover\:bg-\[\#F5F5F7\]\/70:hover,
+.dark .hover\:bg-neutral-50:hover,
+.dark .hover\:bg-neutral-200:hover {
+  background-color: #2C2C2E;
 }
 
 .dark .hover\:text-\[\#1D1D1F\]:hover {
@@ -463,7 +550,8 @@ html.dark body {
   background-color: #141416 !important;
 }
 
-.dark .bg-slate-100 {
+.dark .bg-slate-100,
+.dark .bg-slate-100\/90 {
   background-color: rgba(255, 255, 255, 0.06) !important;
 }
 

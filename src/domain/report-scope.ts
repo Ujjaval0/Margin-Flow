@@ -6,10 +6,11 @@ export function businessDate(now = new Date()): string {
   return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
-export function scopeReport(dataset: { orders: Order[]; returns: ReturnRecord[]; settlements: Settlement[]; claims: Claim[]; expenses: Expense[] }, channel: string) {
+export function scopeReport<T extends { orders: Order[]; returns: ReturnRecord[]; settlements: Settlement[]; claims: Claim[]; expenses: Expense[] }>(dataset: T, channel: string) {
   const marketplace = channel === "Amazon" ? "Amazon India" : channel === "Website" ? "Personal Website" : channel;
   const matches = (record: { marketplace?: string }) => channel === "All Channels" || record.marketplace === marketplace;
   return {
+    ...dataset,
     orders: dataset.orders.filter(matches), returns: dataset.returns.filter(matches),
     settlements: dataset.settlements.filter(matches), claims: dataset.claims.filter(matches), expenses: dataset.expenses.filter(matches),
   };

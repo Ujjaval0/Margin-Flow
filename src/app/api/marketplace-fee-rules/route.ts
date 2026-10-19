@@ -88,11 +88,12 @@ export async function GET(req: NextRequest) {
     const userId = await getSessionUserId(req);
     if (!userId) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     await ensureMarketplaceTables();
-    const [rules, components] = await Promise.all([
+    const [rules, components, accountingPolicies] = await Promise.all([
       query("SELECT * FROM marketplace_fee_rules WHERE user_id = $1 ORDER BY created_at DESC", [userId]),
       query("SELECT c.* FROM marketplace_fee_rule_components c WHERE c.user_id = $1 AND c.enabled = TRUE ORDER BY c.sequence, c.id", [userId]),
+      query("SELECT * FROM channel_accounting_policies WHERE user_id = $1 ORDER BY effective_from DESC", [userId]),
     ]);
-    return NextResponse.json({ success: true, rules: mapRules(rules.rows, components.rows) });
+    return NextResponse.json({ success: true, rules: mapRules(rules.rows, components.rows), accountingPolicies: accountingPolicies.rows });
   } catch (error) {
     console.error("[Marketplace fee rules GET Error]", error);
     return NextResponse.json({ success: false, error: "Fee rules are unavailable." }, { status: 500 });

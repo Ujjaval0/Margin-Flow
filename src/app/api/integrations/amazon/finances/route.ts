@@ -1,3 +1,6 @@
+import { pool } from "@/lib/db";
+import { retainAmazonEvents } from "@/lib/integrations/amazon-financial-events";
+import { money } from "@/domain/order-financials";
 import { collectPages } from "@/lib/integrations/provider-pagination";
 import { NextRequest, NextResponse } from "next/server";
 import { Settlement, SettlementDeduction, DeductionCategory } from "@/domain/types";
@@ -10,6 +13,10 @@ import {
   recordSyncLog,
 } from "@/lib/security/marketplace-vault";
 import { upsertSettlements } from "@/lib/integrations/order-persistence";
+import crypto from "crypto";
+
+const canonicalEvent = (value: any): any => Array.isArray(value) ? value.map(canonicalEvent)
+  : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalEvent(value[key])])) : value;
 
 const SP_API_EU_BASE = "https://sellingpartnerapi-eu.amazon.com";
 const LWA_TOKEN_URL = "https://api.amazon.com/auth/o2/token";
@@ -214,105 +221,13 @@ export async function POST(req: NextRequest) {
     }
     const responseNextToken: string | null = null;
 
-    // 3. Map authentic Financial Events into canonical Settlement records
-    const settlements: Settlement[] = [];
-    const shipmentEvents = financialEvents.ShipmentEventList || [];
-
-    for (const shipEvent of shipmentEvents) {
-      const channelOrderId = shipEvent.AmazonOrderId;
-      if (!channelOrderId) continue;
-
-      const postedDate = shipEvent.PostedDate || new Date().toISOString();
-      const settlementDate = postedDate.split("T")[0];
-      const batchId = `FIN-AMZ-${settlementDate.replace(/-/g, "")}`;
-
-      let grossAmount = 0;
-      let tcsTdsTax = 0;
-      const deductions: SettlementDeduction[] = [];
-
-      const shipmentItems = shipEvent.ShipmentItemList || [];
-      for (const item of shipmentItems) {
-        // Principal & shipping charges
-        const chargeList = item.ItemChargeList || [];
-        for (const chg of chargeList) {
-          const amt = parseFloat(
-            chg.ChargeAmount?.CurrencyAmount || chg.ChargeAmount?.Amount || "0"
-          );
-          if (chg.ChargeType === "Principal" || chg.ChargeType === "ShippingCharge") {
-            grossAmount += Math.abs(amt);
-          }
-        }
-
-        // Authentic fee itemization (Referral, Closing, Weight Handling, FBA)
-        const feeList = item.ItemFeeList || [];
-        for (const fee of feeList) {
-          const feeAmt = Math.abs(
-            parseFloat(fee.FeeAmount?.CurrencyAmount || fee.FeeAmount?.Amount || "0")
-          );
-          if (feeAmt > 0) {
-            const { category, name } = categorizeAmazonFee(fee.FeeType);
-            deductions.push({
-              category,
-              name: `${name} (${fee.FeeType})`,
-              amount: Math.round(feeAmt * 100) / 100,
-            });
-          }
-        }
-
-        // Taxes withheld (TCS GST, TDS Section 194-O)
-        const taxWithheldList = item.ItemTaxWithheldList || [];
-        for (const tw of taxWithheldList) {
-          const taxes = tw.TaxesWithheld || [];
-          for (const tx of taxes) {
-            const txAmt = Math.abs(
-              parseFloat(tx.ChargeAmount?.CurrencyAmount || tx.ChargeAmount?.Amount || "0")
-            );
-            if (txAmt > 0) {
-              const { category, name } = categorizeAmazonFee(tx.ChargeType);
-              tcsTdsTax += txAmt;
-              deductions.push({
-                category,
-                name: `${name} (${tx.ChargeType})`,
-                amount: Math.round(txAmt * 100) / 100,
-              });
-            }
-          }
-        }
-      }
-
-      grossAmount = Math.round(grossAmount * 100) / 100;
-      tcsTdsTax = Math.round(tcsTdsTax * 100) / 100;
-
-      const nonTaxDeductions = deductions
-        .filter((d) => d.category !== "TAX_TCS" && d.category !== "TAX_TDS")
-        .reduce((sum, d) => sum + d.amount, 0);
-
-      const netSettlement = Math.max(
-        0,
-        Math.round((grossAmount - nonTaxDeductions - tcsTdsTax) * 100) / 100
-      );
-
-      settlements.push({
-        id: `SET-AMZ-${channelOrderId}`,
-        settlementBatchId: batchId,
-        marketplace: "Amazon India",
-        settlementDate,
-        orderId: `ORD-AMZ-${channelOrderId}`,
-        grossAmount,
-        deductions,
-        tcsTdsTax,
-        netSettlement,
-        reconciliationStatus: "RECONCILED",
-        discrepancyAmount: 0,
-        sourceDocument: `Amazon SP-API Finances Event (${batchId})`,
-      });
-    }
-
-    // 4. Atomic Database Upsert into settlements & settlement_deductions (TASK-3.4 / TASK-3.5)
-    const dbResult = await upsertSettlements(userId, settlements);
+    const client=await pool.connect();let projection,dbResult;
+    try {await client.query('BEGIN');await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[userId]);projection=await retainAmazonEvents(client,userId,financialEvents);dbResult=await upsertSettlements(userId,projection.settlements,client);await client.query('COMMIT');}
+    catch(error){await client.query('ROLLBACK').catch(()=>{});throw error;}finally{client.release();}
+    const {settlements,issues,count}=projection;
 
     const nowIso = new Date().toISOString();
-    if (!orderId && !requestedCursor) await updateSyncStatus(userId, "Amazon India", "SUCCEEDED", {
+    if (!issues.length && !orderId && !requestedCursor) await updateSyncStatus(userId, "Amazon India", "SUCCEEDED", {
       stream: "finances",
       lastSyncedAt: syncStartedAt,
       lastSyncCursor: responseNextToken || undefined,
@@ -330,7 +245,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       settlements,
-      totalFetched: settlements.length,
+      totalFetched: count,
+      status:issues.length?"partial":"succeeded",
+      complete:issues.length===0,
+      issues,
       nextToken: responseNextToken,
       persisted: dbResult,
     });

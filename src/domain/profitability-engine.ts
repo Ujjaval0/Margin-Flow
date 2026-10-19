@@ -1,5 +1,9 @@
+import { settlementMovement } from "./settlement-evidence";
 import { businessDate } from "./report-scope";
-import { getOrderFinancialFacts, money, allocateMoney } from "./order-financials";
+import { returnClaimAllocations } from './claim-attribution';
+import { marketplaceFeeFacts } from './accounting-policy';
+import { recoveredAt } from './claim-recovery';
+import { getOrderFinancialFacts, getReturnCostFacts, isDamagedReturn, money, sumMoney, prorateMoney, allocateMoney } from "./order-financials";
 import {
   Order,
   OrderItem,
@@ -13,6 +17,18 @@ import {
 } from "./types";
 
 export interface ProfitabilityMetrics {
+  isComplete?: boolean;
+  issues?: string[];
+  shippingRevenue?:number;
+  outputTaxExcluded?:number;
+  directReturnCosts?:number;
+  salvageRecovery?:number;
+  returnRateUnits?: number;
+  returnRateDenominator?: number;
+  customerReturnRate?: number;
+  rtoRate?: number;
+  customerReturnRateUnits?: number;
+  rtoRateUnits?: number;
   grossSales: number;
   discounts: number;
   refundedSales: number;
@@ -50,8 +66,7 @@ export interface ProfitabilityMetrics {
   poas: number; // Profit on Ad Spend: Contribution Profit / Ad Spend
 
   // Operator Payout & Return Split Metrics
-  netPlatformPayout: number; // Platform payout after returns and claims, BEFORE paying supplier COGS
-  trueProfit: number; // Platform payout after returns and claims, AFTER paying supplier COGS (equals contributionProfit)
+  netPlatformPayout: number; // Evidenced bank payouts; net settlement already includes its adjustments.
   rtoCount: number; // Number of RTO items
   customerReturnCount: number; // Number of customer return items
   pendingClaimsAmount: number; // Claims amount under review / pending
@@ -89,9 +104,12 @@ export interface SkuProfitability {
   marketplaceCharges: number;
   returnLosses: number;
   claimRecoveries: number;
+  salvageRecovery?: number;
   profit: number;
   margin: number;
   returnRate: number;
+  returnedUnits?: number;
+  orderCount?: number;
   adSpend?: number;
   poas?: number;
 }
@@ -111,6 +129,12 @@ export interface MarketplaceProfitability {
   returnRate: number;
   adSpend: number;
   poas: number;
+  grossSales?: number;
+  actualSettlementsReceived?: number;
+  returnedUnits?: number;
+  returnRateDenominator?: number;
+  customerReturnRate?: number;
+  rtoRate?: number;
 }
 
 export interface MonthlyProfitability {
@@ -152,7 +176,7 @@ export function buildFinancialMaps(
 
   for (let i = 0; i < returns.length; i++) {
     const r = returns[i];
-    const condMap = isDamaged(r.condition) ? damagedReturnUnitsMap : goodReturnUnitsMap;
+    const condMap = isDamagedReturn(r) ? damagedReturnUnitsMap : r.condition === "SELLABLE" ? goodReturnUnitsMap : new Map<string, number>();
 
     if (r.orderId) {
       const uKey = `${r.orderId}:${r.sku}`;
@@ -211,24 +235,8 @@ export function getReturnedUnitsForItem(
   returns: ReturnRecord[],
   returnUnitsMap?: Map<string, number>
 ): number {
-  if (returnUnitsMap) {
-    const k1 = `${order.id}:${itemSku}`;
-    const val1 = returnUnitsMap.get(k1);
-    if (val1 !== undefined) return val1;
-    if (order.channelOrderId) {
-      const k2 = `${order.channelOrderId}:${itemSku}`;
-      const val2 = returnUnitsMap.get(k2);
-      if (val2 !== undefined) return val2;
-    }
-    return 0;
-  }
-  return returns
-    .filter(
-      (r) =>
-        (r.orderId === order.id || (order.channelOrderId && r.channelOrderId === order.channelOrderId)) &&
-        r.sku === itemSku
-    )
-    .reduce((sum, r) => sum + r.quantity, 0);
+  return getOrderFinancialFacts(order, returns, [], []).lines.filter(line => line.sku === itemSku)
+    .reduce((sum, line) => sum + line.returnedUnits, 0);
 }
 
 /**
@@ -241,28 +249,8 @@ export function getGoodReturnedUnitsForItem(
   returns: ReturnRecord[],
   goodReturnUnitsMap?: Map<string, number>
 ): number {
-  if (goodReturnUnitsMap) {
-    const k1 = `${order.id}:${itemSku}`;
-    const val1 = goodReturnUnitsMap.get(k1);
-    if (val1 !== undefined) return val1;
-    if (order.channelOrderId) {
-      const k2 = `${order.channelOrderId}:${itemSku}`;
-      const val2 = goodReturnUnitsMap.get(k2);
-      if (val2 !== undefined) return val2;
-    }
-  }
-  const isDamaged = (cond: string) => cond === "DAMAGED" || cond === "UNUSABLE" || cond === "MISSING";
-  const matchedReturns = returns.filter(
-    (r) =>
-      (r.orderId === order.id || (order.channelOrderId && r.channelOrderId === order.channelOrderId)) &&
-      r.sku === itemSku
-  );
-  if (matchedReturns.length > 0) {
-    return matchedReturns
-      .filter((r) => !isDamaged(r.condition))
-      .reduce((sum, r) => sum + r.quantity, 0);
-  }
-  return order.items.find((i) => i.sku === itemSku)?.returnedQuantity || 0;
+  return getOrderFinancialFacts(order, returns, [], []).lines.filter(line => line.sku === itemSku)
+    .reduce((sum, line) => sum + line.goodUnits, 0);
 }
 
 /**
@@ -271,8 +259,8 @@ export function getGoodReturnedUnitsForItem(
 export function getRefundedAmountForItem(item: OrderItem, returnedQty: number): number {
   if (item.quantity <= 0 || returnedQty <= 0) return 0;
   const effectiveReturned = Math.min(returnedQty, item.quantity);
-  const unitNetSellingPrice = (item.sellingPrice * item.quantity - item.discount) / item.quantity;
-  return Math.round(effectiveReturned * unitNetSellingPrice * 100) / 100;
+  const gross = item.lineSubtotal ?? prorateMoney(item.sellingPrice, item.quantity, 1);
+  return prorateMoney(sumMoney([gross, -Math.min(gross, Math.max(0, item.discount))]), effectiveReturned, item.quantity);
 }
 
 /**
@@ -282,37 +270,51 @@ function financialFacts(order: Order, returns: ReturnRecord[], settlements: Sett
   const candidates = <T,>(map: Map<string, T[]>) => [...(map.get(order.id) || []), ...(order.channelOrderId !== order.id ? map.get(order.channelOrderId) || [] : [])];
   return getOrderFinancialFacts(order, maps ? candidates(maps.returnsByOrderMap) : returns, maps ? candidates(maps.settlementsByOrderMap) : settlements, maps ? candidates(maps.claimsByOrderMap) : claims);
 }
-export function calculateBusinessProfitability(orders: Order[], returns: ReturnRecord[], settlements: Settlement[], claims: Claim[], expenses: Expense[]): ProfitabilityMetrics {
+export function calculateBusinessProfitability(orders: Order[], returns: ReturnRecord[], settlements: Settlement[], claims: Claim[], expenses: Expense[],asOf?:string): ProfitabilityMetrics {
   const maps = buildFinancialMaps(returns, settlements, claims);
-  const facts = orders.filter(order => order.status !== "CANCELLED").map(order => financialFacts(order, returns, settlements, claims, maps));
-  const sum = (key: "grossSales" | "discounts" | "refundedSales" | "netSales" | "cogs" | "grossProfit" | "fees" | "shippingFees" | "returnCosts" | "claimRecovery" | "cash" | "units" | "returnedUnits" | "rtoUnits" | "damagedUnits" | "damageLoss" | "contributionProfit") => money(facts.reduce((value, fact) => value + fact[key], 0));
+  const facts = orders.map(order => asOf?getOrderFinancialFacts(order,returns,settlements,claims,asOf):financialFacts(order, returns, settlements, claims, maps));
+  const sum = (key: "grossSales" | "discounts" | "refundedSales" | "netSales" | "cogs" | "grossProfit" | "fees" | "shippingFees" | "returnCosts" | "claimRecovery" | "cash" | "units" | "returnedUnits" | "rtoUnits" | "damagedUnits" | "damageLoss" | "contributionProfit") => sumMoney(facts.map(fact => fact[key]));
   const unknownPayoutOrders = facts.filter(fact => fact.revenueRecognised && fact.expectedPayout === null).length;
-  const grossSales = sum("grossSales"), netSales = sum("netSales"), cogs = sum("cogs"), grossProfit = sum("grossProfit");
+  const grossSales = sum("grossSales"), netSales = sumMoney([sum("netSales"),sumMoney(facts.map(f=>f.shippingRevenue))]), cogs = sum("cogs"), grossProfit = sum("grossProfit");
   const contributionProfit = sum("contributionProfit");
-  const operatingExpenses = money(expenses.reduce((value, expense) => value + expense.amount, 0));
-  const totalAdSpend = money(expenses.filter(expense => expense.category === "Advertising").reduce((value, expense) => value + expense.amount, 0));
+  const datedExpenses = expenses.filter(expense => !asOf || expense.date.slice(0, 10) <= asOf);
+  const operatingExpenses = sumMoney(datedExpenses.map(expense => expense.amount));
+  const totalAdSpend = sumMoney(datedExpenses.filter(expense => expense.category === "Advertising").map(expense => expense.amount));
   const netOperatingProfit = money(contributionProfit - operatingExpenses);
-  const activeOrders = orders.filter(order => order.status !== "CANCELLED");
-  const pendingClaims = Array.from(new Map(claims.filter(claim => ["FILED", "UNDER_REVIEW", "NOT_FILED"].includes(claim.status) && activeOrders.some(order => order.marketplace === claim.marketplace && (order.id === claim.orderId || order.channelOrderId === claim.orderId))).map(claim => [claim.id, claim])).values());
+  const activeOrders = orders.filter(order => order.status !== "CANCELLED" && (!asOf || order.orderDate.slice(0, 10) <= asOf));
+  const pendingClaims = Array.from(new Map(claims.filter(claim => (!asOf || claim.claimDate.slice(0, 10) <= asOf) &&
+    ["FILED", "UNDER_REVIEW", "NOT_FILED", "APPROVED", "PARTIALLY_RECOVERED"].includes(claim.status) && claim.amountClaimed > recoveredAt(claim, asOf) &&
+    orders.some(order => order.marketplace === claim.marketplace && (order.id === claim.orderId || order.channelOrderId === claim.orderId))).map(claim => [claim.id, claim])).values());
+  const actualSettlementsReceived = sumMoney(Array.from(new Map(settlements.filter(s=>s.evidenceType!=="FINANCIAL_EVENT" && (!asOf || s.settlementDate.slice(0,10)<=asOf)).map(s=>[s.id,s])).values()).map(s=>s.netSettlement));
+  const relevantFacts = facts.filter((fact, index) => fact.revenueRecognised || fact.fees || fact.returnCosts || fact.claimRecovery || fact.cash || fact.issues.length && (!asOf || orders[index].orderDate.slice(0, 10) <= asOf));
+  const issues = Array.from(new Set(relevantFacts.flatMap(fact => fact.issues)));
+  if (facts.some(fact => fact.revenueRecognised && fact.feeStatus === "UNKNOWN")) issues.push("Marketplace fee basis unresolved");
+  if (facts.some(fact => fact.cashFees !== 0 && (fact.feeStatus === 'ESTIMATE' || fact.feeStatus === 'LEGACY'))) issues.push("Marketplace fees include estimates");
   return {
+    isComplete:relevantFacts.every(fact=>fact.isComplete) && issues.length === 0,issues,
+    shippingRevenue:sumMoney(facts.map(f=>f.shippingRevenue)),outputTaxExcluded:sumMoney(facts.filter(f=>f.taxIncludedInGross).map(f=>f.retainedTax)),directReturnCosts:sumMoney(facts.map(f=>f.returnCosts)),salvageRecovery:sumMoney(facts.map(f=>f.salvageRecovery)),
     grossSales, discounts: sum("discounts"), refundedSales: sum("refundedSales"), netSales, cogs, grossProfit,
     grossMargin: netSales > 0 ? grossProfit / netSales : 0,
     marketplaceCharges: money(sum("fees") - sum("shippingFees")), shippingLogisticsCosts: sum("shippingFees"),
-    customerReturnFees: money(facts.reduce((value, fact) => value + fact.linkedReturns.reduce((total, ret) => total + (ret.customerReturnFee || 0), 0), 0)),
+    customerReturnFees: sumMoney(facts.flatMap(fact => fact.returnDetails.map(detail => detail.customerReturnFee))),
     returnLosses: money(sum("returnCosts") + sum("damageLoss")),
-    rtoLosses: money(facts.reduce((value, fact) => value + fact.linkedReturns.filter(ret => ret.returnType === "RTO").reduce((total, ret) => total + (ret.returnShippingCost || 0) + (ret.otherReturnCosts || 0), 0), 0)),
+    rtoLosses: sumMoney(facts.flatMap(fact => fact.returnDetails.filter(detail => detail.record.returnType === "RTO").map(detail => detail.baseLoss))),
     damageLosses: sum("damageLoss"), claimRecoveries: sum("claimRecovery"), contributionProfit,
     contributionMargin: netSales > 0 ? contributionProfit / netSales : 0, operatingExpenses, netOperatingProfit,
     netOperatingMargin: netSales > 0 ? netOperatingProfit / netSales : 0,
-    actualSettlementsReceived: sum("cash"), outstandingSettlementEstimated: unknownPayoutOrders ? null : money(facts.reduce((value, fact) => value + (fact.outstanding || 0), 0)),
+    actualSettlementsReceived, outstandingSettlementEstimated: unknownPayoutOrders ? null : sumMoney(facts.map(fact => fact.outstanding || 0)),
     unknownFeeOrders: facts.filter(fact => fact.revenueRecognised && fact.feeStatus === "UNKNOWN").length,
     totalOrders: activeOrders.length, totalUnitsSold: sum("units"),
     totalReturns: new Set(facts.flatMap(fact => fact.linkedReturns.map(ret => ret.id))).size,
     returnRate: sum("units") > 0 ? sum("returnedUnits") / sum("units") : 0,
-    totalAdSpend, roas: totalAdSpend > 0 ? money(netSales / totalAdSpend) : 0, poas: totalAdSpend > 0 ? money(contributionProfit / totalAdSpend) : 0,
-    netPlatformPayout: money(sum("cash") - sum("returnCosts") + sum("claimRecovery")), trueProfit: contributionProfit,
+    returnRateUnits: sum("returnedUnits"), returnRateDenominator: sum("units"),
+    customerReturnRateUnits: sum("returnedUnits") - sum("rtoUnits"), rtoRateUnits: sum("rtoUnits"),
+    customerReturnRate: sum("units") > 0 ? (sum("returnedUnits") - sum("rtoUnits")) / sum("units") : 0,
+    rtoRate: sum("units") > 0 ? sum("rtoUnits") / sum("units") : 0,
+    totalAdSpend, roas: totalAdSpend > 0 ? netSales / totalAdSpend : 0, poas: totalAdSpend > 0 ? contributionProfit / totalAdSpend : 0,
+    netPlatformPayout: actualSettlementsReceived,
     rtoCount: sum("rtoUnits"), customerReturnCount: sum("returnedUnits") - sum("rtoUnits"), damagedUnitsCount: sum("damagedUnits"),
-    pendingClaimsAmount: money(pendingClaims.reduce((value, claim) => value + claim.amountClaimed, 0)), pendingClaimsCount: pendingClaims.length,
+    pendingClaimsAmount: sumMoney(pendingClaims.map(claim => Math.max(0, sumMoney([claim.amountClaimed, -recoveredAt(claim, asOf)])))), pendingClaimsCount: pendingClaims.length,
     totalFees: money(sum("fees") + sum("returnCosts")),
   };
 }
@@ -323,9 +325,9 @@ export function calculateBusinessProfitability(orders: Order[], returns: ReturnR
 export function calculateOrderProfitability(order: Order, returns: ReturnRecord[], settlements: Settlement[], claims: Claim[], indexedMaps?: IndexedFinancialMaps): OrderProfitability {
   const fact = financialFacts(order, returns, settlements, claims, indexedMaps);
   return { orderId: order.id, marketplace: order.marketplace, orderDate: order.orderDate, status: order.status,
-    grossSales: fact.grossSales, netSales: fact.netSales, cogs: fact.cogs, grossProfit: fact.grossProfit,
+    grossSales: fact.grossSales, netSales: sumMoney([fact.netSales, fact.shippingRevenue]), cogs: fact.cogs, grossProfit: fact.grossProfit,
     chargesDeducted: fact.fees, returnLoss: fact.returnCosts, claimRecovery: fact.claimRecovery,
-    contributionProfit: fact.contributionProfit, contributionMargin: fact.netSales > 0 ? fact.contributionProfit / fact.netSales : 0,
+    contributionProfit: fact.contributionProfit, contributionMargin: fact.netSales + fact.shippingRevenue > 0 ? fact.contributionProfit / sumMoney([fact.netSales, fact.shippingRevenue]) : 0,
     settledAmount: fact.cash, isSettled: fact.isSettled,
   };
 }
@@ -350,12 +352,11 @@ export function calculateMarketplaceProfitability(
   ];
   const orderMarketplaces = orders
     .map((o) => o.marketplace)
-    .filter((mp): mp is Marketplace => Boolean(mp) && mp !== "Other" && mp !== "B2B Wholesale");
+    .filter((mp): mp is Marketplace => Boolean(mp));
   const returnMarketplaces = returns
     .map((r) => r.marketplace)
-    .filter((mp): mp is Marketplace => Boolean(mp) && mp !== "Other" && mp !== "B2B Wholesale");
-  const marketplaces = Array.from(new Set([...defaultMarketplaces, ...orderMarketplaces, ...returnMarketplaces]))
-    .filter((mp) => mp !== "Other" && mp !== "B2B Wholesale") as Marketplace[];
+    .filter((mp): mp is Marketplace => Boolean(mp));
+  const marketplaces = Array.from(new Set([...defaultMarketplaces, ...orderMarketplaces, ...returnMarketplaces, ...settlements.map(s => s.marketplace), ...claims.map(c => c.marketplace), ...expenses.flatMap(e => e.marketplace ? [e.marketplace] : [])])) as Marketplace[];
 
   const maps = buildFinancialMaps(returns, settlements, claims);
 
@@ -368,37 +369,74 @@ export function calculateMarketplaceProfitability(
     return { marketplace: mp, orderCount: totals.totalOrders, unitsSold: totals.totalUnitsSold,
       revenue: totals.netSales, cogs: totals.cogs, fees: totals.marketplaceCharges, logistics: totals.shippingLogisticsCosts,
       returnLosses: totals.returnLosses, claimRecoveries: totals.claimRecoveries, contributionProfit: totals.contributionProfit,
-      margin: totals.contributionMargin, returnRate: totals.returnRate, adSpend: totals.totalAdSpend, poas: totals.poas };
+      margin: totals.contributionMargin, returnRate: totals.returnRate, adSpend: totals.totalAdSpend, poas: totals.poas,
+      grossSales: totals.grossSales, actualSettlementsReceived: totals.actualSettlementsReceived,
+      returnedUnits: totals.customerReturnCount + totals.rtoCount, returnRateDenominator: totals.returnRateDenominator,
+      customerReturnRate: totals.customerReturnRate, rtoRate: totals.rtoRate };
   });
 }
 
 /**
  * Calculates SKU-Level Profitability
  */
-export function calculateSkuProfitability(orders: Order[], returns: ReturnRecord[], settlements: Settlement[], claims: Claim[], expenses: Expense[] = []): SkuProfitability[] {
+export function calculateSkuProfitability(orders: Order[], returns: ReturnRecord[], settlements: Settlement[], claims: Claim[], expenses: Expense[] = [],asOf?:string): SkuProfitability[] {
   const maps = buildFinancialMaps(returns, settlements, claims);
-  const totals = new Map<string, SkuProfitability & { returnedUnits: number }>();
+  const totals = new Map<string, SkuProfitability & { returnedUnits: number; orderCount: number; salvageRecovery: number }>();
+  const empty = (sku: string, productName: string) => ({ sku, productName, unitsSold: 0, revenue: 0, cogs: 0,
+    marketplaceCharges: 0, returnLosses: 0, claimRecoveries: 0, salvageRecovery: 0, profit: 0, margin: 0, returnRate: 0, returnedUnits: 0, orderCount: 0 });
   for (const order of orders) {
-    const fact = financialFacts(order, returns, settlements, claims, maps);
-    if (!fact.revenueRecognised) continue;
-    const weights = fact.lines.map(line => line.gross);
-    const returnWeights = fact.lines.map(line => line.returnedUnits);
-    const fees = allocateMoney(fact.fees, weights);
-    const costs = allocateMoney(fact.returnCosts, returnWeights.some(Boolean) ? returnWeights : weights);
-    const recoveries = allocateMoney(fact.claimRecovery, returnWeights.some(Boolean) ? returnWeights : weights);
+    const fact = asOf?getOrderFinancialFacts(order,returns,settlements,claims,asOf):financialFacts(order, returns, settlements, claims, maps);
+    if (!fact.revenueRecognised && !fact.fees && !fact.returnCosts && !fact.claimRecovery) continue;
+    // Original discounted line values do not change because of a later return.
+    const weights = order.items.map(item => Math.max(0, sumMoney([item.lineSubtotal ?? prorateMoney(item.sellingPrice, item.quantity, 1), -item.discount])));
+    const linkedSettlements = Array.from(new Map(settlements.filter(settlement => settlement.marketplace === order.marketplace &&
+      [order.id, order.channelOrderId].includes(settlement.orderId) && (!asOf || settlement.settlementDate.slice(0, 10) <= asOf)).map(settlement => [settlement.id, settlement])).values());
+    const actualFeeEvents = linkedSettlements.flatMap(settlement => settlementMovement(settlement, linkedSettlements).deductions)
+      .filter(deduction => deduction.category !== 'TAX_TCS' && deduction.category !== 'TAX_TDS');
+    // Allocate each source event separately: a later fee must not redistribute the
+    // earlier event's rounding paise between SKUs.
+    const fees = fact.lines.map(() => 0);
+    for (const amount of actualFeeEvents.length ? actualFeeEvents.map(event => marketplaceFeeFacts(order, event).expense) : [fact.fees])
+      allocateMoney(amount, weights).forEach((share, index) => fees[index] = sumMoney([fees[index], share]));
+    const costs = fact.lines.map(() => 0), recoveries = fact.lines.map(() => 0), salvage = fact.lines.map(() => 0);
+    const add = (target: number[], amount: number, allocationWeights: number[]) => {
+      const shares = allocateMoney(amount, allocationWeights.some(Boolean) ? allocationWeights : weights);
+      shares.forEach((share, index) => target[index] = sumMoney([target[index], share]));
+    };
+    const boundedReturns = fact.returnDetails.map(detail => ({ ...detail.record, quantity: detail.returnedUnits }));
+    const claimAllocations = returnClaimAllocations(order, boundedReturns, claims, asOf);
+    let allocatedClaimRecovery = 0;
+    fact.returnDetails.forEach(detail => {
+      add(costs, detail.returnCosts, detail.unitsByLine);
+      add(salvage, detail.salvageValue, detail.unitsByLine.map((units, index) => prorateMoney(fact.lines[index].unitCost, units, 1)));
+      const recovery = sumMoney((claimAllocations.get(detail.record.id) || []).map(allocation => allocation.recovered));
+      add(recoveries, recovery, detail.unitsByLine);
+      allocatedClaimRecovery = sumMoney([allocatedClaimRecovery, recovery]);
+    });
+    // Fee disputes and other order-wide claims may have no physical return.
+    add(recoveries, sumMoney([fact.claimRecovery, -allocatedClaimRecovery]), weights);
+    const shipping = allocateMoney(fact.shippingRevenue, weights);
+    const seenSkus = new Set<string>();
     fact.lines.forEach((line, index) => {
-      const current = totals.get(line.sku) || { sku: line.sku, productName: line.productName, unitsSold: 0, revenue: 0, cogs: 0, marketplaceCharges: 0, returnLosses: 0, claimRecoveries: 0, profit: 0, margin: 0, returnRate: 0, returnedUnits: 0 };
-      current.unitsSold += line.quantity; current.revenue = money(current.revenue + line.netSales);
-      current.cogs = money(current.cogs + line.cogs); current.marketplaceCharges = money(current.marketplaceCharges + fees[index]);
-      current.returnLosses = money(current.returnLosses + costs[index]); current.claimRecoveries = money(current.claimRecoveries + recoveries[index]);
-      current.returnedUnits += line.returnedUnits; totals.set(line.sku, current);
+      const current = totals.get(line.sku) || empty(line.sku, line.productName);
+      current.unitsSold += line.quantity; current.revenue = sumMoney([current.revenue, line.netSales, shipping[index]]);
+      current.cogs = sumMoney([current.cogs, line.cogs]); current.marketplaceCharges = sumMoney([current.marketplaceCharges, fees[index]]);
+      current.returnLosses = sumMoney([current.returnLosses, costs[index]]); current.claimRecoveries = sumMoney([current.claimRecoveries, recoveries[index]]);
+      current.salvageRecovery = sumMoney([current.salvageRecovery, salvage[index]]);
+      current.returnedUnits += line.returnedUnits;
+      if (fact.revenueRecognised && !seenSkus.has(line.sku)) current.orderCount++;
+      seenSkus.add(line.sku); totals.set(line.sku, current);
     });
   }
-  return Array.from(totals.values()).map(({ returnedUnits, ...sku }) => {
-    const profit = money(sku.revenue - sku.cogs - sku.marketplaceCharges - sku.returnLosses + sku.claimRecoveries);
-    const adSpend = money(expenses.filter(expense => expense.category === "Advertising" && expense.attributedSku === sku.sku).reduce((value, expense) => value + expense.amount, 0));
-    return { ...sku, profit, margin: sku.revenue > 0 ? profit / sku.revenue : 0, returnRate: sku.unitsSold > 0 ? returnedUnits / sku.unitsSold : 0,
-      adSpend: adSpend || undefined, poas: adSpend > 0 ? money(profit / adSpend) : undefined };
+  const adExpenses = expenses.filter(expense => expense.category === "Advertising" && expense.attributedSku && (!asOf || expense.date.slice(0, 10) <= asOf));
+  adExpenses.forEach(expense => {
+    if (!totals.has(expense.attributedSku!)) totals.set(expense.attributedSku!, empty(expense.attributedSku!, expense.attributedSku!));
+  });
+  return Array.from(totals.values()).map(sku => {
+    const profit = sumMoney([sku.revenue, -sku.cogs, -sku.marketplaceCharges, -sku.returnLosses, sku.claimRecoveries, sku.salvageRecovery]);
+    const adSpend = sumMoney(adExpenses.filter(expense => expense.attributedSku === sku.sku).map(expense => expense.amount));
+    return { ...sku, profit, margin: sku.revenue > 0 ? profit / sku.revenue : 0, returnRate: sku.unitsSold > 0 ? Math.min(1, sku.returnedUnits / sku.unitsSold) : 0,
+      adSpend: adSpend || undefined, poas: adSpend > 0 ? profit / adSpend : undefined };
   });
 }
 
@@ -430,56 +468,31 @@ export function computeReturnFinancials(
   r: ReturnRecord,
   orders: Order[] = [],
   products: Product[] = [],
-  claims: Claim[] = []
+  claims: Claim[] = [],
+  settlements: Settlement[] = [],
+  allReturns: ReturnRecord[] = [r]
 ): ReturnFinancials {
   // 1. Determine Product Unit Cost from Order snapshot or Catalog
   const order = orders.find(
-    (o) => o.id === r.orderId || (r.channelOrderId && o.channelOrderId === r.channelOrderId)
+    (o) => o.marketplace === r.marketplace && (o.id === r.orderId || o.channelOrderId === r.orderId || (r.channelOrderId && o.channelOrderId === r.channelOrderId))
   );
-  const orderItem = order?.items.find((i) => i.sku === r.sku);
+  const orderItem = order?.items.find((i) => i.sku === r.sku && (!r.orderItemId || i.id === r.orderItemId));
   const matchedProduct = products.find((p) => p.sku === r.sku);
-  const unitCost = orderItem?.snapshotUnitCost ?? matchedProduct?.currentCostPrice ?? 0;
-  const productCost = unitCost * r.quantity;
-
-  // 2. Identify Damage State
-  const isDamaged =
-    r.condition === "DAMAGED" ||
-    r.condition === "UNUSABLE" ||
-    r.condition === "MISSING" ||
-    r.returnType === "DAMAGED_RETURN";
-
-  // 3. Logistics Fees & Salvage
-  const salvageValue = r.inventoryRecoveryValue || 0;
-  const isRto = r.returnType === "RTO";
-  const customerReturnFee = isRto ? 0 : (r.customerReturnFee ?? 0);
-  const returnShippingCost = isRto ? 0 : (r.returnShippingCost || 0);
-  const logisticsFees = returnShippingCost + customerReturnFee;
-
-  // 4. Base Loss (Gross Loss before Claim Reimbursement)
-  const damageLoss = isDamaged ? Math.max(0, productCost - salvageValue) : 0;
-  let baseLoss = 0;
-  if (isDamaged) {
-    baseLoss = damageLoss + logisticsFees;
-  } else {
-    baseLoss = isRto ? 0 : logisticsFees;
-  }
-
-  // Fallback to r.lossAmount if baseLoss is 0 and non-RTO recorded an explicit loss
-  if (baseLoss === 0 && r.lossAmount > 0 && !isRto) {
-    baseLoss = r.lossAmount;
-  }
+  const fallbackUnitCost = orderItem?.snapshotUnitCost ?? matchedProduct?.currentCostPrice ?? 0;
+  const orderFacts = order ? getOrderFinancialFacts(order, allReturns, settlements, claims) : null;
+  const costFacts = orderFacts?.returnDetails.find(detail => detail.record.id === r.id)
+    || getReturnCostFacts(r, prorateMoney(fallbackUnitCost, r.quantity, 1));
+  const { productCost, isDamaged, salvageValue, customerReturnFee, returnShippingCost, damageLoss, baseLoss } = costFacts;
+  const coveredUnits = orderFacts?.returnDetails.find(detail => detail.record.id === r.id)?.returnedUnits ?? r.quantity;
+  const unitCost = coveredUnits > 0 ? money(productCost / coveredUnits) : fallbackUnitCost;
 
   // 5. Match Linked Claim
-  const claim = claims.find(
-    (c) =>
-      (r.claimId && c.id === r.claimId) ||
-      c.returnId === r.id ||
-      (c.orderId && (c.orderId === r.orderId || (r.channelOrderId && c.orderId === r.channelOrderId)))
-  );
+  const attributed=returnClaimAllocations(order,orderFacts ? orderFacts.returnDetails.map(detail => ({ ...detail.record, quantity: detail.returnedUnits })) : allReturns,claims).get(r.id)||[];
+  const claim=attributed[0]?.claim;
 
   // 6. Reimbursement & Claim Amount
-  const amountClaimed = claim ? claim.amountClaimed : (isDamaged ? baseLoss : 0);
-  const reimbursementAmount = claim ? (claim.amountRecovered || 0) : 0;
+  const amountClaimed = attributed.length ? sumMoney(attributed.map(a=>a.claimed)) : (isDamaged ? baseLoss : 0);
+  const reimbursementAmount = sumMoney(attributed.map(a=>a.recovered));
 
   // 7. Claim Status Label
   let claimStatus: ClaimStatus | "UNCLAIMED" | "NO_CLAIM" = "NO_CLAIM";
@@ -521,7 +534,7 @@ export function computeReturnFinancials(
   }
 
   // 8. Real-time Net Financial Impact (Net Loss or Net Profit)
-  const netFinancialImpact = Math.round((baseLoss - reimbursementAmount) * 100) / 100;
+  const netFinancialImpact = money((baseLoss - reimbursementAmount));
   const isNetProfit = netFinancialImpact < 0;
   const netLoss = Math.max(0, netFinancialImpact);
 
@@ -697,7 +710,8 @@ export function filterDatasetByDateRange(
 /**
  * Calculates percentage trend (+14.2% or -5.1%) between current and prior period
  */
-export function calculatePercentageChange(current: number, previous: number): number {
+export function calculatePercentageChange(current: number, previous: number, metric: "AMOUNT" | "RATIO" = "AMOUNT"): number {
+  if (metric === "RATIO") return money((current - previous) * 100);
   if (previous === 0) return current > 0 ? 100 : (current < 0 ? -100 : 0);
   const change = ((current - previous) / Math.abs(previous)) * 100;
   return Math.round(change * 10) / 10;
@@ -706,7 +720,8 @@ export function calculatePercentageChange(current: number, previous: number): nu
 export interface SettlementAgingBracket {
   rangeLabel: string; // "0–7 Days", "8–14 Days", "> 14 Days (Overdue)"
   orderCount: number;
-  totalEstimatedAmount: number;
+  totalEstimatedAmount: number | null;
+  unknownAmountOrders: number;
   statusType: "ON_SCHEDULE" | "PENDING" | "OVERDUE";
   orders: {
     orderId: string;
@@ -714,7 +729,7 @@ export interface SettlementAgingBracket {
     marketplace: Marketplace;
     orderDate: string;
     daysOutstanding: number;
-    estimatedPayout: number;
+    estimatedPayout: number | null;
   }[];
 }
 
@@ -722,7 +737,7 @@ export interface SettlementAgingSummary {
   onSchedule: SettlementAgingBracket; // 0-7 days
   pending: SettlementAgingBracket;    // 8-14 days
   overdue: SettlementAgingBracket;    // >14 days
-  totalOutstandingAmount: number;
+  totalOutstandingAmount: number | null;
   totalUnsettledOrders: number;
 }
 
@@ -741,8 +756,9 @@ export function calculateSettlementAging(
 ): SettlementAgingSummary {
   const anchor = new Date(anchorDateStr);
   const unsettled = orders.filter(order => {
-    const outstanding = getOrderFinancialFacts(order, returns, settlements, claims).outstanding;
-    return outstanding !== null && outstanding > 0 && Number.isFinite(Date.parse(order.orderDate)) && order.orderDate.slice(0, 10) <= anchorDateStr;
+    const fact = getOrderFinancialFacts(order, returns, settlements, claims, anchorDateStr);
+    const outstanding = fact.outstanding;
+    return fact.revenueRecognised && (outstanding === null || outstanding > 0) && Number.isFinite(Date.parse(order.revenueRecognisedDate || order.orderDate)) && (order.revenueRecognisedDate || order.orderDate).slice(0, 10) <= anchorDateStr;
   });
 
   const onScheduleList: SettlementAgingBracket["orders"] = [];
@@ -750,11 +766,11 @@ export function calculateSettlementAging(
   const overdueList: SettlementAgingBracket["orders"] = [];
 
   unsettled.forEach((o) => {
-    const orderDate = new Date(o.orderDate.slice(0, 10));
+    const orderDate = new Date((o.revenueRecognisedDate || o.orderDate).slice(0, 10));
     const diffTime = Math.max(0, anchor.getTime() - orderDate.getTime());
     const daysOutstanding = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    const estimatedPayout = getOrderFinancialFacts(o, returns, settlements, claims).outstanding ?? 0;
+    const estimatedPayout = getOrderFinancialFacts(o, returns, settlements, claims, anchorDateStr).outstanding;
 
     const entry = {
       orderId: o.id,
@@ -762,7 +778,7 @@ export function calculateSettlementAging(
       marketplace: o.marketplace,
       orderDate: o.orderDate,
       daysOutstanding,
-      estimatedPayout: Math.round(estimatedPayout * 100) / 100,
+      estimatedPayout,
     };
 
     if (daysOutstanding <= 7) {
@@ -775,12 +791,13 @@ export function calculateSettlementAging(
   });
 
   const sumAmount = (list: SettlementAgingBracket["orders"]) =>
-    Math.round(list.reduce((sum, item) => sum + item.estimatedPayout, 0) * 100) / 100;
+    list.some(item => item.estimatedPayout === null) ? null : sumMoney(list.map(item => item.estimatedPayout!));
 
   const onSchedule: SettlementAgingBracket = {
     rangeLabel: "0–7 Days (Cycle Safe)",
     orderCount: onScheduleList.length,
     totalEstimatedAmount: sumAmount(onScheduleList),
+    unknownAmountOrders: onScheduleList.filter(item => item.estimatedPayout === null).length,
     statusType: "ON_SCHEDULE",
     orders: onScheduleList,
   };
@@ -789,6 +806,7 @@ export function calculateSettlementAging(
     rangeLabel: "8–14 Days (Pending)",
     orderCount: pendingList.length,
     totalEstimatedAmount: sumAmount(pendingList),
+    unknownAmountOrders: pendingList.filter(item => item.estimatedPayout === null).length,
     statusType: "PENDING",
     orders: pendingList,
   };
@@ -797,6 +815,7 @@ export function calculateSettlementAging(
     rangeLabel: "> 14 Days (Overdue)",
     orderCount: overdueList.length,
     totalEstimatedAmount: sumAmount(overdueList),
+    unknownAmountOrders: overdueList.filter(item => item.estimatedPayout === null).length,
     statusType: "OVERDUE",
     orders: overdueList,
   };
@@ -805,7 +824,7 @@ export function calculateSettlementAging(
     onSchedule,
     pending,
     overdue,
-    totalOutstandingAmount: onSchedule.totalEstimatedAmount + pending.totalEstimatedAmount + overdue.totalEstimatedAmount,
+    totalOutstandingAmount: [onSchedule, pending, overdue].some(bracket => bracket.totalEstimatedAmount === null) ? null : sumMoney([onSchedule.totalEstimatedAmount!, pending.totalEstimatedAmount!, overdue.totalEstimatedAmount!]),
     totalUnsettledOrders: unsettled.length,
   };
 }

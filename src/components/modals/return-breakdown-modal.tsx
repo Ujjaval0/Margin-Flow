@@ -16,7 +16,7 @@ import {
   Store,
   ChevronDown,
 } from "lucide-react";
-import { ReturnRecord, Order, Claim, Product } from "@/domain/types";
+import { ReturnRecord, Order, Claim, Product, Settlement } from "@/domain/types";
 import { formatINR } from "@/lib/utils";
 import { computeReturnFinancials } from "@/domain/profitability-engine";
 
@@ -33,6 +33,7 @@ export interface ReturnBreakdownModalProps {
   orders: Order[];
   claims?: Claim[];
   products?: Product[];
+  settlements?: Settlement[];
   effectiveChannel: string;
   onSelectTab?: (tab: "ALL" | "CUSTOMER_RETURN" | "RTO" | "OLD_RETURNS") => void;
 }
@@ -44,6 +45,7 @@ export function ReturnBreakdownModal({
   orders,
   claims = [],
   products = [],
+  settlements = [],
   effectiveChannel,
   onSelectTab,
 }: ReturnBreakdownModalProps) {
@@ -109,7 +111,7 @@ export function ReturnBreakdownModal({
   const rtoUnits = rtoReturns.reduce((sum, r) => sum + r.quantity, 0);
   const customerUnits = customerReturns.reduce((sum, r) => sum + r.quantity, 0);
 
-  const getFin = (r: ReturnRecord) => computeReturnFinancials(r, orders, products, claims);
+  const getFin = (r: ReturnRecord) => computeReturnFinancials(r, orders, products, claims, settlements, returns);
 
   // Financials
   const totalLoss = filteredReturns.reduce((sum, r) => sum + getFin(r).netLoss, 0);

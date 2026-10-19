@@ -1,5 +1,6 @@
 import { Order, OrderItem, Marketplace, OrderStatus, Product } from "@/domain/types";
 import { normalizeMarketplace } from "@/lib/marketplace-config";
+import {sumMoney,toPaise} from './money';
 
 export type MarketplaceSheetFormat =
   | "AMAZON_MTR"
@@ -21,6 +22,9 @@ export interface TargetFieldDef {
 }
 
 export const TARGET_FIELDS: TargetFieldDef[] = [
+  {field:'currency',label:'Currency',required:false,aliases:['currency','currency code','currency_code']},
+  {field:'pricesIncludeTax',label:'Prices Include Tax',required:false,aliases:['prices include tax','tax inclusive','taxes included','prices_include_tax']},
+  {field:'revenueRecognisedDate',label:'Revenue Recognition Date',required:false,aliases:['delivered date','delivery date','revenue recognised date','revenue_recognised_date']},
   { field: "lineItemId", label: "Line Item ID", required: false, aliases: ["line item id", "order item id", "lineitem id", "order_item_id"] },
   { field: "id", label: "Order ID", required: true, aliases: ["orderid", "ordernumber", "order_id", "order id", "sub order no", "suborderno", "sub_order_no", "invoice number", "invoice no", "invoiceno", "packet id", "packet_id", "order release id", "order_release_id", "order no", "orderno", "order ref", "ref no"] },
   { field: "channelOrderId", label: "Channel Ref", required: false, aliases: ["channelorderid", "channelref", "channel order id", "sub_order_id", "packet_id", "order_release_id", "external id"] },
@@ -32,7 +36,7 @@ export const TARGET_FIELDS: TargetFieldDef[] = [
   { field: "quantity", label: "Quantity", required: true, aliases: ["qty", "quantity", "units", "item qty", "item_quantity", "lineitem quantity", "pieces", "count"] },
   { field: "sellingPrice", label: "Selling Price / Gross", required: true, aliases: ["sellingprice", "selling_price", "price", "unitprice", "unit_price", "itemprice", "item-price", "selling price", "supplier discounted price", "supplier_discounted_price", "supplierdiscountedprice"] },
   { field: "discount", label: "Discount", required: false, aliases: ["discount", "discounts", "promodiscount", "item discount", "coupon discount"] },
-  { field: "taxAmount", label: "GST / Taxes", required: false, aliases: ["tax", "taxamount", "gst", "total tax", "total_tax", "totaltax", "igst", "cgst", "sgst", "igst_amount", "cgst_amount", "sgst_amount"] },
+  { field: "taxAmount", label: "GST / Taxes", required: false, aliases: ["tax", "taxamount", "gst", "total tax", "total_tax", "totaltax"] },
   { field: "shippingFeeCharged", label: "Shipping Fee Charged", required: false, aliases: ["shippingfee", "shipping", "shippingfeecharged", "shipping charge", "delivery charge", "forward_delivery_charge"] },
   { field: "marketplaceChargesEstimate", label: "Marketplace Deductions", required: false, aliases: ["commission", "marketplace fee", "platform fee", "deductions", "fee", "referral fee", "meesho_commission", "meeshocommission", "myntra_commission", "myntracommission"] },
   { field: "customerName", label: "Customer Name", required: false, aliases: ["customername", "customer", "buyer", "buyername", "buyer name", "billing name", "recipient"] },
@@ -451,6 +455,8 @@ export function detectAndMapCsv(
   // Quick lookup map: targetField -> source column index
   const fieldToCol = new Map<string, number>();
   columnMappings.forEach((m) => fieldToCol.set(m.targetField, m.sourceIndex));
+  const normalizedHeaders=rawHeaders.map(header=>header.toLowerCase().replace(/[^a-z0-9]/g,''));
+  const componentIndices=['cgst','sgst','igst'].map(component=>normalizedHeaders.flatMap((header,index)=>[component,component+'amount',component+'value'].includes(header)?[index]:[]));
 
   // Exact master SKUs and marketplace-specific aliases; ambiguous matches stay unresolved.
   const productLookup = new Map<string, Product | null>();
@@ -479,6 +485,7 @@ export function detectAndMapCsv(
       return idx !== undefined && row[idx] !== undefined ? row[idx].trim() : "";
     };
 
+    if(getVal('currency') && getVal('currency').toUpperCase()!=='INR' || row.some(value=>typeof value==='string' && /^[\$€£]/.test(value.trim()))) {errors.push('Row '+rowNumber+': only INR source amounts are supported.');continue;}
     const rawSku = getVal("sku");
     const sourceId = getVal("channelOrderId") || getVal("id");
     const sourceDate = cleanDate(getVal("orderDate"));
@@ -487,12 +494,22 @@ export function detectAndMapCsv(
       if (!value) return fallback;
       if (!/^(?:[₹$€£]\s*)?-?\d[\d,]*(?:\.\d+)?$/.test(value)) return undefined;
       const parsed = cleanCurrency(value);
-      return Number.isFinite(parsed) ? parsed : undefined;
+      return Number.isFinite(parsed) && Math.abs(parsed*100-Math.round(parsed*100))<1e-7 ? parsed : undefined;
     };
     const quantity = numeric("quantity");
     const sellingPrice = numeric("sellingPrice");
     const discount = numeric("discount", 0);
-    const taxAmount = numeric("taxAmount", 0);
+    let taxAmount = numeric("taxAmount", 0);
+    const componentColumns=componentIndices.flat();
+    if(componentIndices.some(indices=>indices.length>1)){errors.push('Row '+rowNumber+': ambiguous duplicate GST component columns.');continue;}
+    if(componentColumns.length){
+      const components=componentColumns.map(index=>row[index]?.trim()).filter(Boolean).map(value=>Number(value!.replace(/[₹,\s]/g,'')));
+      if(components.some(value=>!Number.isFinite(value)||value<0||Math.abs(value*100-Math.round(value*100))>1e-7)){errors.push('Row '+rowNumber+': invalid GST component.');continue;}
+      const componentTax=sumMoney(components);
+      const explicit=fieldToCol.get('taxAmount');
+      if(explicit!==undefined && !componentColumns.includes(explicit) && getVal('taxAmount') && (taxAmount===undefined || toPaise(taxAmount)!==toPaise(componentTax))){errors.push('Row '+rowNumber+': total GST disagrees with CGST/SGST/IGST components.');continue;}
+      taxAmount=componentTax;
+    }
     const shippingFeeCharged = numeric("shippingFeeCharged", 0);
     const marketplaceChargesEstimate = numeric("marketplaceChargesEstimate", 0);
     if (!rawSku || !sourceId || !sourceDate || quantity === undefined || !Number.isSafeInteger(quantity) || quantity <= 0 ||
@@ -531,7 +548,7 @@ export function detectAndMapCsv(
     const historicalCost = matchedProduct?.costHistory?.find(cost => cost.validFrom.slice(0, 10) <= orderDate && (!cost.validTo || cost.validTo.slice(0, 10) >= orderDate));
     const snapshotUnitCost = historicalCost?.costPrice ?? 0;
     if (!historicalCost) warnings.push("Row " + rowNumber + ": historical cost is unknown for " + sku + "; no cost was invented.");
-    if (!getVal("taxAmount")) warnings.push("Row " + rowNumber + ": tax was not supplied; recorded as 0, not inferred.");
+    if (!getVal("taxAmount")) warnings.push("Row " + rowNumber + ": tax was not supplied; the zero placeholder remains unresolved and profit is provisional.");
     const signature = JSON.stringify([sku, getVal("lineItemId")]);
     const lineId = "LINE-" + encodeURIComponent(signature);
 
@@ -544,6 +561,7 @@ export function detectAndMapCsv(
       discount,
       taxAmount,
       snapshotUnitCost,
+      costEvidence:historicalCost?'RECORDED':'UNKNOWN',
       returnedQuantity: 0,
     };
 
@@ -552,6 +570,10 @@ export function detectAndMapCsv(
       channelOrderId,
       marketplace,
       orderDate,
+      currency:'INR',
+      taxEvidenceStatus:getVal('taxAmount') || componentColumns.some(index=>row[index]?.trim())?'RECORDED':'UNKNOWN',
+      pricesIncludeTax:/^(true|yes|inclusive|1)$/i.test(getVal('pricesIncludeTax'))?true:/^(false|no|exclusive|0)$/i.test(getVal('pricesIncludeTax'))?false:undefined,
+      revenueRecognisedDate:cleanDate(getVal('revenueRecognisedDate'))||undefined,
       status,
       customerName,
       customerCity,

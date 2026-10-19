@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 export function LedgerView() {
-  const { orders, returns, settlements, purchases, expenses } = usePlatform();
+  const { orders, returns, settlements, purchases, expenses, supplierPayments, claims } = usePlatform();
   const [activeTab, setActiveTab] = useState<"JOURNAL" | "TRIAL_BALANCE">("JOURNAL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>("ALL");
@@ -30,8 +30,8 @@ export function LedgerView() {
 
   // Generate real-time balanced double-entry ledger & trial balance
   const generalLedger = useMemo(() => {
-    return generateGeneralLedger(orders, returns, settlements, purchases, expenses);
-  }, [orders, returns, settlements, purchases, expenses]);
+    return generateGeneralLedger(orders, returns, settlements, purchases, expenses, supplierPayments, claims);
+  }, [orders, returns, settlements, purchases, expenses, supplierPayments, claims]);
 
   const trialBalance = useMemo(() => {
     return calculateTrialBalance(generalLedger);
@@ -82,11 +82,11 @@ export function LedgerView() {
             </h1>
             <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              {trialBalance.isBalanced ? "Balanced (Debits = Credits)" : "Imbalance Flagged"}
+              {trialBalance.isBalanced ? trialBalance.isComplete ? "Balanced (Debits = Credits)" : "Balanced · Provisional" : "Imbalance Flagged"}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-[#86868B] mt-1">
-            Immutable Financial Transaction Journal &amp; Trial Balance
+            {trialBalance.provisionalEntries ? `Operational journal & trial balance · ${trialBalance.provisionalEntries} provisional entries need evidence` : "Operational Transaction Journal & Trial Balance"}
           </p>
         </div>
 
@@ -156,7 +156,7 @@ export function LedgerView() {
             {trialBalance.isBalanced ? "₹0.00 Variance" : formatINR(trialBalance.discrepancy)}
           </div>
           <p className="text-[11px] text-[#288548] mt-1">
-            {trialBalance.isBalanced ? "100% Mathematically Balanced" : "Discrepancy detected"}
+            {trialBalance.isBalanced ? trialBalance.isComplete ? "Debits equal credits" : "Debits equal credits; evidence remains unresolved" : "Discrepancy detected"}
           </p>
         </div>
 
@@ -272,8 +272,8 @@ export function LedgerView() {
                           {formatINR(entry.totalDebit)}
                         </span>
                       </div>
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-[#288548] border border-emerald-200/60">
-                        Balanced
+                      <span title={entry.issues?.join("; ")} className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-[#288548] border border-emerald-200/60">
+                        {!entry.isBalanced ? "Imbalance" : entry.isProvisional ? "Balanced · Provisional" : "Balanced"}
                       </span>
                     </div>
                   </div>
@@ -392,7 +392,7 @@ export function LedgerView() {
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
                       trialBalance.isBalanced ? "bg-emerald-50 text-[#288548] border border-emerald-200/60" : "bg-rose-50 text-[#D70015] border border-rose-200/60"
                     }`}>
-                      {trialBalance.isBalanced ? "BALANCED" : "IMBALANCE"}
+                      {trialBalance.isBalanced ? trialBalance.isComplete ? "BALANCED" : "PROVISIONAL" : "IMBALANCE"}
                     </span>
                   </td>
                 </tr>

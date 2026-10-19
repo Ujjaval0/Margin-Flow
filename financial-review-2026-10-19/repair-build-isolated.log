@@ -1,0 +1,93 @@
+
+> unified-platform@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.28
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 2.3min
+   Linting and checking validity of types ...
+
+   We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+   The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+   	- include was updated to add '.next-financial-check/types/**/*.ts'
+
+   Collecting page data ...
+   Generating static pages (0/57) ...
+   Generating static pages (14/57) 
+   Generating static pages (28/57) 
+   Generating static pages (42/57) 
+ ✓ Generating static pages (57/57)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    26.8 kB         133 kB
+├ ○ /_not-found                             1 kB         104 kB
+├ ƒ /api/ai-copilot                        233 B         103 kB
+├ ƒ /api/ai-dispute                        233 B         103 kB
+├ ƒ /api/ai-vault                          233 B         103 kB
+├ ƒ /api/auth/login                        233 B         103 kB
+├ ƒ /api/auth/logout                       233 B         103 kB
+├ ƒ /api/auth/me                           233 B         103 kB
+├ ƒ /api/auth/onboarding                   233 B         103 kB
+├ ƒ /api/auth/profile                      233 B         103 kB
+├ ƒ /api/auth/signup                       233 B         103 kB
+├ ƒ /api/documents/stream                  233 B         103 kB
+├ ƒ /api/extract-invoice-text              233 B         103 kB
+├ ƒ /api/health/db                         233 B         103 kB
+├ ƒ /api/idp-extract                       233 B         103 kB
+├ ƒ /api/integrations/amazon/finances      233 B         103 kB
+├ ƒ /api/integrations/amazon/sync          233 B         103 kB
+├ ƒ /api/integrations/connections          233 B         103 kB
+├ ƒ /api/integrations/flipkart/callback    233 B         103 kB
+├ ƒ /api/integrations/flipkart/connect     233 B         103 kB
+├ ƒ /api/integrations/flipkart/sync        233 B         103 kB
+├ ƒ /api/integrations/generic/sync         233 B         103 kB
+├ ƒ /api/integrations/meesho/sync          233 B         103 kB
+├ ƒ /api/integrations/myntra/sync          233 B         103 kB
+├ ƒ /api/integrations/reports/upload     1.47 kB         104 kB
+├ ƒ /api/integrations/shopify/sync         233 B         103 kB
+├ ƒ /api/integrations/woocommerce/sync     233 B         103 kB
+├ ƒ /api/jobs                              233 B         103 kB
+├ ƒ /api/jobs/[id]                         233 B         103 kB
+├ ƒ /api/marketplace-fee-rules             233 B         103 kB
+├ ƒ /api/marketplace-quick-rates           233 B         103 kB
+├ ƒ /api/orders                            233 B         103 kB
+├ ƒ /api/products                          233 B         103 kB
+├ ƒ /api/recycle-bin                       233 B         103 kB
+├ ƒ /api/settlements                       233 B         103 kB
+├ ƒ /api/upload-bill                       233 B         103 kB
+├ ƒ /api/webhooks/generic                  233 B         103 kB
+├ ƒ /api/webhooks/shopify                  233 B         103 kB
+├ ƒ /api/webhooks/woocommerce              233 B         103 kB
+├ ƒ /auth/callback                         233 B         103 kB
+├ ƒ /claims                              6.33 kB         184 kB
+├ ƒ /dashboard                           22.9 kB         285 kB
+├ ƒ /documents                             233 B         103 kB
+├ ƒ /expenses                            4.68 kB         182 kB
+├ ƒ /ledger                              7.97 kB         169 kB
+├ ○ /login                               13.6 kB         189 kB
+├ ○ /onboarding                          5.43 kB         112 kB
+├ ƒ /orders                              13.9 kB         185 kB
+├ ƒ /products                            6.33 kB         184 kB
+├ ƒ /purchases                           2.41 kB         180 kB
+├ ƒ /reports                             11.6 kB         274 kB
+├ ƒ /returns                             11.8 kB         200 kB
+├ ƒ /settlements                         5.02 kB         193 kB
+├ ƒ /suppliers                           8.39 kB         170 kB
+├ ƒ /trash                               5.33 kB         156 kB
+└ ƒ /webhooks                             145 kB         312 kB
++ First Load JS shared by all             103 kB
+  ├ chunks/1255-a6263663b209d569.js      46.3 kB
+  ├ chunks/4bd1b696-100b9d70ed4e49c1.js  54.2 kB
+  └ other shared chunks (total)          2.38 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

@@ -9,7 +9,7 @@ const component = (changes = {}) => ({ id: 'commission-v1', name: 'Commission', 
   method: 'PERCENT', rateBps: 1250, calculationBase: 'ITEM_AFTER_DISCOUNT', taxTreatment: 'NO_TAX', sequence: 1, ...changes });
 const rule = (changes = {}) => ({ id: 'rule-1', version: 1, marketplace: 'Amazon India', effectiveFrom: '2026-01-01',
   status: 'ACTIVE', components: [component()], ...changes });
-const line = (changes = {}) => ({ sku: 'SKU-A', productCategory: 'Electronics', fulfilmentMode: 'FBA', quantity: 2,
+const line = (changes = {}) => ({ pricesIncludeTax: true, sku: 'SKU-A', productCategory: 'Electronics', fulfilmentMode: 'FBA', quantity: 2,
   unitPricePaise: 10000, discountPaise: 1000, taxPaise: 0, ...changes });
 
 test('decimal INR conversion preserves paise and rejects excess precision', () => {
@@ -23,10 +23,10 @@ test('shared order-line builder preserves all lines, discounts, taxes, categorie
   const inputs = fees.buildFeeOrderLineInputs([
     { sku: 'SKU-A', quantity: 2, sellingPrice: 100, discount: 10, taxAmount: 18 },
     { sku: 'SKU-B', quantity: 1, sellingPrice: 20, discount: 1, taxAmount: 3 },
-  ], new Map([['SKU-A', 'Electronics'], ['SKU-B', 'Home']]), 'FBA');
+  ], new Map([['SKU-A', 'Electronics'], ['SKU-B', 'Home']]), 'FBA', true);
   assert.equal(JSON.stringify(inputs), JSON.stringify([
-    { sku: 'SKU-A', productCategory: 'Electronics', fulfilmentMode: 'FBA', quantity: 2, unitPricePaise: 10000, discountPaise: 1000, taxPaise: 1800 },
-    { sku: 'SKU-B', productCategory: 'Home', fulfilmentMode: 'FBA', quantity: 1, unitPricePaise: 2000, discountPaise: 100, taxPaise: 300 },
+    { sku: 'SKU-A', productCategory: 'Electronics', fulfilmentMode: 'FBA', quantity: 2, pricesIncludeTax: true, unitPricePaise: 10000, discountPaise: 1000, taxPaise: 1800 },
+    { sku: 'SKU-B', productCategory: 'Home', fulfilmentMode: 'FBA', quantity: 1, pricesIncludeTax: true, unitPricePaise: 2000, discountPaise: 100, taxPaise: 300 },
   ]));
   const result = fees.calculateMarketplaceFeeEstimate([rule({ components: [component({ calculationBase: 'ITEM_EXCLUDING_TAX' })] })], inputs, 'Amazon India', '2026-10-18');
   assert.equal(result.totalPaise, 2350);
@@ -43,10 +43,10 @@ test('quick commission applies 7% half-up to discounted value excluding item tax
   const result = fees.calculateMarketplaceFeeEstimate([], [line({ quantity: 2, unitPricePaise: 10000, discountPaise: 1000, taxPaise: 2000 })],
     'Amazon India', '2026-10-18', 700);
   assert.equal(result.status, 'CONFIGURED');
-  assert.equal(result.totalPaise, 1190);
+  assert.equal(result.totalPaise, 1404);
   assert.equal(result.calculationVersion, 2);
   assert.equal(result.components[0].basePaise, 17000);
-  assert.equal(result.components[0].taxTreatment, 'NO_TAX');
+  assert.equal(result.components[0].taxTreatment, 'TAXABLE');
   assert.equal(result.components[0].rateBps, 700);
   assert.equal(fees.calculateMarketplaceFeeEstimate([], [line()], 'Amazon India', '2026-10-18').status, 'NOT_CONFIGURED');
 });
@@ -59,7 +59,7 @@ test('quick commission replaces all canonical commission components and retains 
   ] });
   const result = fees.calculateMarketplaceFeeEstimate([configured], [line({ quantity: 1, unitPricePaise: 10000, discountPaise: 1000, taxPaise: 1000 })],
     'Amazon India', '2026-10-18', 1000);
-  assert.equal(result.totalPaise, 1350);
+  assert.equal(result.totalPaise, 1494);
   assert.deepEqual(JSON.parse(JSON.stringify(result.components.map(item => [item.componentType, item.amountPaise]))), [
     ['FIXED_FEE', 100], ['LOGISTICS', 450], ['COMMISSION', 800],
   ]);

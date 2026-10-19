@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: invoice import preserves every source line and reconciles 100 + 200 + 54 tax to 354
+ok 1 - invoice import preserves every source line and reconciles 100 + 200 + 54 tax to 354
+  ---
+  duration_ms: 26.7738
+  ...
+# Subtest: invoice import rejects missing currency, date, SKU, unit price and unknown taxable price basis
+ok 2 - invoice import rejects missing currency, date, SKU, unit price and unknown taxable price basis
+  ---
+  duration_ms: 1.4141
+  ...
+# Subtest: invoice import rejects fractional paise instead of rounding source totals into validity
+ok 3 - invoice import rejects fractional paise instead of rounding source totals into validity
+  ---
+  duration_ms: 2.2852
+  ...
+# Subtest: structured IDP verifies all lines and keeps its 354 proposal staged for human review
+ok 4 - structured IDP verifies all lines and keeps its 354 proposal staged for human review
+  ---
+  duration_ms: 190.3111
+  ...
+# Subtest: structured IDP does not verify an invoice whose currency or source date is missing
+ok 5 - structured IDP does not verify an invoice whose currency or source date is missing
+  ---
+  duration_ms: 431.2915
+  ...
+# Subtest: structured IDP cannot mark a missing price or SKU as a verified zero-value line
+not ok 6 - structured IDP cannot mark a missing price or SKU as a verified zero-value line
+  ---
+  duration_ms: 431.0084
+  location: 'C:\\Users\\freak\\Desktop\\Unified platform\\tests\\financial-intake-evidence.test.mjs:88:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Missing sku must remain unresolved
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/freak/Desktop/Unified%20platform/tests/financial-intake-evidence.test.mjs:93:12)
+    async Test.run (node:internal/test_runner/test:980:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+  ...
+# Subtest: CSV preserves both CGST and SGST and rejects inconsistent aggregate GST
+ok 7 - CSV preserves both CGST and SGST and rejects inconsistent aggregate GST
+  ---
+  duration_ms: 7.1066
+  ...
+# Subtest: CSV rejects fractional-paise GST and price input as a complete batch
+ok 8 - CSV rejects fractional-paise GST and price input as a complete batch
+  ---
+  duration_ms: 2.3886
+  ...
+# Subtest: generic source extended amount 200 for quantity two stays 200 instead of becoming 400
+ok 9 - generic source extended amount 200 for quantity two stays 200 instead of becoming 400
+  ---
+  duration_ms: 14.2283
+  ...
+# Subtest: generic source requires explicit currency, date, price or extended amount, SKU and positive quantity
+ok 10 - generic source requires explicit currency, date, price or extended amount, SKU and positive quantity
+  ---
+  duration_ms: 2.3997
+  ...
+# Subtest: Shopify allocated 20 discount reduces a 100 item to the evidenced 80 total
+ok 11 - Shopify allocated 20 discount reduces a 100 item to the evidenced 80 total
+  ---
+  duration_ms: 9.4243
+  ...
+# Subtest: WooCommerce customer fee line 20 preserves a 100 sale plus 20 revenue as 120
+ok 12 - WooCommerce customer fee line 20 preserves a 100 sale plus 20 revenue as 120
+  ---
+  duration_ms: 7.1483
+  ...
+# Subtest: official webshop schemas reject omitted currency and source creation dates
+ok 13 - official webshop schemas reject omitted currency and source creation dates
+  ---
+  duration_ms: 1.1268
+  ...
+# Subtest: Amazon negative refund and positive fee reversal survive as signed financial evidence without bank cash
+ok 14 - Amazon negative refund and positive fee reversal survive as signed financial evidence without bank cash
+  ---
+  duration_ms: 44.3
+  ...
+# Subtest: Amazon unsupported account-level events retain the raw source plus a reconciliation issue
+ok 15 - Amazon unsupported account-level events retain the raw source plus a reconciliation issue
+  ---
+  duration_ms: 4.7886
+  ...
+# Subtest: Amazon unsupported currency and fractional-paise event amounts stay unresolved with their source retained
+ok 16 - Amazon unsupported currency and fractional-paise event amounts stay unresolved with their source retained
+  ---
+  duration_ms: 3.7247
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 15
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4793.9734

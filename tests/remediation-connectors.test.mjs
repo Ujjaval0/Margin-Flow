@@ -6,6 +6,7 @@ const load = createRequire(import.meta.url)('./helpers/load-app.cjs');
 function connector(name, fetch, credentials = {}, connections = []) {
   const writes = [], checkpoints = [], saves = [];
   const route = load(`src/app/api/integrations/${name}/route.ts`, {
+    '@/lib/db': { pool: { connect: async () => ({ query: async () => ({ rows: [] }), release() {} }) } },
     '@/lib/security/session': { getSessionUserId: () => 'tenant-A' },
     '@/lib/security/marketplace-vault': {
       getConnectionCredentials: async () => credentials,
@@ -23,8 +24,22 @@ function connector(name, fetch, credentials = {}, connections = []) {
   return { writes, checkpoints, saves, post: body => route.POST(new Request('https://app.example/api/sync', { method: 'POST', body: JSON.stringify(body) })) };
 }
 const amazonCredentials = { clientId: 'id', clientSecret: 'secret', refreshToken: 'refresh' };
-const amazonOrder = id => ({ AmazonOrderId: id, PurchaseDate: '2026-10-14T10:00:00Z', OrderStatus: 'Shipped' });
-const amazonItem = id => ({ OrderItemId: id, SellerSKU: 'sku', QuantityOrdered: 2, ItemPrice: { Amount: '100' } });
+const amazonOrder = id => ({ AmazonOrderId: id, PurchaseDate: '2026-10-14T10:00:00Z', OrderStatus: 'Shipped', OrderTotal: { Amount: '200', CurrencyCode: 'INR' } });
+const amazonItem = id => ({ OrderItemId: id, SellerSKU: 'sku', QuantityOrdered: 2, ItemPrice: { Amount: '100', CurrencyCode: 'INR' } });
+
+test('Amazon finance split events have distinct repeatable identities across pages and replays', async () => {
+  const shipment = amount => ({ AmazonOrderId: 'A', PostedDate: '2026-10-19T10:00:00Z',
+    ShipmentItemList: [{ ItemChargeList: [{ ChargeType: 'Principal', ChargeAmount: { CurrencyAmount: amount, CurrencyCode: 'INR' } }] }] });
+  const c = connector('amazon/finances', async raw => new URL(raw).hostname === 'api.amazon.com'
+    ? Response.json({ access_token: 'access' })
+    : Response.json({ payload: { FinancialEvents: { ShipmentEventList: [shipment(90), shipment(45)] } } }), amazonCredentials);
+  assert.equal((await c.post({})).status, 200);
+  assert.equal((await c.post({})).status, 200);
+  const first = c.writes[0].rows;
+  assert.equal(new Set(first.map(row => row.id)).size, 2);
+  assert.equal(first.reduce((total, row) => total + row.netSettlement, 0), 135);
+  assert.deepEqual(first.map(row => row.id), c.writes[1].rows.map(row => row.id));
+});
 
 test('Amazon exhausts order and item tokens before a single tenant-owned write', async () => {
   const urls = [];
@@ -57,7 +72,7 @@ test('Shopify follows same-origin Link pages on the supported version', async ()
   const urls = [];
   const c = connector('shopify/sync', async url => {
     urls.push(url);
-    return Response.json({ orders: [{ id: urls.length, line_items: [] }] }, { headers: urls.length === 1 ? { link: '<https://demo.myshopify.com/admin/api/2026-10/orders.json?page_info=second>; rel="next"' } : {} });
+    return Response.json({ orders: [{ id: urls.length, currency: 'INR', created_at: '2026-10-01T00:00:00Z', total_price: '100', taxes_included: false, line_items: [{ id: urls.length, sku: 'SKU', quantity: 1, price: '100' }] }] }, { headers: urls.length === 1 ? { link: '<https://demo.myshopify.com/admin/api/2026-10/orders.json?page_info=second>; rel="next"' } : {} });
   }, { shopDomain: 'demo.myshopify.com', accessToken: 'secret' });
   assert.equal((await c.post({ action: 'fetch_orders' })).status, 200);
   assert.equal(urls.length, 2); assert.equal(c.writes[0].rows.length, 2);
@@ -77,7 +92,7 @@ test('WooCommerce exhausts numbered pages with secrets only in Authorization', a
     assert.equal(url.searchParams.has('consumer_secret'), false);
     assert.equal(url.searchParams.has('consumer_key'), false);
     assert.match(options.headers.Authorization, /^Basic /);
-    return Response.json([{ id: urls.length, line_items: [] }], { headers: { 'x-wp-totalpages': '2' } });
+    return Response.json([{ id: urls.length, currency: 'INR', date_created: '2026-10-01T00:00:00Z', total: '100', line_items: [{ id: urls.length, product_id: 1, sku: 'SKU', quantity: 1, price: '100', subtotal: '100', total: '100', total_tax: '0' }] }], { headers: { 'x-wp-totalpages': '2' } });
   }, { storeUrl: 'https://store.example', consumerKey: 'key', consumerSecret: 'secret' });
   assert.equal((await c.post({ action: 'fetch_orders' })).status, 200);
   assert.equal(urls[1].searchParams.get('page'), '2'); assert.equal(c.writes[0].rows.length, 2);
@@ -92,7 +107,7 @@ test('a later WooCommerce page failure does not persist or advance the checkpoin
 
 test('custom connector follows documented next URL and rejects incomplete cursor-only results', async () => {
   let calls = 0;
-  const c = connector('generic/sync', async () => Response.json({ orders: [{ id: ++calls }], ...(calls === 1 ? { nextPageUrl: '?page=2' } : {}) }));
+  const c = connector('generic/sync', async () => Response.json({ orders: [{ id: ++calls, currency: 'INR', orderDate: '2026-10-01', sku: 'SKU', quantity: 1, unitPrice: 100 }], ...(calls === 1 ? { nextPageUrl: '?page=2' } : {}) }));
   assert.equal((await c.post({ action: 'fetch_orders', endpointUrl: 'https://store.example/orders' })).status, 200);
   assert.equal(c.writes[0].rows.length, 2);
   const incomplete = connector('generic/sync', async () => Response.json({ orders: [], hasMore: true, nextCursor: '2' }));
@@ -122,12 +137,13 @@ test('Flipkart uses shipment contract, follows pages and preserves sibling order
       return Response.json({ access_token: 'access' });
     }
     assert.equal(url.pathname, '/sellers/v3/shipments/filter/');
-    if (options.method === 'GET') return Response.json({ shipments: [{ orderItems: [{ orderId: 'A', orderItemId: '2', sku: 'B', priceComponents: { sellingPrice: 20 } }] }], hasMore: false });
+    if (options.method === 'GET') return Response.json({ shipments: [{ orderItems: [{ orderId: 'A', orderDate: '2026-10-01T00:00:00Z', quantity: 1, orderItemId: '2', sku: 'B', priceComponents: { sellingPrice: 20, customerPrice: 20, totalPrice: 20 } }] }], hasMore: false });
     const body = JSON.parse(options.body);
     assert.equal(body.pagination.pageSize, 20); assert.ok(body.filter.orderDate.from);
-    return Response.json(body.filter.type === 'preDispatch' ? { shipments: [{ orderItems: [{ orderId: 'A', orderItemId: '1', sku: 'A', priceComponents: { sellingPrice: 10 } }] }], hasMore: true, nextPageUrl: '/sellers/v3/shipments/filter/?page=2' } : { shipments: [], hasMore: false });
+    return Response.json(body.filter.type === 'preDispatch' ? { shipments: [{ orderItems: [{ orderId: 'A', orderDate: '2026-10-01T00:00:00Z', quantity: 1, orderItemId: '1', sku: 'A', priceComponents: { sellingPrice: 10, customerPrice: 10, totalPrice: 10 } }] }], hasMore: true, nextPageUrl: '/sellers/v3/shipments/filter/?page=2' } : { shipments: [], hasMore: false });
   }, { appId: 'id', appSecret: 'secret' });
-  assert.equal((await c.post({ action: 'fetch_orders' })).status, 200);
+  const response = await c.post({ action: 'fetch_orders' });
+  assert.equal(response.status, 200, await response.text());
   assert.equal(c.writes[0].rows.length, 1); assert.equal(c.writes[0].rows[0].items.length, 2);
   assert.equal(calls.filter(call => call.options.method === 'GET' && !call.url.pathname.includes('oauth')).length, 1);
 });

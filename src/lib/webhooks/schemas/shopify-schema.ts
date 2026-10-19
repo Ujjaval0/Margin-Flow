@@ -1,17 +1,19 @@
+import { money, sumMoney } from "@/domain/order-financials";
 import { z } from "zod";
 import { Order, OrderItem, ReturnRecord } from "@/domain/types";
 
 export const ShopifyLineItemSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   title: z.string().default("Shopify Item"),
-  sku: z.string().default("SKU-UNASSIGNED"),
-  quantity: z.number().int().positive().default(1),
-  price: z.string().or(z.number()).transform((val) => Number(val) || 0),
-  total_discount: z.string().or(z.number()).transform((val) => Number(val) || 0).default(0),
+  sku: z.string().min(1),
+  quantity: z.number().int().positive(),
+  price: z.string().or(z.number()).transform(Number).pipe(z.number().finite()),
+  total_discount: z.string().or(z.number()).transform(Number).pipe(z.number().finite()).default(0),
+  discount_allocations:z.array(z.object({amount:z.string().or(z.number()).transform(Number)})).optional(),
   tax_lines: z
     .array(
       z.object({
-        price: z.string().or(z.number()).transform((val) => Number(val) || 0),
+        price: z.string().or(z.number()).transform(Number).pipe(z.number().finite()),
         rate: z.number().optional(),
       })
     )
@@ -21,14 +23,19 @@ export const ShopifyLineItemSchema = z.object({
 export const ShopifyOrderWebhookSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String),
   name: z.string().default("#1001"), // Order number e.g. #1001
-  created_at: z.string().optional().default(() => new Date().toISOString()),
+  created_at: z.string(),
+  updated_at:z.string().optional(),cancelled_at:z.string().nullable().optional(),
+  refunds:z.array(z.unknown()).default([]),fulfillments:z.array(z.object({created_at:z.string().optional()})).default([]),
   financial_status: z.string().default("paid"),
   fulfillment_status: z.string().nullable().optional(),
-  currency: z.string().default("INR"),
-  total_price: z.string().or(z.number()).transform((val) => Number(val) || 0),
-  subtotal_price: z.string().or(z.number()).transform((val) => Number(val) || 0).default(0),
-  total_tax: z.string().or(z.number()).transform((val) => Number(val) || 0).default(0),
-  total_discounts: z.string().or(z.number()).transform((val) => Number(val) || 0).default(0),
+  currency: z.string(),
+  total_price: z.string().or(z.number()).transform(Number).pipe(z.number().finite()),
+  subtotal_price: z.string().or(z.number()).transform(Number).pipe(z.number().finite()).default(0),
+  taxes_included: z.boolean().optional(),
+  total_shipping_price_set: z.object({ shop_money: z.object({ amount: z.string().or(z.number()).transform(Number) }) }).optional(),
+  shipping_lines: z.array(z.object({ price: z.string().or(z.number()).transform(Number), discounted_price: z.string().or(z.number()).transform(Number).optional(), tax_lines: z.array(z.object({ price: z.string().or(z.number()).transform(Number) })).default([]) })).default([]),
+  total_tax: z.string().or(z.number()).transform(Number).pipe(z.number().finite()).default(0),
+  total_discounts: z.string().or(z.number()).transform(Number).pipe(z.number().finite()).default(0),
   customer: z
     .object({
       first_name: z.string().optional(),
@@ -57,6 +64,8 @@ export function mapShopifyOrderToDomain(
   payload: ShopifyOrderWebhookPayload,
   catalogCostLookup?: Record<string, number>
 ): Order {
+  if(payload.currency!=='INR')throw Error('Unsupported currency: only INR invoices can be posted.');
+  if(payload.refunds.length || /refunded/.test(payload.financial_status) || payload.cancelled_at && payload.fulfillment_status==='fulfilled')throw Error('Refunded/fulfilled-cancelled Shopify orders require dated refund/return reconciliation before import. No records were posted.');
   const customerName = payload.customer
     ? `${payload.customer.first_name || ""} ${payload.customer.last_name || ""}`.trim() || "Shopify Customer"
     : "Shopify Customer";
@@ -72,35 +81,42 @@ export function mapShopifyOrderToDomain(
     const unitCost = catalogCostLookup?.[item.sku] ?? 0;
 
     return {
-      id: `ITEM-SHP-${payload.id}-${idx + 1}`,
+      id: `ITEM-SHP-${payload.id}-${item.id}`,
       sku: item.sku || `SKU-SHP-${item.id}`,
       productName: item.title,
       quantity: item.quantity,
       sellingPrice: unitPrice,
-      discount: item.total_discount,
+      discount: item.discount_allocations?sumMoney(item.discount_allocations.map(allocation=>allocation.amount)):item.total_discount,
       taxAmount: itemTaxes,
       snapshotUnitCost: unitCost,
+      costEvidence:catalogCostLookup?.[item.sku]!==undefined?'RECORDED':'UNKNOWN',
       returnedQuantity: 0,
     };
   });
 
-  // Estimated Shopify payments fee (2% gateway + platform fee estimate)
-  const totalAmount = payload.total_price;
-  const estimatedGatewayFee = Math.round(totalAmount * 0.02 * 100) / 100;
-  const estimatedShipping = 80;
+  const shipping = sumMoney(payload.shipping_lines.map(line => line.discounted_price ?? line.price));
+  const shippingTax = sumMoney(payload.shipping_lines.flatMap(line => line.tax_lines.map(tax => tax.price)));
+  const shippingCharge = payload.total_shipping_price_set?.shop_money.amount ?? shipping;
+  const sourceCalculated=sumMoney([sumMoney(items.map(item=>sumMoney([item.quantity*item.sellingPrice,-item.discount,payload.taxes_included?0:item.taxAmount]))),shippingCharge,payload.taxes_included?0:shippingTax]);
+  if(Math.abs(sumMoney([sourceCalculated,-payload.total_price]))>0.01)throw Error('Shopify line/discount/tax/shipping totals do not reconcile to source total.');
 
   return {
     id: `ORD-SHP-${payload.id}`,
     channelOrderId: payload.name,
     marketplace: "Personal Website",
     orderDate,
-    status: payload.fulfillment_status === "fulfilled" ? "DELIVERED" : "CONFIRMED",
+    currency:'INR',sourceTotal:payload.total_price,sourceUpdatedAt:payload.updated_at,
+    revenueRecognisedDate:payload.fulfillment_status==='fulfilled'?payload.fulfillments[0]?.created_at?.slice(0,10):undefined,
+    status:payload.cancelled_at?'CANCELLED': payload.fulfillment_status === "fulfilled" ? "DELIVERED" : "CONFIRMED",
     customerName,
     customerCity: city,
     customerState: state,
     items,
-    shippingFeeCharged: estimatedShipping,
-    marketplaceChargesEstimate: estimatedGatewayFee,
+    shippingFeeCharged: sumMoney([shippingCharge, payload.taxes_included ? 0 : shippingTax]),
+    shippingTaxAmount: shippingTax,
+    pricesIncludeTax: payload.taxes_included,
+    feeEstimateStatus: "NOT_CONFIGURED",
+    marketplaceChargesEstimate: 0,
     notes: `Shopify Webhook Ingested | Status: ${payload.financial_status}`,
   };
 }
