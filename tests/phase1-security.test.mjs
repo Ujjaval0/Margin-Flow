@@ -107,14 +107,15 @@ describe('Phase 1 Security & Identity Hardening Test Suite', () => {
       assert.ok(!fs.existsSync(publicUploads), 'public/uploads must NOT exist in static web root');
     });
 
-    test('3.2 private secure vault directory exists outside web root', () => {
-      const privateVault = path.join(ROOT_DIR, 'data', 'secure-vault', 'documents');
-      assert.ok(fs.existsSync(privateVault), 'data/secure-vault/documents must exist');
+    test('3.2 private documents use durable Storage without a local vault directory', () => {
+      const storage = readProjectFile('src/lib/security/document-storage.ts');
+      assert.ok(storage.includes('DOCUMENT_BUCKET'), 'Private document storage must use the configured bucket');
+      assert.ok(!storage.includes('process.cwd()'), 'Document persistence must not depend on a local app directory');
     });
 
     test('3.3 upload-bill route saves to secure vault and enforces authentication', () => {
       const uploadRoute = readProjectFile('src/app/api/upload-bill/route.ts');
-      assert.ok(uploadRoute.includes('getDocumentDirectory(userId)') || uploadRoute.includes('data", "secure-vault", "documents'), 'Uploads must be saved to secure-vault');
+      assert.ok(uploadRoute.includes('storeDocument(userId, file, buffer)'), 'Uploads must be saved in durable private Storage');
       assert.ok(!uploadRoute.includes('public/uploads/bills') && !uploadRoute.includes('public", "uploads", "bills'), 'Must not write to public/uploads/bills');
       assert.ok(uploadRoute.includes('/api/documents/stream?file='), 'Must route document access through authenticated stream');
       assert.ok(uploadRoute.includes('getSessionUserId'), 'Must enforce authenticated merchant session');

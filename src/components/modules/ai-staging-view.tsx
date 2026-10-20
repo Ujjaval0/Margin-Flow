@@ -1,4 +1,5 @@
 "use client";
+import { uploadDocumentFiles } from '@/lib/document-upload';
 
 import { NumericInput } from "@/components/ui/numeric-input";
 import React, { useState, useRef, useMemo, useEffect } from "react";
@@ -189,11 +190,16 @@ export function AIStagingView() {
     setIsUploading(true); setUploadError("");
     setUploadStep("Uploading documents...");
     try {
-      const formData = new FormData(); filesToUpload.forEach(file => formData.append("files", file));
-      formData.append("fileType", selectedFileType);
-      const response = await fetch("/api/upload-bill", { method: "POST", body: formData });
-      const data = await response.json();
-      if (!response.ok || !data.success) throw new Error(data.error || "Document upload failed.");
+      const references = await uploadDocumentFiles(filesToUpload);
+      const data: { stagedDocuments: AIStagedDocument[]; stagedDocument?: AIStagedDocument; errors: { fileName: string; error: string }[] } = { stagedDocuments: [], errors: [] };
+      for (let index = 0; index < references.length; index += 5) {
+        const batch = references.slice(index, index + 5);
+        const response = await fetch("/api/upload-bill", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ documents: batch, fileType: selectedFileType }) });
+        const saved = await response.json();
+        if (Array.isArray(saved.stagedDocuments)) data.stagedDocuments.push(...saved.stagedDocuments);
+        if (Array.isArray(saved.errors)) data.errors.push(...saved.errors);
+        else if (!response.ok || !saved.success) data.errors.push(...batch.map(file => ({ fileName: file.name, error: saved.error || 'Document upload failed.' })));
+      }
       const documents: AIStagedDocument[] = Array.isArray(data.stagedDocuments) ? data.stagedDocuments : data.stagedDocument ? [data.stagedDocument] : [];
       if (!documents.length) throw new Error("No documents were saved.");
       await addStagedDocuments(documents);

@@ -193,7 +193,7 @@ export function DashboardView({
     "#C9EED2", // Pale Mint
   ];
 
-  const sortedMarketplaceBreakdown = [...marketplaceBreakdown]
+  const sortedMarketplaceBreakdown = useMemo(() => [...marketplaceBreakdown]
     .filter((m) =>
       m.marketplace !== "Other" &&
       m.marketplace !== "B2B Wholesale" &&
@@ -203,7 +203,7 @@ export function DashboardView({
     .map((item, index) => ({
       ...item,
       color: TONAL_GREEN_SCALE[index % TONAL_GREEN_SCALE.length],
-    }));
+    })), [marketplaceBreakdown]);
 
   const activeChannels = sortedMarketplaceBreakdown;
   const channelPieData =
@@ -1334,7 +1334,7 @@ export function DashboardView({
                 No channel revenue for this period
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={280}>
+              <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={280} debounce={50}>
                 <BarChart
                   data={channelChartData}
                   barGap={4}
@@ -1396,7 +1396,7 @@ export function DashboardView({
               </div>
             ) : (
               <>
-                <ResponsiveContainer width="100%" height={208} minWidth={0} minHeight={208}>
+                <ResponsiveContainer width="100%" height={208} minWidth={0} minHeight={208} debounce={50}>
                   <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                     <Pie
                       data={channelPieData}

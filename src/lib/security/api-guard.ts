@@ -9,7 +9,13 @@ const processAuthBudget = new TokenBucketRateLimiter({ capacity: 100, refillRate
 
 export function rejectCrossOrigin(request: Request): NextResponse | null {
   const origin = request.headers.get("origin");
-  const expected = process.env.APP_ORIGIN || new URL(request.url).origin;
+  const requestUrl = new URL(request.url);
+  // Next's development server can normalize LAN requests to localhost internally.
+  // Compare against the browser's actual destination; never trust a forwarded host.
+  const developmentHost = process.env.NODE_ENV === "development" ? request.headers.get("host") : null;
+  const expected = process.env.APP_ORIGIN || (developmentHost
+    ? `${requestUrl.protocol}//${developmentHost}`
+    : requestUrl.origin);
   if ((origin && origin !== expected) || request.headers.get("sec-fetch-site") === "cross-site") {
     return NextResponse.json({ success: false, error: "Cross-origin request prohibited." }, { status: 403 });
   }

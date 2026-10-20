@@ -46,6 +46,8 @@ export type JobProcessor<T = unknown, R = unknown> = (context: JobProcessorConte
 declare global {
   // eslint-disable-next-line no-var
   var _marginflowJobProcessors: Map<JobType, JobProcessor> | undefined;
+  // eslint-disable-next-line no-var
+  var _marginflowJobRun: Promise<void> | undefined;
 }
 const processors = global._marginflowJobProcessors || new Map<JobType, JobProcessor>();
 global._marginflowJobProcessors = processors;
@@ -56,6 +58,7 @@ export function registerJobProcessor<T = unknown, R = unknown>(type: JobType, pr
 /** PostgreSQL-backed queue. Processors are registered by the app route and worker startup. */
 class QueueManager {
   isWorkerEnabled(): boolean { return process.env.MARGINFLOW_JOB_WORKER === "1"; }
+  isProcessingAvailable(): boolean { return this.isWorkerEnabled() || process.env.VERCEL === '1'; }
 
   async enqueue<T = unknown, R = unknown>(type: JobType, payload: T, options: EnqueueJobOptions): Promise<Job<T, R>> {
     if (!options?.ownerId) throw new Error("A verified job owner is required.");
@@ -118,7 +121,14 @@ class QueueManager {
   }
 
   /** Claim one job with SKIP LOCKED, execute its registered processor, and persist retry/completion. */
-  async runNextJob(): Promise<boolean> {
+  runNextJob(filter: { ownerId?: string; jobId?: string } = {}): Promise<boolean> {
+    // One work transaction per warm instance leaves a connection for progress.
+    const run = (global._marginflowJobRun || Promise.resolve()).then(() => this.processNextJob(filter));
+    global._marginflowJobRun = run.then(() => {}, () => {});
+    return run;
+  }
+
+  private async processNextJob(filter: { ownerId?: string; jobId?: string }): Promise<boolean> {
     const supportedTypes = [...processors.keys()];
     if (!supportedTypes.length) return false;
     const client = await pool.connect();
@@ -133,13 +143,15 @@ class QueueManager {
            available_at = CASE WHEN attempts >= max_attempts THEN available_at
              ELSE now() + (LEAST(300, POWER(2, attempts))::int * interval '1 second') END,
            locked_at = NULL, lock_token = NULL
-         WHERE status = 'PROCESSING' AND (locked_at IS NULL OR locked_at < now() - ($1::int * interval '1 millisecond'))`,
-        [LEASE_MS],
+         WHERE status = 'PROCESSING' AND (locked_at IS NULL OR locked_at < now() - ($1::int * interval '1 millisecond'))
+           AND ($2::uuid IS NULL OR created_by=$2) AND ($3::uuid IS NULL OR id=$3)`,
+        [LEASE_MS, filter.ownerId || null, filter.jobId || null],
       );
       const claimed = await client.query<JobRow & { lock_token: string }>(
         `WITH candidate AS (
            SELECT id FROM background_jobs
            WHERE status = 'QUEUED' AND available_at <= now() AND type = ANY($1::job_type_enum[])
+             AND ($2::uuid IS NULL OR created_by=$2) AND ($3::uuid IS NULL OR id=$3)
            ORDER BY priority DESC, available_at ASC, created_at ASC
            FOR UPDATE SKIP LOCKED LIMIT 1
          )
@@ -147,7 +159,7 @@ class QueueManager {
            attempts = attempts + 1, locked_at = now(), lock_token = gen_random_uuid(), error = NULL
          FROM candidate WHERE j.id = candidate.id
          RETURNING ${JOB_RETURNING_COLUMNS}, j.lock_token`,
-        [supportedTypes],
+        [supportedTypes, filter.ownerId || null, filter.jobId || null],
       );
       if (!claimed.rows[0]) { await client.query("COMMIT"); return false; }
       lockToken = claimed.rows[0].lock_token;

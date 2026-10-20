@@ -175,8 +175,8 @@ describe('Store Integration Phase 5 Verification Suite', () => {
         'CsvImportModal must call /api/integrations/reports/upload with file metadata'
       );
       assert.ok(
-        modalContent.includes('formData.append("file", file)'),
-        'CsvImportModal must send raw file for cryptographic hashing and storage'
+        modalContent.includes('uploadDocumentFiles(files)') && modalContent.includes('JSON.stringify({ documents })'),
+        'CsvImportModal must upload original bytes to Storage and send owned references for server hashing'
       );
     });
 

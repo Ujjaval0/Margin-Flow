@@ -136,13 +136,11 @@ export default function LoginPage() {
         window.dispatchEvent(new Event("marginflow:session-changed"));
       }
 
-      setTimeout(() => {
-        if (authMode === "signup" || data.onboardingRequired) {
-          router.push("/onboarding");
-        } else {
-          router.push("/dashboard");
-        }
-      }, 500);
+      if (authMode === "signup" || data.onboardingRequired) {
+        router.push("/onboarding");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       setErrorMessage(err.message || "Authentication error occurred");
       setIsLoading(false);

@@ -93,7 +93,6 @@ SELECT required.index_name
 FROM (VALUES
   ('uq_products_user_sku'),
   ('uq_orders_user_channel_marketplace'),
-  ('uq_settlements_user_batch_order'),
   ('uq_orders_user_display'),
   ('uq_products_user_display'),
   ('uq_settlements_user_display'),
@@ -109,9 +108,13 @@ LEFT JOIN pg_namespace n ON n.oid = i.relnamespace AND n.nspname = 'public'
 WHERE i.oid IS NULL OR n.oid IS NULL
 ORDER BY required.index_name;
 
--- 8. Supabase CLI migration history should contain all package versions.
+-- 8. The generated SQL Editor package records its own receipts (not CLI history).
+-- If deploying individual files with the Supabase CLI, inspect that runner's
+-- supabase_migrations.schema_migrations instead of this final query.
 SELECT required.version
-FROM (VALUES ('20261017000100'), ('20261017000200'), ('20261017000300'), ('20261018000100')) AS required(version)
-LEFT JOIN supabase_migrations.schema_migrations applied USING (version)
+FROM (VALUES ('20261017000100'), ('20261017000200'), ('20261017000300'), ('20261018000100'),
+  ('20261019000100'), ('20261019000200'), ('20261019000300'), ('20261019000400'),
+  ('20261020000100'), ('20261020000200')) AS required(version)
+LEFT JOIN public.marginflow_schema_migrations applied USING (version)
 WHERE applied.version IS NULL
 ORDER BY required.version;

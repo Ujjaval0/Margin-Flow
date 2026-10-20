@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 import {
   Store,
@@ -25,7 +26,11 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { usePlatform } from "@/domain/store";
 import { MarginFlowLogo } from "@/components/MarginFlowLogo";
-import { UserProfileModal } from "@/components/modals/user-profile-modal";
+import { useMobileViewport } from "@/lib/use-mobile-viewport";
+const UserProfileModal = dynamic(
+  () => import("@/components/modals/user-profile-modal").then(mod => mod.UserProfileModal),
+  { ssr: false }
+);
 
 export type NavModule =
   | "dashboard"
@@ -67,7 +72,10 @@ export function Sidebar({
 }: SidebarProps) {
   const { currentUser } = usePlatform();
   const pathname = usePathname();
+  const isMobile = useMobileViewport();
+  const isExpanded = isOpen || isMobile === true;
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
+  const [hasOpenedProfile, setHasOpenedProfile] = React.useState(false);
   const [tooltipPortalReady, setTooltipPortalReady] = React.useState(false);
   const [activeTooltip, setActiveTooltip] = React.useState<{
     item: SidebarNavItem;
@@ -83,11 +91,20 @@ export function Sidebar({
     if (isOpen) setActiveTooltip(null);
   }, [isOpen]);
 
+  React.useEffect(() => {
+    if (isMobile !== true || !isOpen) return;
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onToggle?.();
+    };
+    window.addEventListener("keydown", dismiss);
+    return () => window.removeEventListener("keydown", dismiss);
+  }, [isMobile, isOpen, onToggle]);
+
   const showNavTooltip = (
     event: React.MouseEvent<HTMLAnchorElement> | React.FocusEvent<HTMLAnchorElement>,
     item: SidebarNavItem
   ) => {
-    if (isOpen) return;
+    if (isExpanded) return;
     const rect = event.currentTarget.getBoundingClientRect();
     setActiveTooltip({ item, top: rect.top + rect.height / 2, left: rect.right + 10 });
   };
@@ -247,27 +264,33 @@ export function Sidebar({
   return (
     <>
       {/* Mobile Backdrop when drawer is open */}
-      {isOpen && (
+      {isMobile === true && (
         <div
+          data-open={isOpen}
           onClick={onToggle}
-          className="fixed inset-0 bg-black/30 backdrop-blur-xs z-40 md:hidden animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/30 backdrop-blur-xs z-40 md:hidden workspace-sidebar-backdrop"
           aria-hidden="true"
         />
       )}
 
       <aside
-        className={`bg-[#FBFBFD] flex flex-col h-full border-r border-black/[0.06] select-none text-[#1D1D1F] transition-[width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,transform] overflow-hidden shrink-0 ${
+        data-open={isOpen}
+        data-ready={isMobile !== null}
+        aria-hidden={isMobile === true && !isOpen ? true : undefined}
+        inert={isMobile === true && !isOpen}
+        className={`workspace-sidebar bg-[#FBFBFD] flex flex-col h-full border-r border-black/[0.06] select-none text-[#1D1D1F] transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden shrink-0 relative z-30 ${
           isOpen
-            ? "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-64 max-md:shadow-apple-xl w-64 md:relative"
-            : "max-md:w-0 max-md:border-r-0 max-md:overflow-hidden w-[72px] relative z-30"
+            ? "max-md:shadow-apple-xl w-64"
+            : "w-[72px]"
         }`}
       >
         {/* Brand Header */}
         <div className="h-16 px-4 flex items-center justify-between border-b border-black/[0.04] shrink-0 overflow-hidden">
-          {isOpen ? (
+          {isExpanded ? (
             <>
               <Link
                 href="/dashboard"
+                scroll={false}
                 onClick={() => handleNavClick("dashboard")}
                 className="flex items-center gap-2.5 min-w-0 group hover:opacity-90 transition-opacity"
                 title="MarginFlow Home"
@@ -290,6 +313,7 @@ export function Sidebar({
             <div className="w-full flex items-center justify-center">
               <Link
                 href="/dashboard"
+                scroll={false}
                 onClick={() => handleNavClick("dashboard")}
                 className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-black/[0.04] transition-colors"
                 title="MarginFlow Home"
@@ -308,17 +332,19 @@ export function Sidebar({
           return (
             <Link
               key={item.id}
+              data-tour={item.id}
               href={item.href}
+              scroll={false}
               prefetch={true}
               onClick={() => handleNavClick(item.id)}
               onMouseEnter={(event) => showNavTooltip(event, item)}
               onMouseLeave={() => setActiveTooltip(null)}
               onFocus={(event) => showNavTooltip(event, item)}
               onBlur={() => setActiveTooltip(null)}
-              aria-label={!isOpen ? item.label : undefined}
-              aria-describedby={!isOpen && activeTooltip?.item.id === item.id ? `sidebar-tooltip-${item.id}` : undefined}
+              aria-label={!isExpanded ? item.label : undefined}
+              aria-describedby={!isExpanded && activeTooltip?.item.id === item.id ? `sidebar-tooltip-${item.id}` : undefined}
               className={`group relative w-full flex items-center ${
-                isOpen ? "justify-between px-3" : "justify-center px-0"
+                isExpanded ? "justify-between px-3" : "justify-center px-0"
               } py-2 rounded-xl text-xs font-medium border transition-colors duration-150 active:scale-[0.985] ${
                 isActive
                   ? "bg-white text-[#1D1D1F] border-black/[0.06] shadow-apple-sm font-semibold"
@@ -334,17 +360,17 @@ export function Sidebar({
                   }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? item.iconColor : "text-[#86868B] group-hover:text-[#1D1D1F]"}`} strokeWidth={1.8} />
-                  {!isOpen && item.badge !== undefined && (
+                  {!isExpanded && item.badge !== undefined && (
                     <span className="w-2 h-2 rounded-full bg-[#0071E3] absolute -top-0.5 -right-0.5 ring-2 ring-white" />
                   )}
                 </div>
-                {isOpen && (
+                {isExpanded && (
                   <span className="tracking-tight truncate whitespace-nowrap animate-in fade-in duration-150">
                     {item.label}
                   </span>
                 )}
               </div>
-              {isOpen && item.badge !== undefined && (
+              {isExpanded && item.badge !== undefined && (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/[0.04] text-[#1D1D1F] font-semibold border border-black/[0.06] shrink-0 animate-in fade-in duration-150">
                   {item.badge}
                 </span>
@@ -357,9 +383,9 @@ export function Sidebar({
 
       {/* User Profile Footer */}
       <div className="p-2 border-t border-black/[0.04] shrink-0 overflow-hidden">
-        {isOpen ? (
+        {isExpanded ? (
           <button
-            onClick={() => setIsProfileOpen(true)}
+            onClick={() => { setHasOpenedProfile(true); setIsProfileOpen(true); }}
             className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium text-[#1D1D1F] hover:bg-black/[0.04] active:scale-[0.985] transition-colors duration-150 group cursor-pointer text-left"
             title="View User Profile & Onboarding Info"
             aria-label="View User Profile & Onboarding Info"
@@ -390,7 +416,7 @@ export function Sidebar({
         ) : (
           <div className="flex justify-center">
             <button
-              onClick={() => setIsProfileOpen(true)}
+              onClick={() => { setHasOpenedProfile(true); setIsProfileOpen(true); }}
               className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-black/[0.04] active:scale-[0.95] transition-colors duration-150 group relative cursor-pointer"
               title="View User Profile & Onboarding Info"
               aria-label="View User Profile & Onboarding Info"
@@ -433,10 +459,10 @@ export function Sidebar({
       )}
 
       {/* User Profile & Onboarding Info Modal */}
-      <UserProfileModal
+      {hasOpenedProfile && <UserProfileModal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
-      />
+      />}
     </aside>
   </>
   );

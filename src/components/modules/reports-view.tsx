@@ -422,7 +422,7 @@ export function ReportsView() {
                 </div>
               ) : (
                 <div className="h-64 w-full mt-2">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" debounce={50}>
                     <BarChart data={platformProfitData} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.04)" />
                       <XAxis
@@ -477,7 +477,7 @@ export function ReportsView() {
                 </div>
               ) : (
                 <div className="h-64 w-full mt-2">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" debounce={50}>
                     <BarChart data={platformReturnRates} margin={{ top: 10, right: 10, left: -10, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.04)" />
                       <XAxis
@@ -539,7 +539,7 @@ export function ReportsView() {
               </div>
             ) : (
               <div className="h-72 w-full mt-2">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" debounce={50}>
                   <AreaChart data={monthlyData} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
                     <defs>
                       <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">

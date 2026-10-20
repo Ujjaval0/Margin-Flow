@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Navbar } from "@/components/layout/navbar";
-import { usePlatform } from "@/domain/store";
+import { PlatformProvider, usePlatform } from "@/domain/store";
 import { ReturnRecord } from "@/domain/types";
+import { useMobileViewport } from "@/lib/use-mobile-viewport";
 
 const CfoCopilot = dynamic(
   () => import("@/components/ai/cfo-copilot").then((mod) => mod.CfoCopilot),
@@ -18,12 +19,26 @@ const DisputePacketModal = dynamic(
   { ssr: false }
 );
 
+const WorkspaceTour = dynamic(
+  () => import("@/components/layout/workspace-tour").then((mod) => mod.WorkspaceTour),
+  { ssr: false }
+);
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  return <PlatformProvider><DashboardShell>{children}</DashboardShell></PlatformProvider>;
+}
+
+function DashboardShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(true);
+  const isMobile = useMobileViewport();
 
   // Rehydrate sidebar preference from localStorage on mount
   useEffect(() => {
@@ -85,17 +100,19 @@ export default function DashboardLayout({
 
   // Trigger chart re-dimensioning once sidebar expands/collapses completely (after 300ms transition finishes)
   useEffect(() => {
+    // The phone drawer overlays the workspace and never changes the chart width.
+    if (isMobile !== false) return;
     const timer = setTimeout(() => window.dispatchEvent(new Event("resize")), 320);
     return () => clearTimeout(timer);
-  }, [isWorkspaceOpen]);
+  }, [isWorkspaceOpen, isMobile]);
 
   const pathname = usePathname();
   const mainRef = useRef<HTMLElement>(null);
 
   // Scroll main container to top on route navigation for instant, snappy transitions
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (mainRef.current) {
-      mainRef.current.scrollTop = 0;
+      mainRef.current.scrollTo({ top: 0, behavior: "instant" });
     }
   }, [pathname]);
 
@@ -123,7 +140,7 @@ export default function DashboardLayout({
   }, [platform.returns]);
 
   return (
-    <div className="fixed inset-0 flex h-full w-full overflow-hidden bg-[#F5F5F7] dark:bg-[#0A0A0C] text-[#1D1D1F] dark:text-[#F5F5F7] font-apple tracking-[-0.012em] antialiased">
+    <div className="app-workspace fixed inset-0 flex h-full w-full overflow-hidden bg-[#F5F5F7] dark:bg-[#0A0A0C] text-[#1D1D1F] dark:text-[#F5F5F7] font-apple tracking-[-0.012em] antialiased">
       {/* Persistent Sidebar Navigation */}
       <Sidebar
         isOpen={isWorkspaceOpen}
@@ -131,7 +148,7 @@ export default function DashboardLayout({
       />
 
       {/* Main Content Shell */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden">
         {/* Top Navbar */}
         <Navbar
           isSidebarOpen={isWorkspaceOpen}
@@ -139,8 +156,8 @@ export default function DashboardLayout({
         />
 
         {/* Dynamic Route Scrollable View Container with Silky Page Transition */}
-        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 min-w-0 scroll-smooth bg-[#F5F5F7] dark:bg-[#0A0A0C]">
-          <div key={pathname} className="page-transition min-w-0 w-full">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 min-w-0 min-h-0 scroll-smooth bg-[#F5F5F7] dark:bg-[#0A0A0C]">
+          <div key={isMobile === true ? "workspace-page" : pathname} className="page-transition min-w-0 w-full">
             {children}
           </div>
         </main>
@@ -148,6 +165,16 @@ export default function DashboardLayout({
 
       {/* Global CFO Copilot Drawer & Trigger */}
       <CfoCopilot />
+
+      {platform.verifiedOwnerId && platform.currentUser.workspaceTourPending === true && (
+        <WorkspaceTour
+          key={platform.verifiedOwnerId}
+          ownerId={platform.verifiedOwnerId}
+          accountType={platform.currentUser.accountType}
+          isSidebarOpen={isWorkspaceOpen}
+          onSidebarChange={setIsWorkspaceOpen}
+        />
+      )}
 
       {/* Global 1-Click SAFE-T Dispute Packet Modal */}
       <DisputePacketModal

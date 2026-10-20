@@ -1,197 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFormBody, RequestBodyError } from "@/lib/security/request-body";
+import { RequestBodyError } from "@/lib/security/request-body";
 import { checkProcessingBudget } from "@/lib/security/api-guard";
-import fs from "fs/promises";
-import path from "path";
 import { processAndStageDocument } from "@/lib/ocr/extractor";
 import { getSessionUserId } from "@/lib/security/session";
-import { getDocumentDirectory } from "@/lib/security/document-storage";
+import { readDocumentInputs, storeDocument, DocumentStorageError } from "@/lib/security/document-storage";
+import { documentMetadata } from "@/lib/document-files";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB Maximum
-
-const ALLOWED_EXTENSIONS = new Set([
-  ".pdf",
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".webp",
-  ".txt",
-  ".csv",
-]);
-
-const ALLOWED_MIME_TYPES = new Set([
-  "application/pdf",
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "text/plain",
-  "text/csv",
-  "application/octet-stream", // Fallback for some desktop browsers sending generic stream for CSV/PDF
-]);
-
-const MAX_FILES_PER_BATCH = 50;
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   try {
     const userId = await getSessionUserId(request);
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Authentication required to upload documents to the vault." },
-        { status: 401 }
-      );
-    }
-
+    if (!userId) return NextResponse.json({ success: false, error: "Authentication required to upload documents to the vault." }, { status: 401 });
     const budgetError = checkProcessingBudget(request, userId);
     if (budgetError) return budgetError;
-    const formData = await readFormBody(request);
-    // Gather all uploaded files from 'files' or 'file' keys
-    const rawFiles: File[] = [];
-    const filesList = formData.getAll("files");
-    const fileList = formData.getAll("file");
-    
-    for (const item of [...filesList, ...fileList]) {
-      if (item && typeof item === "object" && "name" in item && "size" in item) {
-        rawFiles.push(item as File);
-      }
-    }
-
-    const customType = formData.get("fileType") as
-      | "SUPPLIER_BILL"
-      | "INVOICE"
-      | "SETTLEMENT_REPORT"
-      | undefined;
-
-    if (rawFiles.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "No files were uploaded. Please select one or more documents." },
-        { status: 400 }
-      );
-    }
-
-    if (rawFiles.length > MAX_FILES_PER_BATCH) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Batch limit exceeded. Maximum ${MAX_FILES_PER_BATCH} documents can be uploaded at one time (received ${rawFiles.length}).`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Enterprise Vault: Store files in private authenticated storage outside web root
-    const uploadsDir = getDocumentDirectory(userId);
-    await fs.mkdir(uploadsDir, { recursive: true });
-
+    const { files, fileType: customType } = await readDocumentInputs(request, userId, 50);
     const stagedDocuments = [];
     const results = [];
     const errors: { fileName: string; error: string }[] = [];
-
-    for (const file of rawFiles) {
+    for (const file of files) {
       try {
-        // 1. Guard against unbounded memory / large payloads (DoS)
-        if (file.size > MAX_FILE_SIZE) {
-          errors.push({
-            fileName: file.name,
-            error: `File exceeds 10MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB)`,
-          });
-          continue;
-        }
-
-        // 2. Validate file extension and MIME type
-        const fileExtension = path.extname(file.name).toLowerCase();
-        if (!ALLOWED_EXTENSIONS.has(fileExtension)) {
-          errors.push({
-            fileName: file.name,
-            error: `Disallowed extension "${fileExtension}". Only PDF, images, CSV, and TXT are permitted.`,
-          });
-          continue;
-        }
-
-        if (file.type && !ALLOWED_MIME_TYPES.has(file.type.toLowerCase())) {
-          errors.push({
-            fileName: file.name,
-            error: `Disallowed MIME type "${file.type}".`,
-          });
-          continue;
-        }
-
-        // 3. Read buffer safely
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-
-        // 4. Generate secure unique filename
-        const safeRandomToken = crypto.randomUUID().slice(0, 8);
-        const sanitizedBase = path
-          .basename(file.name, fileExtension)
-          .replace(/[^a-zA-Z0-9_-]/g, "_")
-          .slice(0, 40);
-        const savedFileName = `${Date.now()}-${sanitizedBase}-${safeRandomToken}${fileExtension}`;
-        const destinationPath = path.join(uploadsDir, savedFileName);
-
-        if (!destinationPath.startsWith(uploadsDir)) {
-          errors.push({ fileName: file.name, error: "Invalid path traversal detected." });
-          continue;
-        }
-
-        await fs.writeFile(destinationPath, buffer);
-
-        // 5. Extract textual content & process through real OCR / IDP Pipeline
+        documentMetadata(file.name, file.size, file.type);
+        const buffer = Buffer.from(await file.arrayBuffer());
+        // Durable private bytes are saved before document metadata is acknowledged.
+        const savedFileName = file.storedName || await storeDocument(userId, file, buffer);
         const savedPath = `/api/documents/stream?file=${savedFileName}`;
-        const extraction = await processAndStageDocument(
-          userId,
-          file.name,
-          savedPath,
-          buffer,
-          {
-            customType,
-            mimeType: file.type,
-          }
-        );
-
+        const extraction = await processAndStageDocument(userId, file.name, savedPath, buffer, { customType, mimeType: file.type });
         stagedDocuments.push(extraction.stagedDocument);
-        results.push({
-          fileName: file.name,
-          savedPath,
-          fileSize: file.size,
-          sourceEngine: extraction.sourceEngine,
-          dbRecordId: extraction.dbRecordId,
-        });
-      } catch (fileErr: any) {
-        errors.push({
-          fileName: file.name,
-          error: fileErr.message || "Failed to process file.",
-        });
+        results.push({ fileName: file.name, savedPath, fileSize: file.size, sourceEngine: extraction.sourceEngine, dbRecordId: extraction.dbRecordId });
+      } catch (error) {
+        errors.push({ fileName: file.name, error: error instanceof Error ? error.message : "Failed to process file." });
       }
     }
-
-    if (stagedDocuments.length === 0 && errors.length > 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: errors.map((e) => `${e.fileName}: ${e.error}`).join("; "),
-          errors,
-        },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      count: stagedDocuments.length,
-      stagedDocuments,
-      stagedDocument: stagedDocuments[0], // backward compatibility
-      results,
-      errors: errors.length > 0 ? errors : undefined,
-    });
-  } catch (error: any) {
-    if (error instanceof RequestBodyError) return NextResponse.json({ success: false, error: error.message }, { status: error.status });
-    console.error("Error in /api/upload-bill:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message || "Failed to process document upload.",
-      },
-      { status: 500 }
-    );
+    if (!stagedDocuments.length && errors.length) return NextResponse.json({ success: false, error: errors.map(e => `${e.fileName}: ${e.error}`).join('; '), errors }, { status: 400 });
+    return NextResponse.json({ success: true, count: stagedDocuments.length, stagedDocuments,
+      stagedDocument: stagedDocuments[0], results, errors: errors.length ? errors : undefined }, { headers: { 'Cache-Control': 'private, no-store' } });
+  } catch (error) {
+    if (error instanceof RequestBodyError || error instanceof DocumentStorageError)
+      return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+    return NextResponse.json({ success: false, error: "Failed to process document upload." }, { status: 500 });
   }
 }

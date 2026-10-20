@@ -75,7 +75,15 @@ export async function POST(request: Request) {
     }
 
     const { error: metadataError } = await supabase.auth.updateUser({
-      data: { onboardingCompleted: true, onboardingPending: false, onboardingPreferences },
+      data: {
+        onboardingCompleted: true,
+        onboardingPending: false,
+        onboardingPreferences,
+        // Queue the workspace introduction only on the first completed onboarding.
+        ...(authData.user.user_metadata?.onboardingCompleted !== true && authData.user.user_metadata?.workspaceTourSeen !== true
+          ? { workspaceTourPending: true }
+          : {}),
+      },
     });
     if (metadataError) {
       console.error("[Onboarding Metadata Error]:", metadataError);

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queueManager } from "@/lib/queue/queue-manager";
 import { getSessionUserId } from "@/lib/security/session";
+import { dispatchJob } from '@/lib/queue/job-dispatch';
+
+export const maxDuration = 300;
 
 export async function GET(
   req: NextRequest,
@@ -18,6 +21,7 @@ export async function GET(
       { status: 404 }
     );
   }
+  if (job.status === 'QUEUED' || job.status === 'PROCESSING') dispatchJob(ownerId, job.id);
 
   return NextResponse.json({
     success: true,

@@ -30,4 +30,8 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// Development recompilation must not overwrite a concurrently verified production build.
+export default (phase) => ({
+  ...nextConfig,
+  distDir: phase === "phase-development-server" ? ".next-dev" : ".next",
+});

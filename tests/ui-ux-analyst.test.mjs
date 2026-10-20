@@ -347,12 +347,12 @@ describe('UI/UX Analyst Verification Test Suite', () => {
         'Sidebar must render a mobile backdrop when open on mobile viewports'
       );
       assert.ok(
-        sidebarContent.includes('max-md:fixed max-md:inset-y-0 max-md:left-0'),
+        sidebarContent.includes('workspace-sidebar') && /\.app-workspace \.workspace-sidebar\s*\{\s*position: fixed;/.test(readProjectFile('src/app/globals.css')),
         'Sidebar must use fixed overlay drawer positioning on mobile viewports'
       );
       assert.ok(
-        sidebarContent.includes('max-md:w-0'),
-        'Sidebar must cleanly hide (max-md:w-0) when collapsed on mobile'
+        sidebarContent.includes('inert={isMobile === true && !isOpen}') && readProjectFile('src/app/globals.css').includes('transform: translate3d(-100%, 0, 0);'),
+        'Closed mobile navigation must slide offscreen and be inaccessible without changing content width'
       );
     });
 

@@ -66,6 +66,7 @@ export function FormMarketplaceDropdown({
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isOpen) return;
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
       if (!dropdownRef.current?.contains(target) && !menuRef.current?.contains(target)) {
@@ -83,14 +84,16 @@ export function FormMarketplaceDropdown({
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [isOpen]);
 
   useLayoutEffect(() => {
     if (!isOpen) {
       setMenuPosition(null);
       return;
     }
+    let frame: number | null = null;
     const updatePosition = () => {
+      frame = null;
       const rect = buttonRef.current?.getBoundingClientRect();
       if (!rect) return;
       const margin = 8;
@@ -101,14 +104,19 @@ export function FormMarketplaceDropdown({
       const maxHeight = Math.max(100, Math.min(288, Math.max(spaceBelow, spaceAbove)));
       const openAbove = spaceBelow < Math.min(240, maxHeight) && spaceAbove > spaceBelow;
       const top = openAbove ? Math.max(margin, rect.top - maxHeight - 6) : rect.bottom + 6;
-      setMenuPosition({ left, top, width, maxHeight });
+      setMenuPosition(previous => previous && previous.left === left && previous.top === top && previous.width === width && previous.maxHeight === maxHeight
+        ? previous : { left, top, width, maxHeight });
+    };
+    const schedulePosition = () => {
+      if (frame === null) frame = window.requestAnimationFrame(updatePosition);
     };
     updatePosition();
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", schedulePosition, { passive: true });
+    window.addEventListener("scroll", schedulePosition, { capture: true, passive: true });
     return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", schedulePosition);
+      window.removeEventListener("scroll", schedulePosition, true);
+      if (frame !== null) window.cancelAnimationFrame(frame);
     };
   }, [isOpen]);
 
@@ -238,6 +246,7 @@ export function PlatformFilterDropdown({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isOpen) return;
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -254,7 +263,7 @@ export function PlatformFilterDropdown({
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [isOpen]);
 
   const isAll = selected === "ALL";
   const activeConfig: MarketplaceConfigItem | null = isAll ? null : MARKETPLACE_CONFIGS[selected];

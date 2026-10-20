@@ -18,6 +18,7 @@ export interface SessionPayload {
   accountType?: string;
   companyName?: string;
   avatarUrl?: string;
+  workspaceTourPending?: boolean;
   iat: number;
   exp: number;
 }
@@ -75,6 +76,7 @@ export async function getSessionUser(req: NextRequest | Request): Promise<Sessio
           accountType: account.account_type,
           companyName: account.company_name,
           avatarUrl: typeof avatarUrl === "string" && avatarUrl ? avatarUrl : undefined,
+          workspaceTourPending: userMetadata?.workspaceTourPending === true && userMetadata?.workspaceTourSeen !== true,
           phone: account.phone || "",
           iat: now,
           exp: now + 3600,

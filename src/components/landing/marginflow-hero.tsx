@@ -63,13 +63,29 @@ const FEED_ITEMS: FeedItem[] = [
 ];
 
 export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroProps) {
+  const heroRef = React.useRef<HTMLElement>(null);
+  React.useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero) return;
+    let inView = true;
+    const updateMotion = () => { hero.dataset.motionPaused = String(!inView || document.hidden); };
+    const observer = typeof IntersectionObserver === "function" ? new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting;
+      updateMotion();
+    }, { rootMargin: "120px" }) : null;
+    observer?.observe(hero);
+    document.addEventListener("visibilitychange", updateMotion);
+    updateMotion();
+    return () => { observer?.disconnect(); document.removeEventListener("visibilitychange", updateMotion); };
+  }, []);
 
   return (
-    <section className="relative pt-32 pb-24 sm:pt-40 sm:pb-32 px-4 sm:px-6 lg:px-8 bg-[#060c09] text-[#eef5e9] overflow-hidden">
+    <section ref={heroRef} className="relative pt-32 pb-24 sm:pt-40 sm:pb-32 px-4 sm:px-6 lg:px-8 bg-[#060c09] text-[#eef5e9] overflow-hidden">
       {/* Responsive contract: grid-cols-1 sm:grid-cols-3 border-2 */}
       
       {/* Scoped CSS for living organic background motion */}
       <style dangerouslySetInnerHTML={{ __html: `
+        [data-motion-paused="true"] * { animation-play-state: paused !important; }
         @keyframes heroWaveDrift1 {
           0% {
             transform: scale(1) translate3d(0, 0, 0) rotate(0deg);

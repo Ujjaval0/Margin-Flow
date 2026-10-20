@@ -6,6 +6,7 @@ import { claimRecoveryEvents } from "./claim-recovery";
 
 import { money, sumMoney, getOrderFinancialFacts } from "@/domain/order-financials";
 import { createRecordId } from "./record-id";
+import { scheduleIdleTask } from "@/lib/browser-tasks";
 import { loadFinancialPages } from "./load-financial-pages";
 import type { LedgerCommand, OperatingCollection } from "./ledger-command";
 import { calculatePeriodProfitability,periodMarketplace,periodSku } from './financial-period';
@@ -152,9 +153,9 @@ interface PlatformContextType {
   bulkAddProducts: (products: Product[]) => Promise<void>;
   deleteProduct: (sku: string) => Promise<void>;
   updateProductCost: (sku: string, newCost: number, reason: string) => Promise<void>;
-  addComplaint: (complaint: CustomerComplaint) => void;
-  updateComplaintStatus: (ticketId: string, status: CustomerComplaint["status"], resolutionNotes?: string) => void;
-  deleteComplaint: (ticketId: string) => void;
+  addComplaint: (complaint: CustomerComplaint) => Promise<void>;
+  updateComplaintStatus: (ticketId: string, status: CustomerComplaint["status"], resolutionNotes?: string) => Promise<void>;
+  deleteComplaint: (ticketId: string) => Promise<void>;
   addSettlement: (settlement: Settlement) => Promise<void>;
   syncExternalSettlements: (incomingSettlements: Settlement[]) => Promise<{ added: number; updated: number }>;
   addExpense: (expense: Expense) => Promise<void>;
@@ -227,7 +228,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setProducts(data.products); setOrders(data.orders); setReturns(data.returns);
     setSettlements(data.settlements); setClaims(data.claims); setExpenses(data.expenses);
     setSuppliers(data.suppliers);setPurchases(data.purchases);setSupplierPayments(data.supplierPayments||[]);
-    setAiDocuments(data.aiDocuments);setAuditLogs(data.auditLogs);
+    setAiDocuments(data.aiDocuments);setAuditLogs(data.auditLogs);setComplaints(data.complaints);
   }, []);
   const archiveSelection = useCallback(async (type: RecycleType, ids: string[]) => {
     if (archiveBusy.current) { alert("Another archive operation is in progress. Please retry shortly."); return; }
@@ -324,7 +325,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       }
       // Empty authoritative responses must remove stale cached rows too.
       const cached=readTenantSnapshot(localStorage,ownerId);
-      const pending=['suppliers','purchases','supplierPayments','returns','claims','expenses','aiDocuments'] as const;
+      const pending=['suppliers','purchases','supplierPayments','returns','claims','expenses','aiDocuments','complaints'] as const;
       if(cached && pending.some(key=>(cached[key]||[]).some((row:{id:string})=>!(ledgerJson.data[key]||[]).some((saved:{id:string})=>saved.id===row.id)))) {
         const pendingKey=tenantLedgerKey(ownerId)+':pending-migration';
         if(!localStorage.getItem(pendingKey)) localStorage.setItem(pendingKey,JSON.stringify({version:1,ownerId,data:cached}));
@@ -345,18 +346,35 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, [clearTenantData,applyLedgerChange]);
 
   useEffect(() => {
-    void refreshFromDatabase();
-    const onFocus = () => { void refreshFromDatabase(); };
+    let backgroundRefresh: Promise<void> | null = null;
+    const onFocus = () => {
+      // Mount, focus and restored-page events can arrive together. Share only
+      // background work; explicit saves and session changes still force a fresh read.
+      if (backgroundRefresh) return;
+      backgroundRefresh = refreshFromDatabase().finally(() => { backgroundRefresh = null; });
+    };
+    const onPageShow = (event: PageTransitionEvent) => { if (event.persisted) onFocus(); };
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea !== localStorage) return;
+      const key = event.key;
+      if (key === null || key === "marginflow_session" || /^sb-.*-auth-token(?:\.\d+)?$/.test(key)) {
+        void refreshFromDatabase();
+      } else if (verifiedOwner.current && key === tenantLedgerKey(verifiedOwner.current)) {
+        onFocus();
+      }
+    };
+    const onSessionChanged = () => { void refreshFromDatabase(); };
+    onFocus();
     window.addEventListener("focus", onFocus);
-    window.addEventListener("pageshow", onFocus);
-    window.addEventListener("storage", onFocus);
-    window.addEventListener("marginflow:session-changed", onFocus);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("marginflow:session-changed", onSessionChanged);
     return () => {
       ++refreshGeneration.current;
       window.removeEventListener("focus", onFocus);
-      window.removeEventListener("pageshow", onFocus);
-      window.removeEventListener("storage", onFocus);
-      window.removeEventListener("marginflow:session-changed", onFocus);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("marginflow:session-changed", onSessionChanged);
     };
   }, [refreshFromDatabase]);
   // Debounced synchronization of state mutations to local ledger storage (prevents UI thread freezing)
@@ -364,9 +382,12 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     if (!isHydrated || !cacheOwner || verifiedOwner.current !== cacheOwner) return;
     const ownerId = cacheOwner;
     const storageKey = tenantLedgerKey(ownerId);
+    let cancelIdleTask: (() => void) | undefined;
     const timer = setTimeout(() => {
+      cancelIdleTask = scheduleIdleTask(() => {
       try {
         if (typeof window !== "undefined") {
+          if (verifiedOwner.current !== ownerId) return;
           const snapshot = {
             version: 1,
             ownerId,
@@ -388,24 +409,15 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             },
           };
           const serialized = JSON.stringify(snapshot);
-          if ("requestIdleCallback" in window) {
-            (window as any).requestIdleCallback(() => {
-              try {
-                if (verifiedOwner.current === ownerId) localStorage.setItem(storageKey, serialized);
-              } catch (err) {
-                console.error("Failed to save ledger to localStorage:", err);
-              }
-            });
-          } else {
-            if (verifiedOwner.current === ownerId) localStorage.setItem(storageKey, serialized);
-          }
+          if (verifiedOwner.current === ownerId) localStorage.setItem(storageKey, serialized);
         }
       } catch (e) {
         console.error("Failed to synchronize persistent ledger to storage:", e);
       }
+      });
     }, 800);
 
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); cancelIdleTask?.(); };
   }, [
     cacheOwner,
     isHydrated,
@@ -882,35 +894,23 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     if(verifiedOwner.current!==owner)throw Error('Account changed.');await refreshFromDatabase();
   },[refreshFromDatabase]);
 
-  const addComplaint = useCallback((complaint: CustomerComplaint) => {
-    setComplaints((prev) => [complaint, ...prev]);
-  }, []);
+  const addComplaint = useCallback(async (complaint: CustomerComplaint) => {
+    await saveOperatingRecord('complaints',complaint);
+  }, [saveOperatingRecord]);
 
   const updateComplaintStatus = useCallback(
-    (ticketId: string, status: CustomerComplaint["status"], resolutionNotes?: string) => {
-      setComplaints((prev) =>
-        prev.map((c) =>
-          c.id === ticketId
-            ? {
-                ...c,
-                status,
-                ...(status === "RESOLVED" || status === "CLOSED"
-                  ? {
-                      resolvedAt: new Date().toISOString(),
-                      resolutionNotes: resolutionNotes || c.resolutionNotes || "Issue marked resolved",
-                    }
-                  : {}),
-              }
-            : c
-        )
-      );
+    async (ticketId: string, status: CustomerComplaint["status"], resolutionNotes?: string) => {
+      const record=liveLedger.current.complaints.find(row=>row.id===ticketId);
+      if(!record)throw Error('Complaint not found.');
+      await saveOperatingRecord('complaints',{...record,status,...(['RESOLVED','CLOSED'].includes(status)
+        ? {resolvedAt:new Date().toISOString(),resolutionNotes:resolutionNotes||record.resolutionNotes||'Issue marked resolved'}:{})},true);
     },
-    []
+    [saveOperatingRecord]
   );
 
-  const deleteComplaint = useCallback((ticketId: string) => {
-    setComplaints((prev) => prev.filter((c) => c.id !== ticketId));
-  }, []);
+  const deleteComplaint = useCallback(async (ticketId: string) => {
+    await commitFinancialCommand({action:'deleteComplaint',id:ticketId});
+  }, [commitFinancialCommand]);
 
   const switchAccountType = useCallback((role: AccountType, supplierId?: string) => {
     const matching = DEFAULT_ACCOUNTS.find((a) => a.accountType === role) || {
@@ -929,6 +929,10 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {}
   }, []);
+
+  const reportDataset = useMemo(() => ({
+    ...currentDataset, financialContext, reportRange: datePreset === 'ALL' ? undefined : dateRanges.current,
+  }), [currentDataset, financialContext, datePreset, dateRanges.current]);
 
   const contextValue = useMemo(
     () => ({
@@ -952,7 +956,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       isSyncingWithDb,
       refreshFromDatabase,
       resetLedgerToDefaults,
-      reportDataset: {...currentDataset,financialContext,reportRange:datePreset==='ALL'?undefined:dateRanges.current},
+      reportDataset,
       exportLedgerSnapshot,
       importLedgerSnapshot,
       restoreArchivedRecord,
@@ -1019,6 +1023,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       currentDataset,
+      reportDataset,
       products,
       orders,
       returns,

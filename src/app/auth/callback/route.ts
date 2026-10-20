@@ -7,11 +7,14 @@ const ACCOUNT_TYPES = new Set(["BRAND_OWNER", "SUPPLIER", "WHOLESALER"]);
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  if (!code) return NextResponse.redirect(new URL("/login", request.url));
+  const tokenHash = url.searchParams.get("type") === "email" ? url.searchParams.get("token_hash") : null;
+  if (!code && !tokenHash) return NextResponse.redirect(new URL("/login", request.url));
 
   try {
     const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = tokenHash
+      ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "email" })
+      : await supabase.auth.exchangeCodeForSession(code!);
     if (error || !data.user) return NextResponse.redirect(new URL("/login", request.url));
 
     const requestedType = url.searchParams.get("accountType");

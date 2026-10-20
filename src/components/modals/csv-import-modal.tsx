@@ -1,4 +1,5 @@
 "use client";
+import { uploadDocumentFiles } from '@/lib/document-upload';
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -178,9 +179,8 @@ export function CsvImportModal({
     if (!mappingResult?.orders.length || mappingResult.errors.length || isProcessing) return;
     setIsProcessing(true);
     try {
-      const formData = new FormData();
-      for (const file of files) formData.append("file", file);
-      const response = await fetch("/api/integrations/reports/upload", { method: "POST", credentials: "same-origin", body: formData });
+      const documents = await uploadDocumentFiles(files);
+      const response = await fetch("/api/integrations/reports/upload", { method: "POST", credentials: "same-origin", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ documents }) });
       const result = await response.json();
       if (!response.ok || result.success !== true || !Array.isArray(result.orders)) throw new Error("Import could not be saved. Please retry.");
       await onImportOrders(result.orders);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   X,
@@ -171,17 +171,14 @@ export function CfoCopilot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Automated Financial Anomaly Radar (Zero Hallucinated Math)
-  const anomalyBriefing = useMemo(() => {
-    return computeAnomalyRadar({
+  const handleGenerateAnomalyRadar = () => {
+    const anomalyBriefing = computeAnomalyRadar({
       orders: platform.orders,
       returns: platform.returns,
       settlements: platform.settlements,
       products: platform.products,
       claims: platform.claims,
     });
-  }, [platform.orders, platform.returns, platform.settlements, platform.products, platform.claims]);
-
-  const handleGenerateAnomalyRadar = () => {
     if (anomalyBriefing.totalAnomaliesCount === 0) {
       const cleanMsg: ChatMessage = {
         id: `msg-asst-${Date.now()}`,
@@ -263,8 +260,14 @@ export function CfoCopilot() {
 
   // Scroll to bottom on new message
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
+    if (!isOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [messages, isLoading, isOpen]);
 
   // Initial clean welcome message (simple 2-line greeting, zero unprompted chips)
   useEffect(() => {
@@ -428,12 +431,9 @@ export function CfoCopilot() {
         let accumulatedText = "";
 
         if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            accumulatedText += chunk;
-
+          let frame: number | null = null;
+          const renderStream = () => {
+            frame = null;
             // Strip action_chips fence from live visible text
             let visibleText = accumulatedText;
             const chipBlockStart = visibleText.indexOf("```action_chips");
@@ -454,6 +454,17 @@ export function CfoCopilot() {
                 msg.id === assistantMsgId ? { ...msg, text: visibleText } : msg
               )
             );
+          };
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              accumulatedText += decoder.decode(value, { stream: true });
+              if (frame === null) frame = window.requestAnimationFrame(renderStream);
+            }
+            accumulatedText += decoder.decode();
+          } finally {
+            if (frame !== null) window.cancelAnimationFrame(frame);
           }
         }
 

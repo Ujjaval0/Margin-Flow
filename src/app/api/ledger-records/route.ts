@@ -11,8 +11,9 @@ import { z } from 'zod';
 const date=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v=>Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0,10)===v);
 const money=z.number().finite().nonnegative().max(1e12).refine(v=>Math.abs(v*100-Math.round(v*100))<1e-7);
 const requestSchema=z.object({requestId:z.string().min(1).max(500),command:z.discriminatedUnion('action',[
-  z.object({action:z.literal('save'),collection:z.enum(['suppliers','purchases','expenses','returns','claims','aiDocuments']),record:z.unknown(),expected:z.unknown().optional()}),
+  z.object({action:z.literal('save'),collection:z.enum(['suppliers','purchases','expenses','returns','claims','aiDocuments','complaints']),record:z.unknown(),expected:z.unknown().optional()}),
   z.object({action:z.literal('deleteSupplier'),id:z.string().min(1)}),
+  z.object({action:z.literal('deleteComplaint'),id:z.string().min(1)}),
   z.object({action:z.literal('paySupplier'),id:z.string().min(1),supplierId:z.string().min(1),date,amount:money.refine(v=>v>0),paymentMethod:z.string(),reference:z.string(),notes:z.string().optional()}),
   z.object({action:z.literal('restock'),id:z.string().min(1),date:date.optional()}),
   z.object({action:z.literal('importSnapshot'),snapshot:z.string().max(10*1024*1024)}),

@@ -92,18 +92,20 @@ test('public health executes only a constant query and hides internal errors', a
   assert.doesNotMatch(await response.text(), /secret|sampleProfitability|orders/);
 });
 
-test('merchant document directories are distinct and contain no raw user paths', () => {
-  const { getDocumentDirectory } = load('src/lib/security/document-storage.ts', {}, { process });
-  assert.notEqual(getDocumentDirectory('merchant-a'), getDocumentDirectory('merchant-b'));
-  assert.doesNotMatch(getDocumentDirectory('../../merchant'), /\.\./);
+test('merchant document object prefixes are distinct and contain no raw user paths', () => {
+  const { documentObjectPath } = load('src/lib/security/document-storage.ts', {}, { process });
+  assert.notEqual(documentObjectPath('merchant-a','file.pdf'), documentObjectPath('merchant-b','file.pdf'));
+  assert.doesNotMatch(documentObjectPath('../../merchant','file.pdf'), /\.\./);
 });
 
 test('document stream cannot read another owner directory', async () => {
   let readPath;
   const route = load('src/app/api/documents/stream/route.ts', {
     [session]: { getSessionUser: () => ({ sub: 'merchant-b' }) },
-    'fs/promises': { stat: async path => { readPath = path; const error = Error(); error.code = 'ENOENT'; throw error; } },
-  }, { process });
+    '@supabase/supabase-js': { createClient: () => ({ storage: { from: () => ({ createSignedUrl: async path => {
+      readPath=path; return { data:null,error:{message:'not found'} };
+    } }) } }) },
+  }, { process:{env:{ NEXT_PUBLIC_SUPABASE_URL:'https://project.supabase.co',SUPABASE_SECRET_KEY:'server-only-test-key' }} });
   const response = await route.GET(new Request('https://app.example/api/documents/stream?file=merchant-a-file.pdf'));
   assert.equal(response.status, 404);
   assert.ok(readPath.includes(crypto.createHash('sha256').update('merchant-b').digest('hex')));

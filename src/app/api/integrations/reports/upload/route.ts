@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { getSessionUserId } from "@/lib/security/session";
-import { readFormBody, RequestBodyError } from "@/lib/security/request-body";
+import { RequestBodyError } from "@/lib/security/request-body";
+import { readDocumentInputs, DocumentStorageError } from '@/lib/security/document-storage';
+import { checkProcessingBudget } from '@/lib/security/api-guard';
 import { query, pool, ensureMarketplaceTables } from "@/lib/db";
 import { consolidateCsvOrders, detectAndMapCsv } from "@/domain/csv-auto-mapper";
 import { orderSchema } from "@/domain/snapshot-validation";
@@ -10,13 +12,16 @@ import { calculateFileHash, recordFileImportAudit, getFileImportHistory } from "
 import { marketplaceError } from "@/lib/integrations/error-response";
 import { upsertOrders } from "@/lib/integrations/order-persistence";
 
+export const maxDuration = 300;
+
 /** Parse original files server-side; commit orders and source audit in one transaction. */
 export async function POST(req: NextRequest) {
   const userId = await getSessionUserId(req);
   if (!userId) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
   try {
-    const form = await readFormBody(req, 12 * 1024 * 1024);
-    const files = form.getAll("file");
+    const rejected = checkProcessingBudget(req, userId);
+    if (rejected) return rejected;
+    const { files } = await readDocumentInputs(req, userId, 10);
     if (!files.length || files.length > 10 || files.some(file => typeof file === "string" || file.size > 5 * 1024 * 1024 || !/\.(csv|xlsx|xls)$/i.test(file.name)) || files.reduce((size, file) => size + (typeof file === "string" ? 0 : file.size), 0) > 10 * 1024 * 1024) {
       return NextResponse.json({ success: false, error: "Provide up to 10 CSV/Excel files, each at most 5 MB and at most 10 MB in total." }, { status: 400 });
     }
@@ -74,7 +79,7 @@ export async function POST(req: NextRequest) {
       throw error;
     } finally { client.release(); }
   } catch (error) {
-    if (error instanceof RequestBodyError) return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+    if (error instanceof RequestBodyError || error instanceof DocumentStorageError) return NextResponse.json({ success: false, error: error.message }, { status: error.status });
     return NextResponse.json({ success: false, error: "Import could not be saved. Please retry." }, { status: 503 });
   }
 }

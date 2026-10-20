@@ -13,7 +13,6 @@ import {
   RefreshCw,
   AlertCircle,
   ChevronDown,
-  Sparkles,
   Sliders,
   ShieldCheck,
 } from "lucide-react";
@@ -29,6 +28,7 @@ import {
   verifyConnection,
   getCachedModels,
 } from "@/lib/security/ai-vault";
+import { AISetupNotice } from "@/components/ai/ai-setup-notice";
 
 interface AISettingsModalProps {
   isOpen: boolean;
@@ -137,7 +137,8 @@ export function AISettingsModal({ isOpen, onClose, ownerId }: AISettingsModalPro
       setSavedSuccess(false);
       setShowAdvanced(Boolean(current.customBaseUrl));
 
-      const seen = typeof window !== "undefined" && localStorage.getItem("marginflow_model_suggestion_seen");
+      let seen = !ownerId;
+      try { seen = seen || localStorage.getItem(`marginflow_model_suggestion_seen:${ownerId}`) === "true"; } catch {}
       const hasAnyKey = Object.values(current.keys || {}).some((k) => Boolean(k && k.trim()));
       if (!seen && !hasAnyKey) {
         setShowSuggestionToast(true);
@@ -147,28 +148,16 @@ export function AISettingsModal({ isOpen, onClose, ownerId }: AISettingsModalPro
     }
   }, [isOpen, ownerId]);
 
-  // Auto-dismiss recommendation pop-up after 9 seconds
   useEffect(() => {
-    if (showSuggestionToast) {
-      const timer = setTimeout(() => {
-        handleDismissSuggestion();
-      }, 9000);
-      return () => clearTimeout(timer);
-    }
-  }, [showSuggestionToast]);
+    if (!showSuggestionToast || !ownerId) return;
+    try { localStorage.setItem(`marginflow_model_suggestion_seen:${ownerId}`, "true"); } catch {}
+  }, [showSuggestionToast, ownerId]);
 
   const handleDismissSuggestion = () => {
     setShowSuggestionToast(false);
     try {
-      localStorage.setItem("marginflow_model_suggestion_seen", "true");
+      if (ownerId) localStorage.setItem(`marginflow_model_suggestion_seen:${ownerId}`, "true");
     } catch {}
-  };
-
-  const handleKeyInputFocus = () => {
-    const seen = typeof window !== "undefined" && localStorage.getItem("marginflow_model_suggestion_seen");
-    if (!seen && !showSuggestionToast) {
-      setShowSuggestionToast(true);
-    }
   };
 
   // Provider change handler
@@ -261,7 +250,7 @@ export function AISettingsModal({ isOpen, onClose, ownerId }: AISettingsModalPro
   // Save updated settings
   const handleSave = () => {
     try {
-      localStorage.setItem("marginflow_model_suggestion_seen", "true");
+      if (ownerId) localStorage.setItem(`marginflow_model_suggestion_seen:${ownerId}`, "true");
     } catch {}
     setShowSuggestionToast(false);
 
@@ -383,30 +372,7 @@ export function AISettingsModal({ isOpen, onClose, ownerId }: AISettingsModalPro
 
           {/* One-time Model Recommendation Pop-up */}
           {showSuggestionToast && (
-            <div className="p-3 bg-[#1D1D1F] text-white rounded-2xl shadow-apple-md border border-white/10 animate-in fade-in slide-in-from-top-2 duration-200 relative">
-              <button
-                type="button"
-                onClick={handleDismissSuggestion}
-                aria-label="Dismiss recommendation"
-                className="absolute right-2.5 top-2.5 w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition cursor-pointer"
-              >
-                <X className="w-3 h-3" />
-              </button>
-              <div className="flex items-start gap-2.5 pr-6">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0 mt-0.5" />
-                <div className="space-y-1 text-[11px] leading-relaxed">
-                  <p className="font-semibold text-white text-[11px] tracking-tight">
-                    Recommended Models for Best Results &amp; Lowest Cost
-                  </p>
-                  <p className="text-white/80">
-                    <strong className="text-amber-300 font-medium">Bulk Invoices:</strong> Gemini 2.5 Flash or GPT-4o Mini (fastest &amp; lowest cost).
-                  </p>
-                  <p className="text-white/80">
-                    <strong className="text-sky-300 font-medium">CFO Chat:</strong> Claude 3.7, DeepSeek R1, or GPT-4o (deep financial reasoning).
-                  </p>
-                </div>
-              </div>
-            </div>
+            <AISetupNotice onDismiss={handleDismissSuggestion} />
           )}
 
           {/* API Key Input */}
@@ -430,7 +396,6 @@ export function AISettingsModal({ isOpen, onClose, ownerId }: AISettingsModalPro
               <input
                 type={showKey ? "text" : "password"}
                 value={apiKey}
-                onFocus={handleKeyInputFocus}
                 onChange={(e) => {
                   setApiKey(e.target.value);
                   setTestState({ status: "idle" });

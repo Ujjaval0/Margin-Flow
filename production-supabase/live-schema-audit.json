@@ -1,0 +1,3633 @@
+{
+  "checkedAt": "2026-10-20T03:48:38.821Z",
+  "transport": {
+    "tls": true
+  },
+  "configuration": {
+    "siteOrigin": "http://localhost:3000",
+    "databaseMatchesApiProject": true
+  },
+  "authSettings": {
+    "status": 200,
+    "emailEnabled": true,
+    "googleEnabled": true,
+    "signupDisabled": false,
+    "emailAutoConfirm": false
+  },
+  "server": [
+    {
+      "database": "postgres",
+      "current_user": "postgres",
+      "version": "PostgreSQL 17.11 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit"
+    }
+  ],
+  "schemas": [
+    {
+      "nspname": "auth"
+    },
+    {
+      "nspname": "extensions"
+    },
+    {
+      "nspname": "graphql"
+    },
+    {
+      "nspname": "graphql_public"
+    },
+    {
+      "nspname": "public"
+    },
+    {
+      "nspname": "realtime"
+    },
+    {
+      "nspname": "storage"
+    },
+    {
+      "nspname": "vault"
+    }
+  ],
+  "tables": [
+    {
+      "relname": "ai_staged_documents",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "ai_staged_fields",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "auth_sessions",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "background_jobs",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "claim_documents",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "claims",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "customer_complaints",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "expenses",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "file_import_logs",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "financial_audit_logs",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "ledger_archives",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "marketplace_connections",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "marketplace_sync_logs",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "notifications",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "oauth_states",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "order_items",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "orders",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "product_channel_aliases",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "product_cost_history",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "products",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "purchase_bills",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "return_records",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "settlement_deductions",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "settlements",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "supplier_payments",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "suppliers",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "user_accounts",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "v_claims_summary",
+      "relkind": "v",
+      "relrowsecurity": false,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "v_inventory_metrics",
+      "relkind": "v",
+      "relrowsecurity": false,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "v_marketplace_profitability",
+      "relkind": "v",
+      "relrowsecurity": false,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "v_order_profitability",
+      "relkind": "v",
+      "relrowsecurity": false,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "v_recycle_bin",
+      "relkind": "v",
+      "relrowsecurity": false,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "v_settlement_aging",
+      "relkind": "v",
+      "relrowsecurity": false,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "v_sku_profitability",
+      "relkind": "v",
+      "relrowsecurity": false,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "v_unread_notification_count",
+      "relkind": "v",
+      "relrowsecurity": false,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "webhook_events",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    },
+    {
+      "relname": "webhook_receipts",
+      "relkind": "r",
+      "relrowsecurity": true,
+      "relforcerowsecurity": false,
+      "owner": "postgres"
+    }
+  ],
+  "columns": [
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "file_name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "file_url",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "file_type",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "upload_date",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "raw_text_preview",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "arithmetic_passed",
+      "data_type": "boolean",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "arithmetic_calculated",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "arithmetic_declared",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "arithmetic_difference",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "arithmetic_message",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "catalog_sku_matched",
+      "data_type": "boolean",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "catalog_matched_sku_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "catalog_suggestion",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_documents",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "document_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "field_name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "value_text",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "confidence",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "provenance",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "page_number",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "bbox_x",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "bbox_y",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "bbox_width",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "bbox_height",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "is_flagged",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "anomaly_message",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "auth_sessions",
+      "column_name": "token_hash",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "auth_sessions",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "auth_sessions",
+      "column_name": "expires_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "auth_sessions",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "auth_sessions",
+      "column_name": "revoked_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "type",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "payload",
+      "data_type": "jsonb",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "progress",
+      "data_type": "smallint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "result",
+      "data_type": "jsonb",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "error",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "idempotency_key",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "attempts",
+      "data_type": "smallint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "max_attempts",
+      "data_type": "smallint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "available_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "locked_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "lock_token",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "background_jobs",
+      "column_name": "priority",
+      "data_type": "smallint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claim_documents",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claim_documents",
+      "column_name": "claim_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claim_documents",
+      "column_name": "document_url",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claim_documents",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "order_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "return_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "marketplace",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "claim_type",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "claim_date",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "amount_claimed",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "amount_recovered",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "recovery_date",
+      "data_type": "date",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "notes",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "claims",
+      "column_name": "recovered_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "ticket_number",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "customer_name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "customer_email",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "customer_phone",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "order_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "channel_order_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "marketplace",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "sku",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "category",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "priority",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "subject",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "description",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "resolution_notes",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "customer_complaints",
+      "column_name": "resolved_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "expense_date",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "category",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "description",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "amount",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "vendor",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "payment_method",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "is_recurring",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "marketplace",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "attributed_sku",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "supporting_document",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "notes",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "expenses",
+      "column_name": "recovered_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "marketplace",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "file_name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "file_hash",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "file_size",
+      "data_type": "bigint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "seller_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "sheet_format",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "rows_processed",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "orders_created",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "settlements_created",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "uploaded_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "file_import_logs",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "column_name": "timestamp",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "column_name": "entity_type",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "column_name": "entity_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "column_name": "field_name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "column_name": "old_value",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "column_name": "new_value",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "column_name": "modified_by",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "column_name": "reason",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "column_name": "source_document_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "ledger_archives",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ledger_archives",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ledger_archives",
+      "column_name": "record_type",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ledger_archives",
+      "column_name": "record_ids",
+      "data_type": "ARRAY",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ledger_archives",
+      "column_name": "patch",
+      "data_type": "jsonb",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ledger_archives",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ledger_archives",
+      "column_name": "restored_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "marketplace",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "seller_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "marketplace_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "encrypted_credentials",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "auth_type",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "token_expires_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "is_active",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "last_sync_status",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "last_sync_cursor",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "last_synced_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "error_message",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "column_name": "sync_checkpoints",
+      "data_type": "jsonb",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "connection_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "marketplace",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "sync_type",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "status",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "fetched_count",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "imported_count",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "updated_count",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "skipped_count",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "error_message",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "started_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "column_name": "completed_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "type",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "severity",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "title",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "body",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "action_url",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "action_label",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "entity_type",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "entity_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "is_read",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "is_dismissed",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "auto_expires_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "read_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "oauth_states",
+      "column_name": "state",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "oauth_states",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "oauth_states",
+      "column_name": "marketplace",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "oauth_states",
+      "column_name": "expires_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "oauth_states",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "oauth_states",
+      "column_name": "client_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "oauth_states",
+      "column_name": "redirect_uri",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "order_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "sku",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "mfn",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "mfn1",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "product_name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "quantity",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "selling_price",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "discount",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "tax_amount",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "snapshot_unit_cost",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "returned_quantity",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "channel_order_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "marketplace",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "order_date",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "customer_name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "customer_city",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "customer_state",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "shipping_fee_charged",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "marketplace_charges_estimate",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "settlement_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "settlement_percent",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "commission_percent",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "supplier_name",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "supplier_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "notes",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "product_channel_aliases",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "product_channel_aliases",
+      "column_name": "product_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "product_channel_aliases",
+      "column_name": "marketplace",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "product_channel_aliases",
+      "column_name": "alias_sku",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "product_channel_aliases",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "product_cost_history",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "product_cost_history",
+      "column_name": "product_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "product_cost_history",
+      "column_name": "sku",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "product_cost_history",
+      "column_name": "valid_from",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "product_cost_history",
+      "column_name": "valid_to",
+      "data_type": "date",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "product_cost_history",
+      "column_name": "cost_price",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "product_cost_history",
+      "column_name": "source_purchase_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "product_cost_history",
+      "column_name": "notes",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "product_cost_history",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "sku",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "mfn",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "products",
+      "column_name": "mfn1",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "products",
+      "column_name": "name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "category",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "brand",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "current_cost_price",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "supplier_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "products",
+      "column_name": "active",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "stock_quantity",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "products",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "products",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "supplier_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "supplier_name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "invoice_number",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "invoice_date",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "sku",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "quantity",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "unit_cost",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "taxes",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "total_amount",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "payment_status",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "document_url",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "purchase_bills",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "order_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "channel_order_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "marketplace",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "return_date",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "received_date",
+      "data_type": "date",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "awb_number",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "return_type",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "return_reason",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "sku",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "product_name",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "quantity",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "condition",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "restock_status",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "claim_deadline",
+      "data_type": "date",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "return_shipping_cost",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "customer_return_fee",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "other_return_costs",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "inventory_recovery_value",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "loss_amount",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "claim_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "notes",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "return_records",
+      "column_name": "recovered_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "settlement_deductions",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlement_deductions",
+      "column_name": "settlement_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlement_deductions",
+      "column_name": "category",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlement_deductions",
+      "column_name": "name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlement_deductions",
+      "column_name": "amount",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlement_deductions",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "settlement_batch_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "marketplace",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "settlement_date",
+      "data_type": "date",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "order_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "gross_amount",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "tcs_tds_tax",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "net_settlement",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "reconciliation_status",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "discrepancy_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "bank_tx_ref",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "source_document",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "settlements",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "supplier_payments",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "supplier_payments",
+      "column_name": "supplier_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "supplier_payments",
+      "column_name": "amount",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "supplier_payments",
+      "column_name": "payment_method",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "supplier_payments",
+      "column_name": "reference_code",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "supplier_payments",
+      "column_name": "notes",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "supplier_payments",
+      "column_name": "paid_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "supplier_payments",
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "contact_person",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "email",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "phone",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "gstin",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "address",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "payment_terms",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "bank_account",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "upi_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "opening_balance",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "total_paid",
+      "data_type": "numeric",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "notes",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "suppliers",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "auth_user_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "email",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "account_type",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "company_name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "gstin",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "phone",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "password_hash",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "supplier_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "user_accounts",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "v_claims_summary",
+      "column_name": "claims_filed",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_claims_summary",
+      "column_name": "pending_claims",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_claims_summary",
+      "column_name": "approved_claims",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_claims_summary",
+      "column_name": "reimbursement_received",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_claims_summary",
+      "column_name": "outstanding_claim_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_inventory_metrics",
+      "column_name": "current_stock",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_inventory_metrics",
+      "column_name": "inventory_value",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_inventory_metrics",
+      "column_name": "purchased_quantity",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_inventory_metrics",
+      "column_name": "good_returned_quantity",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_inventory_metrics",
+      "column_name": "damaged_returned_quantity",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_marketplace_profitability",
+      "column_name": "marketplace",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_marketplace_profitability",
+      "column_name": "order_count",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_marketplace_profitability",
+      "column_name": "units_sold",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_marketplace_profitability",
+      "column_name": "gross_revenue",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_marketplace_profitability",
+      "column_name": "total_cogs",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_marketplace_profitability",
+      "column_name": "return_fees",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_marketplace_profitability",
+      "column_name": "claim_recoveries",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "order_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "display_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "marketplace",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "order_date",
+      "data_type": "date",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "gross_sales",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "total_cogs",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "settled_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "return_fees",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "claim_recoveries",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "is_rto",
+      "data_type": "boolean",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "is_damaged",
+      "data_type": "boolean",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_order_profitability",
+      "column_name": "contribution_profit",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_recycle_bin",
+      "column_name": "record_type",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_recycle_bin",
+      "column_name": "record_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_recycle_bin",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_recycle_bin",
+      "column_name": "purges_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_recycle_bin",
+      "column_name": "days_remaining",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_settlement_aging",
+      "column_name": "within_7_days_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_settlement_aging",
+      "column_name": "between_8_and_14_days_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_settlement_aging",
+      "column_name": "over_14_days_overdue_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_settlement_aging",
+      "column_name": "overdue_order_count",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_sku_profitability",
+      "column_name": "sku",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_sku_profitability",
+      "column_name": "product_name",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_sku_profitability",
+      "column_name": "units_sold",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_sku_profitability",
+      "column_name": "revenue",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_sku_profitability",
+      "column_name": "cogs",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_sku_profitability",
+      "column_name": "claim_recoveries",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_sku_profitability",
+      "column_name": "return_fees",
+      "data_type": "numeric",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "v_unread_notification_count",
+      "column_name": "unread_count",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "idempotency_key",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "source",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "event_topic",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "marketplace",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "raw_payload",
+      "data_type": "jsonb",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "signature_header",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "verified",
+      "data_type": "boolean",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "is_fresh",
+      "data_type": "boolean",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "is_duplicate",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "processing_status",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "resulting_entity_type",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "resulting_entity_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "error_message",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "received_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "processed_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "webhook_events",
+      "column_name": "processing_ms",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "webhook_receipts",
+      "column_name": "connection_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_receipts",
+      "column_name": "event_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_receipts",
+      "column_name": "user_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_receipts",
+      "column_name": "body_hash",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "webhook_receipts",
+      "column_name": "processed_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    }
+  ],
+  "constraints": [
+    {
+      "table_name": "ai_staged_documents",
+      "conname": "ai_staged_documents_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "conname": "ai_staged_fields_confidence_check",
+      "definition": "CHECK (((confidence >= (0)::numeric) AND (confidence <= (1)::numeric)))"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "conname": "ai_staged_fields_document_id_fkey",
+      "definition": "FOREIGN KEY (document_id) REFERENCES ai_staged_documents(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "conname": "ai_staged_fields_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "ai_staged_fields",
+      "conname": "uq_field_per_document",
+      "definition": "UNIQUE (document_id, field_name)"
+    },
+    {
+      "table_name": "auth_sessions",
+      "conname": "auth_sessions_pkey",
+      "definition": "PRIMARY KEY (token_hash)"
+    },
+    {
+      "table_name": "auth_sessions",
+      "conname": "auth_sessions_token_hash_check",
+      "definition": "CHECK ((length(token_hash) = 64))"
+    },
+    {
+      "table_name": "background_jobs",
+      "conname": "background_jobs_attempts_check",
+      "definition": "CHECK ((attempts >= 0))"
+    },
+    {
+      "table_name": "background_jobs",
+      "conname": "background_jobs_created_by_fkey",
+      "definition": "FOREIGN KEY (created_by) REFERENCES user_accounts(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "background_jobs",
+      "conname": "background_jobs_max_attempts_check",
+      "definition": "CHECK (((max_attempts >= 1) AND (max_attempts <= 10)))"
+    },
+    {
+      "table_name": "background_jobs",
+      "conname": "background_jobs_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "background_jobs",
+      "conname": "background_jobs_progress_check",
+      "definition": "CHECK (((progress >= 0) AND (progress <= 100)))"
+    },
+    {
+      "table_name": "claim_documents",
+      "conname": "claim_documents_claim_id_fkey",
+      "definition": "FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "claim_documents",
+      "conname": "claim_documents_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "claims",
+      "conname": "claims_amount_claimed_check",
+      "definition": "CHECK ((amount_claimed >= (0)::numeric))"
+    },
+    {
+      "table_name": "claims",
+      "conname": "claims_amount_recovered_check",
+      "definition": "CHECK ((amount_recovered >= (0)::numeric))"
+    },
+    {
+      "table_name": "claims",
+      "conname": "claims_display_id_key",
+      "definition": "UNIQUE (display_id)"
+    },
+    {
+      "table_name": "claims",
+      "conname": "claims_order_id_fkey",
+      "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "claims",
+      "conname": "claims_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "claims",
+      "conname": "claims_return_id_fkey",
+      "definition": "FOREIGN KEY (return_id) REFERENCES return_records(id) ON DELETE SET NULL"
+    },
+    {
+      "table_name": "claims",
+      "conname": "recovered_lte_claimed",
+      "definition": "CHECK ((amount_recovered <= (amount_claimed + (1)::numeric)))"
+    },
+    {
+      "table_name": "customer_complaints",
+      "conname": "customer_complaints_display_id_key",
+      "definition": "UNIQUE (display_id)"
+    },
+    {
+      "table_name": "customer_complaints",
+      "conname": "customer_complaints_order_id_fkey",
+      "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL"
+    },
+    {
+      "table_name": "customer_complaints",
+      "conname": "customer_complaints_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "customer_complaints",
+      "conname": "customer_complaints_ticket_number_key",
+      "definition": "UNIQUE (ticket_number)"
+    },
+    {
+      "table_name": "expenses",
+      "conname": "expenses_amount_check",
+      "definition": "CHECK ((amount > (0)::numeric))"
+    },
+    {
+      "table_name": "expenses",
+      "conname": "expenses_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "file_import_logs",
+      "conname": "file_import_logs_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "conname": "financial_audit_logs_display_id_key",
+      "definition": "UNIQUE (display_id)"
+    },
+    {
+      "table_name": "financial_audit_logs",
+      "conname": "financial_audit_logs_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "ledger_archives",
+      "conname": "ledger_archives_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "ledger_archives",
+      "conname": "ledger_archives_record_type_check",
+      "definition": "CHECK ((record_type = ANY (ARRAY['orders'::text, 'returns'::text, 'claims'::text, 'expenses'::text, 'products'::text])))"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "conname": "marketplace_connections_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "marketplace_connections",
+      "conname": "uq_marketplace_connection",
+      "definition": "UNIQUE (user_id, marketplace, seller_id)"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "conname": "marketplace_sync_logs_connection_id_fkey",
+      "definition": "FOREIGN KEY (connection_id) REFERENCES marketplace_connections(id) ON DELETE SET NULL"
+    },
+    {
+      "table_name": "marketplace_sync_logs",
+      "conname": "marketplace_sync_logs_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "notifications",
+      "conname": "notifications_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "notifications",
+      "conname": "uq_notification_per_entity",
+      "definition": "UNIQUE (type, entity_id)"
+    },
+    {
+      "table_name": "oauth_states",
+      "conname": "oauth_states_pkey",
+      "definition": "PRIMARY KEY (state)"
+    },
+    {
+      "table_name": "order_items",
+      "conname": "order_items_discount_check",
+      "definition": "CHECK ((discount >= (0)::numeric))"
+    },
+    {
+      "table_name": "order_items",
+      "conname": "order_items_order_id_fkey",
+      "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "order_items",
+      "conname": "order_items_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "order_items",
+      "conname": "order_items_quantity_check",
+      "definition": "CHECK ((quantity > 0))"
+    },
+    {
+      "table_name": "order_items",
+      "conname": "order_items_returned_quantity_check",
+      "definition": "CHECK ((returned_quantity >= 0))"
+    },
+    {
+      "table_name": "order_items",
+      "conname": "order_items_selling_price_check",
+      "definition": "CHECK ((selling_price >= (0)::numeric))"
+    },
+    {
+      "table_name": "order_items",
+      "conname": "order_items_snapshot_unit_cost_check",
+      "definition": "CHECK ((snapshot_unit_cost >= (0)::numeric))"
+    },
+    {
+      "table_name": "order_items",
+      "conname": "returned_lte_ordered",
+      "definition": "CHECK ((returned_quantity <= quantity))"
+    },
+    {
+      "table_name": "orders",
+      "conname": "orders_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "orders",
+      "conname": "orders_supplier_id_fkey",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL"
+    },
+    {
+      "table_name": "product_channel_aliases",
+      "conname": "product_channel_aliases_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "product_channel_aliases",
+      "conname": "product_channel_aliases_product_id_fkey",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "product_channel_aliases",
+      "conname": "uq_alias_per_marketplace",
+      "definition": "UNIQUE (product_id, marketplace)"
+    },
+    {
+      "table_name": "product_cost_history",
+      "conname": "fk_cost_history_purchase",
+      "definition": "FOREIGN KEY (source_purchase_id) REFERENCES purchase_bills(id) ON DELETE SET NULL"
+    },
+    {
+      "table_name": "product_cost_history",
+      "conname": "product_cost_history_cost_price_check",
+      "definition": "CHECK ((cost_price >= (0)::numeric))"
+    },
+    {
+      "table_name": "product_cost_history",
+      "conname": "product_cost_history_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "product_cost_history",
+      "conname": "product_cost_history_product_id_fkey",
+      "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "product_cost_history",
+      "conname": "uq_cost_window_start",
+      "definition": "UNIQUE (product_id, valid_from)"
+    },
+    {
+      "table_name": "products",
+      "conname": "products_current_cost_price_check",
+      "definition": "CHECK ((current_cost_price >= (0)::numeric))"
+    },
+    {
+      "table_name": "products",
+      "conname": "products_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "products",
+      "conname": "products_stock_quantity_check",
+      "definition": "CHECK ((stock_quantity >= 0))"
+    },
+    {
+      "table_name": "products",
+      "conname": "products_supplier_id_fkey",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL"
+    },
+    {
+      "table_name": "purchase_bills",
+      "conname": "purchase_bills_display_id_key",
+      "definition": "UNIQUE (display_id)"
+    },
+    {
+      "table_name": "purchase_bills",
+      "conname": "purchase_bills_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "purchase_bills",
+      "conname": "purchase_bills_quantity_check",
+      "definition": "CHECK ((quantity > 0))"
+    },
+    {
+      "table_name": "purchase_bills",
+      "conname": "purchase_bills_supplier_id_fkey",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "purchase_bills",
+      "conname": "purchase_bills_total_amount_check",
+      "definition": "CHECK ((total_amount >= (0)::numeric))"
+    },
+    {
+      "table_name": "purchase_bills",
+      "conname": "purchase_bills_unit_cost_check",
+      "definition": "CHECK ((unit_cost >= (0)::numeric))"
+    },
+    {
+      "table_name": "return_records",
+      "conname": "fk_return_claim",
+      "definition": "FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE SET NULL"
+    },
+    {
+      "table_name": "return_records",
+      "conname": "return_records_display_id_key",
+      "definition": "UNIQUE (display_id)"
+    },
+    {
+      "table_name": "return_records",
+      "conname": "return_records_order_id_fkey",
+      "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "return_records",
+      "conname": "return_records_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "return_records",
+      "conname": "return_records_quantity_check",
+      "definition": "CHECK ((quantity > 0))"
+    },
+    {
+      "table_name": "settlement_deductions",
+      "conname": "settlement_deductions_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "settlement_deductions",
+      "conname": "settlement_deductions_settlement_id_fkey",
+      "definition": "FOREIGN KEY (settlement_id) REFERENCES settlements(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "settlements",
+      "conname": "settlements_order_id_fkey",
+      "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "settlements",
+      "conname": "settlements_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "supplier_payments",
+      "conname": "supplier_payments_amount_check",
+      "definition": "CHECK ((amount > (0)::numeric))"
+    },
+    {
+      "table_name": "supplier_payments",
+      "conname": "supplier_payments_created_by_fkey",
+      "definition": "FOREIGN KEY (created_by) REFERENCES user_accounts(id) ON DELETE SET NULL"
+    },
+    {
+      "table_name": "supplier_payments",
+      "conname": "supplier_payments_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "supplier_payments",
+      "conname": "supplier_payments_supplier_id_fkey",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "suppliers",
+      "conname": "suppliers_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "user_accounts",
+      "conname": "fk_user_supplier",
+      "definition": "FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL"
+    },
+    {
+      "table_name": "user_accounts",
+      "conname": "user_accounts_auth_user_id_fkey",
+      "definition": "FOREIGN KEY (auth_user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "user_accounts",
+      "conname": "user_accounts_auth_user_id_key",
+      "definition": "UNIQUE (auth_user_id)"
+    },
+    {
+      "table_name": "user_accounts",
+      "conname": "user_accounts_email_key",
+      "definition": "UNIQUE (email)"
+    },
+    {
+      "table_name": "user_accounts",
+      "conname": "user_accounts_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "webhook_events",
+      "conname": "webhook_events_idempotency_key_key",
+      "definition": "UNIQUE (idempotency_key)"
+    },
+    {
+      "table_name": "webhook_events",
+      "conname": "webhook_events_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "webhook_receipts",
+      "conname": "webhook_receipts_connection_id_fkey",
+      "definition": "FOREIGN KEY (connection_id) REFERENCES marketplace_connections(id)"
+    },
+    {
+      "table_name": "webhook_receipts",
+      "conname": "webhook_receipts_pkey",
+      "definition": "PRIMARY KEY (connection_id, event_id)"
+    }
+  ],
+  "policies": [],
+  "roles": [
+    {
+      "rolname": "postgres",
+      "rolsuper": false,
+      "rolcreaterole": true,
+      "rolcreatedb": true,
+      "rolcanlogin": true,
+      "rolbypassrls": true
+    },
+    {
+      "rolname": "authenticated",
+      "rolsuper": false,
+      "rolcreaterole": false,
+      "rolcreatedb": false,
+      "rolcanlogin": false,
+      "rolbypassrls": false
+    },
+    {
+      "rolname": "anon",
+      "rolsuper": false,
+      "rolcreaterole": false,
+      "rolcreatedb": false,
+      "rolcanlogin": false,
+      "rolbypassrls": false
+    }
+  ],
+  "grants": [
+    {
+      "table_name": "notifications",
+      "grantee": "anon",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "notifications",
+      "grantee": "anon",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "notifications",
+      "grantee": "anon",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "notifications",
+      "grantee": "authenticated",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "notifications",
+      "grantee": "authenticated",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "notifications",
+      "grantee": "authenticated",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "webhook_events",
+      "grantee": "anon",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "webhook_events",
+      "grantee": "anon",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "webhook_events",
+      "grantee": "anon",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "webhook_events",
+      "grantee": "authenticated",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "webhook_events",
+      "grantee": "authenticated",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "webhook_events",
+      "grantee": "authenticated",
+      "privilege_type": "TRUNCATE"
+    }
+  ],
+  "buckets": [],
+  "rowCounts": [
+    {
+      "table": "ai_staged_documents",
+      "count": "0"
+    },
+    {
+      "table": "ai_staged_fields",
+      "count": "0"
+    },
+    {
+      "table": "auth_sessions",
+      "count": "0"
+    },
+    {
+      "table": "background_jobs",
+      "count": "0"
+    },
+    {
+      "table": "claim_documents",
+      "count": "0"
+    },
+    {
+      "table": "claims",
+      "count": "0"
+    },
+    {
+      "table": "customer_complaints",
+      "count": "0"
+    },
+    {
+      "table": "expenses",
+      "count": "1"
+    },
+    {
+      "table": "file_import_logs",
+      "count": "0"
+    },
+    {
+      "table": "financial_audit_logs",
+      "count": "0"
+    },
+    {
+      "table": "ledger_archives",
+      "count": "0"
+    },
+    {
+      "table": "marketplace_connections",
+      "count": "0"
+    },
+    {
+      "table": "marketplace_sync_logs",
+      "count": "0"
+    },
+    {
+      "table": "notifications",
+      "count": "0"
+    },
+    {
+      "table": "oauth_states",
+      "count": "0"
+    },
+    {
+      "table": "order_items",
+      "count": "3"
+    },
+    {
+      "table": "orders",
+      "count": "3"
+    },
+    {
+      "table": "product_channel_aliases",
+      "count": "0"
+    },
+    {
+      "table": "product_cost_history",
+      "count": "0"
+    },
+    {
+      "table": "products",
+      "count": "2"
+    },
+    {
+      "table": "purchase_bills",
+      "count": "0"
+    },
+    {
+      "table": "return_records",
+      "count": "0"
+    },
+    {
+      "table": "settlement_deductions",
+      "count": "0"
+    },
+    {
+      "table": "settlements",
+      "count": "0"
+    },
+    {
+      "table": "supplier_payments",
+      "count": "0"
+    },
+    {
+      "table": "suppliers",
+      "count": "0"
+    },
+    {
+      "table": "user_accounts",
+      "count": "2"
+    },
+    {
+      "table": "webhook_events",
+      "count": "0"
+    },
+    {
+      "table": "webhook_receipts",
+      "count": "0"
+    }
+  ],
+  "ownerFindings": [
+    {
+      "table": "ai_staged_documents",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "auth_sessions",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "expenses",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "file_import_logs",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "ledger_archives",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "marketplace_connections",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "marketplace_sync_logs",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "oauth_states",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "orders",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "products",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "settlements",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "suppliers",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    },
+    {
+      "table": "webhook_receipts",
+      "type": "text",
+      "unowned": "0",
+      "unknown_owner": "0"
+    }
+  ]
+}

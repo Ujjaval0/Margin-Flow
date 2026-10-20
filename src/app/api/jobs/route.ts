@@ -5,12 +5,15 @@ import { JobType } from "@/lib/queue/types";
 import { getSessionUserId } from "@/lib/security/session";
 import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
 import { checkProcessingBudget } from "@/lib/security/api-guard";
+import { dispatchJob } from '@/lib/queue/job-dispatch';
+
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {
     const ownerId = await getSessionUserId(req);
     if (!ownerId) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-    if (!queueManager.isWorkerEnabled()) return NextResponse.json({ success: false, error: "Background processing is temporarily unavailable." }, { status: 503 });
+    if (!queueManager.isProcessingAvailable()) return NextResponse.json({ success: false, error: "Background processing is temporarily unavailable." }, { status: 503 });
     const budgetError = checkProcessingBudget(req, ownerId);
     if (budgetError) return budgetError;
     const body = await readJsonBody(req);
@@ -30,6 +33,7 @@ export async function POST(req: NextRequest) {
       priority: options?.priority,
       idempotencyKey: req.headers.get("idempotency-key") || options?.idempotencyKey,
     });
+    dispatchJob(ownerId, job.id);
 
     return NextResponse.json({
       success: true,
@@ -60,6 +64,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Invalid job filter." }, { status: 400 });
   }
   const jobs = await queueManager.listJobs({ status, type, ownerId });
+  for (const job of jobs.filter(job => job.status === 'QUEUED' || job.status === 'PROCESSING').slice(0, 1)) dispatchJob(ownerId, job.id);
   return NextResponse.json({
     success: true,
     data: jobs,

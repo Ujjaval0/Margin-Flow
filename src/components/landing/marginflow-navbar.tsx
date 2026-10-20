@@ -15,10 +15,10 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    let ticking = false;
+    let frame: number | null = null;
     const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
+      if (frame === null) {
+        frame = window.requestAnimationFrame(() => {
           const currentY = window.scrollY;
           setIsFloating((prev) => {
             // Smooth response threshold: morph into floating island as user begins scrolling (> 20px)
@@ -27,15 +27,17 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
             if (prev && currentY < 10) return false;
             return prev;
           });
-          ticking = false;
+          frame = null;
         });
-        ticking = true;
       }
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
   }, []);
 
   return (
@@ -44,7 +46,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
       {/* 2. MAIN NAV CONTAINER (Fluid morph into floating island pill on scroll) */}
       <div
         className={`transition-all duration-1000 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
-          isFloating ? "pt-3.5 px-4 sm:px-6 lg:px-8" : "pt-0 px-0"
+          isFloating ? "pt-3.5 px-4 sm:px-6 lg:px-8" : "pt-3 sm:pt-0 px-0"
         }`}
       >
         <div

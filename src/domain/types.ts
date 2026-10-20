@@ -384,7 +384,7 @@ export interface AIStagedDocument {
 export interface FinancialAuditLog {
   id: string;
   timestamp: string;
-  entityType: "ORDER" | "SETTLEMENT" | "PRODUCT_COST" | "CLAIM" | "RETURN" | "EXPENSE" | "DOCUMENT" | "PURCHASE" | "SUPPLIER" | "SUPPLIER_PAYOUT";
+  entityType: "ORDER" | "SETTLEMENT" | "PRODUCT_COST" | "CLAIM" | "RETURN" | "EXPENSE" | "DOCUMENT" | "PURCHASE" | "SUPPLIER" | "SUPPLIER_PAYOUT" | "COMPLAINT";
   entityId: string;
   fieldName: string;
   oldValue: string;
@@ -496,6 +496,7 @@ export interface UserAccount {
   avatarUrl?: string;
   authenticatedAt: string;
   onboardingPreferences?: OnboardingPreferences;
+  workspaceTourPending?: boolean;
 }
 
 // Partition 10: Marketplace Synchronization Contract (Task 6.1)

@@ -107,7 +107,9 @@ test('production migrations and canonical financial workflows execute against di
   imported=await command('opening',{action:'importSnapshot',snapshot},importer);assert.equal(imported.orders.length,data.orders.length);
   await assert.rejects(command('other-import',{action:'importSnapshot',snapshot:JSON.stringify({version:1,ownerId:other,data})},other));
   await pg.query(`INSERT INTO orders(user_id,display_id,channel_order_id,marketplace,order_date,status,customer_name,customer_city,customer_state) SELECT $1,'PAGE-'||i,'PAGE-'||i,'Other','2026-10-01','PENDING','','','' FROM generate_series(1,2001) i`,[owner]);
-  const complete=await load('src/lib/canonical-ledger.ts',mocks).readCanonicalLedger(client,owner);
+  let projectionQueries=0;
+  const complete=await load('src/lib/canonical-ledger.ts',mocks).readCanonicalLedger({query:(sql,params)=>{projectionQueries++;return client.query(sql,params);}},owner);
+  assert.equal(projectionQueries,1,'all financial partitions share one database round trip');
   assert.equal(complete.orders.length,data.orders.length+2001,'canonical projection has no 2000-row ceiling');
   assert.equal((await pg.query("SELECT to_regclass('v_order_profitability') AS legacy")).rows[0].legacy,null);
   await pg.exec(fs.readFileSync('production-supabase/verification/002_financial_readiness.sql','utf8'));

@@ -5,7 +5,7 @@ declare global {
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    if (process.env.MARGINFLOW_JOB_WORKER !== "1") return;
+    if (process.env.MARGINFLOW_JOB_WORKER !== "1" || process.env.VERCEL === '1') return;
     if (global._marginflowJobWorkerController) return;
 
     await import("./lib/queue/job-processors");

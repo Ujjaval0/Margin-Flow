@@ -1,4 +1,5 @@
 import path from "path";
+import os from 'node:os';
 import { processDocumentOCR } from "@/domain/ocr-engine";
 import { executeIDPPipeline } from "@/domain/idp-pipeline";
 import { query, pool } from "@/lib/db";
@@ -53,6 +54,7 @@ export async function extractTextFromBuffer(
       const Tesseract = require("tesseract.js");
       const { data } = await Tesseract.recognize(buffer, "eng", {
         logger: () => {},
+        cachePath: os.tmpdir(),
       });
       const text = data?.text?.trim() || "";
       if (text.length > 5) {

@@ -9,7 +9,7 @@ import { upsertOrders } from './integrations/order-persistence';
 import { ledgerDataSchema } from '@/domain/snapshot-validation';
 import { sumMoney,toPaise,money } from '@/domain/money';
 
-const tables={suppliers:'suppliers',purchases:'purchase_bills',supplierPayments:'supplier_payments',returns:'return_records',claims:'claims',expenses:'expenses',aiDocuments:'ai_staged_documents'} as const;
+const tables={suppliers:'suppliers',purchases:'purchase_bills',supplierPayments:'supplier_payments',returns:'return_records',claims:'claims',expenses:'expenses',aiDocuments:'ai_staged_documents',complaints:'customer_complaints'} as const;
 async function ownedId(client:PoolClient,owner:string,table:string,id:string) {
   const result=await client.query(`SELECT id FROM ${table} WHERE user_id=$1 AND display_id=$2`,[owner,id]);
   if(result.rows.length!==1) throw Error('Linked financial record is missing or ambiguous.');
@@ -23,6 +23,11 @@ export async function persistLedgerDelta(client:PoolClient,owner:string,before:L
   for(const collection of Object.keys(tables) as (keyof typeof tables)[]) {
     const table=tables[collection]; const oldRows:any[]=before[collection]||[],newRows:any[]=after[collection]||[];
     for(const old of oldRows) if(!newRows.some(row=>row.id===old.id)) {
+      if(collection==='complaints') {
+        await client.query('DELETE FROM customer_complaints WHERE user_id=$1 AND display_id=$2',[owner,old.id]);
+        await appendFinancialAudit(client,owner,'COMPLAINT',old.id,old,null,'Complaint deleted');
+        continue;
+      }
       if(collection!=='suppliers') throw Error('Use archive/reversal to remove financial evidence.');
       await client.query('UPDATE suppliers SET deleted_at=NOW() WHERE user_id=$1 AND display_id=$2',[owner,old.id]);
       await appendFinancialAudit(client,owner,'SUPPLIER',old.id,old,null,'Supplier archived');
@@ -31,6 +36,12 @@ export async function persistLedgerDelta(client:PoolClient,owner:string,before:L
       const old=oldRows.find(row=>row.id===record.id);
       if(canonicalJson(old)===canonicalJson(record)) continue;
       let fields:Record<string,any>={};
+      if(collection==='complaints') fields={ticket_number:record.ticketNumber,customer_name:record.customerName,
+        customer_email:record.customerEmail,customer_phone:record.customerPhone||null,
+        order_id:record.orderId?await ownedId(client,owner,'orders',record.orderId):null,channel_order_id:record.channelOrderId||null,
+        marketplace:record.marketplace||null,sku:record.sku||null,category:record.category,priority:record.priority,status:record.status,
+        subject:record.subject,description:record.description,resolution_notes:record.resolutionNotes||null,
+        created_at:record.createdAt,resolved_at:record.resolvedAt||null};
       if(collection==='suppliers') fields={name:record.name,contact_person:record.contactPerson,email:record.email,phone:record.phone,address:record.address,gstin:record.gstin||null,payment_terms:record.paymentTerms||null,bank_account:record.bankAccount||null,upi_id:record.upiId||null,opening_balance:record.openingBalance||0,notes:record.notes||null};
       if(collection==='purchases') fields={supplier_id:await ownedId(client,owner,'suppliers',record.supplierId),supplier_name:record.supplierName,invoice_number:record.invoiceNumber,invoice_date:record.invoiceDate,sku:record.sku,quantity:record.quantity,unit_cost:record.unitCost,taxes:record.taxes,total_amount:record.totalAmount,payment_status:record.paymentStatus,paid_amount:record.paidAmount??null,document_url:record.documentUrl||null};
       if(collection==='supplierPayments') fields={supplier_id:await ownedId(client,owner,'suppliers',record.supplierId),amount:record.amount,payment_method:record.paymentMethod,reference_code:record.reference,paid_at:record.date,notes:record.notes||null,advance_amount:record.advanceAmount};
@@ -49,7 +60,7 @@ export async function persistLedgerDelta(client:PoolClient,owner:string,before:L
         if(collection==='supplierPayments') for(const allocation of record.allocations) await client.query(`INSERT INTO supplier_payment_allocations(supplier_id,supplier_payment_id,purchase_bill_id,amount) VALUES($1,$2,$3,$4)`,[fields.supplier_id,result.rows[0].id,await ownedId(client,owner,'purchase_bills',allocation.purchaseId),allocation.amount]);
         if(collection==='purchases' && record.paidAmount>0) await client.query('UPDATE suppliers SET total_paid=total_paid+$2 WHERE id=$1',[fields.supplier_id,record.paidAmount]);
       }
-      const entity={suppliers:'SUPPLIER',purchases:'PURCHASE',supplierPayments:'SUPPLIER_PAYOUT',returns:'RETURN',claims:'CLAIM',expenses:'EXPENSE',aiDocuments:'DOCUMENT'}[collection];
+      const entity={suppliers:'SUPPLIER',purchases:'PURCHASE',supplierPayments:'SUPPLIER_PAYOUT',returns:'RETURN',claims:'CLAIM',expenses:'EXPENSE',aiDocuments:'DOCUMENT',complaints:'COMPLAINT'}[collection];
       await appendFinancialAudit(client,owner,entity,record.id,old,record,'Canonical record mutation');
     }
   }

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { PlatformProvider } from "@/domain/store";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -53,7 +52,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.className} bg-[#F5F5F7] dark:bg-[#0A0A0C] text-[#1D1D1F] dark:text-[#F5F5F7] min-h-full font-sans antialiased selection:bg-neutral-900 selection:text-white m-0 p-0`}>
-        <PlatformProvider>{children}</PlatformProvider>
+        {children}
       </body>
     </html>
   );

@@ -12,12 +12,17 @@ export async function importOpeningSnapshot(client:PoolClient,owner:string,raw:s
   const data=parseLedgerSnapshot(raw,owner);if(!data)throw Error('Invalid snapshot or different account owner.');
   if(data.supplierPayments?.some(p=>p.allocationStatus==='UNRESOLVED'))throw Error('Reconcile historical supplier payment allocations before opening recovery.');
   const current=await readCanonicalLedger(client,owner);
-  if(['products','orders','returns','claims','purchases','supplierPayments','expenses','settlements','suppliers','aiDocuments'].some(key=>((current as any)[key]||[]).length))throw Error('Snapshot recovery requires empty server books. Current books were preserved; reconcile local-only records before merging.');
+  if(['products','orders','returns','claims','purchases','supplierPayments','expenses','settlements','suppliers','aiDocuments','complaints'].some(key=>((current as any)[key]||[]).length))throw Error('Snapshot recovery requires empty server books. Current books were preserved; reconcile local-only records before merging.');
   const supplierIds=new Set(data.suppliers.map(s=>s.id)),skus=new Set(data.products.map(p=>p.sku));
   const parent=(r:{orderId:string;marketplace:string})=>data.orders.filter(o=>o.marketplace===r.marketplace && [o.id,o.channelOrderId].includes(r.orderId));
   if(data.purchases.some(p=>!supplierIds.has(p.supplierId)||!skus.has(p.sku)||toPaise(p.totalAmount)!==toPaise((p.lineSubtotal??p.quantity*p.unitCost)+p.taxes)) || data.products.some(p=>p.supplierId&&!supplierIds.has(p.supplierId)))throw Error('Snapshot purchase/catalog references or totals do not reconcile.');
   if([...data.returns,...data.claims,...data.settlements].some(r=>parent(r).length!==1))throw Error('Snapshot parent references are missing or ambiguous.');
   for(const r of [...data.returns,...data.claims,...data.settlements])r.orderId=parent(r)[0].id;
+  for(const complaint of data.complaints) if(complaint.orderId) {
+    const parents=data.orders.filter(o=>[o.id,o.channelOrderId].includes(complaint.orderId!) && (!complaint.marketplace || complaint.marketplace===o.marketplace));
+    if(parents.length!==1)throw Error('Snapshot complaint order is missing or ambiguous.');
+    complaint.orderId=parents[0].id;
+  }
   for(const order of data.orders)for(const sku of new Set(order.items.map(i=>i.sku))) {
     const units=order.items.filter(i=>i.sku===sku).reduce((sum,i)=>sum+i.quantity,0);
     if(data.returns.filter(r=>r.orderId===order.id&&r.sku===sku).reduce((sum,r)=>sum+r.quantity,0)>units)throw Error('Snapshot returned units exceed ordered units.');

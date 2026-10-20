@@ -1,5 +1,6 @@
 node_modules
 .next
+.next-dev
 out
 build
 dist
@@ -19,3 +20,8 @@ yarn-error.log*
 
 # Private merchant documents and runtime data must never be deployed from Git.
 /data/
+
+# Private pre-cutover database backups and local verification output.
+/production-supabase/backups/
+/production-supabase/*-results.log
+/production-supabase/expected-schema.json

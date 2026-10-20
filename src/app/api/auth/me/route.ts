@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
         companyName: session.companyName || "My Brand",
         phone: session.phone || "",
         avatarUrl: session.avatarUrl || null,
+        workspaceTourPending: session.workspaceTourPending === true,
       },
     }, { headers: { "Cache-Control": "no-store" } });
   }

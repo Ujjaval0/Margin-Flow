@@ -32,6 +32,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Follow mobile browser chrome and orientation changes without trapping the scroll area. */
+@supports (height: 100dvh) {
+  .app-workspace { height: 100dvh; }
+}
+
 /* Utility to hide scrollbars while maintaining scroll functionality */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -193,12 +198,78 @@ textarea:focus-visible {
   animation: mfPageEnter 150ms ease-out;
 }
 
+@keyframes mfMobilePageEnter {
+  from { opacity: 0.94; transform: translate3d(0, 3px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@media (max-width: 767px) {
+  .app-workspace .workspace-sidebar-backdrop {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 180ms ease-out, visibility 0s linear 180ms;
+  }
+
+  .app-workspace .workspace-sidebar-backdrop[data-open="true"] {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+  }
+
+  /* Keep the drawer outside flex layout for its entire open/close animation. */
+  .app-workspace .workspace-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: 16rem;
+    transform: translate3d(-100%, 0, 0);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 220ms;
+    will-change: transform;
+  }
+
+  .app-workspace .workspace-sidebar[data-open="true"][data-ready="true"] {
+    transform: translate3d(0, 0, 0);
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+  }
+
+  /* The toolbar sits above a separate scroller; blurring it adds no visible depth. */
+  .app-workspace .workspace-navbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* One restrained entrance, with no full-page fade to the empty canvas. */
+  .app-workspace .page-transition,
+  .app-workspace .page-transition > .animate-pulse {
+    animation: none;
+  }
+
+  .app-workspace .page-transition > .animate-in {
+    animation: mfMobilePageEnter 160ms ease-out;
+  }
+}
+
 /* Global micro-smoothness for buttons and interactive controls */
 button, a {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html, body, .scroll-smooth {
+    scroll-behavior: auto !important;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
   .animate-in, .page-transition, .animate-claude-beam {
     animation: none !important;
     opacity: 1 !important;
@@ -360,6 +431,11 @@ html.dark body {
 }
 
 /* Sidebar Active & Hover Navigation Items */
+.dark .workspace-sidebar :is(a, button):not(.bg-white):not(:hover) {
+  /* Keep hover-only utilities from receiving the global dark overlay at rest. */
+  background-color: transparent;
+}
+
 .dark aside a.bg-white {
   background-color: #242426 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;

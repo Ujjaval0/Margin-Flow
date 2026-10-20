@@ -6,10 +6,11 @@ import { createSupplierPayment } from './purchase-accounting';
 import { isDamagedReturn, sumMoney, toPaise } from './order-financials';
 import type { Order, ReturnRecord } from './types';
 
-export type OperatingCollection = 'suppliers'|'purchases'|'expenses'|'returns'|'claims'|'aiDocuments';
+export type OperatingCollection = 'suppliers'|'purchases'|'expenses'|'returns'|'claims'|'aiDocuments'|'complaints';
 export type LedgerCommand =
   | { action:'save'; collection:OperatingCollection; record:any; expected?:any }
   | { action:'deleteSupplier'; id:string }
+  | { action:'deleteComplaint'; id:string }
   | { action:'paySupplier'; id:string; supplierId:string; date:string; amount:number; paymentMethod:string; reference:string; notes?:string }
   | { action:'restock'; id:string; date?:string }
   | { action:'productCost'; sku:string; cost:number; date:string; reason:string }
@@ -47,6 +48,12 @@ export function applyLedgerCommand(data:LedgerData, command:LedgerCommand):Ledge
       throw Error('Record already exists. Reload before editing.');
     }
     if(command.collection==='suppliers' && old) record.totalPaid=old.totalPaid;
+    if(command.collection==='complaints' && record.orderId) {
+      const parents=next.orders.filter(order=>[order.id,order.channelOrderId].includes(record.orderId)
+        && (!record.marketplace || record.marketplace===order.marketplace));
+      if(parents.length!==1) throw Error('An unambiguous owned complaint order is required.');
+      record.orderId=parents[0].id;
+    }
     if(command.collection==='purchases') {
       if(old) throw Error('Posted purchase corrections require an evidenced reversal; bills cannot be overwritten.');
       if(!next.suppliers.some(s=>s.id===record.supplierId)) throw Error('Supplier not found.');
@@ -107,6 +114,9 @@ export function applyLedgerCommand(data:LedgerData, command:LedgerCommand):Ledge
     const receiptDate=command.date||record.receivedDate;
     if(!receiptDate || receiptDate<record.returnDate)throw Error('An evidenced physical receipt date is required.');
     changeStock(record.sku,record.quantity); record.restockStatus='RESTOCKED';record.receivedDate=receiptDate;
+  } else if(command.action==='deleteComplaint') {
+    if(!next.complaints.some(row=>row.id===command.id))throw Error('Complaint not found.');
+    next.complaints=next.complaints.filter(row=>row.id!==command.id);
   } else if(command.action==='deleteSupplier') {
     if(next.purchases.some(p=>p.supplierId===command.id) || next.supplierPayments?.some(p=>p.supplierId===command.id) || next.products.some(p=>p.supplierId===command.id)) throw Error('Supplier has linked financial or catalog records.');
     next.suppliers=next.suppliers.filter(s=>s.id!==command.id);

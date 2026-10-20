@@ -58,13 +58,13 @@ export function Navbar({
   const navMeta = getModuleNavMeta(activeModule);
 
   return (
-    <header className="shrink-0 h-16 w-full bg-white/85 backdrop-blur-xl border-b border-black/[0.06] px-4 sm:px-6 md:px-8 flex items-center justify-between z-20 sticky top-0 transition-all select-none">
+    <header className="workspace-navbar shrink-0 h-16 w-full bg-white/85 backdrop-blur-xl border-b border-black/[0.06] px-4 sm:px-6 md:px-8 flex items-center justify-between z-20 sticky top-0 transition-all select-none">
       {/* Left: Sidebar Toggle & Current View Title */}
-      <div className="flex items-center gap-2.5 select-none shrink-0 mr-3">
+      <div className="flex items-center gap-2.5 select-none min-w-0 mr-3">
         {onToggleSidebar ? (
           <button
             onClick={onToggleSidebar}
-            className="p-1.5 -ml-1 rounded-lg hover:bg-black/[0.05] active:scale-95 text-[#6E6E73] hover:text-[#1D1D1F] transition focus-visible:ring-2 focus-visible:ring-[#0071E3]/40 cursor-pointer"
+            className="p-1.5 -ml-1 rounded-lg hover:bg-black/[0.05] active:scale-95 text-[#6E6E73] hover:text-[#1D1D1F] transition focus-visible:ring-2 focus-visible:ring-[#0071E3]/40 cursor-pointer shrink-0"
             title={isSidebarOpen ? "Collapse sidebar (⌘B)" : "Expand sidebar (⌘B)"}
             aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
@@ -81,7 +81,7 @@ export function Navbar({
       </div>
 
       {/* Center/Right Controls */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0 py-1 overflow-visible">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 py-1 overflow-visible">
         {/* Mobile Marketplace Dropdown (< 640px) */}
         <div className="sm:hidden relative shrink-0">
           <select
@@ -100,7 +100,7 @@ export function Navbar({
         </div>
 
         {/* Tablet & Desktop Segmented Control (>= 640px) */}
-        <div className="hidden sm:inline-flex bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] items-center gap-0.5 text-xs shrink-0 max-w-full overflow-x-auto no-scrollbar">
+        <div className="hidden sm:inline-flex bg-[#F1F3F5] p-1 rounded-full border border-black/[0.05] items-center gap-0.5 text-xs min-w-0 max-w-full overflow-x-auto no-scrollbar">
           {marketplaces.map((mp) => {
             const isSelected = selectedMarketplace === mp.id;
             return (
@@ -131,6 +131,7 @@ export function Navbar({
           className="h-[34px] px-2.5 sm:px-3.5 rounded-full bg-white hover:bg-[#F5F5F7] active:scale-[0.98] border border-black/[0.08] text-xs font-medium text-[#1D1D1F] flex items-center gap-1.5 shadow-apple-sm transition-all cursor-pointer shrink-0"
           title="Open Flow Assistant (Ctrl+J)"
           aria-label="Open Flow Assistant"
+          data-tour="assistant"
         >
           <AssistantEmblem className="w-4 h-4 text-[#1D1D1F] shrink-0" />
           <span className="font-semibold tracking-tight hidden sm:inline">Flow</span>

@@ -26,6 +26,7 @@ import { getMarketplaceBadge } from "@/lib/marketplace-config";
 import { detectAndMapCsv } from "@/domain/csv-auto-mapper";
 import { loadAISettings } from "@/lib/security/ai-vault";
 import { usePlatform } from "@/domain/store";
+import { uploadDocumentFiles } from '@/lib/document-upload';
 
 export interface InvoiceAutoParseModalProps {
   isOpen: boolean;
@@ -66,14 +67,14 @@ async function extractInvoiceFromFile(file: File, ownerId: string | null): Promi
   // Digital PDF, image, or text: use server route to extract real digital PDF text & multimodal OCR
   try {
     const aiSettings = loadAISettings(ownerId);
-    const formData = new FormData();
-    formData.append("files", file);
+    const documents = await uploadDocumentFiles([file]);
 
     const headers: Record<string, string> = {};
     const activeProvider = aiSettings?.activeProvider || "gemini";
     const apiKey = aiSettings?.keys?.[activeProvider] || aiSettings?.keys?.gemini || "";
 
     headers["x-ai-provider"] = activeProvider;
+    headers["Content-Type"] = "application/json";
     if (apiKey) {
       headers["x-ai-key"] = apiKey;
       headers["x-gemini-api-key"] = apiKey;
@@ -86,7 +87,7 @@ async function extractInvoiceFromFile(file: File, ownerId: string | null): Promi
     const res = await fetch("/api/extract-invoice-text", {
       method: "POST",
       headers,
-      body: formData,
+      body: JSON.stringify({ documents }),
     });
     if (res.ok) {
       const data = await res.json();

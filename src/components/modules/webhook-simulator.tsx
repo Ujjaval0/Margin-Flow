@@ -1,12 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { createPortal } from "react-dom";
 import { usePlatform } from "@/domain/store";
 import { formatINR } from "@/lib/utils";
 import { Marketplace } from "@/domain/types";
-import { CsvImportModal } from "@/components/modals/csv-import-modal";
+const CsvImportModal = dynamic(
+  () => import("@/components/modals/csv-import-modal").then(mod => mod.CsvImportModal),
+  { ssr: false }
+);
 import {
   RefreshCw,
   Copy,
@@ -442,6 +446,7 @@ export function WebhookSimulatorView() {
 
   // CSV Ingestion Modal
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [hasOpenedCsv, setHasOpenedCsv] = useState(false);
 
   // Keyboard dismissal (Escape)
   useEffect(() => {
@@ -2651,6 +2656,7 @@ export function WebhookSimulatorView() {
                     <button
                       onClick={() => {
                         setSetupModalChannel(null);
+                        setHasOpenedCsv(true);
                         setIsCsvModalOpen(true);
                       }}
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1D1D1F] hover:bg-black text-white text-xs font-semibold shadow-apple-sm active:scale-[0.98] transition cursor-pointer"
@@ -2781,7 +2787,7 @@ export function WebhookSimulatorView() {
       )}
 
       {/* CSV Import Modal Integration */}
-      <CsvImportModal
+      {hasOpenedCsv && <CsvImportModal
         isOpen={isCsvModalOpen}
         onClose={() => setIsCsvModalOpen(false)}
         products={products}
@@ -2792,7 +2798,7 @@ export function WebhookSimulatorView() {
             `${importedOrders.length} orders processed (${syncResult.added} new, ${syncResult.updated} updated in ledger).`
           );
         }}
-      />
+      />}
     </div>
   );
 }

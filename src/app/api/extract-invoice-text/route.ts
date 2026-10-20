@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFormBody, RequestBodyError } from "@/lib/security/request-body";
+import { RequestBodyError } from "@/lib/security/request-body";
+import { readDocumentInputs, DocumentStorageError } from '@/lib/security/document-storage';
 import { checkProcessingBudget } from "@/lib/security/api-guard";
 import { getSessionUser } from "@/lib/security/session";
+import os from 'node:os';
 
 import type { InvoiceSource as ExtractedInvoiceData } from "@/domain/invoice-order";
+
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,17 +21,7 @@ export async function POST(req: NextRequest) {
 
     const budgetError = checkProcessingBudget(req, session.sub);
     if (budgetError) return budgetError;
-    const formData = await readFormBody(req);
-    const rawFiles: File[] = [];
-
-    const filesList = formData.getAll("files");
-    const fileList = formData.getAll("file");
-
-    for (const item of [...filesList, ...fileList]) {
-      if (item && typeof item === "object" && "name" in item && "size" in item) {
-        rawFiles.push(item as File);
-      }
-    }
+    const { files: rawFiles } = await readDocumentInputs(req, session.sub, 10);
 
     if (rawFiles.length === 0) {
       return NextResponse.json(
@@ -366,7 +360,7 @@ Return strict JSON matching this exact structure:
             try {
               // eslint-disable-next-line @typescript-eslint/no-require-imports
               const Tesseract = require("tesseract.js");
-              const { data } = await Tesseract.recognize(buffer, "eng", { logger: () => {} });
+              const { data } = await Tesseract.recognize(buffer, "eng", { logger: () => {}, cachePath: os.tmpdir() });
               extractedText = data?.text?.trim() || "";
             } catch (tessErr: any) {
               console.warn("OCR fallback error:", tessErr);
@@ -401,7 +395,7 @@ Return strict JSON matching this exact structure:
       results,
     });
   } catch (error: any) {
-    if (error instanceof RequestBodyError) return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+    if (error instanceof RequestBodyError || error instanceof DocumentStorageError) return NextResponse.json({ success: false, error: error.message }, { status: error.status });
     console.error("Error in /api/extract-invoice-text:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Failed to extract invoice text." },

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createRecordSearch } from "@/lib/table-search";
 import {
   ColumnDef,
   flexRender,
@@ -40,6 +41,8 @@ export function DataTable<TData, TValue>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState<string>("");
   const deferredGlobalFilter = React.useDeferredValue(globalFilter);
+  const matchesSearch = React.useMemo(() => createRecordSearch(searchKey), [data, searchKey]);
+  const normalizedQuery = deferredGlobalFilter.toLowerCase().trim();
 
   const table = useReactTable({
     data,
@@ -50,39 +53,7 @@ export function DataTable<TData, TValue>({
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: (row, _columnId, filterValue) => {
-      const query = String(filterValue).toLowerCase().trim();
-      if (!query) return true;
-
-      // 1. If searchKey is specified, prioritize checking that property on row.original
-      if (searchKey) {
-        const directVal = (row.original as Record<string, unknown>)[searchKey];
-        if (
-          directVal !== undefined &&
-          directVal !== null &&
-          String(directVal).toLowerCase().includes(query)
-        ) {
-          return true;
-        }
-      }
-
-      // 2. Also search all top-level and nested primitive values in row.original
-      const searchInObject = (obj: unknown, depth = 0): boolean => {
-        if (depth > 2 || obj === null || obj === undefined) return false;
-        if (typeof obj === "string" || typeof obj === "number") {
-          return String(obj).toLowerCase().includes(query);
-        }
-        if (Array.isArray(obj)) {
-          return obj.some((item) => searchInObject(item, depth + 1));
-        }
-        if (typeof obj === "object") {
-          return Object.values(obj).some((val) => searchInObject(val, depth + 1));
-        }
-        return false;
-      };
-
-      return searchInObject(row.original);
-    },
+    globalFilterFn: row => matchesSearch(row.original, normalizedQuery),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -97,14 +68,14 @@ export function DataTable<TData, TValue>({
   return (
     <div className="space-y-3 w-full min-w-0">
       {searchKey && (
-        <div className="flex items-center justify-between px-1">
-          <div className="relative">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <div className="relative w-full max-w-[18rem] min-w-0">
             <Search className="w-3.5 h-3.5 text-[#86868B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               placeholder={searchPlaceholder}
               value={globalFilter ?? ""}
               onChange={(event) => setGlobalFilter(event.target.value)}
-              className="w-72 text-xs pl-8 pr-7 py-1.5 bg-white border border-black/[0.08] rounded-full focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] text-[#1D1D1F] placeholder-[#86868B] shadow-apple-sm transition"
+              className="w-full text-xs pl-8 pr-7 py-1.5 bg-white border border-black/[0.08] rounded-full focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] text-[#1D1D1F] placeholder-[#86868B] shadow-apple-sm transition"
             />
             {globalFilter && (
               <button
