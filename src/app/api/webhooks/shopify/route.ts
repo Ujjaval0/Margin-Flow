@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readRequestBytes, RequestBodyError } from "@/lib/security/request-body";
 import { resolveWebhookConnection } from "@/lib/security/webhook-connection";
-import { verifyShopifyWebhook, verifyTimestampFreshness } from "@/lib/security/webhook-verifier";
-import { persistWebhookOrder } from "@/lib/integrations/webhook-persistence";
+import { verifyShopifyWebhook } from "@/lib/security/webhook-verifier";
+import { enqueueWebhook } from "@/lib/integrations/task-queue";
 import { formatSafeErrorResponse, redactSensitiveData } from "@/lib/security/redactor";
 import { ShopifyOrderWebhookSchema, mapShopifyOrderToDomain } from "@/lib/webhooks/schemas/shopify-schema";
 
@@ -35,21 +35,10 @@ export async function POST(req: NextRequest) {
 
     // 3. Extract Headers
     const hmacHeader = req.headers.get("X-Shopify-Hmac-Sha256");
-    const topicHeader = req.headers.get("X-Shopify-Topic") || "orders/create";
     const webhookIdHeader = req.headers.get("X-Shopify-Webhook-Id") || "";
-    const shopDomain = req.headers.get("X-Shopify-Shop-Domain") || "direct";
-
-    // 4. Handle Shopify Ping events immediately
-    const rawString = rawBodyBuffer.toString("utf-8");
-    if (topicHeader.includes("ping") || rawString.includes('"ping":true') || rawString.includes('"ping": true')) {
-      return NextResponse.json(
-        {
-          success: true,
-          message: "Shopify webhook handshake ping verified. Endpoint is live.",
-          webhookId: webhookIdHeader,
-        },
-        { status: 200 }
-      );
+    const shopDomain = req.headers.get("X-Shopify-Shop-Domain")?.toLowerCase();
+    if (!connection.shopDomain || shopDomain !== connection.shopDomain.toLowerCase()) {
+      return NextResponse.json({ success: false, error: "Webhook shop does not match its registered store." }, { status: 401 });
     }
 
     // 5. Verify Cryptographic HMAC Signature
@@ -82,11 +71,11 @@ export async function POST(req: NextRequest) {
     // 7. Map to Canonical Domain Model
     const domainOrder = mapShopifyOrderToDomain(parseResult.data);
 
-    // 8. Direct PostgreSQL Persistence (eliminates in-memory queue loss)
+    // 8. Commit the authenticated delivery to the encrypted durable queue.
     if (!webhookIdHeader) return NextResponse.json({ success: false, error: "Missing webhook delivery ID." }, { status: 400 });
-    const receipt = await persistWebhookOrder(connection, webhookIdHeader, rawBodyBuffer, domainOrder);
+    const receipt = await enqueueWebhook(connection, webhookIdHeader, rawBodyBuffer, domainOrder);
 
-    // Acknowledge only after durable ingestion.
+    // Acknowledge only after an encrypted receipt is durable; the worker posts the ledger.
 
     const latency = Math.round((performance.now() - startTime) * 100) / 100;
 
@@ -107,4 +96,10 @@ export async function POST(req: NextRequest) {
       status: 500,
     });
   }
+}
+
+export async function GET(req: NextRequest) {
+  const connection = await resolveWebhookConnection(req, "shopify");
+  return NextResponse.json({ success: Boolean(connection?.secret), message: connection?.secret ? "Registered webhook endpoint is reachable." : "Save a signing secret for this connection." },
+    { status: connection?.secret ? 200 : 401, headers: { "Cache-Control": "private, no-store" } });
 }

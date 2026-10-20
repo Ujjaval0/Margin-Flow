@@ -100,15 +100,15 @@ describe('Store Integration Phase 5 Verification Suite', () => {
       );
     });
 
-    test('Myntra sync route exists and handles PPMP API activation when keys are provided', () => {
+    test('Myntra sync route explicitly reports the unavailable direct connector', () => {
       const syncRoute = readProjectFile('src/app/api/integrations/myntra/sync/route.ts');
       assert.ok(
         syncRoute.includes('export async function POST'),
         'Myntra sync route must export POST handler'
       );
       assert.ok(
-        syncRoute.includes('test_connection') && syncRoute.includes('fetch_orders'),
-        'Myntra route must support test_connection and fetch_orders actions'
+        syncRoute.includes('MYNTRA_PPMP_ACCESS_UNAVAILABLE') && syncRoute.includes('501'),
+        'Myntra must reject direct synchronization until a supported contract is configured'
       );
     });
   });

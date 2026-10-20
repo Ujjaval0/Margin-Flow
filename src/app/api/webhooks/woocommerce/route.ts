@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readRequestBytes, RequestBodyError } from "@/lib/security/request-body";
 import { resolveWebhookConnection } from "@/lib/security/webhook-connection";
 import { verifyWooCommerceWebhook } from "@/lib/security/webhook-verifier";
-import { persistWebhookOrder } from "@/lib/integrations/webhook-persistence";
+import { enqueueWebhook } from "@/lib/integrations/task-queue";
 import { formatSafeErrorResponse, redactSensitiveData } from "@/lib/security/redactor";
 import { WooCommerceOrderWebhookSchema, mapWooCommerceOrderToDomain } from "@/lib/webhooks/schemas/woocommerce-schema";
 
@@ -35,22 +35,15 @@ export async function POST(req: NextRequest) {
 
     // 3. Extract Headers (Enforce x-wc-webhook-delivery-id per Task 3.2)
     const hmacHeader = req.headers.get("x-wc-webhook-signature");
-    const topicHeader = req.headers.get("x-wc-webhook-topic") || "order.created";
     const webhookDeliveryId =
       req.headers.get("x-wc-webhook-delivery-id") ||
       "";
-    const sourceHeader = req.headers.get("x-wc-webhook-source") || "woocommerce";
 
-    // 4. Handle WooCommerce Ping events immediately (so WordPress does not disable the webhook)
-    if (topicHeader.includes("ping") || topicHeader === "action.woocommerce_webhook_ping") {
-      return NextResponse.json(
-        {
-          success: true,
-          message: "WooCommerce webhook handshake ping verified. Endpoint is live.",
-          webhookId: webhookDeliveryId,
-        },
-        { status: 200 }
-      );
+    // WooCommerce's native registration probe is a form body without an event signature.
+    const probe = new URLSearchParams(rawBodyBuffer.toString("utf8"));
+    if (!hmacHeader && req.headers.get("content-type")?.startsWith("application/x-www-form-urlencoded")
+      && rawBodyBuffer.length < 100 && Array.from(probe.keys()).length === 1 && /^\d+$/.test(probe.get("webhook_id") || "")) {
+      return NextResponse.json({ success: true, message: "Webhook delivery URL is reachable." });
     }
 
     // 5. Verify Cryptographic HMAC Signature
@@ -61,7 +54,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Unauthorized: Invalid WooCommerce HMAC signature. Ensure WOOCOMMERCE_WEBHOOK_SECRET matches the Secret entered in WooCommerce.",
+          error: "Unauthorized: Invalid WooCommerce HMAC signature. Match this connection's saved signing secret with the Secret in WooCommerce.",
         },
         { status: 401 }
       );
@@ -86,11 +79,11 @@ export async function POST(req: NextRequest) {
     // 7. Map to Canonical Domain Model
     const domainOrder = mapWooCommerceOrderToDomain(parseResult.data);
 
-    // 8. Direct PostgreSQL Persistence (eliminates in-memory queue loss)
+    // 8. Commit the authenticated delivery to the encrypted durable queue.
     if (!webhookDeliveryId) return NextResponse.json({ success: false, error: "Missing webhook delivery ID." }, { status: 400 });
-    const receipt = await persistWebhookOrder(connection, webhookDeliveryId, rawBodyBuffer, domainOrder);
+    const receipt = await enqueueWebhook(connection, webhookDeliveryId, rawBodyBuffer, domainOrder);
 
-    // Acknowledge only after durable ingestion.
+    // Acknowledge only after an encrypted receipt is durable; the worker posts the ledger.
 
     const latency = Math.round((performance.now() - startTime) * 100) / 100;
 
@@ -111,4 +104,10 @@ export async function POST(req: NextRequest) {
       status: 500,
     });
   }
+}
+
+export async function GET(req: NextRequest) {
+  const connection = await resolveWebhookConnection(req, "woocommerce");
+  return NextResponse.json({ success: Boolean(connection?.secret), message: connection?.secret ? "Registered webhook endpoint is reachable." : "Save a signing secret for this connection." },
+    { status: connection?.secret ? 200 : 401, headers: { "Cache-Control": "private, no-store" } });
 }

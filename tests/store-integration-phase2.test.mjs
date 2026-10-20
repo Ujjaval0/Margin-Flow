@@ -1,6 +1,7 @@
+import { readIntegrationSource } from './helpers/integration-source.mjs';
 import { createRequire } from "node:module";
 const loadApp = createRequire(import.meta.url)("./helpers/load-app.cjs");
-const loadIsolated = (file) => loadApp(file.replace("../", ""), { "@/lib/db": { ensureMarketplaceTables: async () => {}, query: async () => { throw new Error("Isolated test database unavailable"); } } });
+const loadIsolated = (file) => loadApp(file.replace("../", ""), { "@/lib/db": { ensureMarketplaceTables: async () => {}, query: async () => { throw new Error("Isolated test database unavailable"); } } }, { process: { env: { NODE_ENV: "test", ENCRYPTION_MASTER_KEY: "a".repeat(64) } } });
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -14,7 +15,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 function readProjectFile(relPath) {
   const fullPath = path.join(ROOT_DIR, relPath);
   assert.ok(fs.existsSync(fullPath), `Required file missing: ${relPath}`);
-  return fs.readFileSync(fullPath, 'utf8');
+  return readIntegrationSource(relPath);
 }
 
 describe('Store Integration Phase 2 Verification Suite', () => {

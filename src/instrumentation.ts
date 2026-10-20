@@ -16,5 +16,17 @@ export async function register() {
       delete global._marginflowJobWorkerController;
       console.error("Background worker stopped unexpectedly.");
     });
+    const { runIntegrationTasks, seedScheduledSyncs } = await import("./lib/integrations/task-queue");
+    void (async () => {
+      while (!controller.signal.aborted) {
+        try { await seedScheduledSyncs(); await runIntegrationTasks(); } catch { /* Durable tasks remain queued for recovery. */ }
+        await new Promise<void>(resolve => {
+          const finish = () => { controller.signal.removeEventListener("abort", cancel); resolve(); };
+          const timer = setTimeout(finish, 5000);
+          const cancel = () => { clearTimeout(timer); finish(); };
+          controller.signal.addEventListener("abort", cancel, { once: true });
+        });
+      }
+    })();
   }
 }

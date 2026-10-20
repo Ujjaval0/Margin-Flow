@@ -10,6 +10,8 @@ export async function persistWebhookOrder(connection: { id: string; userId: stri
   const hash = crypto.createHash("sha256").update(body).digest("hex");
   try {
     await client.query("BEGIN");
+    const active = await client.query("SELECT id FROM marketplace_connections WHERE user_id=$1 AND id=$2 AND is_active=TRUE FOR SHARE", [connection.userId, connection.id]);
+    if (!active.rows.length) throw new Error("Store connection is unavailable.");
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [JSON.stringify([connection.id, eventId])]);
     const receipt = await client.query("SELECT body_hash FROM webhook_receipts WHERE connection_id = $1 AND event_id = $2", [connection.id, eventId]);
     if (receipt.rows.length) {

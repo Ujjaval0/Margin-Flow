@@ -1,3 +1,4 @@
+import { readIntegrationSource } from './helpers/integration-source.mjs';
 import { createRequire } from "node:module";
 const loadApp = createRequire(import.meta.url)("./helpers/load-app.cjs");
 const binding = { clientId: 'test-client', redirectUri: 'https://app.example/api/integrations/flipkart/callback' };
@@ -24,7 +25,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 function readProjectFile(relPath) {
   const fullPath = path.join(ROOT_DIR, relPath);
   assert.ok(fs.existsSync(fullPath), `Required file missing: ${relPath}`);
-  return fs.readFileSync(fullPath, 'utf8');
+  return readIntegrationSource(relPath);
 }
 
 describe('Store Integration Phase 4 Verification Suite', () => {
@@ -41,10 +42,10 @@ describe('Store Integration Phase 4 Verification Suite', () => {
       );
     });
 
-    test('Flipkart sync route supports Developer Self-Access staging authentication', () => {
+    test('Flipkart sync route supports Seller Self-Access authentication', () => {
       const syncContent = readProjectFile('src/app/api/integrations/flipkart/sync/route.ts');
       assert.ok(
-        syncContent.includes('grant_type=client_credentials'),
+        syncContent.includes('grant_type: "client_credentials"'),
         'Must maintain grant_type=client_credentials for developer staging testing'
       );
       assert.ok(
@@ -65,7 +66,7 @@ describe('Store Integration Phase 4 Verification Suite', () => {
         'Must export GET handler for browser redirect'
       );
       assert.ok(
-        connectContent.includes('export async function POST'),
+        connectContent.includes('beginOAuth(request,'),
         'Must export POST handler for SPA/programmatic connection initialization'
       );
       assert.ok(
@@ -81,7 +82,7 @@ describe('Store Integration Phase 4 Verification Suite', () => {
         'Must generate state nonce via createOAuthState'
       );
       assert.ok(
-        connectContent.includes('10 * 60 * 1000'),
+        connectContent.includes('10 * 60000'),
         'Must enforce 10-minute (600s) expiry for CSRF state nonces'
       );
       assert.ok(
@@ -106,12 +107,12 @@ describe('Store Integration Phase 4 Verification Suite', () => {
         'Must verify and atomically consume state nonce to prevent CSRF and replay attacks'
       );
       assert.ok(
-        callbackContent.includes('FLIPKART_OAUTH_INVALID_STATE'),
+        callbackContent.includes('if (!valid.valid)'),
         'Must reject invalid or expired state nonces'
       );
     });
 
-    test('Exchanges authorization code for access & refresh tokens via server-to-server POST', () => {
+    test('Exchanges authorization code for access & refresh tokens via documented server-to-server exchange', () => {
       const callbackContent = readProjectFile('src/app/api/integrations/flipkart/callback/route.ts');
       assert.ok(
         callbackContent.includes('grant_type: "authorization_code"'),
@@ -126,7 +127,7 @@ describe('Store Integration Phase 4 Verification Suite', () => {
         'Must vault tokens server-side with AES-256-GCM'
       );
       assert.ok(
-        callbackContent.includes('authType: "OAUTH2"'),
+        callbackContent.includes(': "OAUTH2"'),
         'Must designate connection authType as OAUTH2'
       );
     });

@@ -11,7 +11,7 @@ You confirmed the current business records are disposable test data. No remote m
 | prepare.mjs | Generate SQL Editor files locally; no database connection |
 | operations/00_lock_down_legacy_tables.sql | Remove dangerous legacy browser grants without deleting records |
 | generated/01_reset_test.sql | Guarded destructive reset of app objects; preserves managed Auth/Storage |
-| generated/02_create.sql | Empty-app-schema bootstrap from all nine ordered migrations |
+| generated/02_create.sql | Empty-app-schema bootstrap from all ordered migrations |
 | operations/20_runtime_role.sql | Explicit trusted-server grants/policies; password set separately |
 | operations/30_profile_avatars.sql | Profile bucket and owner-only policies, including SELECT for replacement |
 | verification/001_read_only_schema_check.sql | Catalog, ownership, index, browser-grant and package receipt checks |

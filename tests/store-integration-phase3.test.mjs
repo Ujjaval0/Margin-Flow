@@ -1,3 +1,4 @@
+import { readIntegrationSource } from './helpers/integration-source.mjs';
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,7 +12,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 function readProjectFile(relPath) {
   const fullPath = path.join(ROOT_DIR, relPath);
   assert.ok(fs.existsSync(fullPath), `Required file missing: ${relPath}`);
-  return fs.readFileSync(fullPath, 'utf8');
+  return readIntegrationSource(relPath);
 }
 
 describe('Store Integration Phase 3 Verification Suite', () => {
@@ -31,8 +32,8 @@ describe('Store Integration Phase 3 Verification Suite', () => {
         'Must specify Amazon India marketplace ID A21TJRUUN4KGV'
       );
       assert.ok(
-        routeContent.includes('/orders/v0/orders'),
-        'Must query /orders/v0/orders SP-API endpoint'
+        routeContent.includes('/orders/2026-01-01/orders'),
+        'Must query /orders/2026-01-01/orders SP-API endpoint'
       );
     });
 
@@ -56,8 +57,8 @@ describe('Store Integration Phase 3 Verification Suite', () => {
     test('Order items fetch queries genuine SP-API orderItems endpoint or embedded payload', () => {
       const routeContent = readProjectFile('src/app/api/integrations/amazon/sync/route.ts');
       assert.ok(
-        routeContent.includes('/orderItems'),
-        'Must support querying /orders/v0/orders/{orderId}/orderItems'
+        routeContent.includes('amazonOrderSource'),
+        'Must decode embedded 2026 order items'
       );
       assert.ok(
         routeContent.includes('SellerSKU'),
@@ -121,7 +122,7 @@ describe('Store Integration Phase 3 Verification Suite', () => {
         'Must subtract 48 hours for bounded overlap window'
       );
       assert.ok(
-        routeContent.includes('LastUpdatedAfter'),
+        routeContent.includes('lastUpdatedAfter'),
         'Must query LastUpdatedAfter to safely capture order status transitions'
       );
     });

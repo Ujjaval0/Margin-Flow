@@ -27,7 +27,8 @@ BEGIN
     'file_import_logs','webhook_receipts','ledger_archives','marketplace_fee_rules',
     'marketplace_fee_rule_components','marketplace_quick_fee_rates','order_fee_estimates',
     'order_fee_estimate_components','channel_accounting_policies','statutory_withholding_rates',
-    'financial_commands','provider_financial_events','auth_sessions','customer_complaints'
+    'financial_commands','provider_financial_events','auth_sessions','customer_complaints',
+    'integration_tasks','provider_deferred_orders'
   ] LOOP
     IF EXISTS (SELECT 1 FROM pg_class WHERE oid=format('public.%I',t)::regclass
       AND relowner=(SELECT oid FROM pg_roles WHERE rolname='marginflow_runtime')) THEN

@@ -206,7 +206,7 @@ test('failed order writes reject instead of counting imports', async () => {
 
 test('webhook failure rolls back the receipt and releases its transaction', async () => {
   const statements = [];
-  const client = { query: async sql => { statements.push(sql); return { rows: [] }; }, release: () => statements.push('release') };
+  const client = { query: async sql => { statements.push(sql); return { rows: sql.startsWith('SELECT id FROM marketplace_connections') ? [{ id: 'c' }] : [] }; }, release: () => statements.push('release') };
   const persistence = load('src/lib/integrations/webhook-persistence.ts', {
     [db]: { pool: { connect: async () => client } }, './order-persistence': { upsertOrders: async () => { throw Error('write failure'); } },
   });

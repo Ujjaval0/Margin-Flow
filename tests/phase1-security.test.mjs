@@ -1,3 +1,4 @@
+import { readIntegrationSource } from './helpers/integration-source.mjs';
 import { createRequire } from "node:module";
 const loadApp = createRequire(import.meta.url)("./helpers/load-app.cjs");
 import { test, describe } from 'node:test';
@@ -14,7 +15,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 function readProjectFile(relPath) {
   const fullPath = path.join(ROOT_DIR, relPath);
   assert.ok(fs.existsSync(fullPath), `Required file missing: ${relPath}`);
-  return fs.readFileSync(fullPath, 'utf8');
+  return readIntegrationSource(relPath);
 }
 
 describe('Phase 1 Security & Identity Hardening Test Suite', () => {
@@ -180,7 +181,7 @@ describe('Phase 1 Security & Identity Hardening Test Suite', () => {
     test('4.4 encryption vault forbids hardcoded static key fallbacks in production', () => {
       const encContent = readProjectFile('src/lib/security/encryption.ts');
       assert.ok(!encContent.includes('"marginflow_production_vault_secret_key_v1"'), 'Hardcoded fallback secret must be purged');
-      assert.ok(encContent.includes('FATAL SECURITY CONFIGURATION ERROR'), 'Must throw fatal error if missing key in production');
+      assert.ok(encContent.includes('ENCRYPTION_MASTER_KEY must be configured'), 'Must throw fatal error if missing key in production');
     });
 
     test('4.5 secret vault forbids hardcoded dev webhook secrets in production', () => {

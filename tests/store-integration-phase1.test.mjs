@@ -1,3 +1,4 @@
+import { readIntegrationSource } from './helpers/integration-source.mjs';
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,7 +12,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 function readProjectFile(relPath) {
   const fullPath = path.join(ROOT_DIR, relPath);
   assert.ok(fs.existsSync(fullPath), `Required file missing: ${relPath}`);
-  return fs.readFileSync(fullPath, 'utf8');
+  return readIntegrationSource(relPath);
 }
 
 describe('Store Integration Phase 1 Verification Suite', () => {
@@ -30,7 +31,7 @@ describe('Store Integration Phase 1 Verification Suite', () => {
     test('Amazon sync route handles zero orders without synthetic fallback', () => {
       const content = readProjectFile('src/app/api/integrations/amazon/sync/route.ts');
       assert.ok(
-        content.includes('orders: []') && content.includes('totalFetched: 0'),
+        content.includes('orders: []') && content.includes('totalFetched: providerOrders.length'),
         'Amazon route must return empty orders array with totalFetched: 0 on zero orders'
       );
     });

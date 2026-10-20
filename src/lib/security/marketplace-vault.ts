@@ -25,6 +25,11 @@ export interface VaultedConnectionMetadata {
   errorMessage?: string;
   createdAt: string;
   updatedAt: string;
+  storeUrl?: string;
+  authMode?: string;
+  verifiedAt?: string;
+  hasWebhookSecret?: boolean;
+  credentialStatus?: "VERIFIED" | "SAVED" | "REAUTH_REQUIRED";
 }
 
 export interface SaveConnectionParams {
@@ -33,6 +38,34 @@ export interface SaveConnectionParams {
   marketplaceId?: string;
   authType?: string;
   credentials: Record<string, any>;
+  connectionId?: string;
+  expectedUpdatedAt?: string;
+}
+
+function metadata(row: any): VaultedConnectionMetadata {
+  let credentials: Record<string, any> = {};
+  let unreadable = false;
+  try { credentials = decryptPayload(row.encrypted_credentials); } catch { unreadable = true; }
+  return {
+    id: row.id, userId: row.user_id, marketplace: row.marketplace, sellerId: row.seller_id,
+    marketplaceId: row.marketplace_id, authType: row.auth_type, isActive: row.is_active,
+    lastSyncStatus: row.last_sync_status, lastSyncCursor: row.last_sync_cursor,
+    lastSyncedAt: row.last_synced_at ? new Date(row.last_synced_at).toISOString() : undefined,
+    syncCheckpoints: row.sync_checkpoints || {}, errorMessage: row.error_message ? "Store synchronization needs attention. Check the connection and retry." : undefined,
+    createdAt: new Date(row.created_at).toISOString(), updatedAt: new Date(row.updated_at).toISOString(),
+    storeUrl: credentials.shopDomain || credentials.storeUrl,
+    authMode: credentials.authMode, verifiedAt: credentials.verifiedAt,
+    hasWebhookSecret: Boolean(credentials.webhookSecret),
+    credentialStatus: unreadable || row.last_sync_status === "REAUTH_REQUIRED" ? "REAUTH_REQUIRED"
+      : credentials.verifiedAt ? "VERIFIED" : "SAVED",
+    webhookPath: unreadable ? undefined : webhookPath(row.id, row.marketplace, row.encrypted_credentials),
+  };
+}
+
+export async function getConnectionById(userId: string, id: string) {
+  await ensureMarketplaceTables();
+  const result = await query("SELECT * FROM marketplace_connections WHERE user_id=$1 AND id=$2 AND is_active=TRUE", [userId, id]);
+  return result.rows[0] ? metadata(result.rows[0]) : null;
 }
 
 /**
@@ -52,23 +85,7 @@ export async function getConnectionsForUser(userId: string): Promise<VaultedConn
       [userId]
     );
 
-    return res.rows.map((r) => ({
-      id: r.id,
-      webhookPath: webhookPath(r.id, r.marketplace, r.encrypted_credentials),
-      userId: r.user_id,
-      marketplace: r.marketplace,
-      sellerId: r.seller_id,
-      marketplaceId: r.marketplace_id,
-      authType: r.auth_type,
-      isActive: r.is_active,
-      lastSyncStatus: r.last_sync_status,
-      lastSyncCursor: r.last_sync_cursor,
-      lastSyncedAt: r.last_synced_at ? new Date(r.last_synced_at).toISOString() : undefined,
-      syncCheckpoints: r.sync_checkpoints || {},
-      errorMessage: r.error_message,
-      createdAt: new Date(r.created_at).toISOString(),
-      updatedAt: new Date(r.updated_at).toISOString(),
-    }));
+    return res.rows.map(metadata);
   } catch (err: any) {
     throw new Error("Marketplace database operation failed.", { cause: err });
   }
@@ -82,14 +99,19 @@ export async function saveConnection(
   userId: string,
   params: SaveConnectionParams
 ): Promise<VaultedConnectionMetadata> {
+  await ensureMarketplaceTables();
   const sellerId = (params.sellerId || "").trim();
   // Preserve the server-generated routing capability across credential updates.
   const previous = await query(
-    "SELECT encrypted_credentials FROM marketplace_connections WHERE user_id = $1 AND marketplace = $2 AND seller_id = $3 AND is_active = TRUE",
-    [userId, params.marketplace, sellerId]
+    params.connectionId
+      ? "SELECT encrypted_credentials, updated_at FROM marketplace_connections WHERE user_id=$1 AND marketplace=$2 AND id=$3 AND is_active=TRUE"
+      : "SELECT encrypted_credentials, updated_at FROM marketplace_connections WHERE user_id = $1 AND marketplace = $2 AND seller_id = $3 AND is_active = TRUE",
+    [userId, params.marketplace, params.connectionId || sellerId]
   );
-  const previousCredentials = previous.rows[0]?.encrypted_credentials
-    ? decryptPayload<Record<string, any>>(previous.rows[0].encrypted_credentials) : {};
+  if (params.connectionId && !previous.rows.length) throw new Error("Store connection is unavailable.");
+  let previousCredentials: Record<string, any> = {};
+  try { if (previous.rows[0]?.encrypted_credentials) previousCredentials = decryptPayload(previous.rows[0].encrypted_credentials); }
+  catch { /* An explicitly verified complete replacement may repair an unreadable legacy vault. */ }
   const encryptedBlob = encryptPayload({
     ...params.credentials,
     webhookRoutingKey: previousCredentials.webhookRoutingKey || crypto.randomBytes(32).toString("hex"),
@@ -109,10 +131,20 @@ export async function saveConnection(
 
   try {
     await ensureMarketplaceTables();
+    if (params.connectionId) {
+      const updated = await query(`UPDATE marketplace_connections SET encrypted_credentials=$1, auth_type=$2,
+        error_message=NULL, last_sync_status='VERIFIED', updated_at=NOW()
+        WHERE user_id=$3 AND id=$4 AND marketplace=$5 AND is_active=TRUE
+          AND ($6::timestamptz IS NULL OR date_trunc('milliseconds', updated_at)=$6::timestamptz)
+          AND encrypted_credentials=$7 RETURNING *`,
+        [encryptedBlob, authType, userId, params.connectionId, params.marketplace, params.expectedUpdatedAt || null,previous.rows[0].encrypted_credentials]);
+      if (!updated.rows.length) throw new Error("Store credentials changed during verification. Reload and retry.");
+      return metadata(updated.rows[0]);
+    }
     const res = await query(
       `INSERT INTO marketplace_connections 
-       (id, user_id, marketplace, seller_id, marketplace_id, encrypted_credentials, auth_type, is_active, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW())
+       (id, user_id, marketplace, seller_id, marketplace_id, encrypted_credentials, auth_type, is_active, updated_at,last_sync_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW(),$8)
        ON CONFLICT (user_id, marketplace, seller_id)
        DO UPDATE SET
          encrypted_credentials = EXCLUDED.encrypted_credentials,
@@ -120,30 +152,14 @@ export async function saveConnection(
          auth_type = EXCLUDED.auth_type,
          is_active = true,
          error_message = NULL,
+         last_sync_status=EXCLUDED.last_sync_status,
          updated_at = NOW()
        RETURNING id, user_id, marketplace, seller_id, marketplace_id, auth_type, is_active, encrypted_credentials,
                  last_sync_status, last_sync_cursor, last_synced_at, sync_checkpoints, error_message, created_at, updated_at`,
-      [id, userId, params.marketplace, sellerId, params.marketplaceId || null, encryptedBlob, authType]
+      [id, userId, params.marketplace, sellerId, params.marketplaceId || null, encryptedBlob, authType,params.credentials.verifiedAt ? "VERIFIED" : "PENDING"]
     );
 
-    const r = res.rows[0];
-    return {
-      id: r.id,
-      webhookPath: webhookPath(r.id, r.marketplace, r.encrypted_credentials),
-      userId: r.user_id,
-      marketplace: r.marketplace,
-      sellerId: r.seller_id,
-      marketplaceId: r.marketplace_id,
-      authType: r.auth_type,
-      isActive: r.is_active,
-      lastSyncStatus: r.last_sync_status,
-      lastSyncCursor: r.last_sync_cursor,
-      lastSyncedAt: r.last_synced_at ? new Date(r.last_synced_at).toISOString() : undefined,
-      syncCheckpoints: r.sync_checkpoints || {},
-      errorMessage: r.error_message,
-      createdAt: new Date(r.created_at).toISOString(),
-      updatedAt: new Date(r.updated_at).toISOString(),
-    };
+    return metadata(res.rows[0]);
   } catch (err: any) {
     throw new Error("Marketplace database operation failed.", { cause: err });
   }
@@ -156,12 +172,16 @@ export async function saveConnection(
 export async function getConnectionCredentials<T = Record<string, any>>(
   userId: string,
   marketplace: string,
-  sellerId: string = ""
+  sellerId: string = "",
+  connectionId?: string,
 ): Promise<T | null> {
   try {
     await ensureMarketplaceTables();
     let res;
-    if (sellerId) {
+    if (connectionId) {
+      res = await query(`SELECT encrypted_credentials FROM marketplace_connections
+        WHERE user_id=$1 AND marketplace=$2 AND id=$3 AND is_active=TRUE LIMIT 1`, [userId, marketplace, connectionId]);
+    } else if (sellerId) {
       res = await query(
         `SELECT encrypted_credentials FROM marketplace_connections
          WHERE user_id = $1 AND marketplace = $2 AND seller_id = $3 AND is_active = true
@@ -194,11 +214,15 @@ export async function getConnectionCredentials<T = Record<string, any>>(
 export async function disconnectConnection(
   userId: string,
   marketplace: string,
-  sellerId?: string
+  sellerId?: string,
+  connectionId?: string,
 ): Promise<boolean> {
   try {
     await ensureMarketplaceTables();
-    if (sellerId) {
+    if (connectionId) {
+      await query(`UPDATE marketplace_connections SET is_active=FALSE, encrypted_credentials='', updated_at=NOW()
+        WHERE user_id=$1 AND marketplace=$2 AND id=$3`, [userId, marketplace, connectionId]);
+    } else if (sellerId) {
       await query(
         `UPDATE marketplace_connections
          SET is_active = false, encrypted_credentials = '', updated_at = NOW()
@@ -226,7 +250,7 @@ export async function updateSyncStatus(
   userId: string,
   marketplace: string,
   status: string,
-  options?: { lastSyncedAt?: string; lastSyncCursor?: string | null; errorMessage?: string; stream?: string }
+  options?: { lastSyncedAt?: string; lastSyncCursor?: string | null; errorMessage?: string; stream?: string; connectionId?: string }
 ): Promise<void> {
   try {
     await ensureMarketplaceTables();
@@ -239,8 +263,9 @@ export async function updateSyncStatus(
            error_message = $4,
            updated_at = NOW()
        WHERE user_id = $5 AND marketplace = $6 AND is_active = true
-         AND (SELECT COUNT(*) FROM marketplace_connections WHERE user_id = $5 AND marketplace = $6 AND is_active = true) = 1`,
-      [status, options?.lastSyncedAt || null, options?.lastSyncCursor || null, options?.errorMessage || null, userId, marketplace, options?.stream || null, JSON.stringify({ lastSyncedAt: options?.lastSyncedAt, cursor: options?.lastSyncCursor ?? null })]
+         AND (($9::text IS NOT NULL AND id=$9) OR ($9::text IS NULL AND
+           (SELECT COUNT(*) FROM marketplace_connections WHERE user_id = $5 AND marketplace = $6 AND is_active = true) = 1))`,
+      [status, options?.lastSyncedAt || null, options?.lastSyncCursor || null, options?.errorMessage || null, userId, marketplace, options?.stream || null, JSON.stringify({ lastSyncedAt: options?.lastSyncedAt, cursor: options?.lastSyncCursor ?? null }), options?.connectionId || null]
     );
   } catch (err: any) {
     throw new Error("Marketplace database operation failed.", { cause: err });

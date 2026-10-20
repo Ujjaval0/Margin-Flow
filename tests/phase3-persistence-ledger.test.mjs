@@ -1,3 +1,4 @@
+import { readIntegrationSource } from './helpers/integration-source.mjs';
 import { createRequire } from "node:module";
 const loadApp = createRequire(import.meta.url)("./helpers/load-app.cjs");
 import { test, describe } from 'node:test';
@@ -13,7 +14,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 function readProjectFile(relPath) {
   const fullPath = path.join(ROOT_DIR, relPath);
   assert.ok(fs.existsSync(fullPath), `Required file missing: ${relPath}`);
-  return fs.readFileSync(fullPath, 'utf8');
+  return readIntegrationSource(relPath);
 }
 
 describe('Phase 3 Transactional Persistence, Queues & Financial Ledger Rigor Test Suite', () => {
@@ -59,16 +60,16 @@ describe('Phase 3 Transactional Persistence, Queues & Financial Ledger Rigor Tes
       assert.ok(code.includes('webhookDeliveryId'), 'Must use per-delivery ID for idempotency check');
     });
 
-    test('2.2 WooCommerce webhook persists incoming orders directly to PostgreSQL', () => {
+    test('2.2 WooCommerce webhook durably queues incoming orders before acknowledgement', () => {
       const code = readProjectFile('src/app/api/webhooks/woocommerce/route.ts');
-      assert.ok(code.includes('persistWebhookOrder'), 'Must import and invoke upsertOrders');
-      assert.ok(code.includes('await persistWebhookOrder('), 'Must persist domainOrder directly to PostgreSQL');
+      assert.ok(code.includes('enqueueWebhook'), 'Must import and invoke enqueueWebhook');
+      assert.ok(code.includes('await enqueueWebhook('), 'Must durably queue domainOrder');
     });
 
-    test('2.3 Shopify webhook persists incoming orders directly to PostgreSQL', () => {
+    test('2.3 Shopify webhook durably queues incoming orders before acknowledgement', () => {
       const code = readProjectFile('src/app/api/webhooks/shopify/route.ts');
-      assert.ok(code.includes('persistWebhookOrder'), 'Must import and invoke upsertOrders');
-      assert.ok(code.includes('await persistWebhookOrder('), 'Must persist domainOrder directly to PostgreSQL');
+      assert.ok(code.includes('enqueueWebhook'), 'Must import and invoke enqueueWebhook');
+      assert.ok(code.includes('await enqueueWebhook('), 'Must durably queue domainOrder');
     });
   });
 

@@ -16,8 +16,6 @@ const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH_BYTES = 12; // 96-bit initialization vector recommended by NIST SP 800-38D
 const AUTH_TAG_LENGTH_BYTES = 16; // 128-bit authentication tag
 
-let _devEphemeralEncryptionKey: Buffer | null = null;
-
 /**
  * Derives a deterministic 256-bit (32-byte) key buffer.
  * Strictly prohibits hardcoded static fallbacks in production.
@@ -31,20 +29,7 @@ function getMasterKey(): Buffer {
     return crypto.createHash("sha256").update(envKey.trim()).digest();
   }
 
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "FATAL SECURITY CONFIGURATION ERROR: ENCRYPTION_MASTER_KEY must be configured in production with 64 hex characters (32 bytes)."
-    );
-  }
-
-  // Development ephemeral key (unique per process instance)
-  if (!_devEphemeralEncryptionKey) {
-    _devEphemeralEncryptionKey = crypto.randomBytes(32);
-    console.warn(
-      "[Security Warning] No ENCRYPTION_MASTER_KEY configured. Generated ephemeral 256-bit AES key for development."
-    );
-  }
-  return _devEphemeralEncryptionKey;
+  throw new Error("ENCRYPTION_MASTER_KEY must be configured with a stable server-only key before saving store credentials.");
 }
 
 /**

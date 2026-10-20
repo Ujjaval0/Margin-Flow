@@ -102,6 +102,7 @@ test('Vercel dispatch runs in after() and cron recovery requires its own secret'
   await scheduled[0]();assert.equal(runs[0].ownerId,owner);assert.equal(runs[0].jobId,'job-id');
   const cron=load('src/app/api/jobs/process/route.ts',{
     '@/lib/queue/queue-manager':{queueManager:manager},'@/lib/queue/job-processors':{},
+    '@/lib/integrations/task-queue':{seedScheduledSyncs:async()=>{},runIntegrationTasks:async()=>0},
   },{process:{env:{CRON_SECRET:'c'.repeat(64)}}});
   assert.equal((await cron.GET(new Request('https://app.test/api/jobs/process'))).status,401);
   assert.equal(runs.length,1);

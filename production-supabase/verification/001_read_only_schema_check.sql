@@ -54,7 +54,7 @@ SELECT table_name,
        has_table_privilege('anon', format('public.%I', table_name), 'SELECT') AS anon_can_select,
        has_table_privilege('authenticated', format('public.%I', table_name), 'SELECT') AS authenticated_can_select
 FROM (VALUES ('webhook_events'), ('notifications'), ('marketplace_connections'),
-             ('webhook_receipts'), ('financial_audit_logs')) AS t(table_name)
+             ('webhook_receipts'), ('financial_audit_logs'), ('integration_tasks'), ('provider_deferred_orders')) AS t(table_name)
 ORDER BY table_name;
 
 -- 5. Profile identity must reference Supabase Auth.
@@ -114,7 +114,7 @@ ORDER BY required.index_name;
 SELECT required.version
 FROM (VALUES ('20261017000100'), ('20261017000200'), ('20261017000300'), ('20261018000100'),
   ('20261019000100'), ('20261019000200'), ('20261019000300'), ('20261019000400'),
-  ('20261020000100'), ('20261020000200')) AS required(version)
+  ('20261020000100'), ('20261020000200'), ('20261020000300'), ('20261020000400')) AS required(version)
 LEFT JOIN public.marginflow_schema_migrations applied USING (version)
 WHERE applied.version IS NULL
 ORDER BY required.version;

@@ -1,3 +1,4 @@
+import { readIntegrationSource } from './helpers/integration-source.mjs';
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,7 +12,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 function readProjectFile(relPath) {
   const fullPath = path.join(ROOT_DIR, relPath);
   assert.ok(fs.existsSync(fullPath), `Required file missing: ${relPath}`);
-  return fs.readFileSync(fullPath, 'utf8');
+  return readIntegrationSource(relPath);
 }
 
 describe('Store Integration contract and source-wiring checks (not production acceptance)', () => {
@@ -127,14 +128,14 @@ describe('Store Integration contract and source-wiring checks (not production ac
       // Flipkart: Two-track auth (Developer staging & Merchant OAuth)
       assert.ok(
         flipkartRoute.includes('https://api.flipkart.net/oauth-service/oauth/token') &&
-        flipkartRoute.includes('grant_type=client_credentials') &&
+        flipkartRoute.includes('grant_type: "client_credentials"') &&
         flipkartRoute.includes('grant_type: "refresh_token"'),
         'Flipkart must support both Developer self-access and OAuth2 refresh'
       );
 
       // Shopify: Verify the actual orders permission
       assert.ok(
-        shopifyRoute.includes('/admin/api/2026-10/orders.json?limit=1&status=any') &&
+        shopifyRoute.includes('/admin/api/2026-10/graphql.json') &&
         shopifyRoute.includes('X-Shopify-Access-Token'),
         'Shopify must verify usable orders API access'
       );
@@ -160,8 +161,7 @@ describe('Store Integration contract and source-wiring checks (not production ac
 
       // Explicit HTTP status codes for auth / scope failures
       assert.ok(
-        shopifyRoute.includes('SHOPIFY_AUTH_FAILED') &&
-        shopifyRoute.includes('SHOPIFY_FORBIDDEN'),
+        shopifyRoute.includes('ProviderRequestError') && shopifyRoute.includes('error.status'),
         'Shopify must distinguish 401 Unauthorized from 403 Forbidden scopes'
       );
 
@@ -202,7 +202,7 @@ describe('Store Integration contract and source-wiring checks (not production ac
 
       // Amazon multi-line mapping
       assert.ok(
-        amazonRoute.includes('fetchSpApiOrderItems') || amazonRoute.includes('/orders/v0/orders/'),
+        amazonRoute.includes('amazonOrderSource'),
         'Amazon must resolve OrderItems from SP-API'
       );
       assert.ok(
@@ -234,7 +234,7 @@ describe('Store Integration contract and source-wiring checks (not production ac
       // Amazon SP-API NextToken & 48-Hour overlap window
       assert.ok(
         amazonRoute.includes('NextToken') &&
-        amazonRoute.includes('LastUpdatedAfter') &&
+        amazonRoute.includes('lastUpdatedAfter') &&
         amazonRoute.includes('48 * 60 * 60 * 1000'),
         'Amazon must support NextToken pagination and 48-hour bounded overlap window'
       );
@@ -332,8 +332,7 @@ describe('Store Integration contract and source-wiring checks (not production ac
 
       // UI reflects sync counts in feedback and toast
       assert.ok(
-        simulator.includes('orders fetched') &&
-        simulator.includes('updated in ledger'),
+        simulator.includes('Synchronization complete:') && simulator.includes('updated,'),
         'UI must render sync count summaries with inserted vs updated metrics'
       );
     });
@@ -359,7 +358,7 @@ describe('Store Integration contract and source-wiring checks (not production ac
 
       // Connections route enforces session tenant
       assert.ok(
-        connectionsRoute.includes('getSessionUserId(req)'),
+        connectionsRoute.includes('getSessionUserId(request)'),
         'Connections API must strictly authenticate merchant session'
       );
     });

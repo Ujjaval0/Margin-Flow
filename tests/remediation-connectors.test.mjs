@@ -5,8 +5,11 @@ const load = createRequire(import.meta.url)('./helpers/load-app.cjs');
 
 function connector(name, fetch, credentials = {}, connections = []) {
   const writes = [], checkpoints = [], saves = [];
-  const route = load(`src/app/api/integrations/${name}/route.ts`, {
-    '@/lib/db': { pool: { connect: async () => ({ query: async () => ({ rows: [] }), release() {} }) } },
+  const transport = (url, options) => fetch(String(url), options || {});
+  const internal = name !== 'generic/sync';
+  const entry = internal ? 'src/lib/integrations/providers/' + name.replace('/', '-') + '.ts' : 'src/app/api/integrations/' + name + '/route.ts';
+  const route = load(entry, {
+    '@/lib/db': { query: async () => ({ rows: [] }), pool: { connect: async () => ({ query: async () => ({ rows: [] }), release() {} }) } },
     '@/lib/security/session': { getSessionUserId: () => 'tenant-A' },
     '@/lib/security/marketplace-vault': {
       getConnectionCredentials: async () => credentials,
@@ -14,18 +17,35 @@ function connector(name, fetch, credentials = {}, connections = []) {
       updateSyncStatus: async (...args) => checkpoints.push(args), recordSyncLog: async () => {},
       saveConnection: async (...args) => saves.push(args),
     },
+    '@/lib/integrations/deferred-orders': { deferProviderOrder: async () => {}, resolveDeferredOrders: async () => {} },
+    '@/lib/integrations/connection-orders': { upsertOrders: async (owner, rows) => { writes.push({ owner, rows }); return { inserted: rows.length, updated: 0 }; } },
+    '@/lib/integrations/provider-auth': {
+      ...load('src/lib/integrations/provider-auth.ts', { '@/lib/db': {} }, { fetch: transport }),
+      renewConnectionToken: async (owner, id, renew) => { const updated = await renew(credentials); saves.push([owner, { id, credentials: updated }]); return updated; },
+      persistTokenUpdate: async (owner, id, previous, update) => saves.push([owner, { id, credentials: { ...previous, ...update } }]),
+    },
     '@/lib/integrations/order-persistence': {
       upsertOrders: async (owner, rows) => { writes.push({ owner, rows }); return { inserted: rows.length, updated: 0 }; },
       upsertSettlements: async (owner, rows) => { writes.push({ owner, rows }); return { inserted: rows.length, updated: 0 }; },
     },
-    '@/lib/security/ssrf-guard': { safeOutboundFetch: fetch, validateSafeOutboundUrl: async url => ({ isSafe: true, normalizedUrl: url }) },
+    '@/lib/security/ssrf-guard': { safeOutboundFetch: transport, validateSafeOutboundUrl: async url => ({ isSafe: true, normalizedUrl: url }) },
     '@/lib/security/rate-limiter': { amazonSpApiLimiter: { consume: () => ({ allowed: true }) }, marketplaceSyncLimiter: { consume: () => ({ allowed: true }) } },
-  }, { fetch });
-  return { writes, checkpoints, saves, post: body => route.POST(new Request('https://app.example/api/sync', { method: 'POST', body: JSON.stringify(body) })) };
+  }, { fetch: transport });
+  return { writes, checkpoints, saves, post: body => internal ? route.runSync('tenant-A', { action: name.endsWith('finances') ? 'fetch_finances' : 'fetch_orders', ...body }) : route.POST(new Request('https://app.example/api/sync', { method: 'POST', body: JSON.stringify(body) })) };
 }
 const amazonCredentials = { clientId: 'id', clientSecret: 'secret', refreshToken: 'refresh' };
-const amazonOrder = id => ({ AmazonOrderId: id, PurchaseDate: '2026-10-14T10:00:00Z', OrderStatus: 'Shipped', OrderTotal: { Amount: '200', CurrencyCode: 'INR' } });
-const amazonItem = id => ({ OrderItemId: id, SellerSKU: 'sku', QuantityOrdered: 2, ItemPrice: { Amount: '100', CurrencyCode: 'INR' } });
+const amazonOrder = id => ({ orderId: id, createdTime: '2026-10-14T10:00:00Z', fulfillment: { fulfillmentStatus: 'SHIPPED' }, proceeds: { grandTotal: { amount: '200', currencyCode: 'INR' } }, orderItems: ['1','2'].map(amazonItem) });
+function amazonItem(id) { return { orderItemId: id, product: { sellerSku: 'sku' }, quantityOrdered: 2, proceeds: { breakdowns: [{ type: 'ITEM', subtotal: { amount: '100', currencyCode: 'INR' } }] } }; }
+
+test('Amazon pending prices produce a truthful partial result without blocking a valid order or advancing beyond the window', async () => {
+  const c = connector('amazon/sync', async raw => raw.includes('/auth/') ? Response.json({ access_token: 'access' })
+    : Response.json({ orders: [amazonOrder('ready'), { orderId: 'pending', createdTime: '2026-10-01T00:00:00Z', fulfillment: { fulfillmentStatus: 'PENDING' }, orderItems: [] }] }), amazonCredentials);
+  const end = '2026-10-02T00:00:00.000Z';
+  const response = await c.post({ action: 'fetch_orders', connectionId: 'conn_owned', syncWindowStart: '2026-10-01T00:00:00Z', syncWindowEnd: end });
+  assert.equal(response.status, 200);
+  const body = await response.json(); assert.equal(body.status, 'partial'); assert.equal(body.fetchedCount, 2); assert.equal(body.skippedCount, 1);
+  assert.equal(c.writes[0].rows.length, 1); assert.equal(c.checkpoints[0][3].lastSyncedAt, end);
+});
 
 test('Amazon finance split events have distinct repeatable identities across pages and replays', async () => {
   const shipment = amount => ({ AmazonOrderId: 'A', PostedDate: '2026-10-19T10:00:00Z',
@@ -46,8 +66,7 @@ test('Amazon exhausts order and item tokens before a single tenant-owned write',
   const c = connector('amazon/sync', async raw => {
     const url = new URL(raw); urls.push(url);
     if (url.hostname === 'api.amazon.com') return Response.json({ access_token: 'access' });
-    if (url.pathname.endsWith('/orderItems')) return Response.json({ payload: { OrderItems: [amazonItem(url.searchParams.has('NextToken') ? '2' : '1')], ...(!url.searchParams.has('NextToken') ? { NextToken: 'items-2' } : {}) } });
-    return Response.json({ payload: { Orders: [amazonOrder(url.searchParams.has('NextToken') ? 'B' : 'A')], ...(!url.searchParams.has('NextToken') ? { NextToken: 'orders-2' } : {}) } });
+    return Response.json({ orders: [amazonOrder(url.searchParams.has('paginationToken') ? 'B' : 'A')], ...(!url.searchParams.has('paginationToken') ? { pagination: { nextToken: 'orders-2' } } : {}) });
   }, amazonCredentials, [{ marketplace: 'Amazon India', syncCheckpoints: { orders: { lastSyncedAt: '2026-10-13T00:00:00Z' }, finances: { lastSyncedAt: '2026-10-15T00:00:00Z' } } }]);
   const response = await c.post({ action: 'fetch_orders' });
   assert.equal(response.status, 200, await response.text());
@@ -56,33 +75,35 @@ test('Amazon exhausts order and item tokens before a single tenant-owned write',
   assert.equal(c.writes[0].rows.length, 2);
   assert.equal(c.writes[0].rows[0].items.length, 2);
   assert.equal(c.writes[0].rows[0].items[0].sellingPrice, 50);
-  assert.equal(urls.find(u => u.pathname === '/orders/v0/orders').searchParams.get('LastUpdatedAfter'), '2026-10-11T00:00:00.000Z');
+  assert.equal(urls.find(u => u.pathname === '/orders/2026-01-01/orders').searchParams.get('lastUpdatedAfter'), '2026-10-11T00:00:00.000Z');
   assert.equal(c.checkpoints[0][3].stream, 'orders');
 });
 
-for (const failure of ['http', 'empty', 'malformed']) test(`Amazon ${failure} item response never manufactures or persists an order`, async () => {
-  const c = connector('amazon/sync', async url => url.includes('/auth/') ? Response.json({ access_token: 'access' }) :
-    url.includes('/orderItems') ? failure === 'http' ? new Response('', { status: 429 }) : Response.json({ payload: failure === 'empty' ? { OrderItems: [] } : {} }) :
-    Response.json({ payload: { Orders: [amazonOrder('A')] } }), amazonCredentials);
+for (const failure of ['empty', 'malformed']) test(`Amazon ${failure} item evidence never manufactures or persists an order`, async () => {
+  const order = amazonOrder('A'); order.orderItems = failure === 'empty' ? [] : [{ orderItemId: '1' }];
+  const c = connector('amazon/sync', async url => url.includes('/auth/') ? Response.json({ access_token: 'access' }) : Response.json({ orders: [order] }), amazonCredentials);
   assert.equal((await c.post({ action: 'fetch_orders' })).status, 502);
   assert.equal(c.writes.length, 0); assert.equal(c.checkpoints.length, 0);
 });
 
-test('Shopify follows same-origin Link pages on the supported version', async () => {
-  const urls = [];
-  const c = connector('shopify/sync', async url => {
-    urls.push(url);
-    return Response.json({ orders: [{ id: urls.length, currency: 'INR', created_at: '2026-10-01T00:00:00Z', total_price: '100', taxes_included: false, line_items: [{ id: urls.length, sku: 'SKU', quantity: 1, price: '100' }] }] }, { headers: urls.length === 1 ? { link: '<https://demo.myshopify.com/admin/api/2026-10/orders.json?page_info=second>; rel="next"' } : {} });
+const shopifyOrder = id => ({ id: 'gid://shopify/Order/'+id, legacyResourceId: String(id), name: '#'+id, currencyCode: 'INR', createdAt: '2026-10-01T00:00:00Z', taxesIncluded: false, totalPriceSet: { shopMoney: { amount: '100', currencyCode: 'INR' } }, displayFinancialStatus: 'PAID', displayFulfillmentStatus: 'UNFULFILLED', lineItems: { nodes: [{ id: 'gid://shopify/LineItem/'+id, sku: 'SKU', quantity: 1, originalUnitPriceSet: { shopMoney: { amount: '100', currencyCode: 'INR' } } }], pageInfo: { hasNextPage: false } }, shippingLines: { nodes: [], pageInfo: { hasNextPage: false } } });
+test('Shopify exhausts GraphQL cursors on the supported version and preserves REST identities', async () => {
+  const calls = [];
+  const c = connector('shopify/sync', async (url, options) => {
+    const variables = JSON.parse(options.body).variables; calls.push(variables);
+    assert.equal(new URL(url).pathname, '/admin/api/2026-10/graphql.json');
+    assert.equal(options.headers['X-Shopify-Access-Token'], 'secret');
+    return Response.json({ data: { orders: { nodes: [shopifyOrder(calls.length)], pageInfo: { hasNextPage: calls.length === 1, endCursor: 'second' } } } });
   }, { shopDomain: 'demo.myshopify.com', accessToken: 'secret' });
   assert.equal((await c.post({ action: 'fetch_orders' })).status, 200);
-  assert.equal(urls.length, 2); assert.equal(c.writes[0].rows.length, 2);
+  assert.equal(calls[1].after, 'second'); assert.equal(c.writes[0].rows.length, 2);
+  assert.equal(c.writes[0].rows[0].items[0].id, 'ITEM-SHP-1-1');
 });
-
-test('Shopify never forwards tokens to a foreign next-page origin', async () => {
+test('Shopify rejects an attacker-controlled store domain before forwarding a token', async () => {
   let calls = 0;
-  const c = connector('shopify/sync', async () => { calls++; return Response.json({ orders: [] }, { headers: { link: '<https://attacker.example/admin/api/2026-10/orders.json>; rel="next"' } }); }, { shopDomain: 'demo.myshopify.com', accessToken: 'secret' });
-  assert.equal((await c.post({ action: 'fetch_orders' })).status, 500);
-  assert.equal(calls, 1); assert.equal(c.writes.length, 0); assert.equal(c.checkpoints.length, 0);
+  const c = connector('shopify/sync', async () => { calls++; return Response.json({}); }, { shopDomain: 'demo.myshopify.com.attacker.example', accessToken: 'secret' });
+  assert.equal((await c.post({ action: 'fetch_orders' })).status, 502);
+  assert.equal(calls, 0); assert.equal(c.writes.length, 0); assert.equal(c.checkpoints.length, 0);
 });
 
 test('WooCommerce exhausts numbered pages with secrets only in Authorization', async () => {
@@ -101,7 +122,7 @@ test('WooCommerce exhausts numbered pages with secrets only in Authorization', a
 test('a later WooCommerce page failure does not persist or advance the checkpoint', async () => {
   let calls = 0;
   const c = connector('woocommerce/sync', async () => ++calls === 1 ? Response.json([], { headers: { 'x-wp-totalpages': '2' } }) : new Response('', { status: 503 }), { storeUrl: 'https://store.example', consumerKey: 'key', consumerSecret: 'secret' });
-  assert.equal((await c.post({ action: 'fetch_orders' })).status, 500);
+  assert.equal((await c.post({ action: 'fetch_orders' })).status, 503);
   assert.equal(c.writes.length, 0); assert.equal(c.checkpoints.length, 0);
 });
 
@@ -123,7 +144,7 @@ for (const status of [404, 500, 200]) test(`custom verification rejects ${status
 test('Amazon token exchange alone does not verify Orders or Finances access', async () => {
   for (const route of ['amazon/sync', 'amazon/finances']) {
     const c = connector(route, async url => url.includes('/auth/') ? Response.json({ access_token: 'access' }) : new Response('', { status: 403 }), amazonCredentials);
-    assert.equal((await c.post({ action: 'test_connection' })).status, 502);
+    assert.equal((await c.post({ action: 'test_connection' })).status, 403);
     assert.equal(c.writes.length, 0); assert.equal(c.checkpoints.length, 0);
   }
 });
@@ -226,31 +247,34 @@ test('Flipkart refresh persists rotated tokens before using the new access token
     assert.equal(c.saves.length, 1);
     assert.equal(options.headers.Authorization, 'Bearer new-access');
     return Response.json({ shipments: [], hasMore: false });
-  }, { clientId: 'client', clientSecret: 'secret', refreshToken: 'old-refresh' }, [{ marketplace: 'Flipkart', authType: 'OAUTH2', sellerId: 'seller' }]);
+  }, { clientId: 'client', clientSecret: 'secret', refreshToken: 'old-refresh' }, [{ id: 'conn_flipkart', marketplace: 'Flipkart', authType: 'OAUTH2', sellerId: 'seller' }]);
   assert.equal((await c.post({ action: 'test_connection' })).status, 200);
   assert.equal(c.saves[0][1].credentials.refreshToken, 'rotated-refresh');
-  assert.equal(c.saves[0][1].sellerId, 'seller');
+  assert.equal(c.saves[0][1].id, 'conn_flipkart');
 });
 
-test('Flipkart OAuth callback binds the session and ignores caller credential/redirect overrides', async () => {
+test('Flipkart OAuth callback binds the session and uses the server app through HTTP Basic', async () => {
   const config = { clientId: 'registered-client', clientSecret: 'server-secret', redirectUri: 'https://app.example/api/integrations/flipkart/callback' };
   let exchanged = false;
   const route = load('src/app/api/integrations/flipkart/callback/route.ts', {
     '@/lib/security/session': { getSessionUserId: () => 'A' },
-    '@/lib/integrations/flipkart-oauth': { flipkartOAuthConfig: () => config },
+    './flipkart-oauth': { flipkartOAuthConfig: () => config },
+    '@/lib/integrations/connection-service': { providerOperation: async () => Response.json({ success: true }) },
+    './connection-service': { providerOperation: async () => Response.json({ success: true }) },
     '@/lib/security/oauth-state': { verifyAndConsumeOAuthState: async (state, marketplace, owner, binding) => {
-      assert.equal(owner, 'A'); assert.equal(binding.redirectUri, config.redirectUri);
-      return { valid: true, userId: 'A' };
+      assert.equal(owner, 'A'); assert.equal(binding.redirectUri, config.redirectUri); return { valid: true, userId: 'A' };
     } },
-    '@/lib/security/marketplace-vault': { saveConnection: async () => {}, recordSyncLog: async () => {} },
-  }, { fetch: async (url, options) => {
-    const body = new URLSearchParams(options.body);
-    assert.equal(body.get('client_id'), config.clientId); assert.equal(body.get('client_secret'), config.clientSecret);
-    assert.equal(body.get('redirect_uri'), config.redirectUri); exchanged = true;
+    '@/lib/security/marketplace-vault': { getConnectionsForUser: async () => [], saveConnection: async () => {}, recordSyncLog: async () => {} },
+    '@/lib/db': {},
+  }, { fetch: async (raw, options) => {
+    const url = new URL(raw); assert.equal(url.searchParams.get('grant_type'), 'authorization_code');
+    assert.equal(url.searchParams.has('client_secret'), false);
+    assert.equal(Buffer.from(options.headers.Authorization.slice(6), 'base64').toString(), config.clientId+':'+config.clientSecret);
+    assert.equal(url.searchParams.get('redirect_uri'), config.redirectUri); exchanged = true;
     return Response.json({ access_token: 'access', refresh_token: 'refresh' });
   } });
-  const result = await route.POST(new Request('https://app.example/callback', { method: 'POST', body: JSON.stringify({ code: 'code', state: 'state', clientId: 'other', clientSecret: 'attacker', redirectUri: 'https://attacker.example' }) }));
-  assert.equal(result.status, 200); assert.equal(exchanged, true);
+  const result = await route.GET(new Request('https://app.example/callback?code=code&state=state&clientSecret=attacker&redirectUri=https://attacker.example'));
+  assert.equal(result.status, 307); assert.equal(exchanged, true);
 });
 
 test('an unbound continuation or single-order finance fetch cannot advance a global checkpoint', async () => {
@@ -290,7 +314,7 @@ test('connection screen reuses vaulted credentials after reload without fetching
   const requests = [];
   const ui = connectionScreen(async (url, options) => {
     requests.push({ url, options });
-    if (url === '/api/integrations/connections') return Response.json({ success: true, connections: [{ marketplace: 'Shopify', isActive: true }] });
+    if (url === '/api/integrations/connections') return Response.json({ success: true, connections: [{ id: 'conn_shopify', marketplace: 'Shopify', isActive: true, credentialStatus: 'VERIFIED' }] });
     return Response.json({ success: true, domain: 'demo.myshopify.com' });
   });
   await new Promise(resolve => setImmediate(resolve));

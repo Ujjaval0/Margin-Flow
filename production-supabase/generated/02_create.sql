@@ -6,7 +6,7 @@ DO $$ BEGIN
     RAISE EXCEPTION 'This package requires a Supabase project (Auth and Storage schemas).';
   END IF;
   IF EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-    WHERE n.nspname='public' AND c.relname=ANY(ARRAY['ai_staged_documents','ai_staged_fields','auth_sessions','background_jobs','channel_accounting_policies','claim_documents','claims','customer_complaints','expenses','file_import_logs','financial_audit_logs','financial_commands','ledger_archives','marketplace_connections','marketplace_fee_rule_components','marketplace_fee_rules','marketplace_quick_fee_rates','marketplace_sync_logs','notifications','oauth_states','order_fee_estimate_components','order_fee_estimates','order_items','orders','product_channel_aliases','product_cost_history','products','provider_financial_events','purchase_bills','return_records','settlement_deductions','settlements','statutory_withholding_rates','supplier_payment_allocations','supplier_payments','suppliers','user_accounts','webhook_events','webhook_receipts','marginflow_schema_migrations']))
+    WHERE n.nspname='public' AND c.relname=ANY(ARRAY['ai_staged_documents','ai_staged_fields','auth_sessions','background_jobs','channel_accounting_policies','claim_documents','claims','customer_complaints','expenses','file_import_logs','financial_audit_logs','financial_commands','integration_tasks','ledger_archives','marketplace_connections','marketplace_fee_rule_components','marketplace_fee_rules','marketplace_quick_fee_rates','marketplace_sync_logs','notifications','oauth_states','order_fee_estimate_components','order_fee_estimates','order_items','orders','product_channel_aliases','product_cost_history','products','provider_deferred_orders','provider_financial_events','purchase_bills','return_records','settlement_deductions','settlements','statutory_withholding_rates','supplier_payment_allocations','supplier_payments','suppliers','user_accounts','webhook_events','webhook_receipts','marginflow_schema_migrations']))
     OR to_regtype('public.marketplace_enum') IS NOT NULL THEN
     RAISE EXCEPTION 'Existing MarginFlow objects found. Stop: use a reviewed reset or data-preserving migration.';
   END IF;
@@ -2456,6 +2456,76 @@ UPDATE storage.buckets SET file_size_limit=10485760,
 COMMIT;
 
 
+-- SOURCE: 20261020000300_store_connection_reliability.sql
+-- Additive upgrade: never resets merchant connections or financial records.
+BEGIN;
+CREATE UNIQUE INDEX IF NOT EXISTS marketplace_connections_id_owner ON public.marketplace_connections(id,user_id);
+CREATE TABLE IF NOT EXISTS public.integration_tasks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.user_accounts(id),
+  connection_id text NOT NULL,
+  kind text NOT NULL CHECK (kind IN ('ORDERS','RECONCILE','WEBHOOK')),
+  dedupe_key text NOT NULL,
+  status text NOT NULL DEFAULT 'QUEUED' CHECK (status IN ('QUEUED','PROCESSING','COMPLETED','FAILED','REAUTH_REQUIRED')),
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  encrypted_payload text,
+  body_hash text,
+  result jsonb,
+  attempts integer NOT NULL DEFAULT 0,
+  available_at timestamptz NOT NULL DEFAULT now(),
+  lease_token uuid,
+  locked_at timestamptz,
+  error_message text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(connection_id,kind,dedupe_key),
+  FOREIGN KEY(connection_id,user_id) REFERENCES public.marketplace_connections(id,user_id)
+);
+CREATE INDEX IF NOT EXISTS integration_tasks_due ON public.integration_tasks(available_at) WHERE status='QUEUED';
+CREATE INDEX IF NOT EXISTS integration_tasks_owner ON public.integration_tasks(user_id,connection_id);
+
+CREATE TABLE IF NOT EXISTS public.provider_deferred_orders (
+  user_id uuid NOT NULL REFERENCES public.user_accounts(id),
+  connection_id text NOT NULL,
+  source_id text NOT NULL,
+  reason text NOT NULL,
+  encrypted_payload text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY(connection_id,source_id),
+  FOREIGN KEY(connection_id,user_id) REFERENCES public.marketplace_connections(id,user_id)
+);
+
+ALTER TABLE public.integration_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.provider_deferred_orders ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.integration_tasks,public.provider_deferred_orders FROM PUBLIC,anon,authenticated;
+DO $$ BEGIN
+  IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='marginflow_runtime') THEN
+    GRANT SELECT,INSERT,UPDATE,DELETE ON public.integration_tasks,public.provider_deferred_orders TO marginflow_runtime;
+    DROP POLICY IF EXISTS marginflow_server ON public.integration_tasks;
+    DROP POLICY IF EXISTS marginflow_server ON public.provider_deferred_orders;
+    CREATE POLICY marginflow_server ON public.integration_tasks TO marginflow_runtime USING(true) WITH CHECK(true);
+    CREATE POLICY marginflow_server ON public.provider_deferred_orders TO marginflow_runtime USING(true) WITH CHECK(true);
+  END IF;
+END $$;
+COMMIT;
+
+
+-- SOURCE: 20261020000400_store_task_cascade.sql
+-- Preserve the account/connection deletion behavior of the existing marketplace vault.
+BEGIN;
+ALTER TABLE public.integration_tasks
+  DROP CONSTRAINT integration_tasks_user_id_fkey,
+  ADD CONSTRAINT integration_tasks_user_id_fkey FOREIGN KEY(user_id) REFERENCES public.user_accounts(id) ON DELETE CASCADE,
+  DROP CONSTRAINT integration_tasks_connection_id_user_id_fkey,
+  ADD CONSTRAINT integration_tasks_connection_id_user_id_fkey FOREIGN KEY(connection_id,user_id) REFERENCES public.marketplace_connections(id,user_id) ON DELETE CASCADE;
+ALTER TABLE public.provider_deferred_orders
+  DROP CONSTRAINT provider_deferred_orders_user_id_fkey,
+  ADD CONSTRAINT provider_deferred_orders_user_id_fkey FOREIGN KEY(user_id) REFERENCES public.user_accounts(id) ON DELETE CASCADE,
+  DROP CONSTRAINT provider_deferred_orders_connection_id_user_id_fkey,
+  ADD CONSTRAINT provider_deferred_orders_connection_id_user_id_fkey FOREIGN KEY(connection_id,user_id) REFERENCES public.marketplace_connections(id,user_id) ON DELETE CASCADE;
+COMMIT;
+
+
 -- SOURCE: operations/20_runtime_role.sql
 -- Run as the Supabase SQL Editor administrator AFTER all schema migrations.
 -- This server role is trusted across accounts. API SQL MUST filter by verified
@@ -2486,7 +2556,8 @@ BEGIN
     'file_import_logs','webhook_receipts','ledger_archives','marketplace_fee_rules',
     'marketplace_fee_rule_components','marketplace_quick_fee_rates','order_fee_estimates',
     'order_fee_estimate_components','channel_accounting_policies','statutory_withholding_rates',
-    'financial_commands','provider_financial_events','auth_sessions','customer_complaints'
+    'financial_commands','provider_financial_events','auth_sessions','customer_complaints',
+    'integration_tasks','provider_deferred_orders'
   ] LOOP
     IF EXISTS (SELECT 1 FROM pg_class WHERE oid=format('public.%I',t)::regclass
       AND relowner=(SELECT oid FROM pg_roles WHERE rolname='marginflow_runtime')) THEN
@@ -2555,5 +2626,7 @@ INSERT INTO public.marginflow_schema_migrations(version,checksum) VALUES
 ('20261019000300','9343b74060d213ed0bc13cfba618a570fdd39837c48df4ddcefc20ad7e91ffd1'),
 ('20261019000400','e6aa5d6179e8ee34451a9dc7dc144b3585f4c10b4f09afd38c1cffad40942d25'),
 ('20261020000100','b2cd3d5adca6e32daa0f757002fb4fe769681cd91bbddf7e6f251b72b632695c'),
-('20261020000200','c8b0295ae9b04755b66fc55a459dd589116133a1ee6951cb7cbb7d2ae921a9c3');
+('20261020000200','c8b0295ae9b04755b66fc55a459dd589116133a1ee6951cb7cbb7d2ae921a9c3'),
+('20261020000300','a9fd006d101d42461bef5d012dd3ba319ac5e83b62b18c5b165d4cd3fccda0bf'),
+('20261020000400','4adcdebca18f4c669d55ffe8083f0a06de314250fd1875d332aa4b34cf082ce5');
 COMMIT;

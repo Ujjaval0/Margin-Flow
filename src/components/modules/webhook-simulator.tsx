@@ -88,7 +88,7 @@ const CHANNELS: ChannelConfig[] = [
     category: "Online Marketplace",
     endpoint: "/api/webhooks/generic",
     defaultTab: "csv",
-    supportedModes: ["csv", "api"],
+    supportedModes: ["csv"],
   },
   {
     id: "myntra",
@@ -97,7 +97,7 @@ const CHANNELS: ChannelConfig[] = [
     category: "Online Marketplace",
     endpoint: "/api/webhooks/generic",
     defaultTab: "csv",
-    supportedModes: ["csv", "api"],
+    supportedModes: ["csv"],
   },
 ];
 
@@ -139,13 +139,6 @@ const CATALOG_PLATFORMS = [
     icon: ShoppingBag,
   },
   {
-    id: "magento",
-    name: "Adobe Commerce / Magento",
-    description: "Enterprise connector with GraphQL event streaming.",
-    icon: Layers,
-    comingSoon: true,
-  },
-  {
     id: "bigcommerce",
     name: "BigCommerce",
     description: "Headless and storefront order webhook receiver.",
@@ -164,6 +157,9 @@ const CHANNEL_LOGOS: Record<string, string> = {
 };
 
 interface StoredChannelCredentials {
+  connectionId?: string;
+  credentialStatus?: string;
+  authType?: string;
   webhookPath?: string;
   vaulted?: boolean;
   storeUrl?: string;
@@ -208,7 +204,7 @@ function channelHasValidCredentials(channelId: string, creds?: StoredChannelCred
 const STORAGE_CHANNELS_KEY = "MARGINFLOW_CHANNEL_CONFIGS_V1";
 
 export function WebhookSimulatorView() {
-  const { orders, products, addOrder, syncExternalOrders } = usePlatform();
+  const { orders, products, addOrder, syncExternalOrders, refreshFromDatabase } = usePlatform();
 
   // Dynamic connection & active state per channel
   // Green dot = Active / Connected; Black dot = Inactive / Deactivated
@@ -254,11 +250,12 @@ export function WebhookSimulatorView() {
                   (conn.marketplace === "Amazon India" && c.id === "amazon")
               );
               if (ch && conn.isActive) {
-                serverConnected[ch.id] = true;
+                serverConnected[ch.id] = conn.credentialStatus === "VERIFIED";
                 serverMeta[ch.id] = {
+                  connectionId: conn.id, storeUrl: conn.storeUrl, credentialStatus: conn.credentialStatus, authType: conn.authType,
                   webhookPath: conn.webhookPath,
                   vaulted: true,
-                  connected: true,
+                  connected: conn.credentialStatus === "VERIFIED",
                   sellerId: conn.sellerId,
                   lastSyncedAt: conn.lastSyncedAt,
                 };
@@ -328,35 +325,22 @@ export function WebhookSimulatorView() {
     });
   };
 
-  const vaultCredentialsOnServer = async (
-    marketplace: string,
-    credentials: Record<string, any>,
-    sellerId?: string
-  ) => {
-    try {
-      const response = await fetch("/api/integrations/connections", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          marketplace,
-          sellerId,
-          credentials,
-        }),
-      });
-      if (!response.ok) throw new Error("Could not save marketplace connection.");
-      const result = await response.json();
-      if (!result.success || !result.connection) throw new Error(result.error || "Could not save marketplace connection.");
-      const channel = CHANNELS.find((candidate) => candidate.name === marketplace ||
-        (candidate.id === "amazon" && marketplace === "Amazon India"));
-      if (channel) {
-        setChannelCredentials((previous) => ({ ...previous, [channel.id]: {
-          ...previous[channel.id], vaulted: true, webhookPath: result.connection.webhookPath,
-        } }));
-      }
-    } catch (err) {
-      console.warn("Failed to vault credentials on server:", err);
-      throw err;
-    }
+  const vaultCredentialsOnServer = async (marketplace: string, credentials: Record<string, any>) => {
+    const channel = CHANNELS.find(candidate => candidate.name === marketplace);
+    if (!channel) throw new Error("Unsupported platform.");
+    const response = await fetch("/api/integrations/connections", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ marketplace, connectionId: channelCredentials[channel.id]?.connectionId, credentials }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success || !result.connection) throw new Error(result.error || "Could not securely save the store credentials.");
+    const connection = result.connection;
+    const metadata: StoredChannelCredentials = { connectionId: connection.id, storeUrl: connection.storeUrl,
+      vaulted: true, connected: connection.credentialStatus === "VERIFIED", credentialStatus: connection.credentialStatus,
+      authType: connection.authType, webhookPath: connection.webhookPath, sellerId: connection.sellerId, lastSyncedAt: connection.lastSyncedAt };
+    setChannelCredentials(previous => ({ ...previous, [channel.id]: metadata }));
+    setConnectedChannels(previous => ({ ...previous, [channel.id]: Boolean(metadata.connected) }));
+    return metadata;
   };
 
   // Real-time dynamic aggregation based on the actual platform orders
@@ -430,16 +414,16 @@ export function WebhookSimulatorView() {
   const [customApiUrl, setCustomApiUrl] = useState("");
   const [customApiKey, setCustomApiKey] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
+  const [signingSecret, setSigningSecret] = useState("");
+  const [shopifyClientId, setShopifyClientId] = useState("");
+  const [shopifyClientSecret, setShopifyClientSecret] = useState("");
+  const [isUpdatingCredentials, setIsUpdatingCredentials] = useState(false);
   const [flipkartAppId, setFlipkartAppId] = useState("");
   const [flipkartAppSecret, setFlipkartAppSecret] = useState("");
   const [amazonClientId, setAmazonClientId] = useState("");
   const [amazonClientSecret, setAmazonClientSecret] = useState("");
   const [amazonRefreshToken, setAmazonRefreshToken] = useState("");
   const [amazonSellerId, setAmazonSellerId] = useState("");
-  const [meeshoSupplierId, setMeeshoSupplierId] = useState("");
-  const [meeshoApiKey, setMeeshoApiKey] = useState("");
-  const [myntraPartnerId, setMyntraPartnerId] = useState("");
-  const [myntraApiKey, setMyntraApiKey] = useState("");
 
   // Add Store Catalog Modal
   const [isAddStoreOpen, setIsAddStoreOpen] = useState(false);
@@ -448,11 +432,19 @@ export function WebhookSimulatorView() {
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [hasOpenedCsv, setHasOpenedCsv] = useState(false);
 
+  const closeSetup = () => {
+    setSetupModalChannel(null);
+    setCustomApiKey(""); setWebhookSecret(""); setSigningSecret("");
+    setShopifyClientId(""); setShopifyClientSecret("");
+    setFlipkartAppId(""); setFlipkartAppSecret("");
+    setAmazonClientId(""); setAmazonClientSecret(""); setAmazonRefreshToken("");
+  };
+
   // Keyboard dismissal (Escape)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (setupModalChannel) setSetupModalChannel(null);
+        if (setupModalChannel) closeSetup();
         if (isAddStoreOpen) setIsAddStoreOpen(false);
       }
     };
@@ -497,7 +489,7 @@ export function WebhookSimulatorView() {
       const response = await fetch("/api/integrations/connections", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ marketplace }),
+        body: JSON.stringify({ marketplace, connectionId: channelCredentials[channelId]?.connectionId }),
       });
       if (!response.ok || !(await response.json()).success) throw new Error("Could not disconnect channel.");
       setConnectedChannels((prev) => ({ ...prev, [channelId]: false }));
@@ -513,6 +505,7 @@ export function WebhookSimulatorView() {
   const getFullWebhookUrl = (endpoint: string) => {
     const channel = CHANNELS.find((candidate) => candidate.endpoint === endpoint);
     const ownedPath = channel ? channelCredentials[channel.id]?.webhookPath : undefined;
+    if (!ownedPath) return "";
     if (typeof window !== "undefined") {
       return `${window.location.origin}${ownedPath || endpoint}`;
     }
@@ -521,224 +514,32 @@ export function WebhookSimulatorView() {
 
   // Quick verify status check — strictly tests valid third-party credentials
   const handleVerifyChannel = async (channel: ChannelConfig) => {
+    if (!channel.supportedModes.includes("api")) { openConfigForChannel(channel); return; }
     setVerifyingChannelId(channel.id);
+    openConfigForChannel(channel);
     try {
-      if (channel.id === "woocommerce") {
-        const creds = channelCredentials.woocommerce;
-        if (!creds?.vaulted && (!creds?.storeUrl || !creds?.consumerKey || !creds?.consumerSecret)) {
-          showToast("Setup Required", "Please configure your Store URL, Consumer Key, and Consumer Secret first.");
-          openConfigForChannel(channel);
-          return;
-        }
-
-        const res = await fetch("/api/integrations/woocommerce/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "test_connection",
-            storeUrl: creds.storeUrl,
-            consumerKey: creds.consumerKey,
-            consumerSecret: creds.consumerSecret,
-          }),
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          setConnectedChannels((prev) => ({ ...prev, woocommerce: true }));
-          saveChannelCredentials("woocommerce", {
-            ...creds,
-            connected: true,
-            totalOrdersInStore: data.totalOrdersInStore,
-          });
-          showToast("Connected & Active", `WooCommerce store verified. ${data.totalOrdersInStore || 0} orders found in store.`);
-        } else {
-          setConnectedChannels((prev) => ({ ...prev, woocommerce: false }));
-          saveChannelCredentials("woocommerce", { ...creds, connected: false });
-          showToast("Verification Failed", data.error || "Could not connect to WooCommerce store.");
-        }
-        return;
-      }
-
-      if (channel.id === "shopify") {
-        const creds = channelCredentials.shopify;
-        if (!creds?.vaulted && (!creds?.storeUrl || !creds?.consumerKey)) {
-          showToast("Setup Required", "Please configure your Shopify Store Domain and Admin API Access Token first.");
-          openConfigForChannel(channel);
-          return;
-        }
-
-        const res = await fetch("/api/integrations/shopify/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "test_connection",
-            shopDomain: creds.storeUrl,
-            accessToken: creds.consumerKey,
-          }),
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          setConnectedChannels((prev) => ({ ...prev, shopify: true }));
-          saveChannelCredentials("shopify", { ...creds, connected: true });
-          showToast("Connected & Active", `Shopify store verified: ${data.storeName || data.domain}`);
-        } else {
-          setConnectedChannels((prev) => ({ ...prev, shopify: false }));
-          saveChannelCredentials("shopify", { ...creds, connected: false });
-          showToast("Verification Failed", data.error || "Could not connect to Shopify.");
-        }
-        return;
-      }
-
-      if (channel.id === "flipkart") {
-        const creds = channelCredentials.flipkart;
-        if (!creds?.vaulted && (!creds?.appId || !creds?.appSecret)) {
-          showToast("Setup Required", "Please configure your Flipkart App ID and Application Secret first.");
-          openConfigForChannel(channel);
-          return;
-        }
-
-        const res = await fetch("/api/integrations/flipkart/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "test_connection",
-            appId: creds.appId,
-            appSecret: creds.appSecret,
-          }),
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          setConnectedChannels((prev) => ({ ...prev, flipkart: true }));
-          saveChannelCredentials("flipkart", { ...creds, connected: true });
-          showToast("Connected & Active", data.message || "Flipkart Seller credentials verified.");
-        } else {
-          setConnectedChannels((prev) => ({ ...prev, flipkart: false }));
-          saveChannelCredentials("flipkart", { ...creds, connected: false });
-          showToast("Verification Failed", data.error || "Could not verify Flipkart credentials.");
-        }
-        return;
-      }
-
-      if (channel.id === "amazon") {
-        const creds = channelCredentials.amazon;
-        if (!creds?.vaulted && (!creds?.clientId || !creds?.clientSecret || !creds?.refreshToken)) {
-          showToast("Setup Required", "Please configure Amazon SP-API Client ID, Secret, and Refresh Token first.");
-          openConfigForChannel(channel);
-          return;
-        }
-
-        const res = await fetch("/api/integrations/amazon/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "test_connection",
-            clientId: creds.clientId,
-            clientSecret: creds.clientSecret,
-            refreshToken: creds.refreshToken,
-            sellerId: creds.sellerId,
-          }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          setConnectedChannels((prev) => ({ ...prev, amazon: true }));
-          saveChannelCredentials("amazon", { ...creds, connected: true });
-          showToast("Connected & Active", data.message || "Amazon SP-API authenticated.");
-        } else {
-          setConnectedChannels((prev) => ({ ...prev, amazon: false }));
-          saveChannelCredentials("amazon", { ...creds, connected: false });
-          showToast("Verification Failed", data.error || "Could not verify Amazon SP-API credentials.");
-        }
-        return;
-      }
-
-      if (channel.id === "meesho") {
-        const creds = channelCredentials.meesho;
-        if (!creds?.supplierId || !creds?.apiKey) {
-          showToast("Setup Required", "Please configure Meesho Supplier ID and API Key first.");
-          openConfigForChannel(channel);
-          return;
-        }
-
-        const res = await fetch("/api/integrations/meesho/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "test_connection",
-            supplierId: creds.supplierId,
-            apiKey: creds.apiKey,
-          }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          setConnectedChannels((prev) => ({ ...prev, meesho: true }));
-          saveChannelCredentials("meesho", { ...creds, connected: true });
-          showToast("Connected & Active", data.message || "Meesho Supplier credentials verified.");
-        } else {
-          setConnectedChannels((prev) => ({ ...prev, meesho: false }));
-          saveChannelCredentials("meesho", { ...creds, connected: false });
-          showToast("Verification Failed", data.error || "Could not verify Meesho credentials.");
-        }
-        return;
-      }
-
-      if (channel.id === "myntra") {
-        const creds = channelCredentials.myntra;
-        const partnerId = creds?.supplierId || creds?.clientId;
-        const apiKey = creds?.apiKey || creds?.clientSecret;
-        if (!partnerId || !apiKey) {
-          showToast("Setup Required", "Please configure Myntra Partner ID and API Secret first.");
-          openConfigForChannel(channel);
-          return;
-        }
-
-        const res = await fetch("/api/integrations/myntra/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "test_connection",
-            partnerId,
-            apiKey,
-          }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          setConnectedChannels((prev) => ({ ...prev, myntra: true }));
-          saveChannelCredentials("myntra", { ...creds, supplierId: partnerId, apiKey, connected: true });
-          showToast("Connected & Active", data.message || "Myntra Partner Portal credentials verified.");
-        } else {
-          setConnectedChannels((prev) => ({ ...prev, myntra: false }));
-          saveChannelCredentials("myntra", { ...creds, connected: false });
-          showToast("Verification Failed", data.error || "Could not verify Myntra credentials.");
-        }
-        return;
-      }
-
-
-      // Fallback
-      showToast("Setup Required", `Please configure credentials for ${channel.name} to activate.`);
-      openConfigForChannel(channel);
-    } catch (err: any) {
-      showToast("Verification Error", err.message || "Failed to reach verification endpoint.");
-    } finally {
-      setVerifyingChannelId(null);
-    }
+      const id = channelCredentials[channel.id]?.connectionId;
+      if (!id) { showToast("Credentials required", "Configure and save this store first."); return; }
+      const response = await fetch(`/api/integrations/${channel.id}/sync`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "test_connection", connectionId: id }) });
+      const data = await response.json();
+      setApiTestResult({ success: response.ok && data.success, message: data.message || data.error || "Store verification completed." });
+    } catch { setApiTestResult({ success: false, message: "Store verification failed. Please retry." }); }
+    finally { setVerifyingChannelId(null); }
   };
 
   // Webhook ping test (endpoint reachability test only — does not connect third-party accounts)
   const handleTestPing = async () => {
     if (!setupModalChannel) return;
+    if (!channelCredentials[setupModalChannel.id]?.webhookPath) {
+      showToast("Save connection first", "Save and verify your API credentials before configuring webhook delivery.");
+      return;
+    }
     setIsTestingPing(true);
     setPingSuccess(false);
     try {
-      const res = await fetch(setupModalChannel.endpoint, {
-        method: "POST",
-        headers: {
-          "x-wc-webhook-topic": "action.woocommerce_webhook_ping",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ webhook_id: 1, ping: true }),
+      const res = await fetch(getFullWebhookUrl(setupModalChannel.endpoint), {
+        method: "GET",
+        cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
@@ -754,744 +555,100 @@ export function WebhookSimulatorView() {
     }
   };
 
-  // Test connection in modal
-  const handleTestWooCommerceConnection = async () => {
-    if (!channelCredentials.woocommerce?.vaulted && (!customApiUrl || !customApiKey || !webhookSecret)) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter Store URL, Consumer Key, and Consumer Secret.",
-      });
-      return;
-    }
+  // Verify and persist first; subsequent synchronization uses only a server-owned connection ID.
+  const configuredCredentials = (id: string): Record<string, string> => id === "woocommerce"
+    ? { storeUrl: customApiUrl, consumerKey: customApiKey, consumerSecret: webhookSecret, webhookSecret: signingSecret }
+    : id === "shopify" ? { shopDomain: customApiUrl, accessToken: customApiKey, clientId: shopifyClientId, clientSecret: shopifyClientSecret, webhookSecret: signingSecret }
+    : id === "amazon" ? { clientId: amazonClientId, clientSecret: amazonClientSecret, refreshToken: amazonRefreshToken, sellerId: amazonSellerId }
+    : { appId: flipkartAppId, appSecret: flipkartAppSecret };
 
-    setIsTestingApi(true);
-    setApiTestResult(null);
+  const clearCredentialInputs = () => {
+    setCustomApiKey(""); setWebhookSecret(""); setSigningSecret(""); setShopifyClientId(""); setShopifyClientSecret("");
+    setAmazonClientId(""); setAmazonClientSecret(""); setAmazonRefreshToken(""); setFlipkartAppId(""); setFlipkartAppSecret("");
+  };
 
+  const ensureSavedConnection = async (id: string) => {
+    const saved = channelCredentials[id];
+    if (saved?.connectionId && saved.credentialStatus === "VERIFIED" && !isUpdatingCredentials) return saved;
+    const channel = CHANNELS.find(candidate => candidate.id === id)!;
+    const metadata = await vaultCredentialsOnServer(channel.name, configuredCredentials(id));
+    clearCredentialInputs(); setIsUpdatingCredentials(false);
+    return metadata;
+  };
+
+  const testConfiguredConnection = async (id: string) => {
+    setIsTestingApi(true); setApiTestResult(null);
     try {
-      const res = await fetch("/api/integrations/woocommerce/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "test_connection",
-          storeUrl: customApiUrl,
-          consumerKey: customApiKey,
-          consumerSecret: webhookSecret,
-        }),
-      });
+      const alreadySaved = channelCredentials[id]?.connectionId && !isUpdatingCredentials;
+      const connection = await ensureSavedConnection(id);
+      if (alreadySaved) {
+        const response = await fetch(`/api/integrations/${id}/sync`, { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "test_connection", connectionId: connection.connectionId }) });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || "Store verification failed.");
+      }
+      setConnectedChannels(previous => ({ ...previous, [id]: true }));
+      setApiTestResult({ success: true, message: "Order access verified. Credentials are encrypted and saved for future use." });
+    } catch (error: any) { setApiTestResult({ success: false, message: error.message || "Could not verify the store." }); }
+    finally { setIsTestingApi(false); }
+  };
 
-      const data = await res.json();
-      if (res.ok && data.success) {
-        if (customApiKey && webhookSecret) {
-          await vaultCredentialsOnServer("WooCommerce", {
-            storeUrl: customApiUrl,
-            consumerKey: customApiKey,
-            consumerSecret: webhookSecret,
-          });
+  const syncConfiguredConnection = async (id: string) => {
+    setIsSyncingOrders(true); setApiTestResult(null);
+    try {
+      const connection = await ensureSavedConnection(id);
+      const response = await fetch(`/api/integrations/${id}/sync`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fetch_orders", connectionId: connection.connectionId, background: true }) });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.error || "Could not queue synchronization.");
+      setApiTestResult({ success: true, message: "Credentials saved. Synchronization continues securely on the server, including after you close this page." });
+      for (let attempt = 0; data.taskId && attempt < 12; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const statusResponse = await fetch(`/api/integrations/jobs?id=${encodeURIComponent(data.taskId)}`, { cache: "no-store" });
+        if (!statusResponse.ok) break;
+        const status = (await statusResponse.json()).task;
+        if (["FAILED", "REAUTH_REQUIRED"].includes(status?.status)) throw new Error(status.error || "Store synchronization needs attention.");
+        if (["succeeded", "partial"].includes(status?.result?.status)) {
+          await refreshFromDatabase();
+          setApiTestResult({ success: true, message: `Synchronization complete: ${status.result.importedCount || 0} new, ${status.result.updatedCount || 0} updated, ${status.result.skippedCount || 0} awaiting reconciliation.` });
+          break;
         }
-        setApiTestResult({
-          success: true,
-          message: `Connected successfully! ${data.totalOrdersInStore || 0} orders found in store.`,
-        });
-        setConnectedChannels((prev) => ({ ...prev, woocommerce: true }));
-        saveChannelCredentials("woocommerce", {
-          storeUrl: customApiUrl,
-          connected: true,
-          totalOrdersInStore: data.totalOrdersInStore,
-        });
-
-        showToast("Connected & Active", "WooCommerce connection verified and credentials vaulted.");
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to verify WooCommerce credentials.",
-        });
       }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Network error: ${err.message || "Failed to contact proxy route."}`,
-      });
-    } finally {
-      setIsTestingApi(false);
-    }
+    } catch (error: any) { setApiTestResult({ success: false, message: error.message || "Could not synchronize the store." }); }
+    finally { setIsSyncingOrders(false); }
   };
 
-  // Save & Sync orders from WooCommerce
-  const handleSyncWooCommerceOrders = async () => {
-    if (!channelCredentials.woocommerce?.vaulted && (!customApiUrl || !customApiKey || !webhookSecret)) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter Store URL, Consumer Key, and Consumer Secret before syncing.",
-      });
-      return;
-    }
+  const handleTestWooCommerceConnection = () => testConfiguredConnection("woocommerce");
+  const handleSyncWooCommerceOrders = () => syncConfiguredConnection("woocommerce");
+  const handleTestShopifyConnection = () => testConfiguredConnection("shopify");
+  const handleSyncShopifyOrders = () => syncConfiguredConnection("shopify");
+  const handleTestFlipkartConnection = () => testConfiguredConnection("flipkart");
+  const handleSyncFlipkartOrders = () => syncConfiguredConnection("flipkart");
+  const handleTestAmazonConnection = () => testConfiguredConnection("amazon");
+  const handleSyncAmazonOrders = () => syncConfiguredConnection("amazon");
 
-    setIsSyncingOrders(true);
-    setApiTestResult(null);
-
-    try {
-      const res = await fetch("/api/integrations/woocommerce/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "fetch_orders",
-          storeUrl: customApiUrl,
-          consumerKey: customApiKey,
-          consumerSecret: webhookSecret,
-          perPage: 50,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success && Array.isArray(data.orders)) {
-        const syncResult = await syncExternalOrders(data.orders);
-        const nowIso = new Date().toISOString();
-
-        saveChannelCredentials("woocommerce", {
-          storeUrl: customApiUrl,
-          consumerKey: customApiKey,
-          consumerSecret: webhookSecret,
-          connected: true,
-          lastSyncedAt: nowIso,
-          totalOrdersInStore: data.totalInStore || data.orders.length,
-        });
-
-        setConnectedChannels((prev) => ({ ...prev, woocommerce: true }));
-
-        setApiTestResult({
-          success: true,
-          message: `Sync complete! ${data.orders.length} orders fetched from WooCommerce (${syncResult.added} new, ${syncResult.updated} updated in ledger).`,
-        });
-
-        showToast(
-          "WooCommerce Synced",
-          `${data.orders.length} orders fetched (${syncResult.added} new, ${syncResult.updated} updated).`
-        );
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to fetch orders from WooCommerce.",
-        });
-      }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Sync error: ${err.message || "Failed to fetch orders."}`,
-      });
-    } finally {
-      setIsSyncingOrders(false);
-    }
-  };
-
-  // Shopify Connection Test & Order Sync
-  const handleTestShopifyConnection = async () => {
-    if (!channelCredentials.shopify?.vaulted && (!customApiUrl || !customApiKey)) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter your Shopify Store Domain and Admin API Access Token.",
-      });
-      return;
-    }
-
+  const handleAuthorizeChannel = async () => {
+    if (!setupModalChannel) return;
     setIsTestingApi(true);
-    setApiTestResult(null);
-
     try {
-      const res = await fetch("/api/integrations/shopify/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "test_connection",
-          shopDomain: customApiUrl,
-          accessToken: customApiKey,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        if (customApiKey) {
-          await vaultCredentialsOnServer("Shopify", {
-            shopDomain: customApiUrl,
-            accessToken: customApiKey,
-          });
-        }
-        setApiTestResult({
-          success: true,
-          message: `Connected successfully! Store: ${data.storeName || data.domain}`,
-        });
-        setConnectedChannels((prev) => ({ ...prev, shopify: true }));
-        saveChannelCredentials("shopify", {
-          storeUrl: customApiUrl,
-          connected: true,
-        });
-
-        showToast("Connected & Active", "Shopify store verified and access token vaulted.");
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to verify Shopify store.",
-        });
-      }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Network error: ${err.message || "Could not reach sync endpoint."}`,
-      });
-    } finally {
-      setIsTestingApi(false);
-    }
+      const search = new URLSearchParams(setupModalChannel.id === "shopify" ? { shop: customApiUrl } : {});
+      const response = await fetch(`/api/integrations/${setupModalChannel.id}/connect?${search}`, { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || !data.authorizationUrl) throw new Error(data.error || "Could not start authorization.");
+      window.location.assign(data.authorizationUrl);
+    } catch (error: any) { setApiTestResult({ success: false, message: error.message || "Could not start authorization." }); }
+    finally { setIsTestingApi(false); }
   };
 
-  const handleSyncShopifyOrders = async () => {
-    if (!channelCredentials.shopify?.vaulted && (!customApiUrl || !customApiKey)) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter your Store Domain and Admin API Token before syncing.",
-      });
-      return;
-    }
-
-    setIsSyncingOrders(true);
-    setApiTestResult(null);
-
-    try {
-      const res = await fetch("/api/integrations/shopify/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "fetch_orders",
-          shopDomain: customApiUrl,
-          accessToken: customApiKey,
-          limit: 50,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success && Array.isArray(data.orders)) {
-        const syncResult = await syncExternalOrders(data.orders);
-        const nowIso = new Date().toISOString();
-
-        saveChannelCredentials("shopify", {
-          storeUrl: customApiUrl,
-          consumerKey: customApiKey,
-          connected: true,
-          lastSyncedAt: nowIso,
-          totalOrdersInStore: data.orders.length,
-        });
-
-        setConnectedChannels((prev) => ({ ...prev, shopify: true }));
-
-        setApiTestResult({
-          success: true,
-          message: `Sync complete! ${data.orders.length} orders fetched from Shopify (${syncResult.added} new, ${syncResult.updated} updated in ledger).`,
-        });
-
-        showToast(
-          "Shopify Synced",
-          `${data.orders.length} orders fetched (${syncResult.added} new, ${syncResult.updated} updated).`
-        );
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to fetch orders from Shopify.",
-        });
-      }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Sync error: ${err.message || "Failed to fetch orders."}`,
-      });
-    } finally {
-      setIsSyncingOrders(false);
-    }
-  };
-
-  // Flipkart Connection Test & Order Sync
-  const handleTestFlipkartConnection = async () => {
-    if (!channelCredentials.flipkart?.vaulted && (!flipkartAppId || !flipkartAppSecret)) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter your Flipkart Application ID and Application Secret.",
-      });
-      return;
-    }
-
+  const saveSigningSecret = async () => {
+    if (!setupModalChannel || !signingSecret.trim() || !channelCredentials[setupModalChannel.id]?.connectionId) return;
     setIsTestingApi(true);
-    setApiTestResult(null);
-
     try {
-      const res = await fetch("/api/integrations/flipkart/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "test_connection",
-          appId: flipkartAppId,
-          appSecret: flipkartAppSecret,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        if (flipkartAppId && flipkartAppSecret) {
-          await vaultCredentialsOnServer("Flipkart", {
-            appId: flipkartAppId,
-            appSecret: flipkartAppSecret,
-          });
-        }
-        setApiTestResult({
-          success: true,
-          message: data.message || "Flipkart Seller API authenticated successfully via OAuth 2.0.",
-        });
-        setConnectedChannels((prev) => ({ ...prev, flipkart: true }));
-        saveChannelCredentials("flipkart", {
-          connected: true,
-        });
-
-        showToast("Connected & Active", "Flipkart Seller credentials verified and vaulted.");
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to verify Flipkart Seller credentials.",
-        });
-      }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Network error: ${err.message || "Could not reach Flipkart gateway."}`,
-      });
-    } finally {
-      setIsTestingApi(false);
-    }
-  };
-
-  const handleSyncFlipkartOrders = async () => {
-    if (!channelCredentials.flipkart?.vaulted && (!flipkartAppId || !flipkartAppSecret)) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter your Flipkart credentials before syncing.",
-      });
-      return;
-    }
-
-    setIsSyncingOrders(true);
-    setApiTestResult(null);
-
-    try {
-      const res = await fetch("/api/integrations/flipkart/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "fetch_orders",
-          appId: flipkartAppId,
-          appSecret: flipkartAppSecret,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success && Array.isArray(data.orders)) {
-        const syncResult = await syncExternalOrders(data.orders);
-        const nowIso = new Date().toISOString();
-
-        saveChannelCredentials("flipkart", {
-          appId: flipkartAppId,
-          appSecret: flipkartAppSecret,
-          connected: true,
-          lastSyncedAt: nowIso,
-          totalOrdersInStore: data.orders.length,
-        });
-
-        setConnectedChannels((prev) => ({ ...prev, flipkart: true }));
-
-        setApiTestResult({
-          success: true,
-          message: `Sync complete! ${data.orders.length} orders fetched from Flipkart (${syncResult.added} new, ${syncResult.updated} updated in ledger).`,
-        });
-
-        showToast(
-          "Flipkart Synced",
-          `${data.orders.length} orders fetched (${syncResult.added} new, ${syncResult.updated} updated).`
-        );
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to fetch orders from Flipkart.",
-        });
-      }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Sync error: ${err.message || "Failed to fetch orders."}`,
-      });
-    } finally {
-      setIsSyncingOrders(false);
-    }
-  };
-
-
-  // Amazon SP-API Handlers
-  const handleTestAmazonConnection = async () => {
-    if (!channelCredentials.amazon?.vaulted && (!amazonClientId || !amazonClientSecret || !amazonRefreshToken)) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter Amazon LWA Client ID, Client Secret, and Refresh Token.",
-      });
-      return;
-    }
-
-    setIsTestingApi(true);
-    setApiTestResult(null);
-
-    try {
-      const res = await fetch("/api/integrations/amazon/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "test_connection",
-          clientId: amazonClientId,
-          clientSecret: amazonClientSecret,
-          refreshToken: amazonRefreshToken,
-          sellerId: amazonSellerId,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        if (amazonClientId && amazonClientSecret && amazonRefreshToken) {
-          await vaultCredentialsOnServer(
-            "Amazon India",
-            {
-              clientId: amazonClientId,
-              clientSecret: amazonClientSecret,
-              refreshToken: amazonRefreshToken,
-              sellerId: amazonSellerId,
-            },
-            amazonSellerId
-          );
-        }
-        setApiTestResult({
-          success: true,
-          message: data.message || "Amazon SP-API authenticated successfully.",
-        });
-        setConnectedChannels((prev) => ({ ...prev, amazon: true }));
-        saveChannelCredentials("amazon", {
-          sellerId: amazonSellerId,
-          connected: true,
-        });
-
-        showToast("Connected & Active", "Amazon SP-API credentials verified and vaulted.");
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to verify Amazon SP-API credentials.",
-        });
-      }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Network error: ${err.message || "Could not reach Amazon gateway."}`,
-      });
-    } finally {
-      setIsTestingApi(false);
-    }
-  };
-
-  const handleSyncAmazonOrders = async () => {
-    if (!channelCredentials.amazon?.vaulted && (!amazonClientId || !amazonClientSecret || !amazonRefreshToken)) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter your Amazon SP-API credentials before syncing.",
-      });
-      return;
-    }
-
-    setIsSyncingOrders(true);
-    setApiTestResult(null);
-
-    try {
-      const res = await fetch("/api/integrations/amazon/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "fetch_orders",
-          clientId: amazonClientId,
-          clientSecret: amazonClientSecret,
-          refreshToken: amazonRefreshToken,
-          sellerId: amazonSellerId,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success && Array.isArray(data.orders)) {
-        const syncResult = await syncExternalOrders(data.orders);
-        const nowIso = new Date().toISOString();
-
-        saveChannelCredentials("amazon", {
-          clientId: amazonClientId,
-          clientSecret: amazonClientSecret,
-          refreshToken: amazonRefreshToken,
-          sellerId: amazonSellerId,
-          connected: true,
-          lastSyncedAt: nowIso,
-          totalOrdersInStore: data.orders.length,
-        });
-
-        setConnectedChannels((prev) => ({ ...prev, amazon: true }));
-
-        setApiTestResult({
-          success: true,
-          message: `Sync complete! ${data.orders.length} orders fetched from Amazon India (${syncResult.added} new, ${syncResult.updated} updated in ledger).`,
-        });
-
-        showToast(
-          "Amazon Synced",
-          `${data.orders.length} orders fetched (${syncResult.added} new, ${syncResult.updated} updated).`
-        );
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to fetch orders from Amazon.",
-        });
-      }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Sync error: ${err.message || "Failed to fetch orders."}`,
-      });
-    } finally {
-      setIsSyncingOrders(false);
-    }
-  };
-
-  // Meesho Handlers
-  const handleTestMeeshoConnection = async () => {
-    if (!meeshoSupplierId || !meeshoApiKey) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter Meesho Supplier ID and API Key / Panel Token.",
-      });
-      return;
-    }
-
-    setIsTestingApi(true);
-    setApiTestResult(null);
-
-    try {
-      const res = await fetch("/api/integrations/meesho/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "test_connection",
-          supplierId: meeshoSupplierId,
-          apiKey: meeshoApiKey,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setApiTestResult({
-          success: true,
-          message: data.message || "Meesho Supplier Panel authenticated successfully.",
-        });
-        setConnectedChannels((prev) => ({ ...prev, meesho: true }));
-        saveChannelCredentials("meesho", {
-          supplierId: meeshoSupplierId,
-          apiKey: meeshoApiKey,
-          connected: true,
-        });
-        showToast("Connected & Active", "Meesho Supplier credentials verified.");
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to verify Meesho credentials.",
-        });
-      }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Network error: ${err.message || "Could not reach Meesho gateway."}`,
-      });
-    } finally {
-      setIsTestingApi(false);
-    }
-  };
-
-  const handleSyncMeeshoOrders = async () => {
-    if (!meeshoSupplierId || !meeshoApiKey) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter your Meesho Supplier credentials before syncing.",
-      });
-      return;
-    }
-
-    setIsSyncingOrders(true);
-    setApiTestResult(null);
-
-    try {
-      const res = await fetch("/api/integrations/meesho/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "fetch_orders",
-          supplierId: meeshoSupplierId,
-          apiKey: meeshoApiKey,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success && Array.isArray(data.orders)) {
-        const syncResult = await syncExternalOrders(data.orders);
-        const nowIso = new Date().toISOString();
-
-        saveChannelCredentials("meesho", {
-          supplierId: meeshoSupplierId,
-          apiKey: meeshoApiKey,
-          connected: true,
-          lastSyncedAt: nowIso,
-          totalOrdersInStore: data.orders.length,
-        });
-
-        setConnectedChannels((prev) => ({ ...prev, meesho: true }));
-
-        setApiTestResult({
-          success: true,
-          message: `Sync complete! ${data.orders.length} orders fetched from Meesho (${syncResult.added} new, ${syncResult.updated} updated in ledger).`,
-        });
-
-        showToast(
-          "Meesho Synced",
-          `${data.orders.length} orders fetched (${syncResult.added} new, ${syncResult.updated} updated).`
-        );
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to fetch orders from Meesho.",
-        });
-      }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Sync error: ${err.message || "Failed to fetch orders."}`,
-      });
-    } finally {
-      setIsSyncingOrders(false);
-    }
-  };
-
-  // Myntra Handlers
-  const handleTestMyntraConnection = async () => {
-    if (!myntraPartnerId || !myntraApiKey) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter Myntra Partner / Vendor ID and API Key / Partner Secret.",
-      });
-      return;
-    }
-
-    setIsTestingApi(true);
-    setApiTestResult(null);
-
-    try {
-      const res = await fetch("/api/integrations/myntra/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "test_connection",
-          partnerId: myntraPartnerId,
-          apiKey: myntraApiKey,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setApiTestResult({
-          success: true,
-          message: data.message || "Myntra Partner Portal authenticated successfully.",
-        });
-        setConnectedChannels((prev) => ({ ...prev, myntra: true }));
-        saveChannelCredentials("myntra", {
-          supplierId: myntraPartnerId,
-          apiKey: myntraApiKey,
-          connected: true,
-        });
-        showToast("Connected & Active", "Myntra Partner credentials verified.");
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to verify Myntra credentials.",
-        });
-      }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Network error: ${err.message || "Could not reach Myntra gateway."}`,
-      });
-    } finally {
-      setIsTestingApi(false);
-    }
-  };
-
-  const handleSyncMyntraOrders = async () => {
-    if (!myntraPartnerId || !myntraApiKey) {
-      setApiTestResult({
-        success: false,
-        message: "Please enter your Myntra Partner credentials before syncing.",
-      });
-      return;
-    }
-
-    setIsSyncingOrders(true);
-    setApiTestResult(null);
-
-    try {
-      const res = await fetch("/api/integrations/myntra/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "fetch_orders",
-          partnerId: myntraPartnerId,
-          apiKey: myntraApiKey,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success && Array.isArray(data.orders)) {
-        const syncResult = await syncExternalOrders(data.orders);
-        const nowIso = new Date().toISOString();
-
-        saveChannelCredentials("myntra", {
-          supplierId: myntraPartnerId,
-          apiKey: myntraApiKey,
-          connected: true,
-          lastSyncedAt: nowIso,
-          totalOrdersInStore: data.orders.length,
-        });
-
-        setConnectedChannels((prev) => ({ ...prev, myntra: true }));
-
-        setApiTestResult({
-          success: true,
-          message: `Sync complete! ${data.orders.length} orders fetched from Myntra (${syncResult.added} new, ${syncResult.updated} updated in ledger).`,
-        });
-
-        showToast(
-          "Myntra Synced",
-          `${data.orders.length} orders fetched (${syncResult.added} new, ${syncResult.updated} updated).`
-        );
-      } else {
-        setApiTestResult({
-          success: false,
-          message: data.error || "Failed to fetch orders from Myntra.",
-        });
-      }
-    } catch (err: any) {
-      setApiTestResult({
-        success: false,
-        message: `Sync error: ${err.message || "Failed to fetch orders."}`,
-      });
-    } finally {
-      setIsSyncingOrders(false);
-    }
+      await vaultCredentialsOnServer(setupModalChannel.name, { webhookSecret: signingSecret });
+      setSigningSecret("");
+      showToast("Signing secret saved", "Use the same secret in your store's webhook configuration.");
+    } catch (error: any) { showToast("Could not save signing secret", error.message || "Please retry."); }
+    finally { setIsTestingApi(false); }
   };
 
   const handleCopy = (text: string, isCurl: boolean = false) => {
@@ -1507,6 +664,8 @@ export function WebhookSimulatorView() {
 
   const openConfigForChannel = (channel: ChannelConfig) => {
     setSetupModalChannel(channel);
+    setIsUpdatingCredentials(false);
+    setSigningSecret(""); setShopifyClientId(""); setShopifyClientSecret("");
     setSetupTab(channel.defaultTab);
     setPingSuccess(false);
     setApiTestResult(null);
@@ -1522,10 +681,6 @@ export function WebhookSimulatorView() {
       setAmazonClientSecret(creds.clientSecret || "");
       setAmazonRefreshToken(creds.refreshToken || "");
       setAmazonSellerId(creds.sellerId || "");
-      setMeeshoSupplierId(creds.supplierId || "");
-      setMeeshoApiKey(creds.apiKey || "");
-      setMyntraPartnerId(creds.supplierId || creds.clientId || "");
-      setMyntraApiKey(creds.apiKey || creds.clientSecret || "");
     } else {
       setCustomApiUrl("");
       setCustomApiKey("");
@@ -1536,10 +691,6 @@ export function WebhookSimulatorView() {
       setAmazonClientSecret("");
       setAmazonRefreshToken("");
       setAmazonSellerId("");
-      setMeeshoSupplierId("");
-      setMeeshoApiKey("");
-      setMyntraPartnerId("");
-      setMyntraApiKey("");
     }
   };
 
@@ -1728,7 +879,7 @@ export function WebhookSimulatorView() {
       {/* Connection Sheet Modal — Clean & Streamlined */}
       {mounted && setupModalChannel && createPortal(
         <div
-          onClick={() => setSetupModalChannel(null)}
+          onClick={closeSetup}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-150"
         >
           <div
@@ -1753,7 +904,7 @@ export function WebhookSimulatorView() {
 
               {/* Status Indicator & Close X in Modal Header */}
               <div className="flex items-center gap-2">
-                {connectedChannels[setupModalChannel.id] && (
+                {channelCredentials[setupModalChannel.id]?.vaulted && (
                   <button
                     type="button"
                     onClick={() => handleDisconnectChannel(setupModalChannel.id)}
@@ -1782,7 +933,7 @@ export function WebhookSimulatorView() {
                 </span>
 
                 <button
-                  onClick={() => setSetupModalChannel(null)}
+                  onClick={closeSetup}
                   aria-label="Close dialog"
                   className="w-7 h-7 rounded-full bg-black/[0.04] hover:bg-black/[0.08] flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] transition cursor-pointer active:scale-95"
                 >
@@ -1879,10 +1030,19 @@ export function WebhookSimulatorView() {
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="font-semibold text-[#1D1D1F]">4.</span>
-                        <span>Secret: enter <code>wc_secret_dev_key_88b19e20a37fc6</code> (or your <code>WOOCOMMERCE_WEBHOOK_SECRET</code>) and click Save.</span>
+                        <span>Set Secret to the signing secret saved below. If you have not changed it, use the Consumer Secret from this store's API setup.</span>
                       </div>
                     </div>
                   )}
+
+                  <div className="space-y-2">
+                    <label htmlFor="store-webhook-secret" className="block text-xs font-medium text-[#6E6E73]">Webhook signing secret</label>
+                    <input id="store-webhook-secret" type="password" autoComplete="new-password" value={signingSecret}
+                      placeholder="Enter only to set or replace the saved secret" onChange={event => setSigningSecret(event.target.value)}
+                      className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] outline-none" />
+                    <button type="button" disabled={!signingSecret.trim() || isTestingApi || !channelCredentials[setupModalChannel.id]?.connectionId}
+                      onClick={saveSigningSecret} className="px-3 py-2 rounded-xl bg-[#F5F5F7] text-[#1D1D1F] text-xs font-medium cursor-pointer disabled:opacity-50">Save signing secret</button>
+                  </div>
 
                   <div className="pt-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -1899,7 +1059,7 @@ export function WebhookSimulatorView() {
                     {pingSuccess && (
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#288548]">
                         <CheckCircle2 className="w-4 h-4 text-[#288548]" />
-                        Endpoint Verified &amp; Active
+                        Endpoint reachable
                       </span>
                     )}
                   </div>
@@ -1909,6 +1069,21 @@ export function WebhookSimulatorView() {
               {/* TAB 2: API TOKEN */}
               {setupTab === "api" && (
                 <div className="space-y-4">
+                  {channelCredentials[setupModalChannel.id]?.vaulted && (
+                    <div className="flex items-center justify-between gap-3 text-xs text-[#6E6E73]">
+                      <span>{isUpdatingCredentials ? "Blank secret fields keep the saved values. Changes are verified before saving." : "Credentials are encrypted and saved. They are never displayed here."}</span>
+                      <button type="button" disabled={isTestingApi || isSyncingOrders} onClick={() => { setIsUpdatingCredentials(previous => !previous); clearCredentialInputs(); setApiTestResult(null); }}
+                        className="shrink-0 px-3 py-2 rounded-xl bg-[#F5F5F7] text-[#1D1D1F] text-xs font-medium cursor-pointer">
+                        {isUpdatingCredentials ? "Cancel update" : "Update credentials"}
+                      </button>
+                    </div>
+                  )}
+                  {["amazon", "flipkart", "shopify"].includes(setupModalChannel.id) && (
+                    <button type="button" onClick={handleAuthorizeChannel} disabled={isTestingApi || isSyncingOrders}
+                      className="w-full py-2.5 rounded-xl bg-[#1D1D1F] text-white text-xs font-medium cursor-pointer disabled:opacity-50">
+                      Authorize {setupModalChannel.name}
+                    </button>
+                  )}
                   {setupModalChannel.id === "shopify" && (
                     <div className="space-y-3.5">
                       <div>
@@ -1919,6 +1094,7 @@ export function WebhookSimulatorView() {
                           type="text"
                           placeholder="your-brand.myshopify.com"
                           value={customApiUrl}
+                          disabled={Boolean(channelCredentials[setupModalChannel.id]?.vaulted) && !isUpdatingCredentials}
                           onChange={(e) => {
                             setCustomApiUrl(e.target.value);
                             setApiTestResult(null);
@@ -1935,12 +1111,26 @@ export function WebhookSimulatorView() {
                           type="password"
                           placeholder="shpat_xxxxxxxxxxxxxxxxxxxxxxxxx"
                           value={customApiKey}
+                          disabled={Boolean(channelCredentials[setupModalChannel.id]?.vaulted) && !isUpdatingCredentials}
                           onChange={(e) => {
                             setCustomApiKey(e.target.value);
                             setApiTestResult(null);
                           }}
                           className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
                         />
+                      </div>
+
+                      <div>
+                        <label htmlFor="shopify-own-client" className="block text-xs font-medium text-[#6E6E73] mb-1">Client ID (own-organization app, optional)</label>
+                        <input id="shopify-own-client" type="text" value={shopifyClientId} autoComplete="off"
+                          disabled={Boolean(channelCredentials.shopify?.vaulted) && !isUpdatingCredentials} onChange={event => setShopifyClientId(event.target.value)}
+                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] outline-none" />
+                      </div>
+                      <div>
+                        <label htmlFor="shopify-own-secret" className="block text-xs font-medium text-[#6E6E73] mb-1">Client secret (own-organization app, optional)</label>
+                        <input id="shopify-own-secret" type="password" value={shopifyClientSecret} autoComplete="new-password"
+                          disabled={Boolean(channelCredentials.shopify?.vaulted) && !isUpdatingCredentials} onChange={event => setShopifyClientSecret(event.target.value)}
+                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] outline-none" />
                       </div>
 
                       {/* Real Feedback Banner */}
@@ -2011,6 +1201,7 @@ export function WebhookSimulatorView() {
                           type="text"
                           placeholder="https://yourstore.com"
                           value={customApiUrl}
+                          disabled={Boolean(channelCredentials[setupModalChannel.id]?.vaulted) && !isUpdatingCredentials}
                           onChange={(e) => {
                             setCustomApiUrl(e.target.value);
                             setApiTestResult(null);
@@ -2027,6 +1218,7 @@ export function WebhookSimulatorView() {
                           type="text"
                           placeholder="ck_xxxxxxxxxxxxxxxxxxxxxxxx"
                           value={customApiKey}
+                          disabled={Boolean(channelCredentials[setupModalChannel.id]?.vaulted) && !isUpdatingCredentials}
                           onChange={(e) => {
                             setCustomApiKey(e.target.value);
                             setApiTestResult(null);
@@ -2043,6 +1235,7 @@ export function WebhookSimulatorView() {
                           type="password"
                           placeholder="cs_xxxxxxxxxxxxxxxxxxxxxxxx"
                           value={webhookSecret}
+                          disabled={Boolean(channelCredentials[setupModalChannel.id]?.vaulted) && !isUpdatingCredentials}
                           onChange={(e) => {
                             setWebhookSecret(e.target.value);
                             setApiTestResult(null);
@@ -2119,6 +1312,7 @@ export function WebhookSimulatorView() {
                           type="text"
                           placeholder="e.g. 981240a1-xxxx-xxxx-xxxx"
                           value={flipkartAppId}
+                          disabled={Boolean(channelCredentials[setupModalChannel.id]?.vaulted) && !isUpdatingCredentials}
                           onChange={(e) => {
                             setFlipkartAppId(e.target.value);
                             setApiTestResult(null);
@@ -2135,6 +1329,7 @@ export function WebhookSimulatorView() {
                           type="password"
                           placeholder="Enter Application Secret"
                           value={flipkartAppSecret}
+                          disabled={Boolean(channelCredentials[setupModalChannel.id]?.vaulted) && !isUpdatingCredentials}
                           onChange={(e) => {
                             setFlipkartAppSecret(e.target.value);
                             setApiTestResult(null);
@@ -2215,6 +1410,7 @@ export function WebhookSimulatorView() {
                           type="text"
                           placeholder="amzn1.application-oa2-client.xxxx"
                           value={amazonClientId}
+                          disabled={Boolean(channelCredentials[setupModalChannel.id]?.vaulted) && !isUpdatingCredentials}
                           onChange={(e) => {
                             setAmazonClientId(e.target.value);
                             setApiTestResult(null);
@@ -2231,6 +1427,7 @@ export function WebhookSimulatorView() {
                           type="password"
                           placeholder="amzn1.oa2-cs.v1.xxxx"
                           value={amazonClientSecret}
+                          disabled={Boolean(channelCredentials[setupModalChannel.id]?.vaulted) && !isUpdatingCredentials}
                           onChange={(e) => {
                             setAmazonClientSecret(e.target.value);
                             setApiTestResult(null);
@@ -2247,6 +1444,7 @@ export function WebhookSimulatorView() {
                           type="password"
                           placeholder="Atzr|IQEBLz49..."
                           value={amazonRefreshToken}
+                          disabled={Boolean(channelCredentials[setupModalChannel.id]?.vaulted) && !isUpdatingCredentials}
                           onChange={(e) => {
                             setAmazonRefreshToken(e.target.value);
                             setApiTestResult(null);
@@ -2263,6 +1461,7 @@ export function WebhookSimulatorView() {
                           type="text"
                           placeholder="e.g. A21TJRUUN4KGV"
                           value={amazonSellerId}
+                          disabled={Boolean(channelCredentials[setupModalChannel.id]?.vaulted) && !isUpdatingCredentials}
                           onChange={(e) => {
                             setAmazonSellerId(e.target.value);
                             setApiTestResult(null);
@@ -2344,219 +1543,6 @@ export function WebhookSimulatorView() {
                     </div>
                   )}
 
-                  {setupModalChannel.id === "meesho" && (
-                    <div className="space-y-3.5">
-                      <div>
-                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
-                          Meesho Supplier ID
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. SUP-89211 or registered seller ID"
-                          value={meeshoSupplierId}
-                          onChange={(e) => {
-                            setMeeshoSupplierId(e.target.value);
-                            setApiTestResult(null);
-                          }}
-                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
-                          API Key / Panel Session Token
-                        </label>
-                        <input
-                          type="password"
-                          placeholder="Enter Meesho API Key or Panel Token"
-                          value={meeshoApiKey}
-                          onChange={(e) => {
-                            setMeeshoApiKey(e.target.value);
-                            setApiTestResult(null);
-                          }}
-                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
-                        />
-                      </div>
-
-                      <p className="text-[11px] text-[#86868B]">
-                        Found in Meesho Supplier Panel under <strong>Settings &gt; Developer API</strong>.
-                      </p>
-
-                      {/* Real Feedback Banner */}
-                      {apiTestResult && (
-                        <div
-                          className={`p-3 rounded-xl text-xs flex items-start gap-2 border ${
-                            apiTestResult.success
-                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800"
-                              : "bg-red-500/10 border-red-500/20 text-red-800"
-                          }`}
-                        >
-                          {apiTestResult.success ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                          ) : (
-                            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                          )}
-                          <div className="leading-relaxed">
-                            <span className="font-semibold">
-                              {apiTestResult.success ? "Connection Verified: " : "Error: "}
-                            </span>
-                            {apiTestResult.message}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Last Synced Info */}
-                      {channelCredentials.meesho?.lastSyncedAt && (
-                        <div className="flex items-center justify-between text-[11px] text-[#86868B] px-1 pt-0.5">
-                          <span>Last synchronized:</span>
-                          <span className="font-medium text-[#1D1D1F] tabular-nums">
-                            {new Date(channelCredentials.meesho.lastSyncedAt).toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Action Buttons */}
-                      <div className="pt-2 flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handleTestMeeshoConnection}
-                          disabled={isTestingApi || isSyncingOrders}
-                          className="flex-1 py-2.5 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] text-xs font-medium shadow-apple-xs active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
-                        >
-                          <Zap className={`w-3.5 h-3.5 ${isTestingApi ? "animate-spin text-[#1D1D1F]" : "text-[#6E6E73]"}`} />
-                          <span>{isTestingApi ? "Testing Connection..." : "Test Connection"}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={handleSyncMeeshoOrders}
-                          disabled={isTestingApi || isSyncingOrders}
-                          className="flex-1 py-2.5 rounded-xl bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium shadow-apple-sm active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncingOrders ? "animate-spin text-white" : "text-white/80"}`} />
-                          <span>{isSyncingOrders ? "Syncing Orders..." : "Save & Sync Orders"}</span>
-                        </button>
-                      </div>
-
-                      <div className="pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setSetupTab("csv")}
-                          className="w-full py-2 rounded-xl bg-transparent hover:bg-black/[0.03] text-[#86868B] hover:text-[#1D1D1F] text-xs font-medium transition cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <span>Prefer statement upload? Switch to CSV file tab</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {setupModalChannel.id === "myntra" && (
-                    <div className="space-y-3.5">
-                      <div>
-                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
-                          Myntra Partner ID (Vendor ID)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. MYN-PARTNER-8891 or Vendor ID"
-                          value={myntraPartnerId}
-                          onChange={(e) => {
-                            setMyntraPartnerId(e.target.value);
-                            setApiTestResult(null);
-                          }}
-                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-[#6E6E73] mb-1">
-                          API Key / Partner Secret
-                        </label>
-                        <input
-                          type="password"
-                          placeholder="Enter Myntra API Key or Partner Secret"
-                          value={myntraApiKey}
-                          onChange={(e) => {
-                            setMyntraApiKey(e.target.value);
-                            setApiTestResult(null);
-                          }}
-                          className="w-full text-xs px-3.5 py-2.5 rounded-xl bg-[#F5F5F7] border border-black/[0.06] focus:border-[#1D1D1F] focus:bg-white outline-none transition-colors"
-                        />
-                      </div>
-
-                      <p className="text-[11px] text-[#86868B]">
-                        Found in Myntra Partner Portal under <strong>Settings &gt; Developer &amp; Omnichannel Access</strong>.
-                      </p>
-
-                      {/* Real Feedback Banner */}
-                      {apiTestResult && (
-                        <div
-                          className={`p-3 rounded-xl text-xs flex items-start gap-2 border ${
-                            apiTestResult.success
-                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800"
-                              : "bg-red-500/10 border-red-500/20 text-red-800"
-                          }`}
-                        >
-                          {apiTestResult.success ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                          ) : (
-                            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                          )}
-                          <div className="leading-relaxed">
-                            <span className="font-semibold">
-                              {apiTestResult.success ? "Connection Verified: " : "Error: "}
-                            </span>
-                            {apiTestResult.message}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Last Synced Info */}
-                      {channelCredentials.myntra?.lastSyncedAt && (
-                        <div className="flex items-center justify-between text-[11px] text-[#86868B] px-1 pt-0.5">
-                          <span>Last synchronized:</span>
-                          <span className="font-medium text-[#1D1D1F] tabular-nums">
-                            {new Date(channelCredentials.myntra.lastSyncedAt).toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Action Buttons */}
-                      <div className="pt-2 flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handleTestMyntraConnection}
-                          disabled={isTestingApi || isSyncingOrders}
-                          className="flex-1 py-2.5 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] border border-black/[0.06] text-xs font-medium shadow-apple-xs active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
-                        >
-                          <Zap className={`w-3.5 h-3.5 ${isTestingApi ? "animate-spin text-[#1D1D1F]" : "text-[#6E6E73]"}`} />
-                          <span>{isTestingApi ? "Testing Connection..." : "Test Connection"}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={handleSyncMyntraOrders}
-                          disabled={isTestingApi || isSyncingOrders}
-                          className="flex-1 py-2.5 rounded-xl bg-[#1D1D1F] hover:bg-black text-white text-xs font-medium shadow-apple-sm active:scale-[0.98] transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${isSyncingOrders ? "animate-spin text-white" : "text-white/80"}`} />
-                          <span>{isSyncingOrders ? "Syncing Orders..." : "Save & Sync Orders"}</span>
-                        </button>
-                      </div>
-
-                      <div className="pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setSetupTab("csv")}
-                          className="w-full py-2 rounded-xl bg-transparent hover:bg-black/[0.03] text-[#86868B] hover:text-[#1D1D1F] text-xs font-medium transition cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <span>Prefer settlement sheet upload? Switch to CSV file tab</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -2655,7 +1641,7 @@ export function WebhookSimulatorView() {
                   <div className="pt-2 text-center">
                     <button
                       onClick={() => {
-                        setSetupModalChannel(null);
+                        closeSetup();
                         setHasOpenedCsv(true);
                         setIsCsvModalOpen(true);
                       }}

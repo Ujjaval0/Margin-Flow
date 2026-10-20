@@ -30,5 +30,5 @@ export async function resolveWebhookConnection(request: Request, channel: string
   const expected = credentials.webhookRoutingKey;
   if (!expected || expected.length !== key.length || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(key))) return null;
   const secret = credentials.webhookSecret || getWebhookSecret(channel as "shopify" | "woocommerce" | "generic");
-  return { id: row.id as string, userId: row.user_id as string, secret };
+  return { id: row.id as string, userId: row.user_id as string, secret, shopDomain: credentials.shopDomain };
 }

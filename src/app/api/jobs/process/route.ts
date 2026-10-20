@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { queueManager } from '@/lib/queue/queue-manager';
 import '@/lib/queue/job-processors';
+import { runIntegrationTasks, seedScheduledSyncs } from '@/lib/integrations/task-queue';
 
 export const maxDuration = 300;
 export async function GET(request: Request) {
@@ -12,9 +13,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   try {
     const deadline = Date.now() + 200_000;
+    await seedScheduledSyncs();
+    const storeTasks = await runIntegrationTasks();
     let processed = 0;
     while (processed < 5 && Date.now() < deadline && await queueManager.runNextJob()) processed++;
-    return NextResponse.json({ success: true, processed }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ success: true, processed, storeTasks }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ success: false, error: 'Queue processing is unavailable.' }, { status: 503 });
   }
