@@ -26,6 +26,9 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ error: "Sign in to update your profile." }, { status: 401 });
 
     const body = await readJsonBody(request, 16 * 1024);
+    if (body.expectedAccountId !== session.sub) {
+      return NextResponse.json({ error: "Your account changed. Reload before editing your profile." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+    }
     const { name, companyName, phone, businessRole, customRole, avatarUrl } = body;
     const avatarWasProvided = Object.prototype.hasOwnProperty.call(body, "avatarUrl");
     if (typeof name !== "string" || !name.trim() || name.trim().length > 200) {
@@ -83,9 +86,9 @@ export async function POST(request: Request) {
     const saved = await query(
       `UPDATE user_accounts
        SET name = $1, company_name = $2, phone = NULLIF($3, ''), updated_at = NOW()
-       WHERE id = $4
+       WHERE id = $4 AND auth_user_id = $5
        RETURNING id, name, company_name, phone, email`,
-      [name.trim(), companyName.trim(), phone.trim(), session.sub]
+      [name.trim(), companyName.trim(), phone.trim(), session.sub, session.sid]
     );
     if (!saved.rows.length) return NextResponse.json({ error: "Account not found." }, { status: 404 });
 

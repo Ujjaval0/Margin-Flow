@@ -40,22 +40,7 @@ import {
   SettlementSummary,
   CustomerComplaint,
   UserAccount,
-  AccountType,
 } from "./types";
-import {
-  INITIAL_PRODUCTS,
-  INITIAL_ORDERS,
-  INITIAL_RETURNS,
-  INITIAL_CLAIMS,
-  INITIAL_SETTLEMENTS,
-  INITIAL_SUPPLIERS,
-  INITIAL_PURCHASES,
-  INITIAL_EXPENSES,
-  INITIAL_AI_DOCUMENTS,
-  INITIAL_AUDIT_LOGS,
-  INITIAL_COMPLAINTS,
-  DEFAULT_ACCOUNTS,
-} from "./mock-data";
 import { runSystemGuardrailDiagnostics, validateDocumentArithmetic } from "./guardrails";
 import {
   calculateBusinessProfitability,
@@ -94,7 +79,6 @@ interface PlatformContextType {
   currentUser: UserAccount;
   verifiedOwnerId: string | null;
   setCurrentUser: (user: UserAccount) => void;
-  switchAccountType: (role: AccountType, supplierId?: string) => void;
 
   // Channel & Date-Range Filter State
   selectedMarketplace: Marketplace | "ALL";
@@ -189,6 +173,18 @@ interface PlatformContextType {
 }
 
 const PlatformContext = createContext<PlatformContextType | null>(null);
+const EMPTY_USER: UserAccount = { id: "", name: "", email: "", accountType: "BRAND_OWNER", companyName: "", authenticatedAt: "" };
+
+// Compatibility mirror for existing onboarding readers; never an identity authority.
+function mirrorVerifiedProfile(user: UserAccount | null) {
+  try {
+    if (!user) localStorage.removeItem("marginflow_session");
+    else {
+      const value = JSON.stringify(user);
+      if (localStorage.getItem("marginflow_session") !== value) localStorage.setItem("marginflow_session", value);
+    }
+  } catch { /* Storage may be disabled; the verified in-memory session still works. */ }
+}
 
 export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [financialRevision,setFinancialRevision]=useState(0);
@@ -207,7 +203,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [aiDocuments, setAiDocuments] = useState<AIStagedDocument[]>([]);
   const [auditLogs, setAuditLogs] = useState<FinancialAuditLog[]>([]);
   const [complaints, setComplaints] = useState<CustomerComplaint[]>([]);
-  const [currentUser, setCurrentUser] = useState<UserAccount>(DEFAULT_ACCOUNTS[0]);
+  const [currentUser, setCurrentUser] = useState<UserAccount>(EMPTY_USER);
   const [acknowledgedLossLeaderSkus, setAcknowledgedLossLeaderSkus] = useState<string[]>([]);
   const [datePreset, setDatePreset] = useState<DateRangePreset>("ALL");
   const [customDateRange, setCustomDateRange] = useState<DateFilterRange | null>(null);
@@ -265,6 +261,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, [applyLedgerChange]);
 
   const clearTenantData = useCallback(() => {
+    setCurrentUser(EMPTY_USER);
     setFinancialRevision(0);setFinancialIssues([]);postedPurchases.current.clear();
     setProducts([]); setOrders([]); setReturns([]); setSettlements([]);
     setClaims([]); setSuppliers([]); setPurchases([]); setSupplierPayments([]); setExpenses([]);
@@ -284,6 +281,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       if (generation !== refreshGeneration.current) return;
       if (!meRes.ok) {
         verifiedOwner.current = null; setCacheOwner(null); clearTenantData();
+        mirrorVerifiedProfile(null);
         return;
       }
       const meData = await meRes.json();
@@ -291,6 +289,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       const ownerId = meData?.user?.id;
       if (typeof ownerId !== "string" || !ownerId) {
         verifiedOwner.current = null; setCacheOwner(null); clearTenantData();
+        mirrorVerifiedProfile(null);
         return;
       }
       identityConfirmed = true;
@@ -315,7 +314,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           if (Array.isArray(data.acknowledgedLossLeaderSkus)) setAcknowledgedLossLeaderSkus(data.acknowledgedLossLeaderSkus);
         }
       }
-      setCurrentUser(previous => ({ ...previous, ...meData.user }));
+      const verifiedProfile: UserAccount = { ...EMPTY_USER, ...meData.user };
+      setCurrentUser(previous => JSON.stringify(previous) === JSON.stringify(verifiedProfile) ? previous : verifiedProfile);
+      mirrorVerifiedProfile(verifiedProfile);
       const ledgerResponse=await fetch('/api/ledger-records',{credentials:'same-origin',cache:'no-store'});
       if(!ledgerResponse.ok) throw Error('Ledger synchronization unavailable.');
       const ledgerJson=await ledgerResponse.json();
@@ -336,7 +337,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     } catch {
       if (generation === refreshGeneration.current) {
         // Fail closed if identity has not been confirmed; never hydrate the unowned legacy cache.
-        if (!identityConfirmed) { verifiedOwner.current = null; setCacheOwner(null); clearTenantData(); }
+        if (!identityConfirmed) { verifiedOwner.current = null; setCacheOwner(null); clearTenantData(); mirrorVerifiedProfile(null); }
         else setFinancialIssues(previous=>Array.from(new Set([...previous,'Server synchronization unavailable; displayed books may be stale.'])));
         console.warn("[PlatformStore] Ledger synchronization unavailable.");
       }
@@ -363,7 +364,10 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         onFocus();
       }
     };
-    const onSessionChanged = () => { void refreshFromDatabase(); };
+    const onSessionChanged = () => {
+      verifiedOwner.current = null; setCacheOwner(null); clearTenantData();
+      void refreshFromDatabase();
+    };
     onFocus();
     window.addEventListener("focus", onFocus);
     window.addEventListener("pageshow", onPageShow);
@@ -376,7 +380,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("marginflow:session-changed", onSessionChanged);
     };
-  }, [refreshFromDatabase]);
+  }, [refreshFromDatabase, clearTenantData]);
   // Debounced synchronization of state mutations to local ledger storage (prevents UI thread freezing)
   useEffect(() => {
     if (!isHydrated || !cacheOwner || verifiedOwner.current !== cacheOwner) return;
@@ -912,24 +916,6 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     await commitFinancialCommand({action:'deleteComplaint',id:ticketId});
   }, [commitFinancialCommand]);
 
-  const switchAccountType = useCallback((role: AccountType, supplierId?: string) => {
-    const matching = DEFAULT_ACCOUNTS.find((a) => a.accountType === role) || {
-      id: `ACC-${Date.now()}`,
-      name: role === "SUPPLIER" ? "Wholesale Supplier" : role === "WHOLESALER" ? "B2B Wholesaler" : "Brand Owner",
-      email: `${role.toLowerCase()}@marginflow.io`,
-      accountType: role,
-      companyName: role === "SUPPLIER" ? "Apex Electronics Mfg Ltd" : role === "WHOLESALER" ? "Metro B2B Wholesalers" : "VoltTech Consumer Electronics",
-      supplierId: supplierId || (role === "SUPPLIER" ? "SUP-001" : undefined),
-      authenticatedAt: new Date().toISOString(),
-    };
-    setCurrentUser(matching);
-    try {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("marginflow_session", JSON.stringify(matching));
-      }
-    } catch {}
-  }, []);
-
   const reportDataset = useMemo(() => ({
     ...currentDataset, financialContext, reportRange: datePreset === 'ALL' ? undefined : dateRanges.current,
   }), [currentDataset, financialContext, datePreset, dateRanges.current]);
@@ -951,7 +937,6 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       currentUser,
       verifiedOwnerId: cacheOwner,
       setCurrentUser,
-      switchAccountType,
       isHydrated,
       isSyncingWithDb,
       refreshFromDatabase,
@@ -1039,7 +1024,6 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       currentUser,
       cacheOwner,
       setCurrentUser,
-      switchAccountType,
       isHydrated,
       isSyncingWithDb,
       refreshFromDatabase,

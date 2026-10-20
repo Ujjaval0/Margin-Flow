@@ -20,7 +20,7 @@ export async function ensureMarginFlowAccount(user: User, preferredAccountType?:
   const authUserId = user.id;
   const email = user.email?.trim().toLowerCase();
 
-  if (!email || !user.email_confirmed_at) {
+  if (typeof authUserId !== "string" || !authUserId || !email || !user.email_confirmed_at) {
     throw new Error("A confirmed Supabase email is required to create a MarginFlow account.");
   }
 
@@ -48,18 +48,22 @@ export async function ensureMarginFlowAccount(user: User, preferredAccountType?:
 
   // Link an existing MarginFlow account only after Supabase has verified the same email.
   const existing = await query(
-    `SELECT id FROM user_accounts WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+    `SELECT id, auth_user_id FROM user_accounts WHERE LOWER(email) = LOWER($1) LIMIT 2`,
     [email]
   );
   if (existing.rows.length) {
+    if (existing.rows.length !== 1 || existing.rows[0].auth_user_id && existing.rows[0].auth_user_id !== authUserId) {
+      throw new Error("This account is already linked to a different verified identity.");
+    }
     const linked = await query(
       `UPDATE user_accounts
        SET auth_user_id = $1, updated_at = NOW()
-       WHERE id = $2
+       WHERE id = $2 AND (auth_user_id IS NULL OR auth_user_id = $1) AND LOWER(email) = LOWER($3)
        RETURNING id, auth_user_id, name, email, account_type, company_name, created_at`,
-      [authUserId, existing.rows[0].id]
+      [authUserId, existing.rows[0].id, email]
     );
     if (linked.rows.length) return { account: linked.rows[0], isNewUser: false };
+    throw new Error("Account identity changed during sign-in. Please retry.");
   }
 
   const created = await query(

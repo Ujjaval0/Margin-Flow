@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import crypto from "crypto";
 import { query } from "@/lib/db";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { OnboardingPreferences } from "@/domain/types";
 
 if (typeof window !== "undefined") {
   throw new Error(
@@ -18,6 +19,8 @@ export interface SessionPayload {
   accountType?: string;
   companyName?: string;
   avatarUrl?: string;
+  onboardingPreferences?: OnboardingPreferences;
+  authenticatedAt?: string;
   workspaceTourPending?: boolean;
   iat: number;
   exp: number;
@@ -67,6 +70,16 @@ export async function getSessionUser(req: NextRequest | Request): Promise<Sessio
         const avatarUrl = userMetadata && typeof userMetadata === "object" && !Array.isArray(userMetadata)
           ? (userMetadata as Record<string, unknown>).avatarUrl
           : undefined;
+        // Display preferences only; authorization continues to use the mapped DB account.
+        const rawPreferences = userMetadata?.onboardingPreferences;
+        let onboardingPreferences: OnboardingPreferences | undefined;
+        if (rawPreferences && typeof rawPreferences === "object" && !Array.isArray(rawPreferences)) {
+          onboardingPreferences = {};
+          for (const key of ["role", "roleLabel", "volume", "completedAt"] as const) {
+            if (typeof rawPreferences[key] === "string") onboardingPreferences[key] = rawPreferences[key];
+          }
+          if (Array.isArray(rawPreferences.channels)) onboardingPreferences.channels = rawPreferences.channels.filter((channel: unknown) => typeof channel === "string");
+        }
         const now = Math.floor(Date.now() / 1000);
         return {
           sid: authUserId,
@@ -76,6 +89,8 @@ export async function getSessionUser(req: NextRequest | Request): Promise<Sessio
           accountType: account.account_type,
           companyName: account.company_name,
           avatarUrl: typeof avatarUrl === "string" && avatarUrl ? avatarUrl : undefined,
+          onboardingPreferences,
+          authenticatedAt: typeof authUser.last_sign_in_at === "string" ? authUser.last_sign_in_at : undefined,
           workspaceTourPending: userMetadata?.workspaceTourPending === true && userMetadata?.workspaceTourSeen !== true,
           phone: account.phone || "",
           iat: now,

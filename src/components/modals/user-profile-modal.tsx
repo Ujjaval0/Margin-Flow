@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   X,
@@ -31,6 +31,9 @@ const ROLE_LABELS: Record<string, string> = {
 export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   const [mounted, setMounted] = useState(false);
   const { currentUser, setCurrentUser } = usePlatform();
+  const activeOwner = useRef(currentUser.id);
+  activeOwner.current = currentUser.id;
+  const [profileOwner, setProfileOwner] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,37 +60,23 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
   useEffect(() => {
     setMounted(true);
-    return () => setMounted(false);
+    return () => { activeOwner.current = ""; setMounted(false); };
   }, []);
 
   // Initialize fields when opening
   useEffect(() => {
     if (!isOpen) return;
 
-    let initialName = currentUser?.name || "E-Commerce";
-    let initialAvatar = currentUser?.avatarUrl || null;
-    let initialCompany = currentUser?.companyName || "";
-    let initialEmail = currentUser?.email || "";
-    let initialPhone = currentUser?.phone || "";
-    let initialRole = currentUser?.onboardingPreferences?.role || "FOUNDER";
-    let initialCustomRole = currentUser?.onboardingPreferences?.roleLabel || "";
+    const initialName = currentUser?.name || "E-Commerce";
+    const initialAvatar = currentUser?.avatarUrl || null;
+    const initialCompany = currentUser?.companyName || "";
+    const initialEmail = currentUser?.email || "";
+    const initialPhone = currentUser?.phone || "";
+    const initialRole = currentUser?.onboardingPreferences?.role || "FOUNDER";
+    const initialCustomRole = currentUser?.onboardingPreferences?.roleLabel || "";
 
-    if (typeof window !== "undefined") {
-      try {
-        const raw = localStorage.getItem("marginflow_session");
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed?.name) initialName = parsed.name;
-          if (parsed?.avatarUrl && !initialAvatar) initialAvatar = parsed.avatarUrl;
-          if (parsed?.companyName) initialCompany = parsed.companyName;
-          if (parsed?.email) initialEmail = parsed.email;
-          if (parsed?.phone !== undefined) initialPhone = parsed.phone || "";
-          if (parsed?.onboardingPreferences?.role) initialRole = parsed.onboardingPreferences.role;
-          if (parsed?.onboardingPreferences?.roleLabel) initialCustomRole = parsed.onboardingPreferences.roleLabel;
-        }
-      } catch {}
-    }
-
+    // The platform identity has been verified by /api/auth/me; browser caches cannot override it.
+    setProfileOwner(currentUser.id);
     setName(initialName);
     setAvatarUrl(initialAvatar);
     setSelectedAvatarFile(null);
@@ -105,6 +94,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
     setLogoutError(null);
     setProfileError(null);
     setProfileNotice(null);
+    setIsSavingProfile(false);
   }, [isOpen, currentUser]);
 
   // Keyboard dismissal on Escape key (Standard invariant)
@@ -123,21 +113,10 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, isEditingName, onClose]);
 
-  // Read local storage session for other profile fields
-  const sessionData = useMemo(() => {
-    if (typeof window === "undefined" || !isOpen) return null;
-    try {
-      const raw = localStorage.getItem("marginflow_session");
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  }, [isOpen]);
+  if (!isOpen || !mounted || !currentUser.id || profileOwner !== currentUser.id) return null;
 
-  if (!isOpen || !mounted) return null;
-
-  const resolvedRawRole = currentUser?.onboardingPreferences?.role || sessionData?.onboardingPreferences?.role || sessionData?.businessRole || "FOUNDER";
-  const resolvedRoleTitle = sessionData?.onboardingPreferences?.roleLabel || ROLE_LABELS[resolvedRawRole] || resolvedRawRole.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+  const resolvedRawRole = currentUser?.onboardingPreferences?.role || "FOUNDER";
+  const resolvedRoleTitle = currentUser?.onboardingPreferences?.roleLabel || ROLE_LABELS[resolvedRawRole] || resolvedRawRole.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
   const profileInputClass = "w-[min(190px,52vw)] rounded-lg border border-black/[0.1] bg-white px-2 py-1.5 text-right text-xs text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20";
 
   // Calculate initials
@@ -186,16 +165,25 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
   // Commit changes to state and storage
   const handleSave = async () => {
+    const ownerId = currentUser.id;
+    const ensureSameOwner = () => {
+      if (!ownerId || activeOwner.current !== ownerId) throw new Error("Your account changed. Reopen your profile before saving.");
+    };
     const cleanName = name.trim() || currentUser?.name || "User";
     setIsSavingProfile(true);
     setProfileError(null);
     setProfileNotice(null);
     try {
+      const identityResponse = await fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
+      const identity = await identityResponse.json();
+      ensureSameOwner();
+      if (!identityResponse.ok || identity.user?.id !== ownerId) throw new Error("Your account changed. Reload before editing your profile.");
       let savedAvatarUrl = avatarUrl;
       if (selectedAvatarFile) {
         const supabase = createSupabaseBrowserClient();
         const { data: authData, error: authError } = await supabase.auth.getUser();
         if (authError || !authData.user) throw new Error("Sign in again before changing your profile photo.");
+        ensureSameOwner();
 
         const objectPath = `${authData.user.id}/avatar`;
         const { error: uploadError } = await supabase.storage
@@ -215,11 +203,13 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         savedAvatarUrl = `${publicUrl}?v=${Date.now()}`;
       }
 
+      ensureSameOwner();
       const response = await fetch("/api/auth/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         body: JSON.stringify({
+          expectedAccountId: ownerId,
           name: cleanName,
           companyName,
           phone: userPhone,
@@ -230,13 +220,13 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       });
       const result = await response.json();
       if (!response.ok || !result.success) throw new Error(result.error || "Profile could not be saved.");
+      ensureSameOwner();
+      if (result.user?.id !== ownerId) throw new Error("Profile identity changed. Reload before continuing.");
 
       const updatedUser = { ...currentUser, ...result.user, avatarUrl: result.user.avatarUrl || undefined };
       setCurrentUser(updatedUser);
       try {
-        const raw = localStorage.getItem("marginflow_session");
-        const currentSession = raw ? JSON.parse(raw) : {};
-        localStorage.setItem("marginflow_session", JSON.stringify({ ...currentSession, ...result.user, avatarUrl: result.user.avatarUrl || undefined }));
+        localStorage.setItem("marginflow_session", JSON.stringify(updatedUser));
       } catch {}
 
       setName(cleanName);
@@ -249,13 +239,14 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       setIsEditingProfile(false);
       initialProfile.current = { name: cleanName, companyName, email: result.user.email || userEmail, phone: userPhone, businessRole, customRole };
       setTimeout(() => {
+        if (activeOwner.current !== ownerId) return;
         setIsSaved(false);
         onClose();
       }, 600);
     } catch (error) {
-      setProfileError(error instanceof Error ? error.message : "Profile could not be saved. Please retry.");
+      if (activeOwner.current === ownerId) setProfileError(error instanceof Error ? error.message : "Profile could not be saved. Please retry.");
     } finally {
-      setIsSavingProfile(false);
+      if (activeOwner.current === ownerId) setIsSavingProfile(false);
     }
   };
 
@@ -455,7 +446,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                   </select>
                   {businessRole === "OTHER" && <input className={profileInputClass} value={customRole} onChange={(e) => { setCustomRole(e.target.value); setHasChanges(true); }} placeholder="Your role" maxLength={100} />}
                 </div>
-              ) : <span className="font-semibold text-[#1D1D1F] text-right truncate max-w-[190px]">{sessionData?.onboardingPreferences?.roleLabel || ROLE_LABELS[resolvedRawRole] || resolvedRoleTitle}</span>}
+              ) : <span className="font-semibold text-[#1D1D1F] text-right truncate max-w-[190px]">{resolvedRoleTitle}</span>}
             </div>
 
             {/* Brand / Company Name */}
