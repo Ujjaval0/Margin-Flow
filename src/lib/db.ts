@@ -1,4 +1,5 @@
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { databaseConnectionOptions } from '@/lib/database-connection';
 declare global {
   // eslint-disable-next-line no-var
   var _postgresPool: Pool | undefined;
@@ -9,7 +10,7 @@ const connectionString = process.env.DATABASE_URL ||
   (process.env.NODE_ENV !== 'production' ? 'postgresql://postgres:postgres@localhost:5432/marginflow_dev' : undefined);
 const postgresPool = global._postgresPool || new Pool({
   // A job transaction and its independent progress/cancellation query need two connections.
-  connectionString, max: process.env.VERCEL === '1' ? 2 : 10, connectionTimeoutMillis: 5000, idleTimeoutMillis: 300000,
+  ...databaseConnectionOptions(connectionString), max: process.env.VERCEL === '1' ? 2 : 10, connectionTimeoutMillis: 5000, idleTimeoutMillis: 300000,
   statement_timeout: 15000, query_timeout: 20000,
 });
 // Reuse warm connections across route bundles as well as development reloads.

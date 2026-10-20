@@ -48,7 +48,7 @@ test('OAuth callback rejects missing authorization codes before accessing Auth o
   });
   const response = await route.GET(new Request('https://app.example/auth/callback'));
   assert.equal(response.status, 307);
-  assert.equal(response.headers.get('location'), 'https://app.example/login');
+  assert.equal(response.headers.get('location'), 'https://app.example/login?error=auth_failed');
 });
 
 test('OAuth callback refuses failed Supabase PKCE exchanges before mapping a merchant', async () => {
@@ -63,7 +63,7 @@ test('OAuth callback refuses failed Supabase PKCE exchanges before mapping a mer
   });
   const response = await route.GET(new Request('https://app.example/auth/callback?code=invalid-code'));
   assert.equal(response.status, 307);
-  assert.equal(response.headers.get('location'), 'https://app.example/login');
+  assert.equal(response.headers.get('location'), 'https://app.example/login?error=auth_failed');
 });
 
 test('invoice extraction refuses unknown providers rather than reusing server keys', async () => {
