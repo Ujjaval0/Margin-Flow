@@ -38,7 +38,13 @@ export default function LoginPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("verified") === "1") {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
+    if (error === "auth_failed") {
+      setErrorMessage("Sign-in could not be completed. Please try again.");
+    } else if (error === "account_setup_failed" || error === "profile_setup_failed") {
+      setErrorMessage("We couldn't open your account. Please try again or contact support.");
+    } else if (params.get("verified") === "1") {
       setAuthMode("signin");
       setSuccessMessage("Email verified. Please sign in.");
     }

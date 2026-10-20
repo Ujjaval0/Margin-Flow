@@ -8,18 +8,22 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("type") === "email" ? url.searchParams.get("token_hash") : null;
-  if (!code && !tokenHash) return NextResponse.redirect(new URL("/login", request.url));
+  if (!code && !tokenHash) return NextResponse.redirect(new URL("/login?error=auth_failed", request.url));
 
+  let failure = "auth_failed";
   try {
     const supabase = await createSupabaseServerClient();
     const { data, error } = tokenHash
       ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "email" })
       : await supabase.auth.exchangeCodeForSession(code!);
-    if (error || !data.user) return NextResponse.redirect(new URL("/login", request.url));
+    if (error) throw error;
+    if (!data.user) return NextResponse.redirect(new URL("/login?error=auth_failed", request.url));
 
+    failure = "account_setup_failed";
     const requestedType = url.searchParams.get("accountType");
     const accountType = requestedType && ACCOUNT_TYPES.has(requestedType) ? requestedType : undefined;
     const { isNewUser } = await ensureMarginFlowAccount(data.user, accountType);
+    failure = "profile_setup_failed";
     if (isNewUser && data.user.user_metadata?.onboardingPending !== true) {
       const { error: metadataError } = await supabase.auth.updateUser({ data: { onboardingPending: true } });
       if (metadataError) throw metadataError;
@@ -37,7 +41,11 @@ export async function GET(request: Request) {
     }
     return NextResponse.redirect(new URL(redirectPath, request.url));
   } catch (error) {
-    console.error("[Auth Callback Error]:", error);
-    return NextResponse.redirect(new URL("/login", request.url));
+    // Log the stage and diagnostic code without credentials, tokens, or account details.
+    const code = error && typeof error === "object" && "code" in error &&
+      typeof error.code === "string" && /^[a-zA-Z0-9_]{1,64}$/.test(error.code)
+      ? error.code : "unknown";
+    console.error("[Auth Callback Error]:", { stage: failure, code });
+    return NextResponse.redirect(new URL(`/login?error=${failure}`, request.url));
   }
 }

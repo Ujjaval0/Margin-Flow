@@ -160,3 +160,28 @@ test('Auth callback verifies email token hashes and preserves the OAuth code flo
   await route.GET(new Request('https://example.test/auth/callback?token_hash=token&type=recovery'));
   assert.equal(calls.length, count, 'unimplemented OTP types are rejected');
 });
+
+test('Auth callback reports the failed stage without exposing provider or database secrets', async t => {
+  const logs = [];
+  t.mock.method(console, 'error', (...args) => logs.push(args));
+  for (const stage of ['auth_failed', 'account_setup_failed', 'profile_setup_failed']) {
+    const failure = Object.assign(new Error('private-password-and-token'), { code: '28P01' });
+    const route = load('src/app/auth/callback/route.ts', {
+      '@/lib/supabase/server': { createSupabaseServerClient: async () => ({ auth: {
+        exchangeCodeForSession: async () => stage === 'auth_failed'
+          ? { data: { user: null }, error: failure }
+          : { data: { user: { id: 'user', user_metadata: {} } }, error: null },
+        updateUser: async () => ({ error: failure }),
+      } }) },
+      '@/lib/auth/supabase-account': { ensureMarginFlowAccount: async () => {
+        if (stage === 'account_setup_failed') throw failure;
+        return { isNewUser: true };
+      } },
+    });
+    const response = await route.GET(new Request('https://example.test/auth/callback?code=private-oauth-code'));
+    assert.equal(response.headers.get('location'), `https://example.test/login?error=${stage}`);
+    assert.equal(logs.at(-1)[1].stage, stage);
+    assert.equal(logs.at(-1)[1].code, '28P01');
+  }
+  assert.doesNotMatch(JSON.stringify(logs), /private-password|private-oauth/);
+});
