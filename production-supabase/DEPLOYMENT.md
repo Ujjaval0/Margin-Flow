@@ -110,6 +110,32 @@ The callback now supports email token hashes as well as OAuth codes, including c
 
 For the existing Google button, configure **Providers → Google** with a Google OAuth client ID/secret. In Google Cloud register the callback shown by Supabase, normally `https://PROJECT_REF.supabase.co/auth/v1/callback`, and configure production consent/test-user restrictions. The app redirect remains `https://YOUR_DOMAIN/auth/callback`. Google secrets belong in Supabase's provider settings.
 
+### Recover missing deployment Auth configuration
+
+If Google shows “Supabase is not configured” and email login fails before authentication, check the environment on the deployment itself. A local `.env.local` file is deliberately ignored by Git and is not uploaded to Vercel.
+
+In the Vercel project serving `margin-flow-u.vercel.app`, open **Settings → Environment Variables** and configure **Production**:
+
+| Variable | Value/source |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Same project URL as the working local environment; must correspond to the production database's Supabase project |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | That project's publishable key or legacy anon key; this variable also works with the currently deployed older code |
+| `NEXT_PUBLIC_SITE_URL` | `https://margin-flow-u.vercel.app` |
+| `APP_ORIGIN` | `https://margin-flow-u.vercel.app` |
+
+The updated code also accepts `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, the newer Supabase convention, consistently in browser, server and session middleware. Use only a public publishable/anon key: server secret and service-role keys must never be assigned to public variables. Production builds on Vercel now reject missing public Auth settings before publishing. Server login diagnostics identify the failing stage without logging credentials or raw SQL errors.
+
+Save variables, then **Deployments → latest Production deployment → Redeploy**. A new build is necessary because Next.js embeds `NEXT_PUBLIC_*` values in browser JavaScript at build time. If an old build remains visible, reload after the replacement deployment is Ready.
+
+In Supabase **Authentication → URL Configuration**, set the Site URL to the same HTTPS origin and allow the exact app callback URL. The current Google flow includes `accountType`, so also allow these exact callbacks where the redirect allowlist requires query-string matching:
+
+- `https://margin-flow-u.vercel.app/auth/callback`
+- `https://margin-flow-u.vercel.app/auth/callback?accountType=BRAND_OWNER`
+- `https://margin-flow-u.vercel.app/auth/callback?accountType=SUPPLIER`
+- `https://margin-flow-u.vercel.app/auth/callback?accountType=WHOLESALER`
+
+Keep the separate email-confirmation redirect described above. Do not replace Google's Supabase callback with the app callback in Google Cloud: they are different legs of the same flow.
+
 The reset deletes app profiles but keeps Auth identities. Existing confirmed users can sign in and get fresh app profiles. Remove disposable test identities separately in Supabase's Auth dashboard if you want a clean customer user list; the SQL here never deletes managed identities. Use two new synthetic users and normal onboarding for acceptance.
 
 References: [redirects](https://supabase.com/docs/guides/auth/redirect-urls), [SSR email confirmation](https://supabase.com/docs/guides/getting-started/tutorials/with-nextjs), [Google login](https://supabase.com/docs/guides/auth/social-login/auth-google).
@@ -124,7 +150,7 @@ After Vercel assigns the stable domain, set these **Production** environment var
 | --- | --- |
 | `DATABASE_URL` | Restricted-role transaction-pooler URI from step 3, with TLS |
 | `NEXT_PUBLIC_SUPABASE_URL` | HTTPS API URL of the same Supabase project |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Publishable/anon key; the existing variable name accepts either format |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public publishable/anon key; either variable is supported by the updated code |
 | `NEXT_PUBLIC_SITE_URL` | Exact canonical HTTPS origin, no trailing slash |
 | `APP_ORIGIN` | Same canonical origin, no trailing slash; used by request-origin checks |
 | `ENCRYPTION_MASTER_KEY` | A second, independent random 32-byte hex value |
