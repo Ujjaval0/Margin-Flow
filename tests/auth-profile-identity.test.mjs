@@ -60,7 +60,7 @@ function nodes(tree) {
   return [tree, ...nodes(tree.props?.children)];
 }
 function button(tree, label) { return nodes(tree).find(node => node.type === 'button' && node.props.children === label); }
-function modalHarness(fetch) {
+function modalHarness(fetch, globals = {}) {
   const h = hooks(), cache = storage(passwordUser), updates = [], listeners = new Map();
   let currentUser = googleUser;
   const { UserProfileModal } = load('src/components/modals/user-profile-modal.tsx', {
@@ -69,7 +69,7 @@ function modalHarness(fetch) {
     '@/domain/store': { usePlatform: () => ({ currentUser, setCurrentUser: user => { updates.push(user); currentUser = user; } }) },
     '@/lib/supabase/browser': { createSupabaseBrowserClient: () => assert.fail('No photo upload expected') },
   }, { fetch, localStorage: cache, document: { body: {} }, setTimeout: () => 1,
-    window: { addEventListener: (key, fn) => listeners.set(key, fn), removeEventListener: key => listeners.delete(key) } });
+    window: { addEventListener: (key, fn) => listeners.set(key, fn), removeEventListener: key => listeners.delete(key) }, ...globals });
   const component = () => UserProfileModal({ isOpen: true, onClose() {} });
   return { cache, updates, render: () => h.render(component), immediate: () => h.renderOnce(component), switchTo: user => { currentUser = user; } };
 }
@@ -92,6 +92,24 @@ test('profile ignores a previous password account cache after Google login', () 
   assert.equal(app.immediate(), null);
   view = JSON.stringify(app.render());
   assert.doesNotMatch(view, /Password Person|password@example.test|Old Role|9999999999|old.png/);
+});
+
+test('an account switch discards a previous account photo read and read error', () => {
+  let reader;
+  const app = modalHarness(() => assert.fail('Selecting a photo must not save it'), {
+    FileReader: class { constructor() { reader = this; } readAsDataURL() {} },
+  });
+  const input = nodes(app.render()).find(node => node.type === 'input' && node.props.type === 'file');
+  input.props.onChange({ target: { files: [{ type: 'image/png', size: 100 }] } });
+  app.switchTo(passwordUser); app.render();
+  reader.onload({ target: { result: 'data:image/png;base64,previous-account-photo' } });
+  let view = JSON.stringify(app.render());
+  assert.doesNotMatch(view, /previous-account-photo|Unsaved changes/);
+  assert.match(view, /old.png/);
+  reader.onerror();
+  view = JSON.stringify(app.render());
+  assert.doesNotMatch(view, /selected photo could not be read/);
+  assert.equal(app.updates.length, 0);
 });
 
 test('an account switch discards an earlier profile save response', async () => {

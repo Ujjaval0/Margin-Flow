@@ -131,6 +131,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
   // Handle Photo Upload
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const ownerId = currentUser.id;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -142,6 +143,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
     const reader = new FileReader();
     reader.onload = (ev) => {
+      if (activeOwner.current !== ownerId) return;
       const result = ev.target?.result as string;
       setAvatarUrl(result);
       setSelectedAvatarFile(file);
@@ -149,7 +151,9 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       setHasChanges(true);
       setProfileError(null);
     };
-    reader.onerror = () => setProfileError("The selected photo could not be read.");
+    reader.onerror = () => {
+      if (activeOwner.current === ownerId) setProfileError("The selected photo could not be read.");
+    };
     reader.readAsDataURL(file);
   };
 
