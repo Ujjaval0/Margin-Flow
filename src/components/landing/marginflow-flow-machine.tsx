@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { MarginFlowProcess } from "./marginflow-process";
 import {
   ShoppingCart,
   FileText,
@@ -16,6 +17,29 @@ export function MarginFlowFlowMachine() {
       id="engine"
       className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-[#fafbfa] text-[#193022] border-t border-[#e2e8e0]"
     >
+      <div className="max-w-7xl mx-auto">
+        {/* Section Heading */}
+        <div className="max-w-2xl mb-10 sm:mb-12">
+          <h2 className="text-3xl sm:text-5xl font-bold tracking-[-0.04em] text-[#193022] leading-[1.05]">
+            Your store’s finances.<br />
+            <span className="font-serif italic font-normal text-[#00872e]">
+              One clear view.
+            </span>
+          </h2>
+          <p className="mt-4 text-base sm:text-lg text-[#5c7062] leading-relaxed">
+            Bring your orders, product costs, returns, and marketplace payouts into one place. Understand your profit, investigate unexpected deductions, and prepare dispute claims for you to submit to the marketplace.
+          </p>
+        </div>
+
+        <MarginFlowProcess />
+      </div>
+    </section>
+  );
+}
+
+export function MarginFlowFlowDiagram() {
+  return (
+    <>
       {/* Scoped CSS for continuous flowing light streams */}
       <style
         dangerouslySetInnerHTML={{
@@ -27,20 +51,6 @@ export function MarginFlowFlowMachine() {
       `,
         }}
       />
-
-      <div className="max-w-7xl mx-auto">
-        {/* Section Heading */}
-        <div className="max-w-2xl mb-10 sm:mb-12">
-          <h2 className="text-3xl sm:text-5xl font-bold tracking-[-0.04em] text-[#193022] leading-[1.05]">
-            Fragmented commerce data.<br />
-            <span className="font-serif italic font-normal text-[#00872e]">
-              One unquestionable financial truth.
-            </span>
-          </h2>
-          <p className="mt-4 text-base sm:text-lg text-[#5c7062] leading-relaxed">
-            Automatically reconcile orders, supplier bills, and bank settlements to catch profit leaks before they hit your P&L.
-          </p>
-        </div>
 
         {/* Compact, Professional Apparatus Card */}
         <div className="rounded-[24px] sm:rounded-[36px] bg-white border border-[#e2e8e0] p-4 sm:p-8 lg:p-10 shadow-[0_12px_36px_rgba(0,0,0,0.03)]">
@@ -257,7 +267,6 @@ export function MarginFlowFlowMachine() {
             </div>
           </div>
         </div>
-      </div>
-    </section>
+    </>
   );
 }

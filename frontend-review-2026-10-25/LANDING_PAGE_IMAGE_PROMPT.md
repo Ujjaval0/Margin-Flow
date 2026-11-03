@@ -1,0 +1,34 @@
+# Landing-page concept generation brief
+
+Generated using the built-in image-generation tool. The selected image is `marginflow-landing-page-concept.png`. This is a visual proposal, not an implemented website. Pricing and policy content require verified business information before implementation.
+
+## Initial generation prompt
+
++Use case: ui-mockup.
+Create ONE high-fidelity full-length desktop landing-page design image for MarginFlow, translating a detailed landing-page improvement plan into a convincing, polished website mockup. This is a separate visual concept, not a diagram about a plan and not a screenshot of the existing site. Portrait canvas approximately 1440 by 3600 pixels, tall scrolling website, straight-on flat UI, no perspective or device frame. Make the typography crisp and the important text legible. Show the complete page from navigation to footer without cutting off sections.
+
+Brand: MarginFlow, financial software for Indian online sellers. Preserve its emerald identity: dark hero #060C09, green #124B20 and #00872E, pale canvas #F6F9F5, white cards, deep-green text #193022. White MarginFlow wordmark in the top-left. Clean geometric sans-serif similar to Inter / Plus Jakarta Sans; occasional restrained serif emphasis. Quiet Apple-inspired precision, generous but efficient whitespace, subtle layered neutral shadows, rounded cards and pill buttons, clear hierarchy, consistent content alignment. Sophisticated and approachable, readable by a non-specialist. Avoid a repeated generic card grid for every section. No decorative photos, stock people, 3D objects, browser chrome, planning annotations, numbered audit callouts, watermarks or fake customer logos.
+
+The page must communicate this story in this exact order:
+
+1. NAVIGATION on the dark hero: MarginFlow on left, links 'How it works', 'Product example', 'Benefits', 'FAQ'; 'Sign in' and primary button 'Create your account' on right.
+
+2. HERO, dark forest-green background with very restrained tonal atmosphere. Two columns, dominant left-aligned copy and a smaller purposeful example-activity panel on right. Audience line 'Financial software for Indian online sellers.' Large headline exactly: 'Understand what you earn from every order.' Supporting text: 'Bring your orders, product costs, returns, and marketplace payouts into one place. Understand your profit, investigate unexpected deductions, and prepare dispute claims.' Primary button 'Create your account'; secondary 'See an example'. Short setup note 'Connect a supported channel or upload your data. Add product costs to understand your margins.' Right panel explicitly titled 'Example activity', never 'Live' or actual connected status. Three readable sample events: 'Payout difference flagged', 'Return shipping cost recorded', 'Claim text prepared'. Small helper 'Illustrative product activity'. A quiet footer line with channel names Amazon India, Flipkart, Meesho, Shopify, WooCommerce; these are supported-channel context, not client endorsements.
+
+3. BENEFITS on a light background with heading 'Know where your money goes.' Three concise benefits with small simple line icons, distinct readable columns rather than giant metric cards: 'Understand order profit' / 'See what remains after product costs and fees.'; 'Check marketplace payouts' / 'Investigate missing payments and unexpected deductions.'; 'Track return losses and claims' / 'Understand return costs and prepare your next action.' No invented percentages or savings claims.
+
+4. PRODUCT EXAMPLE with heading 'See one order, clearly.' A polished white application preview marked 'Sample data'. Tab controls ABOVE content: 'Order profit' (selected), 'Returns', 'Claim preparation', 'Marketplace payouts'. Show a clear horizontal subtraction / breakdown, highly legible: 'Selling price ₹1,499', 'Product cost −₹420', 'Marketplace and shipping fees −₹460', final strong green result 'Contribution profit ₹619'. A concise note exactly 'Illustrative example. Before other business costs and taxes.' Do not label ₹619 bank cash, a deposit, payout or final net profit. Under preview a short plain-language explanation 'Sales, payouts and profit are different. See the costs behind the result.' Make this feel like real software, not a finance infographic.
+
+5. HOW IT WORKS, heading 'From your data to your next decision.' A simple elegant three-step connected layout: '1. Provide your data' / 'Connect a supported channel or upload your records. Add product costs.'; '2. Review the findings' / 'Check order profit, fees, returns and payout differences.'; '3. Take action' / 'Investigate an issue or prepare a claim for you to submit.' Keep every step readable; no complex circuit apparatus, specialist acronyms or instant-processing guarantees. Immediately beneath, a compact understated two-column comparison strip 'Working manually' with 'Compare separate reports' and 'Calculate costs across files', versus 'With MarginFlow' with 'Review linked financial records' and 'Inspect order-level costs'. No quantified timing claims.
+
+6. FAQ, heading 'Clear answers before you start.' Four clean accordion rows, one answer visible. Questions: 'What information do I need?', 'Which channels can I use?', 'Who submits marketplace claims?', 'Does this replace my accountant?' Expand 'Who submits marketplace claims?' with answer 'MarginFlow helps prepare your claim. You review the details and submit it to the marketplace.' Avoid claiming guaranteed recovery, automatic marketplace submission or a publicly accessible live demo.
+
+7. FINAL CTA, restrained dark emerald band. Heading 'Make sense of your marketplace numbers.' Supporting text 'Create your account, then connect a supported channel or upload your data.' One dominant 'Create your account' button. Do not invent prices, free allowances, bank-grade security, card requirements, trial terms, guarantees or testimonials. Commercial details are awaiting verified business information; omit invented pricing content rather than placing internal placeholders in the customer UI.
+
+8. FOOTER, elegant simple layout with MarginFlow wordmark, description 'Profit and payout clarity for online sellers.' Links 'Terms', 'Privacy', 'Support' and 'How it works'. No invented email, address, certification or company legal details.
+
+Ensure the complete composition feels unified and visually appealing, with a strong first screen and a clear reading progression. Prioritize the headline, actions, example labels and arithmetic. The image should be a practical design reference for implementing this plan, not a claim of an already built website.
+
+## Final correction
+
+Preserve the full page and correct only the product example so its arithmetic reads ₹1,499 − ₹420 − ₹460 = ₹619. Remove negative signs embedded inside the two cost values, keeping the subtraction operators between columns. Keep ₹619 labeled contribution profit, with the existing note about other costs and taxes.

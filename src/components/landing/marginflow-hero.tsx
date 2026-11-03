@@ -325,7 +325,7 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
                 disabled={isAuthenticating}
                 className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full bg-[#124b20] hover:bg-[#1b6235] active:scale-95 border border-white/20 backdrop-blur-sm text-white text-sm font-semibold transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_0_24px_rgba(18,75,32,0.4)] cursor-pointer"
               >
-                <span>{isAuthenticating ? "Connecting..." : "Audit Your Last 90 Days"}</span>
+                <span>{isAuthenticating ? "Connecting..." : "Get started free"}</span>
                 <ArrowUpRight className="w-4 h-4" />
               </button>
 
@@ -333,10 +333,13 @@ export function MarginFlowHero({ onSignIn, isAuthenticating }: MarginFlowHeroPro
                 href="#workspace"
                 className="flex items-center justify-center gap-2 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full bg-white/[0.08] hover:bg-white/[0.14] active:scale-95 border border-white/[0.15] text-[#eef5e9] text-sm font-medium transition-all"
               >
-                <span>Explore The Cockpit</span>
+                <span>Preview the dashboard</span>
                 <ArrowUpRight className="w-4 h-4 text-[#8da494]" />
               </Link>
             </div>
+            <p className="text-xs sm:text-sm text-[#9ab1a1]">
+              Free to use. No credit card required.
+            </p>
           </div>
 
           {/* Right Column: Live Settlement Telemetry Apparatus / Live Feed Widget */}

@@ -129,14 +129,6 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
             >
               Results
             </a>
-            <a
-              href="#faq"
-              className={`transition-colors duration-200 ${
-                isFloating ? "hover:text-[#193022]" : "hover:text-[#b6f5cc]"
-              }`}
-            >
-              FAQ
-            </a>
           </nav>
 
           {/* Right Action Buttons */}
@@ -163,8 +155,8 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
                   "Connecting..."
                 ) : (
                   <>
-                    <span className="sm:hidden">Audit Free</span>
-                    <span className="hidden sm:inline">Audit Your Store Free</span>
+                    <span className="sm:hidden">Get started free</span>
+                    <span className="hidden sm:inline">Get started free</span>
                   </>
                 )}
               </span>
@@ -244,15 +236,6 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
             >
               Results
             </a>
-            <a
-              href="#faq"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`transition-colors ${
-                isFloating ? "hover:text-[#193022]" : "hover:text-white"
-              }`}
-            >
-              FAQ
-            </a>
           </div>
 
           <div
@@ -276,7 +259,7 @@ export function MarginFlowNavbar({ onSignIn, isAuthenticating }: MarginFlowNavba
               }}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#124b20] active:scale-95 border border-white/20 backdrop-blur-sm text-white text-xs font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_0_16px_rgba(18,75,32,0.35)]"
             >
-              <span>Audit Your Store Free</span>
+              <span>Get started free</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </button>
           </div>

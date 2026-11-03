@@ -1,0 +1,80 @@
+.process {
+  --process-connector: #8da494;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  color: #193022;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  align-self: flex-start;
+  display: flex;
+  gap: 18px;
+  box-sizing: border-box;
+  width: 62%;
+  min-width: 300px;
+  padding: 16px 20px;
+  border: 1px solid #e2e8e0;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.03);
+}
+
+.right { align-self: flex-end; }
+.manual { background: #f6f9f5; }
+
+.owner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  padding: 14px 0;
+  border-radius: 999px;
+  background: #193022;
+  color: #fff;
+}
+
+.owner span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.manual .owner { background: #00872e; color: #fff; }
+.content { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 2px 6px 2px 0; }
+.heading { display: flex; align-items: center; gap: 12px; }
+.heading h3 { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.3; letter-spacing: -0.025em; }
+.icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; background: #f1f5ee; color: #00872e; }
+.content p { margin: 0; font-size: 15px; line-height: 1.625; color: #5c7062; }
+.example { align-self: flex-start; padding: 6px 12px; border: 1px solid #e2e8e0; border-radius: 999px; background: #f1f5ee; color: #193022; font-size: 13px; font-weight: 600; line-height: normal; }
+
+.connector { position: relative; height: 44px; }
+.firstBend, .secondBend { position: absolute; box-sizing: border-box; width: 19%; }
+.firstBend { left: 31%; top: 0; height: 22px; border-left: 2px dotted var(--process-connector); border-bottom: 2px dotted var(--process-connector); border-bottom-left-radius: 16px; }
+.secondBend { left: 50%; top: 20px; height: 24px; border-top: 2px dotted var(--process-connector); border-right: 2px dotted var(--process-connector); border-top-right-radius: 16px; }
+.connector svg { position: absolute; left: 69%; bottom: 0; margin-left: -7px; color: #00872e; }
+.reverse .firstBend { left: 50%; border-left: 0; border-right: 2px dotted var(--process-connector); border-bottom-left-radius: 0; border-bottom-right-radius: 16px; }
+.reverse .secondBend { left: 31%; border-right: 0; border-left: 2px dotted var(--process-connector); border-top-right-radius: 0; border-top-left-radius: 16px; }
+.reverse svg { left: 31%; margin-left: -5px; }
+
+@media (max-width: 639px) {
+  .card { width: 100%; min-width: 0; gap: 12px; padding: 14px 16px; }
+  .owner { width: 36px; }
+  .heading { gap: 10px; }
+  .heading h3 { font-size: 19px; }
+  .icon { width: 34px; height: 34px; }
+  .connector { height: 28px; }
+  .connector .firstBend { left: 50%; width: 0; height: 22px; border: 0; border-left: 2px dotted var(--process-connector); border-radius: 0; }
+  .connector .secondBend { display: none; }
+  .connector svg { left: 50%; margin-left: -5px; }
+}

@@ -39,39 +39,29 @@ export default function LandingPage() {
 
   const faqs = [
     {
-      question: "How far back can MarginFlow audit past settlements?",
+      question: "What does MarginFlow help me track?",
       answer:
-        "MarginFlow scans your past 90 days of transactions immediately upon statement upload or channel connection, auto-flagging historical return damage leakage, unannounced commission tier increases, and unfiled claim opportunities.",
+        "MarginFlow brings your orders, costs, fees, returns, and settlements together so you can understand your profit.",
     },
     {
-      question: "Does MarginFlow replace Tally, Zoho Books, or my Chartered Accountant?",
+      question: "How do I bring my sales data into MarginFlow?",
       answer:
-        "No. MarginFlow feeds verified, transaction-level net cash, isolated tax withholdings (1% TCS & TDS), and exportable balanced double-entry ledger summaries directly into your accounting workflows, giving your CA audit-ready, balanced books.",
+        "You can connect supported sales channels or upload CSV and Excel reports. Available options depend on your channel.",
     },
     {
-      question: "How does MarginFlow capture product cost basis (COGS) and supplier bills?",
+      question: "Can I track product costs and return losses?",
       answer:
-        "MarginFlow allows you to upload supplier tax invoices into the AI Document Vault. It extracts line items, quantities, and GST using multimodal OCR, verifies arithmetic, and locks historical purchase costs (P1 Guardrail) so supplier price changes never corrupt past order margins.",
+        "Yes. You can record purchase costs, review uploaded supplier invoices, and track customer returns and RTOs, including shipping charges, return fees, and damaged stock losses.",
     },
     {
-      question: "How do you handle Return to Origin (RTO) vs Customer Returns?",
+      question: "How does MarginFlow help me prepare marketplace claims?",
       answer:
-        "MarginFlow isolates RTOs (courier freight costs with zero return fees) from customer returns (handling fees, damaged goods, or swapped units) so you know exactly how returns impact each SKU's contribution margin.",
+        "MarginFlow helps prepare a claim narrative and an evidence checklist. You review the details and submit the claim through your marketplace account.",
     },
     {
-      question: "Which marketplaces and sales channels are supported?",
+      question: "How does MarginFlow make accounting easier?",
       answer:
-        "Native support for Shopify D2C (live webhooks & REST API), WooCommerce, Amazon India (SP-API & MTR statement auto-mapping), Flipkart (SPF & settlement sync), and Meesho (smart statement auto-mapper).",
-    },
-    {
-      question: "Do you automatically file dispute claims with marketplaces?",
-      answer:
-        "Amazon and Flipkart do not provide public APIs to file SAFE-T or SPF claims directly. MarginFlow automatically compiles policy-compliant dispute dossiers with tracking AWBs, unboxing inspection evidence, and calculated loss breakdowns so you can copy the complete narrative or download the evidence packet to submit in Seller Central in under 30 seconds.",
-    },
-    {
-      question: "Is my seller central data secure and read-only?",
-      answer:
-        "Yes. We connect via official read-only APIs and bank-grade encryption. MarginFlow cannot modify listings, alter prices, or move funds.",
+        "MarginFlow organizes your recorded transactions into a ledger and trial balance, helping you and your accountant review income, expenses, and balances.",
     },
   ];
 
@@ -174,14 +164,11 @@ export default function LandingPage() {
               disabled={isAuthenticating}
               className="px-8 py-4 rounded-full bg-[#124b20] hover:bg-[#1b6235] active:scale-95 border border-white/20 backdrop-blur-sm text-white text-sm font-semibold transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_0_28px_rgba(18,75,32,0.4)] cursor-pointer flex items-center gap-2"
             >
-              <span>{isAuthenticating ? "Connecting..." : "Audit Your Store Free"}</span>
+              <span>{isAuthenticating ? "Connecting..." : "Get started free"}</span>
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
 
-          <p className="text-xs text-[#8da494] pt-2">
-            Bank-grade encryption • 100% read-only access • No card required
-          </p>
         </div>
       </section>
 

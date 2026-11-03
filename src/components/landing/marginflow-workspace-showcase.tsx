@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, Clock, Layers, RotateCcw, ShieldCheck, FileCheck, DollarSign } from "lucide-react";
 
 export function MarginFlowWorkspaceShowcase() {
@@ -22,16 +21,6 @@ export function MarginFlowWorkspaceShowcase() {
           <p className="mt-4 text-base sm:text-lg text-[#5c7062] leading-relaxed">
             Real unit economics, reverse logistics RTO tracking, and audit-ready dispute dossiers in one cockpit.
           </p>
-
-          <div className="mt-6">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#193022] hover:bg-black text-white text-xs font-semibold transition-all shadow-sm"
-            >
-              <span>Explore Live Demo</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
         </div>
 
         {/* macOS Style Application Window (Exact MarginFlow structure) */}
@@ -49,14 +38,6 @@ export function MarginFlowWorkspaceShowcase() {
                 MarginFlow Workspace • Financial Cockpit
               </span>
             </div>
-
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-1 text-[11px] text-[#00872e] font-semibold hover:underline shrink-0"
-            >
-              <span>Open in app</span>
-              <ArrowUpRight className="w-3 h-3" />
-            </Link>
           </div>
 
           {/* Dynamic Content Frame based on Active Tab */}
