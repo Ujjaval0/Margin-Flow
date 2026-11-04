@@ -49,7 +49,7 @@ Register the exact callback paths `/api/integrations/amazon/callback`, `/api/int
 
 For processing, choose the existing deployment model:
 
-- Vercel: `MARGINFLOW_JOB_WORKER=0`; requests use `after()` and the authenticated `/api/jobs/process` cron recovers queued work. `vercel.json` now requests a one-minute schedule, which requires a plan supporting that frequency. Vercel Hobby's daily-only cron is insufficient; use a suitable hosting plan or an external authenticated scheduler. No plan purchase or scheduler deployment has been performed.
+- Vercel: `MARGINFLOW_JOB_WORKER=0`. Requests use `after()` and the authenticated `/api/jobs/process` cron recovers queued work. `vercel.json` schedules the cron once daily at midnight UTC to support Vercel Hobby. For frequent queue recovery and store polling, use an external authenticated scheduler or configure a more frequent cron on a plan that supports it.
 - Persistent Node host: `MARGINFLOW_JOB_WORKER=1` enables the durable processing loop in instrumentation. Keep the process supervised and the database reachable.
 
 Jobs claim work with database leases and `SKIP LOCKED`, recover leases after five minutes, and retry up to five attempts with backoff. Safe provider reads retry transient failures; authorization-code/rotating-token exchanges are not replayed automatically. Dense windows divide before posting batches beyond 1,000 orders. Normal order polling runs every 15 minutes after catch-up, with an initial 30-day window and 48-hour overlap. Flipkart additionally reconciles the last 180 days by creation date once daily; older lifecycle changes need an official report or an expanded, deliberately operated reconciliation strategy. Webhooks supplement polling for Shopify/WooCommerce.
